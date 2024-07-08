@@ -1,0 +1,137 @@
+from docx import Document
+
+# Create a new Document
+doc = Document()
+
+# Add a title
+doc.add_heading('Percakapan Booking System', 0)
+
+# Add content
+content = """
+Baik, berikut adalah penjelasan mengenai alur proses booking menggunakan diagram dan struktur menurut controller yang telah kita buat.
+
+### Alur Proses Booking
+
+#### Langkah-langkah:
+1. **Permintaan Booking**:
+    - Pengguna mengirim permintaan booking melalui API dengan informasi seperti `schedule_id`, `total_passengers`, `booking_date`, `agent_id`, `gross_total`, `payment_status`, `contact_info`, `passengers`, `transports`, dan `ticket_id`.
+  
+2. **Mulai Transaksi**:
+    - Sistem memulai transaksi database untuk memastikan semua operasi berjalan secara atomik.
+
+3. **Buat Data Booking**:
+    - Sistem membuat entri baru di tabel `Bookings` dengan data yang diterima.
+  
+4. **Cek dan Perbarui Ketersediaan Kursi**:
+    - Jika `payment_status` adalah `paid`, sistem akan mencari data ketersediaan kursi (`SeatAvailability`) untuk `schedule_id` dan `booking_date`.
+    - Sistem memeriksa apakah kursi yang tersedia mencukupi untuk `total_passengers`.
+    - Jika cukup, sistem memperbarui jumlah kursi yang tersedia dengan mengurangi `total_passengers`.
+  
+5. **Tambahkan Data Penumpang**:
+    - Sistem menambahkan data penumpang (`passengers`) ke tabel `Passengers` yang terkait dengan booking tersebut.
+
+6. **Tambahkan Data Transport**:
+    - Sistem menambahkan data transport (`transports`) ke tabel `TransportBooking` yang terkait dengan booking tersebut.
+  
+7. **Perbarui Metrik Agen (jika ada)**:
+    - Jika ada `agent_id`, sistem akan memperbarui metrik agen (`AgentMetrics`) berdasarkan `gross_total` dan `payment_status`.
+
+8. **Selesaikan Transaksi**:
+    - Sistem menyelesaikan transaksi dan mengembalikan data booking yang berhasil dibuat beserta data transport yang terkait.
+
+### Diagram Alur Proses Booking
+
+Berikut adalah diagram alur proses booking menggunakan controller:
+
+```
++-------------------+                +---------------------+
+|  User             |                |  API                |
++-------------------+                +---------------------+
+           |                                |
+           |   1. Send booking request      |
+           |-------------------------------->|
+           |                                |
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Start Transaction  |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Create Booking     |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Check Seat         |
+           |                        |  Availability       |
+           |                        +---------------------+
+           |                                |
+           |                                |
+           |     Payment status = "paid"    |
+           |<-------------------------------|
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Update Seat        |
+           |                        |  Availability       |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Add Passengers     |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Add Transports     |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Update Agent       |
+           |                        |  Metrics (if any)   |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                        +---------------------+
+           |                        |  Commit Transaction |
+           |                        +---------------------+
+           |                                |
+           |                                v
+           |                                |
+           |   8. Return booking data       |
+           |<--------------------------------|
+           |                                |
+           v                                v
++-------------------+                +---------------------+
+|  Booking Created  |                |  Response to User   |
++-------------------+                +---------------------+
+```
+
+### Struktur Alur Proses Booking
+
+1. **API Endpoint**:
+    - Endpoint menerima permintaan POST untuk membuat booking.
+    - URL: `/api/bookings`
+    - Metode: POST
+    - Body: JSON berisi data booking.
+
+2. **Controller `createBookingWithoutTransit`**:
+    - Menerima data dari API.
+    - Memulai transaksi database.
+    - Membuat entri di tabel `Bookings`.
+    - Jika `payment_status` adalah `paid`, memeriksa dan memperbarui ketersediaan kursi di tabel `SeatAvailability`.
+    - Menambahkan data penumpang ke tabel `Passengers`.
+    - Menambahkan data transport ke tabel `TransportBooking`.
+    - Jika ada `agent_id`, memperbarui metrik agen di tabel `AgentMetrics`.
+    - Menyelesaikan transaksi dan mengembalikan data booking yang berhasil dibuat.
+"""
+
+# Add paragraphs to the document
+for paragraph in content.split('\n'):
+    doc.add_paragraph(paragraph)
+
+# Save the document
+doc.save('/mnt/data/Booking_Process_Documentation.docx')
