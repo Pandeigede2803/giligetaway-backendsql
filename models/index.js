@@ -11,7 +11,7 @@ const Agent = require('./agent');
 const Booking = require('./booking');
 const Passenger = require('./passenger');
 const AgentMetrics = require('./agentMetrics');
-const TransportBooking = require('./transportBooking');
+const TransportBooking = require('./TransportBooking');
 const SeatAvailability = require('./seatAvailability');
 
 const models = {

@@ -1,40 +1,46 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const TransportBooking = sequelize.define('TransportBooking', {
+const Transport = sequelize.define('Transport', {
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
     },
-    booking_id: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: 'Bookings',
-            key: 'id'
-        }
-    },
-    transport_id: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: 'Transports',
-            key: 'id'
-        }
-    },
-    quantity: {
-        type: DataTypes.INTEGER,
+    pickup_area: {
+        type: DataTypes.STRING(100),
         allowNull: false
     },
-    transport_price: { // New field for transport price
+    pickup_time: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    duration: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    check_in_time: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    pickup_time_2: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    check_in_time_2: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    cost: {
         type: DataTypes.DECIMAL(10, 2),
-        allowNull: false
+        allowNull: true
     },
-    transport_type: {
-        type: DataTypes.STRING,
-        allowNull: false
+    interval_time: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     },
-    note: {
-        type: DataTypes.STRING,
+    description: {
+        type: DataTypes.STRING(255),
         allowNull: true
     },
     created_at: {
@@ -46,13 +52,14 @@ const TransportBooking = sequelize.define('TransportBooking', {
         defaultValue: DataTypes.NOW
     }
 }, {
-    tableName: 'TransportBookings',
-    timestamps: true
+    tableName: 'Transports',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
 });
 
-TransportBooking.associate = (models) => {
-    TransportBooking.belongsTo(models.Booking, { foreignKey: 'booking_id' });
-    TransportBooking.belongsTo(models.Transport, { foreignKey: 'transport_id' });
+Transport.associate = (models) => {
+    Transport.hasMany(models.TransportBooking, { foreignKey: 'transport_id' });
 };
 
-module.exports = TransportBooking;
+module.exports = Transport;

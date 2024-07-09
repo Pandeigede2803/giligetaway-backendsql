@@ -24,11 +24,35 @@ const loginUser = async (req, res) => {
         }
         const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
         console.log(`User ${user.name} logged in successfully`);
-        res.status(200).json({ message: 'Login successful', token });
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token, 
+            user: { id: user.id, name: user.name, email: user.email, role: user.role } 
+        });
     } catch (error) {
         res.status(400).json({ message: 'Error logging in', error });
     }
 };
+
+// const changePassword = async (req, res) => {
+//     const { email, oldPassword, newPassword } = req.body;
+//     console.log("Changing password for user:", email);
+//     try {
+//         const user = await User.findOne({ where: { email } });
+//         if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
+//             return res.status(401).json({ message: 'Incorrect email or old password' });
+//         }
+//         const hashedPassword = await bcrypt.hash(newPassword, 10);
+//         user.password = hashedPassword;
+//         await user.save();
+//         console.log("Password changed successfully for user:", email);
+//         res.status(200).json({ message: 'Password changed successfully' });
+//     } catch (error) {
+//         console.log("Error changing password for user:", email, error);
+//         res.status(400).json({ message: 'Error changing password', error });
+//     }
+// };
+
 
 const changePassword = async (req, res) => {
     const { email, oldPassword, newPassword } = req.body;
@@ -38,6 +62,11 @@ const changePassword = async (req, res) => {
         if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
             return res.status(401).json({ message: 'Incorrect email or old password' });
         }
+
+        if (await bcrypt.compare(newPassword, user.password)) {
+            return res.status(400).json({ message: 'New password cannot be the same as the old password' });
+        }
+
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         user.password = hashedPassword;
         await user.save();

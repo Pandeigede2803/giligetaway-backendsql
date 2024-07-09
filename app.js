@@ -10,8 +10,25 @@ const transitRoutes = require('./routes/transit');
 const agentRoutes = require('./routes/agent');
 const bookingRoutes = require('./routes/booking');
 const passengerRoutes = require('./routes/passenger');
+const transportBookingRoutes = require('./routes/transportBookingRoutes'); // Tambahkan ini
+
+
+const cors = require('cors');
 
 const app = express();
+
+// Load environment variables
+// require('dotenv').config();
+
+// Konfigurasi kebijakan CORS
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN, // Menggunakan variabel lingkungan
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+};
+app.use(cors(corsOptions));
+
+
 
 app.use(bodyParser.json());
 // Middleware to parse URL-encoded form data
@@ -29,7 +46,7 @@ app.use('/api/transits', transitRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/passengers', passengerRoutes);
-
+app.use('/api/transport-bookings', transportBookingRoutes);
 const PORT = process.env.PORT || 8000;
 
 sequelize.sync()

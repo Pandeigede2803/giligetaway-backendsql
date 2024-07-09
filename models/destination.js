@@ -1,3 +1,4 @@
+// Sequelize model update
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -12,6 +13,10 @@ const Destination = sequelize.define('Destination', {
         allowNull: false
     },
     port_map_url: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    image_url: {
         type: DataTypes.STRING,
         allowNull: true
     },
