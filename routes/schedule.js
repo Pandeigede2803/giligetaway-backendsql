@@ -3,20 +3,15 @@ const express = require('express');
 const router = express.Router();
 const scheduleController = require('../controllers/scheduleController');
 const authenticate = require('../middleware/authenticate');
-const upload = require('../middleware/upload');
+const { upload,uploadImageToImageKit } = require('../middleware/upload');
+// const upload = require('../middleware/upload');
 
 // CREATE schedule
-router.post('/', authenticate, scheduleController.createSchedule);
+/// CREATE schedule with transits
+router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
+
 
 router.get('/all-details',authenticate, scheduleController.getAllSchedulesWithDetails);
-
-
-
-router.post('/',authenticate,scheduleController.createScheduleWithTransit);
-
-// UPLOAD multiple schedules via CSV
-router.post('/upload', authenticate, upload.single('file'), scheduleController.uploadSchedules);
-
 
 // READ schedules
 router.get('/', authenticate, scheduleController.getSchedules);
@@ -30,7 +25,13 @@ router.put('/:id', authenticate, scheduleController.updateSchedule);
 // DELETE schedule
 router.delete('/:id', authenticate, scheduleController.deleteSchedule);
 
+
+
 module.exports = router;
+
+
+// // UPLOAD multiple schedules via CSV
+// router.post('/upload', authenticate, upload.single('file'), scheduleController.uploadSchedules);
 
 
 // const express = require('express');

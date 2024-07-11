@@ -1,18 +1,121 @@
 // controllers/scheduleController.js
-const { Schedule, User, Boat,Transit, Destination } = require('../models');
+const { Schedule, User, Boat,Transit, Destination,sequelize } = require('../models');
+const { uploadImageToImageKit } = require('../middleware/upload');
 const { Op } = require('sequelize');
 
 // Create a new schedule (existing function)
-const createSchedule = async (req, res) => {
-    try {
-        const schedule = await Schedule.create(req.body);
-        res.status(201).json(schedule);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
 
-//Create
+// Create a new schedule with transits
+// Create a new schedule with transits
+
+
+
+// Create a new schedule with transits
+const createScheduleWithTransit = async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+      const {
+        boat_id,
+        destination_from_id,
+        destination_to_id,
+        user_id,
+        validity_start,
+        validity_end,
+        check_in_time,
+        low_season_price,
+        high_season_price,
+        peak_season_price,
+        return_low_season_price,
+        return_high_season_price,
+        return_peak_season_price,
+        arrival_time,
+        journey_time,
+        transits
+      } = req.body;
+  
+      console.log("Received schedule data:", req.body);
+  
+      // Call the upload middleware to handle image upload
+      await uploadImageToImageKit(req, res, async () => {
+        if (!req.file.url) {
+          throw new Error('Image file is required');
+        }
+  
+        // Create the schedule
+        const schedule = await Schedule.create({
+          boat_id,
+          destination_from_id,
+          destination_to_id,
+          user_id,
+          validity_start,
+          validity_end,
+          check_in_time,
+          low_season_price,
+          high_season_price,
+          peak_season_price,
+          return_low_season_price,
+          return_high_season_price,
+          return_peak_season_price,
+          arrival_time,
+          journey_time,
+          route_image: req.file.url // Use ImageKit URL for route_image
+        }, { transaction: t });
+  
+        console.log("Created schedule:", schedule);
+  
+        // Create the transits
+        const createdTransits = [];
+        if (transits && transits.length > 0) {
+          for (const transit of transits) {
+            const { destination_id, check_in_time, departure_time, arrival_time, journey_time } = transit;
+  
+            console.log("Processing transit:", transit);
+  
+            // Validate destination_id
+            const destination = await Destination.findByPk(destination_id, { transaction: t });
+            if (!destination) {
+              throw new Error(`Destination ID ${destination_id} not found.`);
+            }
+  
+            const createdTransit = await Transit.create({
+              schedule_id: schedule.id,
+              destination_id,
+              check_in_time,
+              departure_time,
+              arrival_time,
+              journey_time
+            }, { transaction: t });
+  
+            console.log("Created transit:", createdTransit);
+  
+            // Include destination details
+            const transitWithDestination = await Transit.findByPk(createdTransit.id, {
+              include: {
+                model: Destination,
+                as: 'Destination'
+              },
+              transaction: t
+            });
+  
+            console.log("Transit with destination details:", transitWithDestination);
+  
+            createdTransits.push(transitWithDestination);
+          }
+        }
+  
+        await t.commit();
+        res.status(201).json({
+          schedule,
+          transits: createdTransits
+        });
+      });
+    } catch (error) {
+      await t.rollback();
+      console.error("Error creating schedule with transits:", error);
+      res.status(400).json({ error: error.message });
+    }
+  };
+  
 // const createScheduleWithTransit = async (req, res) => {
 //     const t = await sequelize.transaction();
 //     try {
@@ -21,7 +124,8 @@ const createSchedule = async (req, res) => {
 //             destination_from_id,
 //             destination_to_id,
 //             user_id,
-//             validity_period,
+//             validity_start,
+//             validity_end,
 //             check_in_time,
 //             low_season_price,
 //             high_season_price,
@@ -41,7 +145,8 @@ const createSchedule = async (req, res) => {
 //             destination_from_id,
 //             destination_to_id,
 //             user_id,
-//             validity_period,
+//             validity_start,
+//             validity_end,
 //             check_in_time,
 //             low_season_price,
 //             high_season_price,
@@ -100,94 +205,16 @@ const createSchedule = async (req, res) => {
 // };
 
 
-const createScheduleWithTransit = async (req, res) => {
-    const t = await sequelize.transaction();
+
+//wihtout transit
+const createSchedule = async (req, res) => {
     try {
-        const {
-            boat_id,
-            destination_from_id,
-            destination_to_id,
-            user_id,
-            validity_start,
-            validity_end,
-            check_in_time,
-            low_season_price,
-            high_season_price,
-            peak_season_price,
-            return_low_season_price,
-            return_high_season_price,
-            return_peak_season_price,
-            arrival_time,
-            journey_time,
-            route_image,
-            transits
-        } = req.body;
-
-        // Create the schedule
-        const schedule = await Schedule.create({
-            boat_id,
-            destination_from_id,
-            destination_to_id,
-            user_id,
-            validity_start,
-            validity_end,
-            check_in_time,
-            low_season_price,
-            high_season_price,
-            peak_season_price,
-            return_low_season_price,
-            return_high_season_price,
-            return_peak_season_price,
-            arrival_time,
-            journey_time,
-            route_image
-        }, { transaction: t });
-
-        // Create the transits
-        const createdTransits = [];
-        if (transits && transits.length > 0) {
-            for (const transit of transits) {
-                const { destination_id, check_in_time, departure_time, arrival_time, journey_time } = transit;
-
-                // Validate destination_id
-                const destination = await Destination.findByPk(destination_id);
-                if (!destination) {
-                    throw new Error(`Destination ID ${destination_id} not found.`);
-                }
-
-                const createdTransit = await Transit.create({
-                    schedule_id: schedule.id,
-                    destination_id,
-                    check_in_time,
-                    departure_time,
-                    arrival_time,
-                    journey_time
-                }, { transaction: t });
-
-                // Include destination details
-                const transitWithDestination = await Transit.findByPk(createdTransit.id, {
-                    include: {
-                        model: Destination,
-                        as: 'Destination'
-                    },
-                    transaction: t
-                });
-
-                createdTransits.push(transitWithDestination);
-            }
-        }
-
-        await t.commit();
-        res.status(201).json({
-            schedule,
-            transits: createdTransits
-        });
+        const schedule = await Schedule.create(req.body);
+        res.status(201).json(schedule);
     } catch (error) {
-        await t.rollback();
         res.status(400).json({ error: error.message });
     }
 };
-
 // Get all schedules (existing function)
 const getSchedules = async (req, res) => {
     try {
