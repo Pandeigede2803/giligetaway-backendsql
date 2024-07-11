@@ -1,4 +1,3 @@
-// Sequelize model update
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -32,5 +31,17 @@ const Destination = sequelize.define('Destination', {
     tableName: 'Destinations',
     timestamps: false
 });
+
+// Define associations
+Destination.associate = (models) => {
+    Destination.hasMany(models.Schedule, {
+        as: 'FromSchedules',
+        foreignKey: 'destination_from_id'
+    });
+    Destination.hasMany(models.Schedule, {
+        as: 'ToSchedules',
+        foreignKey: 'destination_to_id'
+    });
+};
 
 module.exports = Destination;

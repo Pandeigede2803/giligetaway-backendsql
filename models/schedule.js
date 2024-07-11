@@ -35,7 +35,11 @@ const Schedule = sequelize.define('Schedule', {
             key: 'id'
         }
     },
-    validity_period: {
+    validity_start: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    validity_end: {
         type: DataTypes.DATE,
         allowNull: false
     },
@@ -79,21 +83,33 @@ const Schedule = sequelize.define('Schedule', {
         type: DataTypes.STRING,
         allowNull: true
     },
-    available_seats: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     },
     updated_at: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        defaultValue: DataTypes.NOW,
+        onUpdate: DataTypes.NOW
     }
 }, {
     tableName: 'Schedules',
     timestamps: false
 });
+
+// Define associations
+Schedule.associate = (models) => {
+    Schedule.belongsTo(models.Destination, {
+        as: 'FromDestination',
+        foreignKey: 'destination_from_id'
+    });
+    Schedule.belongsTo(models.Destination, {
+        as: 'ToDestination',
+        foreignKey: 'destination_to_id'
+    });
+    Schedule.hasMany(models.Transit, {
+        foreignKey: 'schedule_id'
+    });
+};
 
 module.exports = Schedule;

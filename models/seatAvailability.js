@@ -14,6 +14,14 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
             key: 'id'
         }
     },
+    transit_id: {  // Kolom baru untuk transit_id
+        type: DataTypes.INTEGER,
+        references: {
+            model: 'Transits',
+            key: 'id'
+        },
+        allowNull: true  // Bisa bernilai null
+    },
     available_seats: {
         type: DataTypes.INTEGER,
         allowNull: false
@@ -30,6 +38,9 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
 SeatAvailability.associate = (models) => {
     SeatAvailability.belongsTo(models.Schedule, {
         foreignKey: 'schedule_id'
+    });
+    SeatAvailability.belongsTo(models.Transit, {
+        foreignKey: 'transit_id'
     });
 };
 

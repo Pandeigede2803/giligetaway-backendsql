@@ -1,4 +1,3 @@
-// models/Transit.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -22,9 +21,21 @@ const Transit = sequelize.define('Transit', {
             key: 'id'
         }
     },
-    available_seats: {  // Kolom baru untuk melacak ketersediaan kursi
-        type: DataTypes.INTEGER,
-        allowNull: false
+    check_in_time: {
+        type: DataTypes.TIME,
+        allowNull: true
+    },
+    departure_time: {
+        type: DataTypes.TIME,
+        allowNull: true
+    },
+    arrival_time: {  // Kolom baru untuk arrival_time
+        type: DataTypes.TIME,
+        allowNull: true
+    },
+    journey_time: {
+        type: DataTypes.TIME,
+        allowNull: true
     },
     created_at: {
         type: DataTypes.DATE,
@@ -38,5 +49,18 @@ const Transit = sequelize.define('Transit', {
     tableName: 'Transits',
     timestamps: false
 });
+
+Transit.associate = (models) => {
+    Transit.belongsTo(models.Schedule, {
+        foreignKey: 'schedule_id'
+    });
+    Transit.belongsTo(models.Destination, {
+        as: 'Destination',
+        foreignKey: 'destination_id'
+    });
+    Transit.hasMany(models.SeatAvailability, {
+        foreignKey: 'transit_id'
+    }); 
+};
 
 module.exports = Transit;

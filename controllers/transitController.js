@@ -1,28 +1,58 @@
 // controllers/transitController.js
 const { Transit, Schedule, Destination } = require('../models');
 
+
+
 const createTransit = async (req, res) => {
     try {
-        const { schedule_id, destination_id, available_seats } = req.body;
+        const {
+            schedule_id,
+            destination_id,
+            check_in_time,
+            departure_time,
+            arrival_time,
+            journey_time
+        } = req.body;
+
+        // Log request body
+        console.log('Request Body:', req.body);
 
         // Validasi schedule_id
         const schedule = await Schedule.findByPk(schedule_id);
         if (!schedule) {
+            console.log(`Schedule ID ${schedule_id} not found.`);
             return res.status(400).json({ error: `Schedule ID ${schedule_id} not found.` });
         }
 
         // Validasi destination_id
         const destination = await Destination.findByPk(destination_id);
         if (!destination) {
+            console.log(`Destination ID ${destination_id} not found.`);
             return res.status(400).json({ error: `Destination ID ${destination_id} not found.` });
         }
 
-        const transit = await Transit.create({ schedule_id, destination_id, available_seats });
+        // Membuat entri transit baru
+        const transit = await Transit.create({
+            schedule_id,
+            destination_id,
+            check_in_time,
+            departure_time,
+            arrival_time,
+            journey_time
+        });
+
+        // Log success message
+        console.log('Transit Created:', transit);
+
         res.status(201).json(transit);
     } catch (error) {
+        // Log error
+        console.log('Error:', error.message);
         res.status(400).json({ error: error.message });
     }
 };
+
+
 
 const getAllTransits = async (req, res) => {
     try {
