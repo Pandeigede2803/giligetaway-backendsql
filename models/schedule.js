@@ -112,4 +112,4 @@ Schedule.associate = (models) => {
     });
 };
 
-module.exports = Schedule;
+module.exports = Schedule;;
