@@ -30,8 +30,9 @@ const createScheduleWithTransit = async (req, res) => {
         return_peak_season_price,
         arrival_time,
         journey_time,
-        transits
-      } = req.body;
+        transits,
+        departure_time, // Include the departure_time field
+      } = req.body;;
   
       console.log("Received schedule data:", req.body);
   
@@ -58,6 +59,7 @@ const createScheduleWithTransit = async (req, res) => {
           return_peak_season_price,
           arrival_time,
           journey_time,
+          departure_time, // Include the departure_time field
           route_image: req.file.url // Use ImageKit URL for route_image
         }, { transaction: t });
   
@@ -115,7 +117,7 @@ const createScheduleWithTransit = async (req, res) => {
       res.status(400).json({ error: error.message });
     }
   };
-  
+
 // const createScheduleWithTransit = async (req, res) => {
 //     const t = await sequelize.transaction();
 //     try {
@@ -340,37 +342,99 @@ const getSchedulesByUser = async (req, res) => {
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
-};
+};;
 
-// Update schedule (existing function)
+//update schedule tanpa transit
+// Update schedule tanpa transit dengan middleware upload image
 const updateSchedule = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
-        const schedule = await Schedule.findByPk(req.params.id);
-        if (schedule) {
-            await schedule.update(req.body);
-            res.status(200).json(schedule);
+        const scheduleId = req.params.id;
+        const scheduleData = req.body;
+
+        console.log('Updating schedule with ID:', scheduleId);
+        console.log('Schedule data received:', scheduleData);
+
+        const schedule = await Schedule.findByPk(scheduleId, {
+            transaction: t
+        });
+
+        if (!schedule) {
+            return res.status(404).json({ error: 'Schedule not found' });
+        }
+
+        // Jika ada file, panggil middleware uploadImageToImageKit
+        if (req.file) {
+            await uploadImageToImageKit(req, res, async () => {
+                if (req.file && req.file.url) {
+                    scheduleData.route_image = req.file.url;
+                }
+                // Update schedule
+                await schedule.update(scheduleData, { transaction: t });
+                console.log('Schedule updated with image:', schedule);
+
+                await t.commit();
+                console.log('Transaction committed.');
+                res.status(200).json(schedule);
+            });
         } else {
-            res.status(404).json({ error: 'Schedule not found' });
+            // Update schedule tanpa file
+            await schedule.update(scheduleData, { transaction: t });
+            console.log('Schedule updated without image:', schedule);
+
+            await t.commit();
+            console.log('Transaction committed.');
+            res.status(200).json(schedule);
         }
     } catch (error) {
+        await t.rollback();
+        console.error('Error updating schedule:', error);
         res.status(400).json({ error: error.message });
     }
 };
+
+
+
+
+
 
 // Delete schedule (existing function)
 const deleteSchedule = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
+        console.log(`Attempting to delete schedule with ID: ${req.params.id}`);
+        
         const schedule = await Schedule.findByPk(req.params.id);
-        if (schedule) {
-            await schedule.destroy();
-            res.status(204).json();
-        } else {
-            res.status(404).json({ error: 'Schedule not found' });
+        if (!schedule) {
+            console.log(`Schedule with ID ${req.params.id} not found`);
+            return res.status(404).json({ error: 'Schedule not found' });
         }
+
+        console.log(`Found schedule with ID: ${req.params.id}. Proceeding to delete related transits.`);
+
+        // Delete all related transits
+        await Transit.destroy({
+            where: { schedule_id: schedule.id },
+            transaction: t
+        });
+
+        console.log(`Deleted transits related to schedule with ID: ${req.params.id}. Proceeding to delete the schedule.`);
+
+        // Delete the schedule
+        await schedule.destroy({ transaction: t });
+
+        await t.commit();
+        console.log(`Successfully deleted schedule with ID: ${req.params.id} and related transits.`);
+        return res.status(200).json({ message: `Successfully deleted schedule with ID: ${req.params.id} and all related transits.` });
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        await t.rollback();
+        console.error(`Error deleting schedule with ID: ${req.params.id} and related transits:`, error);
+        return res.status(400).json({ error: error.message });
     }
 };
+
+
+// 
 
 // Upload schedules (existing function)
 const uploadSchedules = async (req, res) => {

@@ -31,6 +31,22 @@ const Transport = sequelize.define('Transport', {
         type: DataTypes.STRING(50),
         allowNull: true
     },
+    pickup_time_3: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    check_in_time_3: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    pickup_time_4: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
+    check_in_time_4: {
+        type: DataTypes.STRING(50),
+        allowNull: true
+    },
     cost: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true

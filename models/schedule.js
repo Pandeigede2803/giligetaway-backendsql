@@ -47,6 +47,10 @@ const Schedule = sequelize.define('Schedule', {
         type: DataTypes.TIME,
         allowNull: false
     },
+    departure_time: {
+        type: DataTypes.TIME,
+        allowNull: false
+    },
     low_season_price: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
@@ -69,6 +73,12 @@ const Schedule = sequelize.define('Schedule', {
     },
     return_peak_season_price: {
         type: DataTypes.DECIMAL(10, 2),
+        allowNull: false
+    },
+
+    availability: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
         allowNull: false
     },
     arrival_time: {
@@ -112,4 +122,4 @@ Schedule.associate = (models) => {
     });
 };
 
-module.exports = Schedule;;
+module.exports = Schedule;

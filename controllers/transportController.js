@@ -69,7 +69,7 @@ const updateTransport = async (req, res) => {
     } catch (error) {
         console.log('Update transport error', error.message);
         res.status(400).json({ error: error.message });
-    }
+    }``
 };
 
 const deleteTransport = async (req, res) => {
