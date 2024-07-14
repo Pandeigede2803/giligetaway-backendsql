@@ -1,5 +1,145 @@
-const { Booking, Schedule,Agent, AgentMetrics, Passenger,TransportBooking,SeatAvailability,sequelize } = require('../models'); // Adjust the path as needed
-//BOOKING TANPA TRANSIT
+
+const { sequelize, Booking, SeatAvailability, Schedule, Passenger, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+
+const createBookingWithoutTransit = async (req, res) => {
+    const {
+        schedule_id, total_passengers, booking_date, passengers, agent_id,
+        gross_total, payment_status, transports, contact_name, contact_phone,
+        contact_passport_id, contact_nationality, contact_email, payment_method,
+        booking_source, adult_passengers, child_passengers, infant_passengers,
+        ticket_id
+    } = req.body;
+
+    try {
+        const result = await sequelize.transaction(async (t) => {
+            console.log('Creating booking...');
+            // Create booking
+            const booking = await Booking.create({
+                schedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
+                contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
+                payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
+                ticket_id
+            }, { transaction: t });
+            console.log('Booking created:', booking);
+
+            let seatAvailability = await SeatAvailability.findOne({
+                where: {
+                    schedule_id,
+                    date: booking_date
+                },
+                transaction: t
+            });
+
+            if (!seatAvailability) {
+                console.log('Seat availability not found, creating new entry...');
+                // Fetch schedule to get initial available seats
+                const schedule = await Schedule.findByPk(schedule_id, {
+                    include: {
+                        model: Boat,
+                        as: 'Boat',
+                        attributes: ['capacity']
+                    },
+                    transaction: t
+                });
+
+                if (!schedule) {
+                    throw new Error(`Schedule with ID ${schedule_id} not found.`);
+                }
+
+                // Create initial seat availability entry using boat capacity
+                seatAvailability = await SeatAvailability.create({
+                    schedule_id,
+                    available_seats: schedule.Boat.capacity,
+                    date: booking_date
+                }, { transaction: t });
+            }
+
+            if (payment_status === 'paid') {
+                console.log('Checking available seats...');
+                if (seatAvailability.available_seats < total_passengers) {
+                    throw new Error('Not enough seats available on the schedule.');
+                }
+
+                console.log('Updating seat availability...');
+                // Update seat availability
+                await seatAvailability.update({ available_seats: seatAvailability.available_seats - total_passengers }, { transaction: t });
+            }
+
+            console.log('Adding passengers in batch...');
+            // Add passengers in batch
+            const passengerData = passengers.map((passenger) => ({
+                booking_id: booking.id,
+                ...passenger
+            }));
+            await Passenger.bulkCreate(passengerData, { transaction: t });
+
+            console.log('Adding transports in batch...');
+            // Add transports in batch
+            const transportData = transports.map((transport) => ({
+                booking_id: booking.id,
+                transport_id: transport.transport_id,
+                quantity: transport.quantity,
+                transport_price: transport.transport_price, // Include transport price
+                transport_type: transport.transport_type,
+                note: transport.note
+            }));
+            await TransportBooking.bulkCreate(transportData, { transaction: t });
+
+            console.log('Updating agent metrics if agent_id is present...');
+            // Update agent metrics if agent_id is present
+            if (agent_id) {
+                const agentMetrics = await AgentMetrics.findOne({ where: { agent_id }, transaction: t });
+
+                if (agentMetrics) {
+                    agentMetrics.total_revenue += parseFloat(gross_total);
+                    agentMetrics.total_bookings += 1;
+                    agentMetrics.total_customers += total_passengers;
+                    if (payment_status === 'pending') {
+                        agentMetrics.pending_payment += parseFloat(gross_total);
+                        agentMetrics.gross_pending_payment += parseFloat(gross_total);
+                    } else if (payment_status === 'paid') {
+                        const agent = await Agent.findByPk(agent_id, { transaction: t });
+                        const commission = parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100;
+                        agentMetrics.outstanding += commission;
+                        agentMetrics.net_profit += commission;
+                    }
+                    await agentMetrics.save({ transaction: t });
+                } else {
+                    const agent = await Agent.findByPk(agent_id, { transaction: t });
+                    const newAgentMetricsData = {
+                        agent_id,
+                        total_revenue: parseFloat(gross_total),
+                        total_bookings: 1,
+                        total_customers: total_passengers,
+                        pending_payment: payment_status === 'pending' ? parseFloat(gross_total) : 0,
+                        gross_pending_payment: payment_status === 'pending' ? parseFloat(gross_total) : 0,
+                        outstanding: payment_status === 'paid' ? parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100 : 0,
+                        net_profit: payment_status === 'paid' ? parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100 : 0
+                    };
+                    await AgentMetrics.create(newAgentMetricsData, { transaction: t });
+                }
+            }
+
+            console.log('Linking booking with seat availability...');
+            // Link booking with seat availability
+            const bookingSeatAvailability = await BookingSeatAvailability.create({
+                booking_id: booking.id,
+                seat_availability_id: seatAvailability.id
+            }, { transaction: t });
+
+            console.log('Returning the created booking along with transport bookings and seat availability...');
+            // Return the created booking along with transport bookings and seat availability
+            const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
+            return { booking, transportBookings, seatAvailability, bookingSeatAvailability };
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        console.log('Error creating booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
 
 
 
@@ -116,131 +256,6 @@ const { Booking, Schedule,Agent, AgentMetrics, Passenger,TransportBooking,SeatAv
 //         res.status(400).json({ error: error.message });
 //     }
 // };
-
-const createBookingWithoutTransit = async (req, res) => {
-    const {
-        schedule_id, total_passengers, booking_date, passengers, agent_id,
-        gross_total, payment_status, transports, contact_name, contact_phone,
-        contact_passport_id, contact_nationality, contact_email, payment_method,
-        booking_source, adult_passengers, child_passengers, infant_passengers,
-        ticket_id
-    } = req.body;
-
-    try {
-        const result = await sequelize.transaction(async (t) => {
-            console.log('Creating booking...');
-            // Create booking
-            const booking = await Booking.create({
-                schedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
-                contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
-                payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
-                ticket_id
-            }, { transaction: t });
-            console.log('Booking created:', booking);
-
-            let seatAvailability = await SeatAvailability.findOne({
-                where: {
-                    schedule_id,
-                    date: booking_date
-                },
-                transaction: t
-            });
-
-            if (!seatAvailability) {
-                console.log('Seat availability not found, creating new entry...');
-                // Fetch schedule to get initial available seats
-                const schedule = await Schedule.findByPk(schedule_id, { transaction: t });
-
-                if (!schedule) {
-                    throw new Error(`Schedule with ID ${schedule_id} not found.`);
-                }
-
-                // Create initial seat availability entry
-                seatAvailability = await SeatAvailability.create({
-                    schedule_id,
-                    available_seats: schedule.available_seats,
-                    date: booking_date
-                }, { transaction: t });
-            }
-
-            if (payment_status === 'paid') {
-                console.log('Checking available seats...');
-                if (seatAvailability.available_seats < total_passengers) {
-                    throw new Error('Not enough seats available on the schedule.');
-                }
-
-                console.log('Updating seat availability...');
-                // Update seat availability
-                await seatAvailability.update({ available_seats: seatAvailability.available_seats - total_passengers }, { transaction: t });
-            }
-
-            console.log('Adding passengers in batch...');
-            // Add passengers in batch
-            const passengerData = passengers.map((passenger) => ({
-                booking_id: booking.id,
-                ...passenger
-            }));
-            await Passenger.bulkCreate(passengerData, { transaction: t });
-
-            console.log('Adding transports in batch...');
-            // Add transports in batch
-            const transportData = transports.map((transport) => ({
-                booking_id: booking.id,
-                transport_id: transport.transport_id,
-                quantity: transport.quantity,
-                transport_price: transport.transport_price, // Include transport price
-                transport_type: transport.transport_type,
-                note: transport.note
-            }));
-            await TransportBooking.bulkCreate(transportData, { transaction: t });
-
-            console.log('Updating agent metrics if agent_id is present...');
-            // Update agent metrics if agent_id is present
-            if (agent_id) {
-                const agentMetrics = await AgentMetrics.findOne({ where: { agent_id }, transaction: t });
-
-                if (agentMetrics) {
-                    agentMetrics.total_revenue += parseFloat(gross_total);
-                    agentMetrics.total_bookings += 1;
-                    agentMetrics.total_customers += total_passengers;
-                    if (payment_status === 'pending') {
-                        agentMetrics.pending_payment += parseFloat(gross_total);
-                        agentMetrics.gross_pending_payment += parseFloat(gross_total);
-                    } else if (payment_status === 'paid') {
-                        const agent = await Agent.findByPk(agent_id, { transaction: t });
-                        const commission = parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100;
-                        agentMetrics.outstanding += commission;
-                        agentMetrics.net_profit += commission;
-                    }
-                    await agentMetrics.save({ transaction: t });
-                } else {
-                    const agent = await Agent.findByPk(agent_id, { transaction: t });
-                    const newAgentMetricsData = {
-                        agent_id,
-                        total_revenue: parseFloat(gross_total),
-                        total_bookings: 1,
-                        total_customers: total_passengers,
-                        pending_payment: payment_status === 'pending' ? parseFloat(gross_total) : 0,
-                        gross_pending_payment: payment_status === 'pending' ? parseFloat(gross_total) : 0,
-                        outstanding: payment_status === 'paid' ? parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100 : 0,
-                        net_profit: payment_status === 'paid' ? parseFloat(gross_total) * parseFloat(agent.commission_rate) / 100 : 0
-                    };
-                    await AgentMetrics.create(newAgentMetricsData, { transaction: t });
-                }
-            }
-
-            console.log('Returning the created booking along with transport bookings...');
-            // Return the created booking along with transport bookings
-            const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
-            return { booking, transportBookings };
-        });
-
-        res.status(201).json(result);
-    } catch (error) {
-        console.log('Error creating booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
 
 
 

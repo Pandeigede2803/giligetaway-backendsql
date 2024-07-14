@@ -105,9 +105,10 @@ const Booking = sequelize.define('Booking', {
 });
 
 // Many-to-many relationship with Transits
+
 Booking.associate = (models) => {
-    Booking.belongsToMany(models.Transit, {
-        through: 'BookingTransits',
+    Booking.belongsToMany(models.SeatAvailability, {
+        through: 'BookingSeatAvailability',
         foreignKey: 'booking_id'
     });
     Booking.belongsTo(models.Schedule, {

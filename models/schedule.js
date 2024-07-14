@@ -109,6 +109,11 @@ const Schedule = sequelize.define('Schedule', {
 
 // Define associations
 Schedule.associate = (models) => {
+
+    Schedule.belongsTo(models.Boat, {
+        foreignKey: 'boat_id',
+        as: 'Boat'
+    });
     Schedule.belongsTo(models.Destination, {
         as: 'FromDestination',
         foreignKey: 'destination_from_id'

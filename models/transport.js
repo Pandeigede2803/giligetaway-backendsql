@@ -12,7 +12,7 @@ const Transport = sequelize.define('Transport', {
         allowNull: false
     },
     pickup_time: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     duration: {
@@ -20,31 +20,31 @@ const Transport = sequelize.define('Transport', {
         allowNull: true
     },
     check_in_time: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     pickup_time_2: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     check_in_time_2: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     pickup_time_3: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     check_in_time_3: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     pickup_time_4: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     check_in_time_4: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.TIME,
         allowNull: true
     },
     cost: {
@@ -56,7 +56,7 @@ const Transport = sequelize.define('Transport', {
         allowNull: true
     },
     description: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.TEXT,
         allowNull: true
     },
     created_at: {

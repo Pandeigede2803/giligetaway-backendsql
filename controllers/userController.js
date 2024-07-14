@@ -34,25 +34,6 @@ const loginUser = async (req, res) => {
     }
 };
 
-// const changePassword = async (req, res) => {
-//     const { email, oldPassword, newPassword } = req.body;
-//     console.log("Changing password for user:", email);
-//     try {
-//         const user = await User.findOne({ where: { email } });
-//         if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
-//             return res.status(401).json({ message: 'Incorrect email or old password' });
-//         }
-//         const hashedPassword = await bcrypt.hash(newPassword, 10);
-//         user.password = hashedPassword;
-//         await user.save();
-//         console.log("Password changed successfully for user:", email);
-//         res.status(200).json({ message: 'Password changed successfully' });
-//     } catch (error) {
-//         console.log("Error changing password for user:", email, error);
-//         res.status(400).json({ message: 'Error changing password', error });
-//     }
-// };
-
 
 const changePassword = async (req, res) => {
     const { email, oldPassword, newPassword } = req.body;
