@@ -8,9 +8,17 @@ const transitController = require('../controllers/transitController');
 
 // const upload = require('../middleware/upload');
 
-// CREATE schedule
+
 /// CREATE schedule with transits
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
+
+//multiple params
+router.get('/schedules/search',authenticate, scheduleController.getSchedulesByMultipleParams);
+
+
+//with transit
+router.get('/with-transits', authenticate, scheduleController.getSchedulesWithTransits);
+
 
 
 router.get('/all-details',authenticate, scheduleController.getAllSchedulesWithDetails);

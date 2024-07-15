@@ -1,14 +1,7 @@
 // controllers/scheduleController.js
-const { Schedule, User, Boat,Transit, Destination,sequelize } = require('../models');
+const { Schedule,SubSchedule, User, Boat,Transit, Destination,sequelize } = require('../models');
 const { uploadImageToImageKit } = require('../middleware/upload');
 const { Op } = require('sequelize');
-
-// Create a new schedule (existing function)
-
-// Create a new schedule with transits
-// Create a new schedule with transits
-
-
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
@@ -118,6 +111,9 @@ const createScheduleWithTransit = async (req, res) => {
     }
   };
 
+
+
+
 // const createScheduleWithTransit = async (req, res) => {
 //     const t = await sequelize.transaction();
 //     try {
@@ -220,7 +216,21 @@ const createSchedule = async (req, res) => {
 // Get all schedules (existing function)
 const getSchedules = async (req, res) => {
     try {
-        const schedules = await Schedule.findAll();
+        const schedules = await Schedule.findAll({
+            attributes: ['id', 'validity_start', 'validity_end'], // Select specific fields from the Schedule
+            include: [
+                {
+                    model: Destination,
+                    as: 'FromDestination', // Ensure this alias matches your model associations
+                    attributes: ['id', 'name'] // Select specific fields from the Destination
+                },
+                {
+                    model: Destination,
+                    as: 'ToDestination', // Ensure this alias matches your model associations
+                    attributes: ['id', 'name'] // Select specific fields from the Destination
+                }
+            ]
+        });
         res.status(200).json(schedules);
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -267,10 +277,113 @@ const getAllSchedulesWithDetails = async (req, res) => {
 };
 
 
+// Get schedules by multiple parameters
+const getSchedulesByMultipleParams = async (req, res) => {
+    const { validity_start, validity_end, from, to, availability } = req.query;
+
+    // Parse availability to a boolean value
+    const availabilityBool = availability === 'true';
+
+    try {
+        const schedules = await Schedule.findAll({
+            where: {
+                validity_start: {
+                    [Op.gte]: validity_start
+                },
+                validity_end: {
+                    [Op.lte]: validity_end
+                },
+                destination_from_id: from,
+                destination_to_id: to
+            },
+            include: [
+                {
+                    model: Destination,
+                    as: 'FromDestination',
+                    attributes: ['id', 'name', 'port_map_url', 'image_url']
+                },
+                {
+                    model: Destination,
+                    as: 'ToDestination',
+                    attributes: ['id', 'name', 'port_map_url', 'image_url']
+                },
+                {
+                    model: Transit,
+                    include: {
+                        model: Destination,
+                        as: 'Destination',
+                        attributes: ['id', 'name', 'port_map_url', 'image_url']
+                    }
+                },
+                {
+                    model: SubSchedule,
+                    where: { availability: availabilityBool },
+                    include: [
+                        {
+                            model: Transit,
+                            as: 'TransitFrom',
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: Transit,
+                            as: 'TransitTo',
+                            attributes: ['id', 'name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        res.status(200).json(schedules);
+    } catch (error) {
+        console.error('Error fetching schedules:', error);
+        res.status(400).json({ error: error.message });
+    }
+};
+const getSchedulesWithTransits = async (req, res) => {
+    try {
+        const schedules = await Schedule.findAll({
+            attributes: ['id', 'validity_start', 'validity_end'], // Select specific fields from the Schedule
+            include: [
+                {
+                    model: Destination,
+                    as: 'FromDestination', // Ensure this alias matches your model associations
+                    attributes: ['id', 'name'] // Select specific fields from the Destination
+                },
+                {
+                    model: Destination,
+                    as: 'ToDestination', // Ensure this alias matches your model associations
+                    attributes: ['id', 'name'] // Select specific fields from the Destination
+                },
+                {
+                    model: Transit,
+                    required: true, // This ensures only schedules with transits are included
+                    attributes: ['id'], // You can include more attributes from Transit if needed
+                }
+            ]
+        });
+        res.status(200).json(schedules);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 // Get schedule by ID (existing function)
 const getScheduleById = async (req, res) => {
     try {
-        const schedule = await Schedule.findByPk(req.params.id);
+        const schedule = await Schedule.findByPk(req.params.id, {
+            include: [
+                {
+                    model: Destination,
+                    as: 'FromDestination', // Make sure this alias matches your model association
+                    attributes: ['id', 'name', 'port_map_url', 'image_url'] // Adjust the attributes as needed
+                },
+                {
+                    model: Destination,
+                    as: 'ToDestination', // Make sure this alias matches your model association
+                    attributes: ['id', 'name', 'port_map_url', 'image_url'] // Adjust the attributes as needed
+                }
+            ]
+        });
         if (schedule) {
             res.status(200).json(schedule);
         } else {
@@ -504,7 +617,7 @@ module.exports = {
     updateSchedule,
     deleteSchedule,
     uploadSchedules,
-    createScheduleWithTransit
+    createScheduleWithTransit,getSchedulesByMultipleParams,getSchedulesWithTransits,
 };
 
 

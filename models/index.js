@@ -13,7 +13,8 @@ const Passenger = require('./passenger');
 const AgentMetrics = require('./agentMetrics');
 const TransportBooking = require('./TransportBooking');
 const SeatAvailability = require('./seatAvailability');
-const BookingSeatAvailability = require('./BookingSeatAvailability'); // Tambahkan model baru
+const BookingSeatAvailability = require('./BookingSeatAvailability');
+const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
 
 const models = {
     User,
@@ -28,7 +29,8 @@ const models = {
     AgentMetrics,
     TransportBooking,
     SeatAvailability,
-    BookingSeatAvailability // Tambahkan model baru
+    BookingSeatAvailability,
+    SubSchedule // Tambahkan model baru
 };
 
 // Associations
@@ -45,8 +47,11 @@ TransportBooking.belongsTo(Transport, { foreignKey: 'transport_id' });
 
 SeatAvailability.belongsTo(Schedule, { foreignKey: 'schedule_id' });
 SeatAvailability.belongsTo(Transit, { foreignKey: 'transit_id' });
+SeatAvailability.belongsTo(SubSchedule, { foreignKey: 'subschedule_id' }); // Tambahkan asosiasi
 Schedule.hasMany(SeatAvailability, { foreignKey: 'schedule_id' });
 Transit.hasMany(SeatAvailability, { foreignKey: 'transit_id' });
+SubSchedule.hasMany(SeatAvailability, { foreignKey: 'subschedule_id' }); // Tambahkan asosiasi
+
 
 Schedule.belongsTo(Destination, { as: 'DestinationFrom', foreignKey: 'destination_from_id' });
 Schedule.belongsTo(Destination, { as: 'DestinationTo', foreignKey: 'destination_to_id' });

@@ -19,8 +19,14 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         references: {
             model: 'Transits',
             key: 'id'
-        },
-        allowNull: true
+        }
+    },
+    subschedule_id: {
+        type: DataTypes.INTEGER,
+        references: {
+            model: 'SubSchedules',
+            key: 'id'
+        }
     },
     available_seats: {
         type: DataTypes.INTEGER,
@@ -29,10 +35,20 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
     date: {
         type: DataTypes.DATEONLY,
         allowNull: false
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    },
+    updated_at: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'SeatAvailability',
-    timestamps: false
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
 });
 
 SeatAvailability.associate = (models) => {
@@ -41,6 +57,9 @@ SeatAvailability.associate = (models) => {
     });
     SeatAvailability.belongsTo(models.Transit, {
         foreignKey: 'transit_id'
+    });
+    SeatAvailability.belongsTo(models.SubSchedule, {
+        foreignKey: 'subschedule_id'
     });
     SeatAvailability.belongsToMany(models.Booking, {
         through: 'BookingSeatAvailability',

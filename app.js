@@ -11,6 +11,7 @@ const agentRoutes = require('./routes/agent');
 const bookingRoutes = require('./routes/booking');
 const passengerRoutes = require('./routes/passenger');
 const transportBookingRoutes = require('./routes/transportBookingRoutes'); // Tambahkan ini
+const subscheduleRoutes = require('./routes/subScheduleRoutes');
 
 
 const cors = require('cors');
@@ -47,6 +48,7 @@ app.use('/api/agents', agentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/passengers', passengerRoutes);
 app.use('/api/transport-bookings', transportBookingRoutes);
+app.use('/api/subschedule',subscheduleRoutes);
 const PORT = process.env.PORT || 8000;
 
 sequelize.sync()

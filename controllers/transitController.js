@@ -53,21 +53,14 @@ const createTransit = async (req, res) => {
 };
 
 
-
 const getAllTransits = async (req, res) => {
     try {
-        const transits = await Transit.findAll();
-        res.status(200).json(transits);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
-
-const getTransitsBySchedule = async (req, res) => {
-    try {
-        const { scheduleId } = req.params;
         const transits = await Transit.findAll({
-            where: { schedule_id: scheduleId }
+            include: [{
+                model: Destination,
+                as: 'Destination',
+                attributes: ['id', 'name', 'port_map_url', 'image_url']
+            }]
         });
         res.status(200).json(transits);
     } catch (error) {
@@ -78,12 +71,37 @@ const getTransitsBySchedule = async (req, res) => {
 const getTransitById = async (req, res) => {
     try {
         const { id } = req.params;
-        const transit = await Transit.findByPk(id);
+        const transit = await Transit.findByPk(id, {
+            include: [{
+                model: Destination,
+                as: 'Destination',
+                attributes: ['id', 'name', 'port_map_url', 'image_url']
+            }]
+        });
         if (transit) {
             res.status(200).json(transit);
         } else {
             res.status(404).json({ error: 'Transit not found' });
         }
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const getTransitsBySchedule = async (req, res) => {
+    try {
+        const { scheduleId } = req.params;
+        const transits = await Transit.findAll({
+            where: { schedule_id: scheduleId },
+            include: [
+                {
+                    model: Destination,
+                    as: 'Destination',
+                    attributes: ['id', 'name', 'port_map_url', 'image_url'] // Include desired attributes
+                }
+            ]
+        });
+        res.status(200).json(transits);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
