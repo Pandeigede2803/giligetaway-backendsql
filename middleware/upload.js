@@ -74,4 +74,4 @@ const uploadImageToImageKit = async (req, res, next) => {
 
 console.log('Modules initialized');
 
-module.exports = { upload, uploadImageToImageKit };
+module.exports = { upload, uploadImageToImageKit };;

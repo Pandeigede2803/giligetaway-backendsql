@@ -14,7 +14,7 @@ const {
 router.post('/',authenticate,upload, createSubSchedule);
 router.get('/', authenticate,getAllSubSchedules);
 router.get('/:id',authenticate, getSubScheduleById);
-router.put('/:id',authenticate,updateSubSchedule);
+router.put('/:id',authenticate,upload,updateSubSchedule);
 router.delete('/:id',authenticate, deleteSubSchedule);
 
 module.exports = router;;

@@ -66,7 +66,7 @@ const getAllTransits = async (req, res) => {
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
-};
+};;
 
 const getTransitById = async (req, res) => {
     try {

@@ -65,6 +65,6 @@ SeatAvailability.associate = (models) => {
         through: 'BookingSeatAvailability',
         foreignKey: 'seat_availability_id'
     });
-};
+};;
 
 module.exports = SeatAvailability;
