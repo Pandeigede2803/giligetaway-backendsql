@@ -1,5 +1,16 @@
 // const { sequelize } = require('../config/database'); // Pastikan jalur impor benar
 const { Agent, AgentMetrics,sequelize } = require('../models'); // Pastikan jalur impor benar
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+
+// Setup your mail transporter
+const transporter = nodemailer.createTransport({
+    service: process.env.EMAIL_SERVICE,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+    }
+});
 
 // Get all agents
 
@@ -160,6 +171,50 @@ exports.deleteAllAgentsAndResetMetrics = async (req, res) => {
         await transaction.rollback();
 
         console.log('Error deleting all agents and resetting metrics:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+
+exports.requestPasswordResetLink = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const agent = await Agent.findOne({ where: { email } });
+        if (!agent) {
+            return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        // Generate a JWT for the reset link
+        const resetToken = jwt.sign(
+            { id: agent.id },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' } // Token expires in 1 hour
+        );
+
+        const resetLink = `http://yourfrontend.com/reset-password/${resetToken}`;
+
+        // Send reset link via email
+        const mailOptions = {
+            from: 'yourEmail@example.com',
+            to: agent.email,
+            subject: 'Password Reset Request',
+            text: `Please click on the following link to reset your password: ${resetLink}`,
+            html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`
+        };
+
+        transporter.sendMail(mailOptions, function(error, info) {
+            if (error) {
+                console.log('Error sending email:', error);
+                return res.status(500).json({ message: 'Error sending reset link' });
+            } else {
+                console.log('Email sent:', info.response);
+                res.status(200).json({ message: 'Reset link sent to your email.' });
+            }
+        });
+
+    } catch (error) {
+        console.error('Error requesting password reset link:', error.message);
         res.status(500).json({ message: error.message });
     }
 };
