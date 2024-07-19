@@ -177,16 +177,7 @@ SubSchedule.associate = (models) => {
         as: 'SeatAvailabilities'
     });
 
-    // New associations
-    // SubSchedule.belongsTo(models.Schedule, {
-    //     foreignKey: 'destination_from_schedule_id',
-    //     as: 'DestinationFromSchedule'
-    // });
-
-    // SubSchedule.belongsTo(models.Schedule, {
-    //     foreignKey: 'destination_to_schedule_id',
-    //     as: 'DestinationToSchedule'
-    // });
+ 
 };
 
 module.exports = SubSchedule;

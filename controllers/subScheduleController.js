@@ -3,110 +3,67 @@ const { uploadImageToImageKit } = require("../middleware/upload");
 const { sequelize } = require("../models");
 const { mapTransitDetails } = require("../util/mapTransitDetails");;
 
+
 const updateSubSchedule = async (req, res) => {
-  const { id } = req.params;
-  const {
-    schedule_id,
-    sub_schedule_name,
-    departure_time,
-    arrival_time,
-    low_season_price,
-    high_season_price,
-    peak_season_price,
-    return_low_season_price,
-    return_high_season_price,
-    return_peak_season_price,
-    validity_start,
-    validity_end,
-    check_in_time,
-    route_image,
-    availability,
-    transit_from_id,
-    transit_to_id,
-    transit_1,
-    transit_2,
-    transit_3,
-    transit_4
-  } = req.body;
-
+  const t = await sequelize.transaction();
   try {
-    console.log(`Updating SubSchedule with ID: ${id}`);
+    const subScheduleId = req.params.id;
+    let subScheduleData = req.body;
 
-    // Mengambil sub-schedule berdasarkan ID
-    const subschedule = await SubSchedule.findByPk(id, {
-      include: [
-        { model: Schedule, as: 'Schedule' },
-        { model: Transit, as: 'TransitFrom' },
-        { model: Transit, as: 'TransitTo' },
-        { model: Transit, as: 'Transit1' },
-        { model: Transit, as: 'Transit2' },
-        { model: Transit, as: 'Transit3' },
-        { model: Transit, as: 'Transit4' },
-      ]
+    console.log('DATA BODY YNG DITERMIMA dan id`:' ,subScheduleId, subScheduleData);
+
+    const subSchedule = await SubSchedule.findByPk(subScheduleId, {
+      transaction: t
     });
 
-    if (!subschedule) {
-      console.log(`SubSchedule with ID: ${id} not found.`);
-      return res.status(404).json({ status: 'error', message: 'SubSchedule not found' });
+    if (!subSchedule) {
+      return res.status(404).json({ error: 'SubSchedule not found' });
     }
 
-    let uploadedImageUrl = route_image;
+    // Convert 'None' strings to null
+    for (let key in subScheduleData) {
+      if (subScheduleData[key] === 'None') {
+        subScheduleData[key] = null;
+      }
+    }
 
+    // Ensure availability is a boolean
+    if (typeof subScheduleData.availability === 'string') {
+      subScheduleData.availability = subScheduleData.availability === 'true';
+    }
+
+    // Log processed data
+    console.log('Processed data:', subScheduleData);
+
+    // If there is a file, call middleware uploadImageToImageKit
     if (req.file) {
-      console.log("Uploading new route image...");
-      const uploadedImage = await uploadImageToImageKit(req.file);
-      uploadedImageUrl = uploadedImage.url;
-      console.log("Image uploaded successfully:", uploadedImageUrl);
+      await uploadImageToImageKit(req, res, async () => {
+        if (req.file && req.file.url) {
+          subScheduleData.route_image = req.file.url;
+        }
+        // Update schedule
+        await subSchedule.update(subScheduleData, { transaction: t });
+        console.log('SubSchedule updated with image:', subSchedule);
+
+        await t.commit();
+        console.log('Transaction committed.');
+        res.status(200).json(subSchedule);
+      });;
+    } else {
+      // Update schedule without file
+      await subSchedule.update(subScheduleData, { transaction: t });
+      console.log('SubSchedule updated without image:', subSchedule);
+
+      await t.commit();
+      console.log('Transaction committed.');
+      res.status(200).json(subSchedule);;
     }
-
-    // Build the update object dynamically
-    const updateFields = {};
-
-    if (schedule_id !== undefined) updateFields.schedule_id = schedule_id;
-    if (sub_schedule_name !== undefined) updateFields.sub_schedule_name = sub_schedule_name;
-    if (departure_time !== undefined) updateFields.departure_time = departure_time;
-    if (arrival_time !== undefined) updateFields.arrival_time = arrival_time;
-    if (low_season_price !== undefined) updateFields.low_season_price = low_season_price;
-    if (high_season_price !== undefined) updateFields.high_season_price = high_season_price;
-    if (peak_season_price !== undefined) updateFields.peak_season_price = peak_season_price;
-    if (return_low_season_price !== undefined) updateFields.return_low_season_price = return_low_season_price;
-    if (return_high_season_price !== undefined) updateFields.return_high_season_price = return_high_season_price;
-    if (return_peak_season_price !== undefined) updateFields.return_peak_season_price = return_peak_season_price;
-    if (validity_start !== undefined) updateFields.validity_start = validity_start;
-    if (validity_end !== undefined) updateFields.validity_end = validity_end;
-    if (check_in_time !== undefined) updateFields.check_in_time = check_in_time;
-    if (uploadedImageUrl !== undefined) updateFields.route_image = uploadedImageUrl;
-    if (availability !== undefined) updateFields.availability = availability;
-    if (transit_from_id !== undefined) updateFields.transit_from_id = transit_from_id;
-    if (transit_to_id !== undefined) updateFields.transit_to_id = transit_to_id;
-    if (transit_1 !== undefined) updateFields.transit_1 = transit_1;
-    if (transit_2 !== undefined) updateFields.transit_2 = transit_2;
-    if (transit_3 !== undefined) updateFields.transit_3 = transit_3;
-    if (transit_4 !== undefined) updateFields.transit_4 = transit_4;
-
-    await subschedule.update(updateFields);
-
-    console.log(`SubSchedule with ID: ${id} updated successfully.`);;``
-    const updatedSubSchedule = await SubSchedule.findByPk(id, {
-      include: [
-        { model: Schedule, as: 'Schedule' },
-        { model: Transit, as: 'TransitFrom' },
-        { model: Transit, as: 'TransitTo' },
-        { model: Transit, as: 'Transit1' },
-        { model: Transit, as: 'Transit2' },
-        { model: Transit, as: 'Transit3' },
-        { model: Transit, as: 'Transit4' },
-      ]
-    });
-    console.log("Updated SubSchedule data:", updatedSubSchedule);
-    return res.status(200).json({ status: 'success', data: updatedSubSchedule });
-
   } catch (error) {
-    console.error("Error updating SubSchedule:", error.message);
-    return res.status(500).json({ status: 'error', message: error.message });
+    await t.rollback();
+    console.error('Error updating subSchedule:', error);
+    res.status(400).json({ error: error.message });
   }
 };
-
 
 
 const getAllSubSchedules = async (req, res) => {
@@ -243,16 +200,88 @@ const getAllSubSchedules = async (req, res) => {
       ],
     });
 
-    res.status(200).json(subSchedules);
+    const result = subSchedules.map(subSchedule => {
+      const transits = [1, 2, 3, 4].reduce((acc, i) => {
+        const transit = subSchedule[`Transit${i}`];
+        if (transit) {
+          acc[`transit_${i}`] = {
+            id: transit.id,
+            check_in_time: transit.check_in_time,
+            arrival_time: transit.arrival_time,
+            journey_time: transit.journey_time,
+            departure_time: transit.departure_time,
+            destination_id: transit.destination_id,
+            destination_name: transit.Destination.name,
+          };
+        } else {
+          acc[`transit_${i}`] = null;
+        }
+        return acc;
+      }, {});
+
+      const schedule = subSchedule.Schedule;
+      const scheduleData = {
+        ...schedule.toJSON(),
+        destination_from: schedule.DestinationFrom ? {
+          id: schedule.DestinationFrom.id,
+          name: schedule.DestinationFrom.name,
+        } : null,
+        destination_to: schedule.DestinationTo ? {
+          id: schedule.DestinationTo.id,
+          name: schedule.DestinationTo.name,
+        } : null,
+      };
+
+      delete scheduleData.DestinationFrom;
+      delete scheduleData.DestinationTo;
+
+      const subScheduleJSON = subSchedule.toJSON();
+      delete subScheduleJSON.Transit1;
+      delete subScheduleJSON.Transit2;
+      delete subScheduleJSON.Transit3;
+      delete subScheduleJSON.Transit4;
+      delete subScheduleJSON.Schedule;
+
+      return {
+        ...subScheduleJSON,
+        destination_from_schedule_id: subScheduleJSON.destination_from_schedule_id ? {
+          id: subScheduleJSON.destination_from_schedule_id,
+          name: scheduleData.destination_from ? scheduleData.destination_from.name : null,
+        } : null,
+        destination_to_schedule_id: subScheduleJSON.destination_to_schedule_id ? {
+          id: subScheduleJSON.destination_to_schedule_id,
+          name: scheduleData.destination_to ? scheduleData.destination_to.name : null,
+        } : null,
+        Schedule: scheduleData,
+        transit_from_id: subScheduleJSON.transit_from_id ? {
+          id: subScheduleJSON.transit_from_id,
+          check_in_time: subSchedule.TransitFrom?.check_in_time || null,
+          arrival_time: subSchedule.TransitFrom?.arrival_time || null,
+          journey_time: subSchedule.TransitFrom?.journey_time || null,
+          departure_time: subSchedule.TransitFrom?.departure_time || null,
+          destination_id: subSchedule.TransitFrom?.destination_id || null,
+          destination_name: subSchedule.TransitFrom?.Destination?.name || null,
+        } : null,
+        transit_to_id: subScheduleJSON.transit_to_id ? {
+          id: subScheduleJSON.transit_to_id,
+          check_in_time: subSchedule.TransitTo?.check_in_time || null,
+          arrival_time: subSchedule.TransitTo?.arrival_time || null,
+          journey_time: subSchedule.TransitTo?.journey_time || null,
+          departure_time: subSchedule.TransitTo?.departure_time || null,
+          destination_id: subSchedule.TransitTo?.destination_id || null,
+          destination_name: subSchedule.TransitTo?.Destination?.name || null,
+        } : null,
+        ...transits
+      };
+    });
+
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching sub schedules:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while fetching sub schedules" });
+    res.status(500).json({ error: "An error occurred while fetching sub schedules" });
   }
 };
 
-;
 
 const createSubSchedule = async (req, res, next) => {
   const t = await sequelize.transaction();
@@ -333,14 +362,163 @@ const getSubScheduleById = async (req, res) => {
 
   try {
     const subschedule = await SubSchedule.findByPk(id, {
-      include: [{ model: Schedule, as: "Schedule" }],
+      include: [
+        {
+          model: Schedule,
+          as: "Schedule",
+          attributes: [
+            "id",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+            "departure_time",
+            "destination_from_id",
+            "destination_to_id",
+          ],
+          include: [
+            {
+              model: Destination,
+              as: "DestinationFrom",
+              attributes: ["id", "name"],
+            },
+            {
+              model: Destination,
+              as: "DestinationTo",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: Transit,
+          as: "Transit1",
+          attributes: [
+            "id",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+            "departure_time",
+            "destination_id",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit2",
+          attributes: [
+            "id",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+            "departure_time",
+            "destination_id",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit3",
+          attributes: [
+            "id",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+            "departure_time",
+            "destination_id",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit4",
+          attributes: [
+            "id",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+            "departure_time",
+            "destination_id",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["name"],
+          },
+        },
+      ],
     });
 
     if (!subschedule) {
       return res.status(404).json({ error: "Subschedule not found" });
     }
 
-    res.status(200).json(subschedule);
+    const transits = [1, 2, 3, 4].reduce((acc, i) => {
+      const transit = subschedule[`Transit${i}`];
+      if (transit) {
+        acc[`transit_${i}`] = {
+          id: transit.id,
+          check_in_time: transit.check_in_time,
+          arrival_time: transit.arrival_time,
+          journey_time: transit.journey_time,
+          departure_time: transit.departure_time,
+          destination_id: transit.destination_id,
+          destination_name: transit.Destination.name,
+        };
+      } else {
+        acc[`transit_${i}`] = null;
+      }
+      return acc;
+    }, {});
+
+    const schedule = subschedule.Schedule;
+    const scheduleData = {
+      ...schedule.toJSON(),
+      destination_from: schedule.DestinationFrom ? {
+        id: schedule.DestinationFrom.id,
+        name: schedule.DestinationFrom.name,
+      } : null,
+      destination_to: schedule.DestinationTo ? {
+        id: schedule.DestinationTo.id,
+        name: schedule.DestinationTo.name,
+      } : null,
+    };
+
+    delete scheduleData.DestinationFrom;
+    delete scheduleData.DestinationTo;
+
+    const subscheduleJSON = subschedule.toJSON();
+    delete subscheduleJSON.Transit1;
+    delete subscheduleJSON.Transit2;
+    delete subscheduleJSON.Transit3;
+    delete subscheduleJSON.Transit4;
+    delete subscheduleJSON.Schedule;
+
+    const result = {
+      ...subscheduleJSON,
+      destination_from_schedule_id: subscheduleJSON.destination_from_schedule_id ? {
+        id: subscheduleJSON.destination_from_schedule_id,
+        name: scheduleData.destination_from ? scheduleData.destination_from.name : null,
+      } : null,
+      destination_to_schedule_id: subscheduleJSON.destination_to_schedule_id ? {
+        id: subscheduleJSON.destination_to_schedule_id,
+        name: scheduleData.destination_to ? scheduleData.destination_to.name : null,
+      } : null,
+      Schedule: scheduleData,
+      ...transits
+    };
+
+    res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching subschedule:", error.message);
     res.status(500).json({ error: error.message });

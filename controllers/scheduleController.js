@@ -24,6 +24,7 @@ const createScheduleWithTransit = async (req, res) => {
         arrival_time,
         journey_time,
         transits,
+        schedule_type,
         departure_time, // Include the departure_time field
       } = req.body;;
   
@@ -52,6 +53,7 @@ const createScheduleWithTransit = async (req, res) => {
           return_peak_season_price,
           arrival_time,
           journey_time,
+          schedule_type,
           departure_time, // Include the departure_time field
           route_image: req.file.url // Use ImageKit URL for route_image
         }, { transaction: t });
@@ -332,7 +334,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
                     ]
                 }
             ]
-        });
+        });;
 
         res.status(200).json(schedules);
     } catch (error) {
@@ -370,29 +372,108 @@ const getSchedulesWithTransits = async (req, res) => {
 // Get schedule by ID (existing function)
 const getScheduleById = async (req, res) => {
     try {
-        const schedule = await Schedule.findByPk(req.params.id, {
+      const schedule = await Schedule.findByPk(req.params.id, {
+        include: [
+          {
+            model: Destination,
+            as: 'DestinationFrom', // Pastikan alias ini sesuai dengan asosiasi model Anda
+            attributes: ['id', 'name', 'port_map_url', 'image_url']
+          },
+          {
+            model: Destination,
+            as: 'DestinationTo', // Pastikan alias ini sesuai dengan asosiasi model Anda
+            attributes: ['id', 'name', 'port_map_url', 'image_url']
+          },
+          {
+            model: Transit,
+            include: {
+                model: Destination,
+                as: 'Destination',
+                attributes: ['id', 'name', 'port_map_url', 'image_url']
+            }
+        },
+          
+          {
+            model: SubSchedule,
+            as: 'SubSchedules',
             include: [
-                {
-                    model: Destination,
-                    as: 'FromDestination', // Make sure this alias matches your model association
-                    attributes: ['id', 'name', 'port_map_url', 'image_url'] // Adjust the attributes as needed
-                },
-                {
-                    model: Destination,
-                    as: 'ToDestination', // Make sure this alias matches your model association
-                    attributes: ['id', 'name', 'port_map_url', 'image_url'] // Adjust the attributes as needed
+              {
+                model: Transit,
+                as: 'TransitFrom',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
                 }
+              },
+              {
+                model: Transit,
+                as: 'TransitTo',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
+                }
+              },
+              {
+                model: Transit,
+                as: 'Transit1',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
+                }
+              },
+              {
+                model: Transit,
+                as: 'Transit2',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
+                }
+              },
+              {
+                model: Transit,
+                as: 'Transit3',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
+                }
+              },
+              {
+                model: Transit,
+                as: 'Transit4',
+                attributes: ['id'],
+                include: {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['id', 'name']
+                }
+              }
             ]
-        });
-        if (schedule) {
-            res.status(200).json(schedule);
-        } else {
-            res.status(404).json({ error: 'Schedule not found' });
-        }
+          }
+        ]
+      });
+  
+      if (schedule) {
+        res.status(200).json(schedule);
+      } else {
+        res.status(404).json({ error: 'Schedule not found' });
+      }
     } catch (error) {
-        res.status(400).json({ error: error.message });
+      res.status(400).json({ error: error.message });
     }
-};
+  };
+  ;
+  module.exports = { getScheduleById };
+
 
 // Get schedules by destination
 const getSchedulesByDestination = async (req, res) => {
@@ -465,8 +546,8 @@ const updateSchedule = async (req, res) => {
         const scheduleId = req.params.id;
         const scheduleData = req.body;
 
-        console.log('Updating schedule with ID:', scheduleId);
-        console.log('Schedule data received:', scheduleData);
+   
+        console.log('DATA BODY YNG DITERMIMA`:', scheduleData);
 
         const schedule = await Schedule.findByPk(scheduleId, {
             transaction: t

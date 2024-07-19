@@ -93,6 +93,10 @@ const Schedule = sequelize.define('Schedule', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    schedule_type: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
@@ -125,6 +129,13 @@ Schedule.associate = (models) => {
     Schedule.hasMany(models.Transit, {
         foreignKey: 'schedule_id'
     });
+    Schedule.hasMany(models.SubSchedule, {
+        foreignKey: 'schedule_id',
+        as: 'SubSchedules'
+    });
+
+
+    
 };
 
 module.exports = Schedule;

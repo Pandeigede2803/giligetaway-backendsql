@@ -2,6 +2,27 @@
 const { Agent, AgentMetrics,sequelize } = require('../models'); // Pastikan jalur impor benar
 
 // Get all agents
+
+// Login Route
+exports.loginAgent = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const agent = await Agent.findOne({ where: { email } });
+        if (!agent) {
+            return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        if (agent.password !== password) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        res.status(200).json({ message: 'Login successful', agent: agent.dataValues });
+    } catch (error) {
+        console.error('Error during agent login:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.getAllAgents = async (req, res) => {
     try {
         const agents = await Agent.findAll();
