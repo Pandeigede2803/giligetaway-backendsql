@@ -25,5 +25,11 @@ router.post('/login', agentController.loginAgent);
 // DELETE agent
 router.delete('/:id', authenticate, agentController.deleteAgent);
 
+// Route to request a password reset link
+router.post('/request-password-reset', agentController.requestPasswordResetLink);
+
+// Route to reset the password using the token
+router.post('/reset-password',authenticate, agentController.resetPasswordWithToken);
+
 
 module.exports = router;

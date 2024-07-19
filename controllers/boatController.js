@@ -1,5 +1,5 @@
 // controllers/boatController.js
-const { Boat } = require('../models');
+const Boat = require('../models/boat');
 
 const createBoat = async (req, res) => {
     try {

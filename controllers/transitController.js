@@ -108,65 +108,72 @@ const getTransitsBySchedule = async (req, res) => {
 };
 
 const updateTransit = async (req, res) => {
-    const t = await sequelize.transaction();
+    const transaction = await sequelize.transaction(); // Start transaction
     try {
-        const scheduleId = req.params.scheduleId;
-        const transits = req.body.transits;
+        const { id } = req.params;
+        const {
+            destination_id,
+            check_in_time,
+            departure_time,
+            arrival_time,
+            journey_time,
+            schedule_id // Add schedule_id to destructuring
+        } = req.body;
 
-        console.log('Updating transits for schedule with ID:', scheduleId);
-        console.log('Transits data received:', transits);
+        console.log(`Updating transit with ID: ${id}`);
+        console.log("req body", req.body)
 
-        const schedule = await Schedule.findByPk(scheduleId, {
-            include: [Transit],
-            transaction: t
-        });
+        let transit;
 
-        if (!schedule) {
-            return res.status(404).json({ error: 'Schedule not found' });
-        }
-
-        // Delete existing transits
-        await Transit.destroy({
-            where: { schedule_id: schedule.id },
-            transaction: t
-        });
-        console.log('Existing transits deleted for schedule ID:', schedule.id);
-
-        // Create new transits
-        const newTransits = [];
-        for (const transit of transits) {
-            const { destination_id, check_in_time, departure_time, arrival_time, journey_time } = transit;
-
-            // Validate destination_id
-            const destination = await Destination.findByPk(destination_id, { transaction: t });
-            if (!destination) {
-                throw new Error(`Destination ID ${destination_id} not found.`);
-            }
-
-            const newTransit = await Transit.create({
-                schedule_id: schedule.id,
+        if (id === "new") {
+            // Create a new transit
+            transit = await Transit.create({
                 destination_id,
                 check_in_time,
                 departure_time,
                 arrival_time,
-                journey_time
-            }, { transaction: t });
-            console.log('Transit created:', newTransit);
+                journey_time,
+                schedule_id // Include schedule_id in the creation
+            }, { transaction });
+            console.log('Created new transit:', transit);
+        } else {
+            // Find the existing transit
+            transit = await Transit.findByPk(id, { transaction });
+            if (!transit) {
+                await transaction.rollback(); // Rollback if not found
+                console.error('Transit not found');
+                return res.status(404).json({ error: 'Transit not found' });
+            }
 
-            newTransits.push(newTransit);
+            // Validation (Destination only):
+            if (destination_id) { // Check if destination_id was provided
+                const destination = await Destination.findByPk(destination_id, { transaction });
+                if (!destination) {
+                    await transaction.rollback(); // Rollback if invalid destination
+                    console.error(`Destination ID ${destination_id} not found.`);
+                    return res.status(400).json({ error: `Destination ID ${destination_id} not found.` });
+                }
+            }
+
+            // Update the transit
+            await transit.update({
+                destination_id, // Only update destination_id if provided
+                check_in_time,
+                departure_time,
+                arrival_time,
+                journey_time
+            }, { transaction });
+            console.log('Updated transit:', transit);
         }
 
-        await t.commit();
-        console.log('Transaction committed.');
-        res.status(200).json({ message: 'Transits updated successfully', transits: newTransits });
+        await transaction.commit(); // Commit changes
+        res.status(200).json(transit);
     } catch (error) {
-        await t.rollback();
-        console.error('Error updating transits:', error);
+        await transaction.rollback(); // Rollback on error
+        console.error('Error updating transit:', error);
         res.status(400).json({ error: error.message });
     }
 };
-
-
 
 
 
@@ -193,4 +200,3 @@ module.exports = {
     updateTransit,
     deleteTransit
 };
-

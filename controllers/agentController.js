@@ -2,6 +2,7 @@
 const { Agent, AgentMetrics,sequelize } = require('../models'); // Pastikan jalur impor benar
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 // Setup your mail transporter
 const transporter = nodemailer.createTransport({
@@ -192,7 +193,7 @@ exports.requestPasswordResetLink = async (req, res) => {
             { expiresIn: '1h' } // Token expires in 1 hour
         );
 
-        const resetLink = `http://yourfrontend.com/reset-password/${resetToken}`;
+        const resetLink = `http://localhost:3000/signin/reset-password/${resetToken}`;
 
         // Send reset link via email
         const mailOptions = {
@@ -215,6 +216,30 @@ exports.requestPasswordResetLink = async (req, res) => {
 
     } catch (error) {
         console.error('Error requesting password reset link:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+exports.resetPasswordWithToken = async (req, res) => {
+    const { token, newPassword } = req.body;
+    try {
+        // Decode the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const agent = await Agent.findByPk(decoded.id);
+        if (!agent) {
+            return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        agent.password = hashedPassword;
+        await agent.save();
+
+        res.status(200).json({ message: 'Password has been reset successfully.' });
+    } catch (error) {
+        console.error('Error resetting password:', error.message);
         res.status(500).json({ message: error.message });
     }
 };
