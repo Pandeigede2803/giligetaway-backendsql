@@ -30,6 +30,15 @@ const Boat = sequelize.define('Boat', {
 }, {
     tableName: 'Boats',
     timestamps: false
-});
+}
+
+);
+
+Boat.associate = (models) => {
+    Boat.hasMany(models.Schedule, {
+        foreignKey: 'boat_id',
+        as: 'Schedules'
+    });
+};
 
 module.exports = Boat;

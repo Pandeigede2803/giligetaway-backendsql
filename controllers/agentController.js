@@ -1,5 +1,5 @@
 // const { sequelize } = require('../config/database'); // Pastikan jalur impor benar
-const { Agent, AgentMetrics,sequelize } = require('../models'); // Pastikan jalur impor benar
+const { Agent, AgentMetrics,Booking,sequelize ,Schedule,Transport,Passenger,TransportBooking} = require('../models'); // Pastikan jalur impor benar
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -45,11 +45,41 @@ exports.getAllAgents = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-// Get agent by id
 exports.getAgentById = async (req, res) => {
     try {
-        const agent = await Agent.findByPk(req.params.id);
+        const agent = await Agent.findByPk(req.params.id, {
+            include: [
+                {
+                    model: Booking,
+                    as: 'bookings',
+                    include: [
+                        {
+                            model: Schedule,
+                            as: 'schedule' // Alias sesuai dengan yang didefinisikan dalam model
+                        },
+                        {
+                            model: Passenger,
+                            as: 'passengers' // Alias sesuai dengan yang didefinisikan dalam model
+                        },
+                        {
+                            model: TransportBooking,
+                            as: 'transportBookings',
+                            include: [
+                                {
+                                    model: Transport,
+                                    as: 'transport'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: AgentMetrics,
+                    as: 'agentMetrics' // Alias sesuai dengan yang didefinisikan dalam model
+                }
+            ]
+        });
+
         if (agent) {
             console.log('Agent retrieved:', agent);
             res.status(200).json(agent);
@@ -62,6 +92,7 @@ exports.getAgentById = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 // Create agent
 exports.createAgent = async (req, res) => {
@@ -143,9 +174,7 @@ exports.deleteAgent = async (req, res) => {
     }
 };
 
-// Delete all agents and reset all agent metrics
-// Delete all agents and reset all agent metrics
-// Delete all agents and reset all agent metrics
+
 exports.deleteAllAgentsAndResetMetrics = async (req, res) => {
     const transaction = await sequelize.transaction();
 

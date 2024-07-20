@@ -54,4 +54,18 @@ const Agent = sequelize.define('Agent', {
     timestamps: false
 });
 
+Agent.associate = (models) => {
+    Agent.hasMany(models.Booking, {
+        foreignKey: 'agent_id',
+        as: 'bookings'
+    });
+    Agent.hasOne(models.AgentMetrics, {
+        foreignKey: 'agent_id',
+        as: 'agentMetrics'
+    });
+};
+
+
+
+
 module.exports = Agent;

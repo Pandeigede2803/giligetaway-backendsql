@@ -34,13 +34,6 @@ const Booking = sequelize.define('Booking', {
             key: 'id'
         }
     },
-    transport_id: {
-        type: DataTypes.INTEGER,
-        references: {
-            model: 'Transports',
-            key: 'id'
-        }
-    },
     agent_id: {
         type: DataTypes.INTEGER,
         references: {
@@ -112,10 +105,13 @@ Booking.associate = (models) => {
         foreignKey: 'booking_id'
     });
     Booking.belongsTo(models.Schedule, {
-        foreignKey: 'schedule_id'
+        foreignKey: 'schedule_id',
+        as: 'schedule'
     });
-    Booking.belongsTo(models.Transport, {
-        foreignKey: 'transport_id'
+    Booking.belongsToMany(models.Transport, {
+        through: 'TransportBookings',
+        foreignKey: 'booking_id',
+        as: 'transports'
     });
     Booking.belongsTo(models.Agent, {
         foreignKey: 'agent_id'
@@ -123,6 +119,10 @@ Booking.associate = (models) => {
     Booking.hasMany(models.Passenger, {
         foreignKey: 'booking_id',
         as: 'passengers'
+    });
+    Booking.hasMany(models.TransportBooking, {
+        foreignKey: 'booking_id',
+        as: 'transportBookings'
     });
 };
 

@@ -41,7 +41,7 @@ Object.keys(models).forEach((modelName) => {
 });
 
 Booking.hasMany(TransportBooking, { foreignKey: 'booking_id' });
-Transport.hasMany(TransportBooking, { foreignKey: 'transport_id' });
+// Transport.hasMany(TransportBooking, { foreignKey: 'transport_id' });
 TransportBooking.belongsTo(Booking, { foreignKey: 'booking_id' });
 TransportBooking.belongsTo(Transport, { foreignKey: 'transport_id' });
 
