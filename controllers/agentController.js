@@ -1,5 +1,5 @@
 // const { sequelize } = require('../config/database'); // Pastikan jalur impor benar
-const { Agent, AgentMetrics,Booking,sequelize ,Schedule,Transport,Passenger,TransportBooking} = require('../models'); // Pastikan jalur impor benar
+const { Agent,Boat, AgentMetrics,Booking,sequelize,Destination ,Schedule,Transport,Passenger,TransportBooking} = require('../models'); // Pastikan jalur impor benar
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -44,7 +44,9 @@ exports.getAllAgents = async (req, res) => {
         console.log('Error retrieving agents:', error.message);
         res.status(500).json({ message: error.message });
     }
-};
+}
+
+
 exports.getAgentById = async (req, res) => {
     try {
         const agent = await Agent.findByPk(req.params.id, {
@@ -55,11 +57,27 @@ exports.getAgentById = async (req, res) => {
                     include: [
                         {
                             model: Schedule,
-                            as: 'schedule' // Alias sesuai dengan yang didefinisikan dalam model
+                            as: 'schedule',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'FromDestination'
+                                },
+                                {
+                                    model: Destination,
+                                    as: 'ToDestination'
+                                },
+                                {
+                                    model:Boat,
+                                    as: 'Boat',
+                                }
+
+
+                            ]
                         },
                         {
                             model: Passenger,
-                            as: 'passengers' // Alias sesuai dengan yang didefinisikan dalam model
+                            as: 'passengers'
                         },
                         {
                             model: TransportBooking,
@@ -75,7 +93,7 @@ exports.getAgentById = async (req, res) => {
                 },
                 {
                     model: AgentMetrics,
-                    as: 'agentMetrics' // Alias sesuai dengan yang didefinisikan dalam model
+                    as: 'agentMetrics'
                 }
             ]
         });
