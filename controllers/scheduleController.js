@@ -278,16 +278,19 @@ const getAllSchedulesWithDetails = async (req, res) => {
     }
 };
 
-
 // Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize
 
+
 const getSchedulesByMultipleParams = async (req, res) => {
+    console.log('Step 2: Parsing query parameters');
     const { search_date, from, to, availability } = req.query;
 
     // Parse availability to a boolean value
+    console.log('Step 3: Parsing availability to a boolean value');
     const availabilityBool = availability === 'true';
 
     // Build the dynamic where condition
+    console.log('Step 4: Building the dynamic where condition');
     const whereCondition = {};
 
     if (search_date) {
@@ -307,7 +310,12 @@ const getSchedulesByMultipleParams = async (req, res) => {
         whereCondition.destination_to_id = to;
     }
 
+    if (availability !== undefined) {
+        whereCondition.availability = availabilityBool;
+    }
+
     try {
+        console.log('Step 5: Executing database query');
         const schedules = await Schedule.findAll({
             where: whereCondition,
             include: [
@@ -337,6 +345,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
             ]
         });
 
+        console.log('Step 6: Sending response');
         res.status(200).json(schedules);
     } catch (error) {
         console.error('Error fetching schedules:', error);
