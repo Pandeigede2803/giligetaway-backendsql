@@ -1,5 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SeatAvailability = require('./SeatAvailability'); // Import model SeatAvailability
+
 
 const Schedule = sequelize.define('Schedule', {
     id: {
@@ -137,7 +139,10 @@ Schedule.associate = (models) => {
         foreignKey: 'schedule_id',
         as: 'Bookings'
     });
-
+    Schedule.hasMany(SeatAvailability, {
+        foreignKey: 'schedule_id',
+        as: 'SeatAvailabilities'
+    });
  
 
 

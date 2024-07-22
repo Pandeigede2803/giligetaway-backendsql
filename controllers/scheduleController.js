@@ -1,5 +1,5 @@
 // controllers/scheduleController.js
-const { Schedule,SubSchedule, User, Boat,Transit, Destination,sequelize } = require('../models');
+const { Schedule,SubSchedule, User, Boat,Transit,SeatAvailability, Destination,sequelize } = require('../models');
 const { uploadImageToImageKit } = require('../middleware/upload');
 const { Op } = require('sequelize');
 
@@ -282,40 +282,39 @@ const getAllSchedulesWithDetails = async (req, res) => {
 
 
 const getSchedulesByMultipleParams = async (req, res) => {
-    console.log('Step 2: Parsing query parameters');
-    const { search_date, from, to, availability } = req.query;
+    const { search_date, from, to, availability, passengers_total } = req.query;
 
     // Parse availability to a boolean value
-    console.log('Step 3: Parsing availability to a boolean value');
     const availabilityBool = availability === 'true';
 
     // Build the dynamic where condition
-    console.log('Step 4: Building the dynamic where condition');
     const whereCondition = {};
 
     if (search_date) {
         whereCondition.validity_start = {
-            [Op.lte]: search_date
+            [Op.lte]: new Date(search_date) // Pastikan format tanggal benar
         };
         whereCondition.validity_end = {
-            [Op.gte]: search_date
+            [Op.gte]: new Date(search_date) // Pastikan format tanggal benar
         };
     }
 
     if (from) {
-        whereCondition.destination_from_id = from;
+        whereCondition.destination_from_id = parseInt(from); // Pastikan ini adalah integer
     }
 
     if (to) {
-        whereCondition.destination_to_id = to;
+        whereCondition.destination_to_id = parseInt(to); // Pastikan ini adalah integer
     }
 
     if (availability !== undefined) {
         whereCondition.availability = availabilityBool;
     }
 
+    // Log the whereCondition to debug
+    console.log('whereCondition:', JSON.stringify(whereCondition, null, 2));
+
     try {
-        console.log('Step 5: Executing database query');
         const schedules = await Schedule.findAll({
             where: whereCondition,
             include: [
@@ -340,18 +339,54 @@ const getSchedulesByMultipleParams = async (req, res) => {
                 {
                     model: SubSchedule,
                     as: 'SubSchedules',
-                    where: { availability: availabilityBool }
+                    required: false, // Make SubSchedule optional
+                    where: {
+                        [Op.or]: [
+                            { availability: availabilityBool },
+                            { availability: { [Op.is]: null } }
+                        ]
+                    }
+                },
+                {
+                    model: SeatAvailability,
+                    as: 'SeatAvailabilities',
+                    required: false, // Make SeatAvailability optional
+                    where: {
+                        date: new Date(search_date), // Filter berdasarkan search_date
+                        available_seats: {
+                            [Op.gte]: passengers_total ? parseInt(passengers_total) : 0 // Filter berdasarkan passengers_total
+                        }
+                    }
                 }
             ]
         });
 
-        console.log('Step 6: Sending response');
-        res.status(200).json(schedules);
+        // Log the result to debug
+        console.log('schedules:', JSON.stringify(schedules, null, 2));
+
+        const response = schedules.map(schedule => {
+            const seatAvailability = schedule.SeatAvailabilities.length > 0 ? schedule.SeatAvailabilities : null;
+            return {
+                ...schedule.get({ plain: true }),
+                SeatAvailabilities: seatAvailability || 'Seat availability not available or not created for the given date'
+            };
+        });
+
+        const responseStatus = response.length > 0 ? 'success' : 'no schedules found';
+
+        res.status(200).json({
+            status: responseStatus,
+            data: response
+        });
     } catch (error) {
         console.error('Error fetching schedules:', error);
-        res.status(400).json({ error: error.message });
+        res.status(400).json({
+            status: 'error',
+            message: error.message
+        });
     }
 };
+
 
 
 
