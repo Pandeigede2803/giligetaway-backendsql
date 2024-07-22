@@ -279,25 +279,37 @@ const getAllSchedulesWithDetails = async (req, res) => {
 };
 
 
-// Get schedules by multiple parameters
+// Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize
+
 const getSchedulesByMultipleParams = async (req, res) => {
-    const { validity_start, validity_end, from, to, availability } = req.query;
+    const { search_date, from, to, availability } = req.query;
 
     // Parse availability to a boolean value
     const availabilityBool = availability === 'true';
 
+    // Build the dynamic where condition
+    const whereCondition = {};
+
+    if (search_date) {
+        whereCondition.validity_start = {
+            [Op.lte]: search_date
+        };
+        whereCondition.validity_end = {
+            [Op.gte]: search_date
+        };
+    }
+
+    if (from) {
+        whereCondition.destination_from_id = from;
+    }
+
+    if (to) {
+        whereCondition.destination_to_id = to;
+    }
+
     try {
         const schedules = await Schedule.findAll({
-            where: {
-                validity_start: {
-                    [Op.gte]: validity_start
-                },
-                validity_end: {
-                    [Op.lte]: validity_end
-                },
-                destination_from_id: from,
-                destination_to_id: to
-            },
+            where: whereCondition,
             include: [
                 {
                     model: Destination,
@@ -319,22 +331,11 @@ const getSchedulesByMultipleParams = async (req, res) => {
                 },
                 {
                     model: SubSchedule,
-                    where: { availability: availabilityBool },
-                    include: [
-                        {
-                            model: Transit,
-                            as: 'TransitFrom',
-                            attributes: ['id', 'name']
-                        },
-                        {
-                            model: Transit,
-                            as: 'TransitTo',
-                            attributes: ['id', 'name']
-                        }
-                    ]
+                    as: 'SubSchedules',
+                    where: { availability: availabilityBool }
                 }
             ]
-        });;
+        });
 
         res.status(200).json(schedules);
     } catch (error) {
@@ -342,6 +343,9 @@ const getSchedulesByMultipleParams = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
+
+
+
 const getSchedulesWithTransits = async (req, res) => {
     try {
         const schedules = await Schedule.findAll({
