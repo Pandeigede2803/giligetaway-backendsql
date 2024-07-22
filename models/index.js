@@ -12,7 +12,7 @@ const Booking = require('./booking');
 const Passenger = require('./passenger');
 const AgentMetrics = require('./agentMetrics');
 const TransportBooking = require('./TransportBooking');
-const SeatAvailability = require('./seatAvailability');
+const SeatAvailability = require('./SeatAvailability');
 const BookingSeatAvailability = require('./BookingSeatAvailability');;
 const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
 

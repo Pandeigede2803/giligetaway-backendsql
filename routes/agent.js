@@ -8,7 +8,7 @@ const authenticate = require('../middleware/authenticate');
 router.get('/', authenticate, agentController.getAllAgents);
 
 // GET agent by id
-router.get('/:id', authenticate, agentController.getAgentById);
+router.get('/:id', agentController.getAgentById);
 
 // CREATE new agent
 router.post('/', authenticate, agentController.createAgent);

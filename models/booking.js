@@ -95,7 +95,7 @@ const Booking = sequelize.define('Booking', {
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'
-});
+});;
 
 // Many-to-many relationship with Transits
 
@@ -123,7 +123,7 @@ Booking.associate = (models) => {
     Booking.hasMany(models.TransportBooking, {
         foreignKey: 'booking_id',
         as: 'transportBookings'
-    });
+    });``
 };
 
 module.exports = Booking;
