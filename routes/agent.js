@@ -14,7 +14,7 @@ router.get('/:id', agentController.getAgentById);
 router.post('/', authenticate, agentController.createAgent);
 
 // UPDATE agent
-router.put('/:id', agentController.updateAgent);
+router.put('/:id',authenticate, agentController.updateAgent);
 
 
 router.delete('/deleteAll',authenticate, agentController.deleteAllAgentsAndResetMetrics); // Endpoint baru untuk menghapus semua agen dan mengatur ulang metrik

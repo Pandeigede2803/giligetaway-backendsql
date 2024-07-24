@@ -52,14 +52,17 @@ const Transit = sequelize.define('Transit', {
 
 Transit.associate = (models) => {
     Transit.belongsTo(models.Schedule, {
-        foreignKey: 'schedule_id'
+        foreignKey: 'schedule_id',
+        as: 'Schedule',
     });
     Transit.belongsTo(models.Destination, {
         as: 'Destination',
         foreignKey: 'destination_id'
     });
     Transit.hasMany(models.SeatAvailability, {
-        foreignKey: 'transit_id'
+        foreignKey: 'transit_id',
+        as: 'SeatAvailabilities'
+        
     }); 
 };
 

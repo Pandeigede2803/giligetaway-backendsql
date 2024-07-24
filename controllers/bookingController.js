@@ -1,6 +1,228 @@
 
-const { sequelize, Booking, SeatAvailability, Schedule, Passenger, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
+const getBookings = async (req, res) => {
+    try {
+        const bookings = await Booking.findAll({
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                    include: [
+                        {
+                            model: Transit,
+                            as: 'Transits',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'Destination'
+                                }]
+                        },
+                        {
+                            model: Destination,
+                            as: 'FromDestination'
+                        },
+                        {
+                            model: Destination,
+                            as: 'ToDestination'
+                        }
+                    ]
+                },
+                {
+                    model: SeatAvailability,
+                    as: 'SeatAvailabilities',
+                    // include: [
+                    //     {
+                    //         model: BookingSeatAvailability,
+                    //         as: 'bookingSeatAvailability'
+                    //     }
+                    // ]
+                },
+                // {
+                //     model: BookingSeatAvailability,
+                //     as: 'bookingSeatAvailability'
+
+                // },
+                {
+                    model: Passenger,
+                    as: 'passengers'
+                },
+                {
+                    model: TransportBooking,
+                    as: 'transportBookings',
+                    include: [
+                        {
+                            model: Transport,
+                            as: 'transport'
+                        }
+                    ]
+                },
+                {
+                    model: Agent,
+                    as: 'Agent',
+                    // include: [
+                    //     {
+                    //         model: AgentMetrics,
+                    //         as: 'agentMetrics'
+                    //     }
+                    // ]
+                }
+            ]
+        });
+        console.log('All bookings retrieved:', bookings);
+        res.status(200).json(bookings);
+    } catch (error) {
+        console.log('Error retrieving bookings:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+const getBookingById = async (req, res) => {
+    try {
+        const booking = await Booking.findByPk(
+            req.params.id, {
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                    include: [
+                        {
+                            model: Transit,
+                            as: 'Transits',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'Destination'
+                                }]
+                        },
+                        {
+                            model: Destination,
+                            as: 'FromDestination'
+                        },
+                        {
+                            model: Destination,
+                            as: 'ToDestination'
+                        }
+                    ]
+                },
+                {
+                    model: SeatAvailability,
+                    as: 'SeatAvailabilities',
+                    // include: [
+                    //     {
+                    //         model: BookingSeatAvailability,
+                    //         as: 'bookingSeatAvailability'
+                    //     }
+                    // ]
+                },
+                // {
+                //     model: BookingSeatAvailability,
+                //     as: 'bookingSeatAvailability'
+
+                // },
+                {
+                    model: Passenger,
+                    as: 'passengers'
+                },
+                {
+                    model: TransportBooking,
+                    as: 'transportBookings',
+                    include: [
+                        {
+                            model: Transport,
+                            as: 'transport'
+                        }
+                    ]
+                },
+                {
+                    model: Agent,
+                    as: 'Agent',
+                    // include: [
+                    //     {
+                    //         model: AgentMetrics,
+                    //         as: 'agentMetrics'
+                    //     }
+                    // ]
+                }
+            ]
+        });
+        if (booking) {
+            console.log('Booking retrieved:', booking);
+            res.status(200).json(booking);
+        } else {
+            console.log('Booking not found:', req.params.id);
+            res.status(404).json({ error: 'Booking not found' });
+        }
+    } catch (error) {
+        console.log('Error retrieving booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const getBookingByTicketId = async (req, res) => {
+    try {
+        const booking = await Booking.findOne({
+            where: { ticket_id: req.params.ticket_id },
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                    include: [
+                        {
+                            model: Transit,
+                            as: 'Transits',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'Destination'
+                                }
+                            ]
+                        },
+                        {
+                            model: Destination,
+                            as: 'FromDestination'
+                        },
+                        {
+                            model: Destination,
+                            as: 'ToDestination'
+                        }
+                    ]
+                },
+                {
+                    model: SeatAvailability,
+                    as: 'SeatAvailabilities',
+                },
+                {
+                    model: Passenger,
+                    as: 'passengers'
+                },
+                {
+                    model: TransportBooking,
+                    as: 'transportBookings',
+                    include: [
+                        {
+                            model: Transport,
+                            as: 'transport'
+                        }
+                    ]
+                },
+                {
+                    model: Agent,
+                    as: 'Agent',
+                }
+            ]
+        });
+        if (booking) {
+            console.log('Booking retrieved:', booking);
+            res.status(200).json(booking);
+        } else {
+            console.log('Booking not found:', req.params.ticket_id);
+            res.status(404).json({ error: 'Booking not found' });
+        }
+    } catch (error) {
+        console.log('Error retrieving booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
 const createBookingWithoutTransit = async (req, res) => {
     const {
         schedule_id, total_passengers, booking_date, passengers, agent_id,
@@ -381,46 +603,7 @@ const createBooking = async (req, res) => {
 
 
 
-const getBookings = async (req, res) => {
-    try {
-        const bookings = await Booking.findAll({
-            include: [
-                {
-                    model: Schedule,
-                    include: [Transit]
-                }
-            ]
-        });
-        console.log('All bookings retrieved:', bookings);
-        res.status(200).json(bookings);
-    } catch (error) {
-        console.log('Error retrieving bookings:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
 
-const getBookingById = async (req, res) => {
-    try {
-        const booking = await Booking.findByPk(req.params.id, {
-            include: [
-                {
-                    model: Schedule,
-                    include: [Transit]
-                }
-            ]
-        });
-        if (booking) {
-            console.log('Booking retrieved:', booking);
-            res.status(200).json(booking);
-        } else {
-            console.log('Booking not found:', req.params.id);
-            res.status(404).json({ error: 'Booking not found' });
-        }
-    } catch (error) {
-        console.log('Error retrieving booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
 
 const updateBooking = async (req, res) => {
     const { id } = req.params;
@@ -502,4 +685,5 @@ module.exports = {
     deleteBooking,
     createBookingWithTransit,
     createBookingWithoutTransit,
+    getBookingByTicketId
 };

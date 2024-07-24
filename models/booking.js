@@ -102,8 +102,10 @@ const Booking = sequelize.define('Booking', {
 Booking.associate = (models) => {
     Booking.belongsToMany(models.SeatAvailability, {
         through: 'BookingSeatAvailability',
-        foreignKey: 'booking_id'
+        foreignKey: 'booking_id',
+        as: 'seatAvailabilities'
     });
+
     Booking.belongsTo(models.Schedule, {
         foreignKey: 'schedule_id',
         as: 'schedule'
@@ -123,7 +125,7 @@ Booking.associate = (models) => {
     Booking.hasMany(models.TransportBooking, {
         foreignKey: 'booking_id',
         as: 'transportBookings'
-    });``
+    });
 };
 
 module.exports = Booking;

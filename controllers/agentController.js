@@ -37,7 +37,52 @@ exports.loginAgent = async (req, res) => {
 
 exports.getAllAgents = async (req, res) => {
     try {
-        const agents = await Agent.findAll();
+        const agents = await Agent.findAll({
+            include: [
+                {
+                    model: Booking,
+                    as: 'bookings',
+                    include: [
+                        {
+                            model: Schedule,
+                            as: 'schedule',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'FromDestination'
+                                },
+                                {
+                                    model: Destination,
+                                    as: 'ToDestination'
+                                },
+                                {
+                                    model: Boat,
+                                    as: 'Boat'
+                                }
+                            ]
+                        },
+                        {
+                            model: Passenger,
+                            as: 'passengers'
+                        },
+                        {
+                            model: TransportBooking,
+                            as: 'transportBookings',
+                            include: [
+                                {
+                                    model: Transport,
+                                    as: 'transport'
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: AgentMetrics,
+                    as: 'agentMetrics'
+                }
+            ]
+        });
         console.log('All agents retrieved:', agents);
         res.status(200).json(agents);
     } catch (error) {
@@ -45,7 +90,6 @@ exports.getAllAgents = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 }
-
 
 exports.getAgentById = async (req, res) => {
     try {

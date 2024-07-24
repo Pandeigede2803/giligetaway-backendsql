@@ -45,16 +45,25 @@ Booking.hasMany(TransportBooking, { foreignKey: 'booking_id' });
 TransportBooking.belongsTo(Booking, { foreignKey: 'booking_id' });
 TransportBooking.belongsTo(Transport, { foreignKey: 'transport_id' });
 
+
+// Associations seat availability
 SeatAvailability.belongsTo(Schedule, { foreignKey: 'schedule_id' });
 SeatAvailability.belongsTo(Transit, { foreignKey: 'transit_id' });
 SeatAvailability.belongsTo(SubSchedule, { foreignKey: 'subschedule_id' }); // Tambahkan asosiasi
+
+// schedule
 Schedule.hasMany(SeatAvailability, { foreignKey: 'schedule_id' });
+
+// transit
 Transit.hasMany(SeatAvailability, { foreignKey: 'transit_id' });
+
+// subschedule
 SubSchedule.hasMany(SeatAvailability, { foreignKey: 'subschedule_id' }); // Tambahkan asosiasi
 
-
+// Destination
 Schedule.belongsTo(Destination, { as: 'DestinationFrom', foreignKey: 'destination_from_id' });
 Schedule.belongsTo(Destination, { as: 'DestinationTo', foreignKey: 'destination_to_id' });
+
 
 Booking.belongsToMany(SeatAvailability, {
     through: BookingSeatAvailability,

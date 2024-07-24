@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const seatAvailabilityController = require('../controllers/seatAvailabilityController');
+const authenticate = require('../middleware/authenticate');
 
 // CREATE booking
 router.post('/', bookingController.createBooking);
@@ -14,10 +15,13 @@ router.post('/createBookingWithoutTransit', bookingController.createBookingWitho
 
 
 // READ bookings
-router.get('/', bookingController.getBookings);
+router.get('/',authenticate, bookingController.getBookings);
 
 // READ booking by id
 router.get('/:id', bookingController.getBookingById);
+
+//read booking by ticket id
+router.get('/ticket/:ticket_id', bookingController.getBookingByTicketId);
 
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);

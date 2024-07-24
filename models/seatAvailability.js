@@ -51,6 +51,7 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
     updatedAt: 'updated_at'
 });
 
+
 SeatAvailability.associate = (models) => {
     SeatAvailability.belongsTo(models.Schedule, {
         foreignKey: 'schedule_id'
@@ -65,6 +66,6 @@ SeatAvailability.associate = (models) => {
         through: 'BookingSeatAvailability',
         foreignKey: 'seat_availability_id'
     });
-};;
+};
 
 module.exports = SeatAvailability;
