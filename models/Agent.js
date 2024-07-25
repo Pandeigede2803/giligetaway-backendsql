@@ -51,7 +51,9 @@ const Agent = sequelize.define('Agent', {
     }
 }, {
     tableName: 'Agents',
-    timestamps: false
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
 });
 
 Agent.associate = (models) => {
@@ -64,8 +66,5 @@ Agent.associate = (models) => {
         as: 'agentMetrics'
     });
 };
-
-
-
 
 module.exports = Agent;

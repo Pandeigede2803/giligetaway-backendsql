@@ -281,40 +281,282 @@ const getAllSchedulesWithDetails = async (req, res) => {
 // Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize
 
 
+
+//SEARCH BY MULTIPLE PARAMS WITH DESTINATION ID
+
+// const getSchedulesByMultipleParams = async (req, res) => {
+//     const { search_date, from, to, availability, passengers_total } = req.query;
+
+//     // Parse availability to a boolean value
+//     const availabilityBool = availability === 'true';
+
+//     // Build the dynamic where condition
+//     const whereCondition = {};
+
+//     if (search_date) {
+//         console.log('search_date:', search_date);
+//         whereCondition.validity_start = {
+//             [Op.lte]: new Date(search_date) // Pastikan format tanggal benar
+//         };
+//         whereCondition.validity_end = {
+//             [Op.gte]: new Date(search_date) // Pastikan format tanggal benar
+//         };
+//     }
+
+//     if (from) {
+//         console.log('from:', from);
+//         whereCondition.destination_from_id = parseInt(from); // Pastikan ini adalah integer
+//     }
+
+//     if (to) {
+//         console.log('to:', to);
+//         whereCondition.destination_to_id = parseInt(to); // Pastikan ini adalah integer
+//     }
+
+//     if (availability !== undefined) {
+//         console.log('availability:', availability);
+//         whereCondition.availability = availabilityBool;
+//     }
+
+//     // Log the whereCondition to debug
+//     console.log('whereCondition:', JSON.stringify(whereCondition, null, 2));
+
+//     try {
+//         const schedules = await Schedule.findAll({
+//             where: whereCondition,
+//             include: [
+//                 {
+//                     model: Destination,
+//                     as: 'FromDestination',
+//                     attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                 },
+//                 {
+//                     model: Destination,
+//                     as: 'ToDestination',
+//                     attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                 },
+//                 {
+//                     model: Transit,
+//                     include: {
+//                         model: Destination,
+//                         as: 'Destination',
+//                         attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                     }
+//                 },
+//                 {
+//                     model: SubSchedule,
+//                     as: 'SubSchedules',
+//                     required: false, // Make SubSchedule optional
+//                     where: {
+//                         [Op.or]: [
+//                             { availability: availabilityBool },
+//                             { availability: { [Op.is]: null } }
+//                         ]
+//                     }
+//                 },
+//                 {
+//                     model: SeatAvailability,
+//                     as: 'SeatAvailabilities',
+//                     required: false, // Make SeatAvailability optional
+//                     where: {
+//                         date: new Date(search_date), // Filter berdasarkan search_date
+//                         available_seats: {
+//                             [Op.gte]: passengers_total ? parseInt(passengers_total) : 0 // Filter berdasarkan passengers_total
+//                         }
+//                     }
+//                 }
+//             ]
+//         });
+
+//         // Log the result to debug
+//         console.log('schedules:', JSON.stringify(schedules, null, 2));
+
+//         const response = schedules.map(schedule => {
+//             const seatAvailability = schedule.SeatAvailabilities.length > 0 ? schedule.SeatAvailabilities : null;
+//             console.log('schedule:', JSON.stringify(schedule, null, 2));
+//             return {
+//                 ...schedule.get({ plain: true }),
+//                 SeatAvailabilities: seatAvailability || 'Seat availability not available or not created for the given date'
+//             };
+//         });
+
+//         const responseStatus = response.length > 0 ? 'success' : 'no schedules found';
+
+//         console.log('response:', JSON.stringify(response, null, 2));
+
+//         res.status(200).json({
+//             status: responseStatus,
+//             data: response
+//         });
+//     } catch (error) {
+//         console.error('Error fetching schedules:', error);
+//         res.status(400).json({
+//             status: 'error',
+//             message: error.message
+//         });
+//     }
+// };
+
+
+// search by multiple params with destination name
+
+// const getSchedulesByMultipleParams = async (req, res) => {
+//     const { search_date, from, to, availability, passengers_total } = req.query;
+
+//     // Parse availability to a boolean value
+//     const availabilityBool = availability === 'true';
+
+//     try {
+//         // Fetch destination IDs based on the names
+//         const fromDestination = from ? await Destination.findOne({ where: { name: from } }) : null;
+//         const toDestination = to ? await Destination.findOne({ where: { name: to } }) : null;
+
+//         const whereCondition = {};
+
+//         if (search_date) {
+//             const searchDate = new Date(search_date);
+//             whereCondition[Op.and] = [
+//                 { validity_start: { [Op.lte]: searchDate } },
+//                 { validity_end: { [Op.gte]: searchDate } }
+//             ];
+//         }
+
+//         console.log("whereCondition:", whereCondition);
+
+//         if (fromDestination) {
+//             whereCondition.destination_from_id = fromDestination.id; // Use the found ID
+//         }
+
+//         if (toDestination) {
+//             whereCondition.destination_to_id = toDestination.id; // Use the found ID
+//         }
+
+//         if (availability !== undefined) {
+//             whereCondition.availability = availabilityBool;
+//         }
+
+//         // Log the whereCondition to debug
+//         console.log('whereCondition:', JSON.stringify(whereCondition, null, 2));
+
+//         const schedules = await Schedule.findAll({
+//             where: whereCondition,
+//             include: [
+//                 {
+//                     model: Destination,
+//                     as: 'FromDestination',
+//                     attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                 },
+//                 {
+//                     model: Destination,
+//                     as: 'ToDestination',
+//                     attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                 },
+//                 {
+//                     model: Transit,
+//                     include: {
+//                         model: Destination,
+//                         as: 'Destination',
+//                         attributes: ['id', 'name', 'port_map_url', 'image_url']
+//                     }
+//                 },
+//                 // {
+//                 //     model: SubSchedule,
+//                 //     as: 'SubSchedules',
+//                 //     required: false, // Make SubSchedule optional
+//                 //     where: {
+//                 //         [Op.or]: [
+//                 //             { availability: availabilityBool },
+//                 //             { availability: { [Op.is]: null } }
+//                 //         ]
+//                 //     }
+//                 // },
+//                 {
+//                     model: SeatAvailability,
+//                     as: 'SeatAvailabilities',
+//                     required: false, // Make SeatAvailability optional
+//                     where: {
+//                         date: new Date(search_date), // Filter by search_date
+//                         available_seats: {
+//                             [Op.gte]: passengers_total ? parseInt(passengers_total) : 0 // Filter by passengers_total
+//                         }
+//                     }
+//                 }
+//             ]
+//         });
+
+//         // Log the result to debug
+//         console.log('schedules:', JSON.stringify(schedules, null, 2));
+
+//         const response = schedules.map(schedule => {
+//             const seatAvailability = schedule.SeatAvailabilities.length > 0 ? schedule.SeatAvailabilities : null;
+//             return {
+//                 ...schedule.get({ plain: true }),
+//                 SeatAvailabilities: seatAvailability || 'Seat availability not available or not created for the given date'
+//             };
+//         });
+
+//         const responseStatus = response.length > 0 ? 'success' : 'no schedules found';
+
+//         res.status(200).json({
+//             status: responseStatus,
+//             data: response
+//         });
+//     } catch (error) {
+//         console.error('Error fetching schedules:', error);
+//         res.status(400).json({
+//             status: 'error',
+//             message: error.message
+//         });
+//     }
+// };
+
+//SEARCH DESTINATION AND INCLUDE SUBSCDULE
+
 const getSchedulesByMultipleParams = async (req, res) => {
     const { search_date, from, to, availability, passengers_total } = req.query;
 
     // Parse availability to a boolean value
     const availabilityBool = availability === 'true';
 
-    // Build the dynamic where condition
-    const whereCondition = {};
-
-    if (search_date) {
-        whereCondition.validity_start = {
-            [Op.lte]: new Date(search_date) // Pastikan format tanggal benar
-        };
-        whereCondition.validity_end = {
-            [Op.gte]: new Date(search_date) // Pastikan format tanggal benar
-        };
-    }
-
-    if (from) {
-        whereCondition.destination_from_id = parseInt(from); // Pastikan ini adalah integer
-    }
-
-    if (to) {
-        whereCondition.destination_to_id = parseInt(to); // Pastikan ini adalah integer
-    }
-
-    if (availability !== undefined) {
-        whereCondition.availability = availabilityBool;
-    }
-
-    // Log the whereCondition to debug
-    console.log('whereCondition:', JSON.stringify(whereCondition, null, 2));
-
     try {
+        // Fetch destination IDs based on the names
+        const fromDestination = from ? await Destination.findOne({ where: { name: from } }) : null;
+        const toDestination = to ? await Destination.findOne({ where: { name: to } }) : null;
+
+        const whereCondition = {};
+        const subWhereCondition = {};
+
+        if (search_date) {
+            const searchDate = new Date(search_date);
+            whereCondition[Op.and] = [
+                { validity_start: { [Op.lte]: searchDate } },
+                { validity_end: { [Op.gte]: searchDate } }
+            ];
+            subWhereCondition[Op.and] = [
+                { validity_start: { [Op.lte]: searchDate } },
+                { validity_end: { [Op.gte]: searchDate } }
+            ];
+        }
+
+        if (fromDestination) {
+            whereCondition.destination_from_id = fromDestination.id;
+            subWhereCondition.destination_from_schedule_id = fromDestination.id;
+        }
+
+        if (toDestination) {
+            whereCondition.destination_to_id = toDestination.id;
+            subWhereCondition.destination_to_schedule_id = toDestination.id;
+        }
+
+        if (availability !== undefined) {
+            whereCondition.availability = availabilityBool;
+            subWhereCondition.availability = availabilityBool;
+        }
+
+        // Log the whereCondition to debug
+        console.log('whereCondition:', JSON.stringify(whereCondition, null, 2));
+        console.log('subWhereCondition:', JSON.stringify(subWhereCondition, null, 2));
+
         const schedules = await Schedule.findAll({
             where: whereCondition,
             include: [
@@ -335,26 +577,21 @@ const getSchedulesByMultipleParams = async (req, res) => {
                         as: 'Destination',
                         attributes: ['id', 'name', 'port_map_url', 'image_url']
                     }
-                },
-                {
-                    model: SubSchedule,
-                    as: 'SubSchedules',
-                    required: false, // Make SubSchedule optional
-                    where: {
-                        [Op.or]: [
-                            { availability: availabilityBool },
-                            { availability: { [Op.is]: null } }
-                        ]
-                    }
-                },
+                }
+            ]
+        });
+
+        const subSchedules = await SubSchedule.findAll({
+            where: subWhereCondition,
+            include: [
                 {
                     model: SeatAvailability,
                     as: 'SeatAvailabilities',
-                    required: false, // Make SeatAvailability optional
+                    required: false,
                     where: {
-                        date: new Date(search_date), // Filter berdasarkan search_date
+                        date: new Date(search_date),
                         available_seats: {
-                            [Op.gte]: passengers_total ? parseInt(passengers_total) : 0 // Filter berdasarkan passengers_total
+                            [Op.gte]: passengers_total ? parseInt(passengers_total) : 0
                         }
                     }
                 }
@@ -363,31 +600,40 @@ const getSchedulesByMultipleParams = async (req, res) => {
 
         // Log the result to debug
         console.log('schedules:', JSON.stringify(schedules, null, 2));
+        console.log('subSchedules:', JSON.stringify(subSchedules, null, 2));
 
-        const response = schedules.map(schedule => {
-            const seatAvailability = schedule.SeatAvailabilities.length > 0 ? schedule.SeatAvailabilities : null;
-            return {
-                ...schedule.get({ plain: true }),
-                SeatAvailabilities: seatAvailability || 'Seat availability not available or not created for the given date'
-            };
-        });
+        const formattedSchedules = schedules.map(schedule => ({
+            ...schedule.get({ plain: true }),
+            type: 'Schedule'
+        }));
 
-        const responseStatus = response.length > 0 ? 'success' : 'no schedules found';
+        // Format subSchedules
+        const formattedSubSchedules = subSchedules.map(subSchedule => ({
+            ...subSchedule.get({ plain: true }),
+            type: 'SubSchedule',
+            SeatAvailabilities: subSchedule.SeatAvailabilities.length > 0
+                ? subSchedule.SeatAvailabilities
+                : 'Seat availability not available or not created for the given date'
+        }));
 
+        // Combine results
+        const combinedResults = [...formattedSchedules, ...formattedSubSchedules];
+        // console.log('combinedResults:', JSON.stringify(combinedResults, null, 2));
+        const responseStatus = combinedResults.length > 0 ? 'success' : 'no schedules found';
+
+        // Send response
         res.status(200).json({
             status: responseStatus,
-            data: response
+            data: combinedResults
         });
     } catch (error) {
-        console.error('Error fetching schedules:', error);
+        console.error('Error fetching schedules and subschedules:', error);
         res.status(400).json({
             status: 'error',
             message: error.message
         });
     }
 };
-
-
 
 
 const getSchedulesWithTransits = async (req, res) => {
@@ -520,7 +766,7 @@ const getScheduleById = async (req, res) => {
     }
   };
   ;
-  module.exports = { getScheduleById };
+
 
 
 // Get schedules by destination

@@ -3,6 +3,11 @@ const express = require('express');
 const router = express.Router();
 const agentController = require('../controllers/agentController');
 const authenticate = require('../middleware/authenticate');
+// const { upload,uploadImageToImageKit } = require('../middleware/upload');
+
+const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware/uploadImage');
+
+
 
 // GET all agents
 router.get('/', authenticate, agentController.getAllAgents);
@@ -10,8 +15,13 @@ router.get('/', authenticate, agentController.getAllAgents);
 // GET agent by id
 router.get('/:id', agentController.getAgentById);
 
-// CREATE new agent
-router.post('/', authenticate, agentController.createAgent);
+// // CREATE new agent
+// router.post('/', authenticate,upload, agentController.createAgent);
+
+// CREATE new agent with dynamic field name
+const uploadImageUrl = createUploadMiddleware('image_url'); // Assuming 'image_url' is the field name for agent images
+router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, agentController.createAgent);
+
 
 // UPDATE agent
 router.put('/:id',authenticate, agentController.updateAgent);
