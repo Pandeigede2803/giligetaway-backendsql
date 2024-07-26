@@ -6,6 +6,41 @@ const bcrypt = require('bcryptjs');
 const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 
+
+exports.deleteAgent = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const agentId = req.params.id;
+
+        // Delete the related AgentMetrics first
+        const deletedMetrics = await AgentMetrics.destroy({
+            where: { agent_id: agentId },
+            transaction
+        });
+
+        // Delete the agent
+        const deletedAgent = await Agent.destroy({
+            where: { id: agentId },
+            transaction
+        });
+
+        if (deletedAgent) {
+            console.log(`Agent with ID: ${agentId} and its metrics deleted`);
+            await transaction.commit();
+            res.status(200).json({ message: 'Agent and its metrics deleted' });
+        } else {
+            console.log(`Agent with ID: ${agentId} not found`);
+            await transaction.rollback();
+            res.status(404).json({ message: 'Agent not found' });
+        }
+    } catch (error) {
+        console.log(`Error deleting agent with ID: ${req.params.id}`, error.message);
+        await transaction.rollback();
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
 // Function to generate a random password
 const generateRandomPassword = (length) => {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -250,23 +285,7 @@ exports.updateAgent = async (req, res) => {
 };
 
 // Delete agent
-exports.deleteAgent = async (req, res) => {
-    try {
-        const deleted = await Agent.destroy({
-            where: { id: req.params.id }
-        });
-        if (deleted) {
-            console.log('Agent deleted:', req.params.id);
-            res.status(204).json({ message: 'Agent deleted' });
-        } else {
-            console.log('Agent not found:', req.params.id);
-            res.status(404).json({ message: 'Agent not found' });
-        }
-    } catch (error) {
-        console.log('Error deleting agent:', error.message);
-        res.status(500).json({ message: error.message });
-    }
-};
+
 
 
 exports.deleteAllAgentsAndResetMetrics = async (req, res) => {

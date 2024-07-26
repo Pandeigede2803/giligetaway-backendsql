@@ -31,6 +31,8 @@ const bookingRoutes = require('./routes/booking');
 const passengerRoutes = require('./routes/passenger');
 const transportBookingRoutes = require('./routes/transportBookingRoutes');
 const subscheduleRoutes = require('./routes/subScheduleRoutes');
+const agentMetricsRouter = require('./routes/agentMetrics');
+
 
 // Load routes
 app.use('/api/users', userRoutes);
@@ -44,6 +46,8 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/passengers', passengerRoutes);
 app.use('/api/transport-bookings', transportBookingRoutes);
 app.use('/api/subschedule', subscheduleRoutes);
+app.use('/api/agent-metrics', agentMetricsRouter);
+
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
