@@ -126,6 +126,10 @@ Booking.associate = (models) => {
         foreignKey: 'booking_id',
         as: 'transportBookings'
     });
+    Booking.hasMany(models.AgentCommission, {
+        foreignKey: 'booking_id',
+        as: 'agentCommissions'
+    });
 };
 
 module.exports = Booking;

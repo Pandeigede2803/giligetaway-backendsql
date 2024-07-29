@@ -32,6 +32,10 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    availability: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true
+    },
     date: {
         type: DataTypes.DATEONLY,
         allowNull: false

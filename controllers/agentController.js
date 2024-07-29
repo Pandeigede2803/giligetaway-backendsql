@@ -1,5 +1,5 @@
 // const { sequelize } = require('../config/database'); // Pastikan jalur impor benar
-const { Agent,Boat, AgentMetrics,Booking,sequelize,Destination ,Schedule,Transport,Passenger,TransportBooking} = require('../models'); // Pastikan jalur impor benar
+const { Agent,Boat, AgentMetrics,Booking,sequelize,Destination ,Schedule,Transport,Passenger,TransportBooking,AgentCommission} = require('../models'); // Pastikan jalur impor benar
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
@@ -223,8 +223,8 @@ exports.getAgentById = async (req, res) => {
                                 {
                                     model:Boat,
                                     as: 'Boat',
-                                }
-
+                                },
+                             
 
                             ]
                         },
@@ -241,7 +241,12 @@ exports.getAgentById = async (req, res) => {
                                     as: 'transport'
                                 }
                             ]
+                        },
+                        {
+                            model: AgentCommission,
+                            as: 'agentCommissions'
                         }
+
                     ]
                 },
                 {

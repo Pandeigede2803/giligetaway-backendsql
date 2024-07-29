@@ -65,6 +65,10 @@ Agent.associate = (models) => {
         foreignKey: 'agent_id',
         as: 'agentMetrics'
     });
+    Agent.hasMany(models.AgentCommission, {
+        foreignKey: 'agent_id',
+        as: 'agentCommissions'
+    });
 };
 
 module.exports = Agent;

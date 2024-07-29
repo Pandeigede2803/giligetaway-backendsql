@@ -15,6 +15,7 @@ const TransportBooking = require('./TransportBooking');
 const SeatAvailability = require('./SeatAvailability');
 const BookingSeatAvailability = require('./BookingSeatAvailability');;
 const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
+const AgentCommission = require('./AgentComission');
 
 const models = {
     User,
@@ -30,7 +31,8 @@ const models = {
     TransportBooking,
     SeatAvailability,
     BookingSeatAvailability,
-    SubSchedule // Tambahkan model baru
+    SubSchedule, // Tambahkan model baru
+    AgentCommission
 };
 
 // Associations
