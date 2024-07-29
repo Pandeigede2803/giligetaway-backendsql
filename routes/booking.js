@@ -8,10 +8,10 @@ const authenticate = require('../middleware/authenticate');
 router.post('/', bookingController.createBooking);
 
 // Route for booking with transit
-router.post('/createBookingWithTransit', bookingController.createBookingWithTransit);
+router.post('/transit', bookingController.createBookingWithTransit);
 
 // Route for booking without transit
-router.post('/createBookingWithoutTransit', bookingController.createBookingWithoutTransit);
+router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
 
 // READ bookings

@@ -7,6 +7,32 @@ const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 
 
+
+exports.updateAgent = async (req, res) => {
+    try {
+        if (req.file) { // Check if there is a file in the request
+            const imageUrl = await uploadImageToImageKit(req.file); // Upload the image
+            req.body.image = imageUrl; // Add the image URL to the request body
+        }
+
+        const [updated] = await Agent.update(req.body, {
+            where: { id: req.params.id }
+        });
+
+        if (updated) {
+            const updatedAgent = await Agent.findByPk(req.params.id);
+            console.log('Agent updated:', updatedAgent);
+            res.status(200).json(updatedAgent);
+        } else {
+            console.log('Agent not found:', req.params.id);
+            res.status(404).json({ message: 'Agent not found' });
+        }
+    } catch (error) {
+        console.log('Error updating agent:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.deleteAgent = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
@@ -269,25 +295,6 @@ exports.getAgentById = async (req, res) => {
     }
 };
 
-
-exports.updateAgent = async (req, res) => {
-    try {
-        const [updated] = await Agent.update(req.body, {
-            where: { id: req.params.id }
-        });
-        if (updated) {
-            const updatedAgent = await Agent.findByPk(req.params.id);
-            console.log('Agent updated:', updatedAgent);
-            res.status(200).json(updatedAgent);
-        } else {
-            console.log('Agent not found:', req.params.id);
-            res.status(404).json({ message: 'Agent not found' });
-        }
-    } catch (error) {
-        console.log('Error updating agent:', error.message);
-        res.status(500).json({ message: error.message });
-    }
-};
 
 // Delete agent
 
