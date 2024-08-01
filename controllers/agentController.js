@@ -12,7 +12,7 @@ exports.updateAgent = async (req, res) => {
     try {
         if (req.file) { // Check if there is a file in the request
             const imageUrl = await uploadImageToImageKit(req.file); // Upload the image
-            req.body.image = imageUrl; // Add the image URL to the request body
+            req.body.image_url = imageUrl; // Add the image URL to the request body
         }
 
         const [updated] = await Agent.update(req.body, {
