@@ -6,9 +6,7 @@ const bcrypt = require('bcryptjs');
 const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 
-
 exports.updateAgent = async (req, res) => {
-    console.log('Update agent process started');
     const t = await sequelize.transaction();
     try {
       const agentId = req.params.id;
@@ -18,35 +16,24 @@ exports.updateAgent = async (req, res) => {
   
       if (!agent) {
         await t.rollback();
-        console.log('Agent not found');
         return res.status(404).json({ message: 'Agent not found' });
       }
   
-      if (req.file) {
-        await uploadImageToImageKit(req, res, async () => {
-          if (req.body.image_url) {
-            agentData.image_url = req.body.image_url;
-          }
-  
-          await agent.update(agentData, { transaction: t });
-          await t.commit();
-          console.log('Agent updated and image uploaded');
-          return res.status(200).json({ message: 'Agent updated and image uploaded', data: agent });
-        });
-      } else {
-        await agent.update(agentData, { transaction: t });
-        await t.commit();
-        console.log('Agent updated');
-        return res.status(200).json({ message: 'Agent updated', data: agent });
+      if (req.file && req.file.url) {
+        agentData.image_url = req.file.url;
       }
+  
+      await agent.update(agentData, { transaction: t });
+      await t.commit();
+      return res.status(200).json({
+        message: 'Agent updated and image uploaded',
+        data: agent
+      });
     } catch (error) {
       await t.rollback();
-      console.error('Error updating agent:', error);
-      console.log('Update agent process failed');
-      return res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message });
     }
   };
-
 // exports.updateAgent = async (req, res) => {
 //     try {
 //       const [updated] = await Agent.update(req.body, {
@@ -108,7 +95,7 @@ const generateRandomPassword = (length) => {
     }
     return password;
 };
-
+// Function to create an agent
 exports.createAgent = async (req, res) => {
     console.log('req body:', req.body);
     const transaction = await sequelize.transaction();
