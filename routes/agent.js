@@ -9,8 +9,10 @@ const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware
 
 
 
+router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);
 
 
+// UPDATE agent
 
 
 
@@ -28,8 +30,7 @@ router.get('/:id', agentController.getAgentById);
 const uploadImageUrl = createUploadMiddleware('image_url'); // Assuming 'image_url' is the field name for agent images
 router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, agentController.createAgent);
 
-// UPDATE agent
-router.put('/:id',uploadImageUrl,uploadImageToImageKit, agentController.updateAgent);
+
 
 
 // UPDATE agent

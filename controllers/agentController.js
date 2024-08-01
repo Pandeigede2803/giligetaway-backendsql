@@ -7,32 +7,63 @@ const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 
 
-
 exports.updateAgent = async (req, res) => {
+    console.log('Update agent process started');
+    const t = await sequelize.transaction();
     try {
-        if (req.file) { // Check if there is a file in the request
-            const imageUrl = await uploadImageToImageKit(req.file); // Upload the image
-            req.body.image_url = imageUrl; // Add the image URL to the request body
-        }
-
-        const [updated] = await Agent.update(req.body, {
-            where: { id: req.params.id }
+      const agentId = req.params.id;
+      const agentData = req.body;
+  
+      const agent = await Agent.findByPk(agentId, { transaction: t });
+  
+      if (!agent) {
+        await t.rollback();
+        console.log('Agent not found');
+        return res.status(404).json({ message: 'Agent not found' });
+      }
+  
+      if (req.file) {
+        await uploadImageToImageKit(req, res, async () => {
+          if (req.body.image_url) {
+            agentData.image_url = req.body.image_url;
+          }
+  
+          await agent.update(agentData, { transaction: t });
+          await t.commit();
+          console.log('Agent updated and image uploaded');
+          return res.status(200).json({ message: 'Agent updated and image uploaded', data: agent });
         });
-
-        if (updated) {
-            const updatedAgent = await Agent.findByPk(req.params.id);
-            console.log('Agent updated:', updatedAgent);
-            res.status(200).json(updatedAgent);
-        } else {
-            console.log('Agent not found:', req.params.id);
-            res.status(404).json({ message: 'Agent not found' });
-        }
+      } else {
+        await agent.update(agentData, { transaction: t });
+        await t.commit();
+        console.log('Agent updated');
+        return res.status(200).json({ message: 'Agent updated', data: agent });
+      }
     } catch (error) {
-        console.log('Error updating agent:', error.message);
-        res.status(500).json({ message: error.message });
+      await t.rollback();
+      console.error('Error updating agent:', error);
+      console.log('Update agent process failed');
+      return res.status(500).json({ message: error.message });
     }
-};
+  };
 
+// exports.updateAgent = async (req, res) => {
+//     try {
+//       const [updated] = await Agent.update(req.body, {
+//         where: { id: req.params.id }
+//       });
+  
+//       if (updated) {
+//         const updatedAgent = await Agent.findByPk(req.params.id);
+//         res.status(200).json(updatedAgent);
+//       } else {
+//         res.status(404).json({ message: 'Agent not found' });
+//       }
+//     } catch (error) {
+//       res.status(500).json({ message: error.message });
+//     }
+//   };
+  
 exports.deleteAgent = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
