@@ -403,6 +403,150 @@ const getBookingByTicketId = async (req, res) => {
 };
 
 
+
+
+
+
+
+const createBooking = async (req, res) => {
+    try {
+        const result = await sequelize.transaction(async (t) => {
+            // Create booking
+            const booking = await Booking.create(req.body, { transaction: t });
+
+            console.log('Booking data from body:', req.body);
+
+            // Fetch schedule
+            const schedule = await Schedule.findByPk(req.body.schedule_id, { transaction: t });
+            if (!schedule) {
+                throw new Error(`Schedule with ID ${req.body.schedule_id} not found.`);
+            }
+
+            if (schedule.available_seats < req.body.total_passengers) {
+                throw new Error('Not enough seats available on the schedule.');
+            }
+
+            // Update schedule available seats
+            await schedule.update({ available_seats: schedule.available_seats - req.body.total_passengers }, { transaction: t });
+
+            // Check and update each transit, and create booking-transit associations
+            for (const transit_id of req.body.transits) {
+                const transit = await Transit.findByPk(transit_id, { transaction: t });
+                if (!transit) {
+                    throw new Error(`Transit with ID ${transit_id} not found.`);
+                }
+
+                if (transit.available_seats < req.body.total_passengers) {
+                    throw new Error(`Not enough seats available on transit with ID ${transit_id}.`);
+                }
+
+                // Update transit available seats
+                await transit.update({ available_seats: transit.available_seats - req.body.total_passengers }, { transaction: t });
+
+                // Create booking-transit association
+                await booking.addTransit(transit, { transaction: t });
+            }
+
+            console.log('Booking created:', booking);
+            return booking;
+        });
+
+        res.status(201).json(result);
+    } catch (error) {
+        console.log('Error creating booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+
+
+
+
+const updateBooking = async (req, res) => {
+    const { id } = req.params;
+    const { schedule_id, transit_id, total_passengers } = req.body;
+
+    try {
+        await sequelize.transaction(async (t) => {
+            const booking = await Booking.findByPk(id, { transaction: t });
+            if (!booking) {
+                throw new Error('Booking not found.');
+            }
+
+            const { schedule_id: old_schedule_id, total_passengers: old_total_passengers, transit_id: old_transit_id } = booking;
+
+            const oldSchedule = await Schedule.findByPk(old_schedule_id, { transaction: t });
+            await oldSchedule.update({ available_seats: oldSchedule.available_seats + old_total_passengers }, { transaction: t });
+
+            const oldTransit = await Transit.findByPk(old_transit_id, { transaction: t });
+            await oldTransit.update({ available_seats: oldTransit.available_seats + old_total_passengers }, { transaction: t });
+
+            const newSchedule = await Schedule.findByPk(schedule_id, { transaction: t });
+            if (newSchedule.available_seats < total_passengers) {
+                throw new Error('Not enough seats available on the new schedule.');
+            }
+            await newSchedule.update({ available_seats: newSchedule.available_seats - total_passengers }, { transaction: t });
+
+            const newTransit = await Transit.findByPk(transit_id, { transaction: t });
+            if (newTransit.available_seats < total_passengers) {
+                throw new Error(`Not enough seats available on new transit with ID ${transit_id}.`);
+            }
+            await newTransit.update({ available_seats: newTransit.available_seats - total_passengers }, { transaction: t });
+
+            await booking.update(req.body, { transaction: t });
+
+            console.log('Booking updated:', booking);
+            res.status(200).json(booking);
+        });
+    } catch (error) {
+        console.log('Error updating booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const deleteBooking = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await sequelize.transaction(async (t) => {
+            const booking = await Booking.findByPk(id, { transaction: t });
+            if (!booking) {
+                throw new Error('Booking not found.');
+            }
+
+            const { schedule_id, transit_id, total_passengers } = booking;
+
+            const schedule = await Schedule.findByPk(schedule_id, { transaction: t });
+            await schedule.update({ available_seats: schedule.available_seats + total_passengers }, { transaction: t });
+
+            const transit = await Transit.findByPk(transit_id, { transaction: t });
+            await transit.update({ available_seats: transit.available_seats + total_passengers }, { transaction: t });
+
+            await booking.destroy({ transaction: t });
+
+            console.log('Booking deleted:', id);
+        });
+
+        res.status(204).json();
+    } catch (error) {
+        console.log('Error deleting booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+module.exports = {
+    createBooking,
+    getBookings,
+    getBookingById,
+    updateBooking,
+    deleteBooking,
+    createBookingWithTransit,
+    createBookingWithoutTransit,
+    getBookingByTicketId
+};
+
+
+
 // const createBookingWithoutTransit = async (req, res) => {
 //     const {
 //         schedule_id, total_passengers, booking_date, passengers, agent_id,
@@ -582,145 +726,3 @@ const getBookingByTicketId = async (req, res) => {
 
 //     }
 // };
-
-
-
-
-
-
-const createBooking = async (req, res) => {
-    try {
-        const result = await sequelize.transaction(async (t) => {
-            // Create booking
-            const booking = await Booking.create(req.body, { transaction: t });
-
-            console.log('Booking data from body:', req.body);
-
-            // Fetch schedule
-            const schedule = await Schedule.findByPk(req.body.schedule_id, { transaction: t });
-            if (!schedule) {
-                throw new Error(`Schedule with ID ${req.body.schedule_id} not found.`);
-            }
-
-            if (schedule.available_seats < req.body.total_passengers) {
-                throw new Error('Not enough seats available on the schedule.');
-            }
-
-            // Update schedule available seats
-            await schedule.update({ available_seats: schedule.available_seats - req.body.total_passengers }, { transaction: t });
-
-            // Check and update each transit, and create booking-transit associations
-            for (const transit_id of req.body.transits) {
-                const transit = await Transit.findByPk(transit_id, { transaction: t });
-                if (!transit) {
-                    throw new Error(`Transit with ID ${transit_id} not found.`);
-                }
-
-                if (transit.available_seats < req.body.total_passengers) {
-                    throw new Error(`Not enough seats available on transit with ID ${transit_id}.`);
-                }
-
-                // Update transit available seats
-                await transit.update({ available_seats: transit.available_seats - req.body.total_passengers }, { transaction: t });
-
-                // Create booking-transit association
-                await booking.addTransit(transit, { transaction: t });
-            }
-
-            console.log('Booking created:', booking);
-            return booking;
-        });
-
-        res.status(201).json(result);
-    } catch (error) {
-        console.log('Error creating booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
-
-
-
-
-
-const updateBooking = async (req, res) => {
-    const { id } = req.params;
-    const { schedule_id, transit_id, total_passengers } = req.body;
-
-    try {
-        await sequelize.transaction(async (t) => {
-            const booking = await Booking.findByPk(id, { transaction: t });
-            if (!booking) {
-                throw new Error('Booking not found.');
-            }
-
-            const { schedule_id: old_schedule_id, total_passengers: old_total_passengers, transit_id: old_transit_id } = booking;
-
-            const oldSchedule = await Schedule.findByPk(old_schedule_id, { transaction: t });
-            await oldSchedule.update({ available_seats: oldSchedule.available_seats + old_total_passengers }, { transaction: t });
-
-            const oldTransit = await Transit.findByPk(old_transit_id, { transaction: t });
-            await oldTransit.update({ available_seats: oldTransit.available_seats + old_total_passengers }, { transaction: t });
-
-            const newSchedule = await Schedule.findByPk(schedule_id, { transaction: t });
-            if (newSchedule.available_seats < total_passengers) {
-                throw new Error('Not enough seats available on the new schedule.');
-            }
-            await newSchedule.update({ available_seats: newSchedule.available_seats - total_passengers }, { transaction: t });
-
-            const newTransit = await Transit.findByPk(transit_id, { transaction: t });
-            if (newTransit.available_seats < total_passengers) {
-                throw new Error(`Not enough seats available on new transit with ID ${transit_id}.`);
-            }
-            await newTransit.update({ available_seats: newTransit.available_seats - total_passengers }, { transaction: t });
-
-            await booking.update(req.body, { transaction: t });
-
-            console.log('Booking updated:', booking);
-            res.status(200).json(booking);
-        });
-    } catch (error) {
-        console.log('Error updating booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
-
-const deleteBooking = async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        await sequelize.transaction(async (t) => {
-            const booking = await Booking.findByPk(id, { transaction: t });
-            if (!booking) {
-                throw new Error('Booking not found.');
-            }
-
-            const { schedule_id, transit_id, total_passengers } = booking;
-
-            const schedule = await Schedule.findByPk(schedule_id, { transaction: t });
-            await schedule.update({ available_seats: schedule.available_seats + total_passengers }, { transaction: t });
-
-            const transit = await Transit.findByPk(transit_id, { transaction: t });
-            await transit.update({ available_seats: transit.available_seats + total_passengers }, { transaction: t });
-
-            await booking.destroy({ transaction: t });
-
-            console.log('Booking deleted:', id);
-        });
-
-        res.status(204).json();
-    } catch (error) {
-        console.log('Error deleting booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
-
-module.exports = {
-    createBooking,
-    getBookings,
-    getBookingById,
-    updateBooking,
-    deleteBooking,
-    createBookingWithTransit,
-    createBookingWithoutTransit,
-    getBookingByTicketId
-};

@@ -1,24 +1,21 @@
-version: '3.8'
-
 services:
   app:
     build: .
+    image: giligetawaybackend:212
     ports:
-      - '8000:8000'
-    env_file:
-      - .env
-    depends_on:
-      - db
-
-  db:
-    image: mysql:latest
+      - "8000:8000"
     environment:
-      MYSQL_ROOT_PASSWORD: giligetawat09876
-      MYSQL_DATABASE: giligetaway
-    ports:
-      - '3306:3306'
-    volumes:
-      - db_data:/var/lib/mysql
-
-volumes:
-  db_data:
+      - DB_HOST=103.183.74.238
+      - DB_USER=giligetaway_user
+      - DB_PASSWORD=giligetawat09876
+      - DB_NAME=giligetaway
+      - DB_DIALECT=mysql
+      - DB_PORT=3306
+      - JWT_SECRET=your_jwt_secret_key
+      - CORS_ORIGIN=http://localhost:3000
+      - IMAGEKIT_PUBLIC_KEY=public_Rds+2uxoCe3JWOM+gIF3VY2bNQc=
+      - IMAGEKIT_PRIVATE_KEY=private_jsGHitA9Db4sJORcbG9+u+UwNPk=
+      - IMAGEKIT_URL_ENDPOINT=https://ik.imagekit.io/m1akscp5q
+      - EMAIL_SERVICE=gmail
+      - EMAIL_USER=bajuboss21@gmail.com
+      - EMAIL_PASSWORD=sxnuexolgfzvbbjm

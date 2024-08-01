@@ -1,20 +1,20 @@
-# Use Node.js LTS as the base image
-FROM node:lts
+# Gunakan image Node.js sebagai basis
+FROM node:20
 
-# Create and set the working directory
-WORKDIR /app
+# Buat direktori kerja
+WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json
+# Salin file package.json dan package-lock.json
 COPY package*.json ./
 
-# Install dependencies
+# Install dependensi aplikasi
 RUN npm install
 
-# Copy the rest of the application code
+# Salin seluruh kode aplikasi
 COPY . .
 
-# Expose the port the app runs on
+# Expose port yang digunakan oleh aplikasi
 EXPOSE 8000
 
-# Command to run the app
+# Perintah untuk menjalankan aplikasi
 CMD ["node", "app.js"]
