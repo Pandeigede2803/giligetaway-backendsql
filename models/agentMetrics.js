@@ -8,8 +8,12 @@ const AgentMetrics = sequelize.define('AgentMetrics', {
         references: {
             model: 'Agents',
             key: 'id'
-        }
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
     },
+
+  
     total_revenue: {
         type: DataTypes.DECIMAL(15, 2),
         defaultValue: 0.00

@@ -170,32 +170,32 @@ const generateRandomPassword = (length) => {
 exports.createAgent = async (req, res) => {
     console.log('req body:', req.body);
     const transaction = await sequelize.transaction();
-  
+
     try {
         console.log('Data received for creating agent:', req.body);
-  
+
         // Generate random password
         const randomPassword = generateRandomPassword(10);
         console.log('Generated random password:', randomPassword);
-  
+
         let imageUrl = null;
-  
+
         if (req.file) {
             // Upload image and get the URL
             imageUrl = req.file.url;
             console.log('Uploaded image URL:', imageUrl);
         }
-  
+
         // Create the agent with the generated password and optional image URL
         const agentData = { ...req.body, password: randomPassword, image_url: imageUrl };
         console.log('Agent data to be created:', agentData);
-  
+
         const agent = await Agent.create(agentData, { transaction });
         if (!agent) {
             throw new Error('Failed to create agent');
         }
         console.log('Agent created with ID:', agent.id);
-  
+
         // Create corresponding AgentMetrics entry
         const agentMetrics = await AgentMetrics.create({
             agent_id: agent.id,
@@ -211,11 +211,14 @@ exports.createAgent = async (req, res) => {
             outstanding: 0.00,
             payout: 0.00
         }, { transaction });
-        console.log('AgentMetrics created with ID:', agentMetrics.id);
-  
+        if (!agentMetrics) {
+            throw new Error('Failed to create agent metrics');
+        }
+        console.log('AgentMetrics created with agent_id:', agentMetrics.agent_id);
+
         // Commit the transaction
         await transaction.commit();
-  
+
         // Return the agent and the random password
         console.log('Returning agent and random password');
         res.status(201).json({
@@ -235,7 +238,7 @@ exports.createAgent = async (req, res) => {
     } catch (error) {
         // Rollback the transaction in case of error
         await transaction.rollback();
-  
+
         console.log('Error creating agent:', error.message);
         res.status(500).json({ message: error.message });
     }
