@@ -8,35 +8,55 @@ const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 exports.updateAgent = async (req, res) => {
     console.log('Agent update request received:', req.body);
+    
+    // Start transaction
     const t = await sequelize.transaction();
     try {
       const agentId = req.params.id;
-      const agentData = req.body;
+      if (!agentId) {
+        console.log('Error: Agent ID not provided');
+        await t.rollback();
+        return res.status(400).json({ message: 'Agent ID not provided' });
+      }
+      
+      console.log('Updating agent ID:', agentId);
   
+      // Fetch agent by primary key
       const agent = await Agent.findByPk(agentId, { transaction: t });
+      console.log(agent ? `Agent found: ${agentId}` : `No agent found with ID: ${agentId}`);
   
       if (!agent) {
-        console.log('Agent not found');
+        console.log('Error: Agent not found');
         await t.rollback();
         return res.status(404).json({ message: 'Agent not found' });
       }
+  
+      const agentData = req.body || {};
   
       if (req.file && req.file.url) {
         agentData.image_url = req.file.url;
         console.log('Uploaded image URL:', agentData.image_url);
       }
   
+      // Attempt to update the agent
       await agent.update(agentData, { transaction: t });
+      console.log('Agent update successful:', agent.dataValues);
+      
+      // Commit transaction
       await t.commit();
-      console.log('Agent updated:', agent.dataValues);
+      
       return res.status(200).json({
         message: 'Agent updated and image uploaded',
         data: agent.dataValues
       });
     } catch (error) {
-      console.log('Error updating agent:', error.message);
+      console.log('Error during update process:', error);
       await t.rollback();
-      res.status(500).json({ message: error.message });
+      
+      // Log the entire error object if possible
+      console.error('Detailed Error:', error);
+      
+      return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
   };
 
