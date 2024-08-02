@@ -7,6 +7,7 @@ const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
 
 exports.updateAgent = async (req, res) => {
+    console.log('Agent update request received:', req.body);
     const t = await sequelize.transaction();
     try {
       const agentId = req.params.id;
@@ -15,25 +16,30 @@ exports.updateAgent = async (req, res) => {
       const agent = await Agent.findByPk(agentId, { transaction: t });
   
       if (!agent) {
+        console.log('Agent not found');
         await t.rollback();
         return res.status(404).json({ message: 'Agent not found' });
       }
   
       if (req.file && req.file.url) {
         agentData.image_url = req.file.url;
+        console.log('Uploaded image URL:', agentData.image_url);
       }
   
       await agent.update(agentData, { transaction: t });
       await t.commit();
+      console.log('Agent updated:', agent.dataValues);
       return res.status(200).json({
         message: 'Agent updated and image uploaded',
-        data: agent
+        data: agent.dataValues
       });
     } catch (error) {
+      console.log('Error updating agent:', error.message);
       await t.rollback();
       res.status(500).json({ message: error.message });
     }
   };
+
 // exports.updateAgent = async (req, res) => {
 //     try {
 //       const [updated] = await Agent.update(req.body, {
