@@ -12,41 +12,42 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         references: {
             model: 'Schedules',
             key: 'id'
-        }
+        },
+        allowNull: false,
+        field: 'schedule_id'
     },
     transit_id: {
         type: DataTypes.INTEGER,
         references: {
             model: 'Transits',
             key: 'id'
-        }
+        },
+        allowNull: true,
+        field: 'transit_id'
     },
     subschedule_id: {
         type: DataTypes.INTEGER,
         references: {
             model: 'SubSchedules',
             key: 'id'
-        }
-    },
-    available_seats: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    availability: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true
+        },
+        allowNull: true,
+        field: 'subschedule_id'
     },
     date: {
-        type: DataTypes.DATEONLY,
-        allowNull: false
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: 'date'
     },
     created_at: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        defaultValue: DataTypes.NOW,
+        field: 'created_at'
     },
     updated_at: {
         type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW
+        defaultValue: DataTypes.NOW,
+        field: 'updated_at'
     }
 }, {
     tableName: 'SeatAvailability',
@@ -54,22 +55,15 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
     createdAt: 'created_at',
     updatedAt: 'updated_at'
 });
-
-
 SeatAvailability.associate = (models) => {
-    SeatAvailability.belongsTo(models.Schedule, {
-        foreignKey: 'schedule_id'
-    });
-    SeatAvailability.belongsTo(models.Transit, {
-        foreignKey: 'transit_id'
-    });
-    SeatAvailability.belongsTo(models.SubSchedule, {
-        foreignKey: 'subschedule_id'
-    });
-    SeatAvailability.belongsToMany(models.Booking, {
-        through: 'BookingSeatAvailability',
-        foreignKey: 'seat_availability_id'
-    });
+    SeatAvailability.belongsTo(models.Schedule, { foreignKey: 'schedule_id' });
+    SeatAvailability.belongsTo(models.Transit, { foreignKey: 'transit_id' });
+    SeatAvailability.belongsTo(models.SubSchedule, { foreignKey: 'subschedule_id' });
+
+    SeatAvailability.hasMany(models.BookingSeatAvailability, {
+        foreignKey: 'seat_availability_id',
+        as: 'BookingSeatAvailabilities'
+      });
 };
 
 module.exports = SeatAvailability;

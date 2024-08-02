@@ -30,7 +30,7 @@ router.put('/:id', bookingController.updateBooking);
 router.delete('/:id', bookingController.deleteBooking);
 
 // Check available seats
-router.get('/check-available-seats', seatAvailabilityController.checkAvailableSeats);
+router.get('/check-available-seats',authenticate, seatAvailabilityController.checkAvailableSeats);
 
 
 // // Route for booking with transit

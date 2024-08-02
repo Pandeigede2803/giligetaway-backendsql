@@ -32,6 +32,8 @@ const passengerRoutes = require('./routes/passenger');
 const transportBookingRoutes = require('./routes/transportBookingRoutes');
 const subscheduleRoutes = require('./routes/subScheduleRoutes');
 const agentMetricsRouter = require('./routes/agentMetrics');
+const seatAvailabilityRoutes = require('./routes/SeatAvailability');
+const bookingSeatAvailability = require('./routes/boatSeatAvailability');
 
 
 // Load routes
@@ -47,6 +49,11 @@ app.use('/api/passengers', passengerRoutes);
 app.use('/api/transport-bookings', transportBookingRoutes);
 app.use('/api/subschedule', subscheduleRoutes);
 app.use('/api/agent-metrics', agentMetricsRouter);
+// Use the seatAvailability routes
+app.use('/api/seat-availability', seatAvailabilityRoutes);
+
+app.use('/api/booking-seat',bookingSeatAvailability);
+
 
 
 app.get('/', (req, res) => {
