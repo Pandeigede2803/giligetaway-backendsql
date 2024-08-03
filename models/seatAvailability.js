@@ -16,7 +16,11 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         allowNull: false,
         field: 'schedule_id'
     },
-    
+    available_seats: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        field: 'available_seats'
+    },
     transit_id: {
         type: DataTypes.INTEGER,
         references: {
