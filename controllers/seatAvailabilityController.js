@@ -134,25 +134,7 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
     }
 
     // Fetch bookings for each seat availability
-    // const seatAvailabilitiesWithBookings = await Promise.all(
-    //   seatAvailabilities.map(async (seatAvailability) => {
-    //     const bookings = await BookingSeatAvailability.findAll({
-    //       where: { seat_availability_id: seatAvailability.id },
-    //       include: {
-    //         model: Booking,
-    //         attributes: ['id'],
-    //       },
-    //     });
-    //     const bookingIds = bookings.map((bsa) => bsa.booking_id);
-    //     return {
-    //       ...seatAvailability.get({ plain: true }),
-    //       bookings: bookings.map(bsa => ({ id: bsa.booking_id })),
-    //     };
-    //   })
-    // );
-
-     // Fetch bookings for each seat availability
-     const seatAvailabilitiesWithBookings = await Promise.all(
+    const seatAvailabilitiesWithBookings = await Promise.all(
       seatAvailabilities.map(async (seatAvailability) => {
         const bookings = await BookingSeatAvailability.findAll({
           where: { seat_availability_id: seatAvailability.id },
@@ -163,10 +145,12 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
         });
         return {
           ...seatAvailability.get({ plain: true }),
+          available_seats: seatAvailability.available_seats, // Ensure available_seats is included
           bookings: bookings.map(bsa => ({ id: bsa.Booking.id })),
         };
       })
     );
+
     // Return total number of seat availabilities and details
     return res.status(200).json({
       status: "success",
