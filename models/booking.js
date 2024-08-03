@@ -241,6 +241,9 @@ Booking.associate = (models) => {
         otherKey: 'seat_availability_id',
         as: 'seatAvailabilities'
     });
+
+
+    
     Booking.belongsTo(models.Schedule, {
         foreignKey: 'schedule_id',
         as: 'schedule'

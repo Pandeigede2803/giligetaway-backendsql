@@ -10,7 +10,7 @@ router.get('/check-all',authenticate, checkAllAvailableSeats);
 
 // updateseatavailability
 
-router.put('/update-seat',authenticate, updateSeatAvailability)
+// router.put('/update-seat',authenticate, updateSeatAvailability)
 router.get('/check-all/booking-count',authenticate, checkAllAvailableSeatsBookingCount);
 
 module.exports = router;
