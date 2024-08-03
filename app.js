@@ -50,7 +50,7 @@ app.use('/api/transport-bookings', transportBookingRoutes);
 app.use('/api/subschedule', subscheduleRoutes);
 app.use('/api/agent-metrics', agentMetricsRouter);
 // Use the seatAvailability routes
-app.use('/api/seat-availability', seatAvailabilityRoutes);
+app.use('/api/seat', seatAvailabilityRoutes);
 
 app.use('/api/booking-seat',bookingSeatAvailability);
 
