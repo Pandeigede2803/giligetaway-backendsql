@@ -45,20 +45,8 @@ const checkAvailableSeats = async (req, res) => {
 };
 
 const checkAllAvailableSeats = async (req, res) => {
-  const { schedule_id, booking_date } = req.query;
-
   try {
-    let whereClause = {};
-    if (schedule_id) {
-      whereClause.schedule_id = schedule_id;
-    }
-    if (booking_date) {
-      whereClause.date = booking_date;
-    }
-
-    // Fetch all seat availabilities for the given schedule_id and booking_date, including related details
     const seatAvailabilities = await SeatAvailability.findAll({
-      where: whereClause,
       include: [
         {
           model: Schedule,
@@ -76,7 +64,7 @@ const checkAllAvailableSeats = async (req, res) => {
     if (seatAvailabilities.length === 0) {
       return res.status(404).json({
         status: "fail",
-        message: `No seat availabilities found for schedule ID ${schedule_id} on date ${booking_date}.`,
+        message: "No seat availabilities found.",
       });
     }
 
@@ -168,8 +156,51 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
     }
   };
 
+  const updateSeatAvailability = async (req, res) => {
+    const { schedule_id, booking_date } = req.body;
+    const { available_seats } = req.body;
+  
+    try {
+      let whereClause = {};
+      if (schedule_id) {
+        whereClause.schedule_id = schedule_id;
+      }
+      if (booking_date) {
+        whereClause.date = booking_date;
+      }
+  
+      // Update seat availability
+      const [updated] = await SeatAvailability.update(
+        { available_seats },
+        { where: whereClause }
+      );
+  
+      if (!updated) {
+        return res.status(404).json({
+          error: `Seat availability not found for schedule ID ${schedule_id} on date ${booking_date}.`,
+        });
+      }
+  
+      // Fetch the updated seat availability
+      const updatedSeatAvailability = await SeatAvailability.findOne({
+        where: whereClause,
+      });
+  
+      // Return the updated seat availability
+      return res.status(200).json({
+        status: "success",
+        message: "Seat availability updated successfully",
+        seat_availability: updatedSeatAvailability,
+      });
+    } catch (error) {
+      console.log("Error updating seat availability:", error.message);
+      return res.status(500).json({ error: error.message });
+    }
+  };
+
 module.exports = {
   checkAvailableSeats,
   checkAllAvailableSeats,
-  checkAllAvailableSeatsBookingCount
+  checkAllAvailableSeatsBookingCount,
+  updateSeatAvailability
 };
