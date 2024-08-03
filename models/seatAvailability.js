@@ -29,7 +29,7 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         },
         allowNull: true,
         field: 'transit_id'
-    },
+    },/.
     subschedule_id: {
         type: DataTypes.INTEGER,
         references: {
