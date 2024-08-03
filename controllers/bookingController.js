@@ -209,12 +209,10 @@ const getBookings = async (req, res) => {
                 {
                     model: SeatAvailability,
                     as: 'SeatAvailabilities',
-                    // include: [
-                    //     {
-                    //         model: BookingSeatAvailability,
-                    //         as: 'bookingSeatAvailability'
-                    //     }
-                    // ]
+                    through: {
+                        model: BookingSeatAvailability,
+                        attributes: [] // Exclude the join table attributes if not needed
+                      }
                 },
                 // {
                 //     model: BookingSeatAvailability,
@@ -254,6 +252,10 @@ const getBookings = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
+
+
+
+
 const getBookingById = async (req, res) => {
     try {
         const booking = await Booking.findByPk(
