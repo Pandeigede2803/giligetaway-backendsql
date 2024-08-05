@@ -28,6 +28,8 @@ router.get('/', authenticate, scheduleController.getSchedules);
 
 // READ schedule by id
 router.get('/:id', authenticate, scheduleController.getScheduleById);
+// READ schedule by id
+router.get('/seat/:id', authenticate, scheduleController.getScheduleByIdSeat);
 
 // UPDATE schedule
 router.put('/:id', authenticate, upload, scheduleController.updateSchedule);
