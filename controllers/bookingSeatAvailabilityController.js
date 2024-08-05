@@ -1,4 +1,4 @@
-const { SeatAvailability, BookingSeatAvailability, Booking } = require('../models');
+const { SeatAvailability, BookingSeatAvailability, Booking, Passenger } = require('../models');
 
 const findSeatAvailabilityById = async (req, res) => {
     const { id } = req.params;
@@ -12,7 +12,11 @@ const findSeatAvailabilityById = async (req, res) => {
                     model: BookingSeatAvailability,
                     as: 'BookingSeatAvailabilities',
                     include: [{
-                        model: Booking
+                        model: Booking,
+                        include:{
+                            model: Passenger,
+                            as: 'passengers'
+                        }
                     }]
                 }
             ]

@@ -33,7 +33,7 @@ const transportBookingRoutes = require('./routes/transportBookingRoutes');
 const subscheduleRoutes = require('./routes/subScheduleRoutes');
 const agentMetricsRouter = require('./routes/agentMetrics');
 const seatAvailabilityRoutes = require('./routes/SeatAvailability');
-const bookingSeatAvailability = require('./routes/boatSeatAvailability');
+const bookingSeatAvailability = require('./routes/bookingSeatAvailability');
 
 
 // Load routes

@@ -7,6 +7,7 @@ const {
   Transit,
   Destination,
   BookingSeatAvailability,
+  Passenger,
 } = require("../models"); // Adjust the path as needed
 
 const checkAvailableSeats = async (req, res) => {
@@ -161,6 +162,11 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
               'created_at',
               'updated_at'
             ],
+            include: {
+              model: Passenger,
+              as:'passengers',
+            }
+
           },
         });
         return {
