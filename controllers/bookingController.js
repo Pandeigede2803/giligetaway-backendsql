@@ -4,6 +4,88 @@ const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Pa
 const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability")
 
+
+const getBookingById = async (req, res) => {
+    try {
+        const booking = await Booking.findByPk(
+            req.params.id, {
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                    include: [
+                        {
+                            model: Transit,
+                            as: 'Transits',
+                            include: [
+                                {
+                                    model: Destination,
+                                    as: 'Destination'
+                                }]
+                        },
+                        {
+                            model: Destination,
+                            as: 'FromDestination'
+                        },
+                        {
+                            model: Destination,
+                            as: 'ToDestination'
+                        }
+                    ]
+                },
+                {
+                    model: SeatAvailability,
+                    as: 'SeatAvailabilities',
+                    // include: [
+                    //     {
+                    //         model: BookingSeatAvailability,
+                    //         as: 'bookingSeatAvailability'
+                    //     }
+                    // ]
+                },
+                // {
+                //     model: BookingSeatAvailability,
+                //     as: 'bookingSeatAvailability'
+
+                // },
+                {
+                    model: Passenger,
+                    as: 'passengers'
+                },
+                {
+                    model: TransportBooking,
+                    as: 'transportBookings',
+                    include: [
+                        {
+                            model: Transport,
+                            as: 'transport'
+                        }
+                    ]
+                },
+                {
+                    model: Agent,
+                    as: 'Agent',
+                    // include: [
+                    //     {
+                    //         model: AgentMetrics,
+                    //         as: 'agentMetrics'
+                    //     }
+                    // ]
+                }
+            ]
+        });
+        if (booking) {
+            console.log('Booking retrieved:', booking);
+            res.status(200).json(booking);
+        } else {
+            console.log('Booking not found:', req.params.id);
+            res.status(404).json({ error: 'Booking not found' });
+        }
+    } catch (error) {
+        console.log('Error retrieving booking:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
 const createBookingWithTransit = async (req, res) => {
     const {
         schedule_id, total_passengers, booking_date, passengers, agent_id,
@@ -175,10 +257,6 @@ const createBookingWithoutTransit = async (req, res) => {
     }
 };
 
-
-
-
-
 const getBookings = async (req, res) => {
     try {
         const bookings = await Booking.findAll({
@@ -256,87 +334,7 @@ const getBookings = async (req, res) => {
 
 
 
-const getBookingById = async (req, res) => {
-    try {
-        const booking = await Booking.findByPk(
-            req.params.id, {
-            include: [
-                {
-                    model: Schedule,
-                    as: 'schedule',
-                    include: [
-                        {
-                            model: Transit,
-                            as: 'Transits',
-                            include: [
-                                {
-                                    model: Destination,
-                                    as: 'Destination'
-                                }]
-                        },
-                        {
-                            model: Destination,
-                            as: 'FromDestination'
-                        },
-                        {
-                            model: Destination,
-                            as: 'ToDestination'
-                        }
-                    ]
-                },
-                {
-                    model: SeatAvailability,
-                    as: 'SeatAvailabilities',
-                    // include: [
-                    //     {
-                    //         model: BookingSeatAvailability,
-                    //         as: 'bookingSeatAvailability'
-                    //     }
-                    // ]
-                },
-                // {
-                //     model: BookingSeatAvailability,
-                //     as: 'bookingSeatAvailability'
 
-                // },
-                {
-                    model: Passenger,
-                    as: 'passengers'
-                },
-                {
-                    model: TransportBooking,
-                    as: 'transportBookings',
-                    include: [
-                        {
-                            model: Transport,
-                            as: 'transport'
-                        }
-                    ]
-                },
-                {
-                    model: Agent,
-                    as: 'Agent',
-                    // include: [
-                    //     {
-                    //         model: AgentMetrics,
-                    //         as: 'agentMetrics'
-                    //     }
-                    // ]
-                }
-            ]
-        });
-        if (booking) {
-            console.log('Booking retrieved:', booking);
-            res.status(200).json(booking);
-        } else {
-            console.log('Booking not found:', req.params.id);
-            res.status(404).json({ error: 'Booking not found' });
-        }
-    } catch (error) {
-        console.log('Error retrieving booking:', error.message);
-        res.status(400).json({ error: error.message });
-    }
-};
 
 const getBookingByTicketId = async (req, res) => {
     try {
