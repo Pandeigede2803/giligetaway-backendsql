@@ -10,6 +10,8 @@ const {
   Passenger,
 } = require("../models"); // Adjust the path as needed
 
+const { validationResult } = require('express-validator');
+
 const checkAvailableSeats = async (req, res) => {
   const { schedule_id, booking_date } = req.query;
 
@@ -194,9 +196,61 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
   }
 };
 
+const updateSeatAvailability = async (req, res) => {
+  const { id } = req.params; // Extract the ID from the URL parameters
+  const {
+    schedule_id,
+    available_seats,
+    transit_id,
+    subschedule_id,
+    availability,
+    date
+  } = req.body;
+
+  // Validate the request
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    // Find the seat availability record by ID
+    const seatAvailability = await SeatAvailability.findByPk(id);
+
+    if (!seatAvailability) {
+      return res.status(404).json({ error: `Seat availability not found for ID ${id}.` });
+    }
+
+    // Update the seat availability record
+    const updatedSeatAvailability = await seatAvailability.update({
+      schedule_id,
+      available_seats,
+      transit_id,
+      subschedule_id,
+      availability,
+      date
+    });
+
+    // Return the updated seat availability
+    return res.status(200).json({
+      status: "success",
+      message: "Seat availability updated successfully",
+      seat_availability: updatedSeatAvailability
+    });
+  } catch (error) {
+    console.log("Error updating seat availability:", error.message);
+    return res.status(500).json({
+      status: "error",
+      message: "An error occurred while updating seat availability",
+      error: error.message
+    });
+  }
+};
+
 
 module.exports = {
   checkAvailableSeats,
   checkAllAvailableSeats,
-  checkAllAvailableSeatsBookingCount
+  checkAllAvailableSeatsBookingCount,
+  updateSeatAvailability
 };

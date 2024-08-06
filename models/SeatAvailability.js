@@ -39,6 +39,11 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         allowNull: true,
         field: 'subschedule_id'
     },
+    availability: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        field: 'availability'
+    },
     date: {
         type: DataTypes.DATE,
         allowNull: false,

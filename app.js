@@ -52,7 +52,7 @@ app.use('/api/agent-metrics', agentMetricsRouter);
 // Use the seatAvailability routes
 app.use('/api/seat', seatAvailabilityRoutes);
 
-app.use('/api/booking-seat',bookingSeatAvailability);
+app.use('/api/booking-seat',bookingSeatAvailability);;
 
 
 

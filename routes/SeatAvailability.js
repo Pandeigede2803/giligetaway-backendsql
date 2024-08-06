@@ -10,7 +10,14 @@ router.get('/check-all',authenticate, checkAllAvailableSeats);
 
 // updateseatavailability
 
-// router.put('/update-seat',authenticate, updateSeatAvailability)
+router.put('/update-seat/:id',authenticate, updateSeatAvailability);
+
+
+
+// Route to check all available seats for a specific schedule and date
 router.get('/check-all/booking-count',authenticate, checkAllAvailableSeatsBookingCount);
+
+// updateseatavailability
+
 
 module.exports = router;
