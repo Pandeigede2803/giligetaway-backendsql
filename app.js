@@ -54,7 +54,7 @@ app.use('/api/seat', seatAvailabilityRoutes);
 
 app.use('/api/booking-seat',bookingSeatAvailability);;
 
-
+//api/agents/reset-password
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');

@@ -11,12 +11,6 @@ const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware
 
 router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);
 
-
-// UPDATE agent
-
-
-
-
 // GET all agents
 router.get('/', authenticate, agentController.getAllAgents);
 
@@ -49,7 +43,7 @@ router.delete('/:id', authenticate, agentController.deleteAgent);
 router.post('/request-password-reset', agentController.requestPasswordResetLink);
 
 // Route to reset the password using the token
-router.post('/reset-password',authenticate, agentController.resetPasswordWithToken);
+router.post('/reset-password', agentController.resetPasswordWithToken);
 
 
 module.exports = router;
