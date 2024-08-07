@@ -5,6 +5,29 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { uploadImageToImageKit } = require('../middleware/uploadImage');
 
+
+exports.loginAgent = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const agent = await Agent.findOne({ where: { email } });
+        if (!agent) {
+            return res.status(404).json({ message: 'Agent not found' });
+        }
+
+        // Compare the hashed password
+        const isMatch = await bcrypt.compare(password, agent.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        res.status(200).json({ message: 'Login successful', agent: agent.dataValues });
+    } catch (error) {
+        console.error('Error during agent login:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
 exports.requestPasswordResetLink = async (req, res) => {
     const { email } = req.body;
     try {
@@ -48,7 +71,6 @@ exports.requestPasswordResetLink = async (req, res) => {
                 res.status(200).json({ message: 'Reset link sent to your email.' });
             }
         });
-
     } catch (error) {
         console.error('Error requesting password reset link:', error.message);
         res.status(500).json({ message: error.message });
@@ -235,25 +257,7 @@ exports.createAgent = async (req, res) => {
 };
 // Get all agents
 
-// Login Route
-exports.loginAgent = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const agent = await Agent.findOne({ where: { email } });
-        if (!agent) {
-            return res.status(404).json({ message: 'Agent not found' });
-        }
 
-        if (agent.password !== password) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        res.status(200).json({ message: 'Login successful', agent: agent.dataValues });
-    } catch (error) {
-        console.error('Error during agent login:', error.message);
-        res.status(500).json({ message: error.message });
-    }
-};
 
 exports.getAllAgents = async (req, res) => {
     try {
