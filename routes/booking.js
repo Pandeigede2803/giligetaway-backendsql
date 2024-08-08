@@ -26,6 +26,12 @@ router.get('/ticket/:ticket_id', bookingController.getBookingByTicketId);
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);
 
+//update booking payment
+router.put('/payment/:id',authenticate, bookingController.updateBookingPayment);
+
+//update booking date
+router.put('/date/:id',authenticate, bookingController.updateBookingDate);
+
 // DELETE booking
 router.delete('/:id', bookingController.deleteBooking);
 
