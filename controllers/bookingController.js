@@ -5,6 +5,28 @@ const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability")
 
 
+const getBookingContact = async (req, res) => {
+    try {
+        const bookings = await Booking.findAll({
+            attributes: [
+                'id',
+                'contact_name',
+                'contact_phone',
+                'contact_passport_id',
+                'contact_nationality',
+                'contact_email'
+            ]
+        });
+        console.log("Contact list:", JSON.stringify(bookings, null, 2));
+        res.status(200).json(bookings.map(b => ({ id: b.id, ...b.dataValues })));
+    } catch (error) {
+        console.log('Error getting contact list:', error.message);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+
+
 const getBookingById = async (req, res) => {
     try {
         const booking = await Booking.findByPk(
@@ -333,9 +355,6 @@ const getBookings = async (req, res) => {
 
 
 
-
-
-
 const getBookingByTicketId = async (req, res) => {
     try {
         const booking = await Booking.findOne({
@@ -403,11 +422,6 @@ const getBookingByTicketId = async (req, res) => {
 };
 
 
-
-
-
-
-
 const createBooking = async (req, res) => {
     try {
         const result = await sequelize.transaction(async (t) => {
@@ -457,10 +471,6 @@ const createBooking = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
-
-
-
-
 
 const updateBooking = async (req, res) => {
     const { id } = req.params;
@@ -534,8 +544,10 @@ const deleteBooking = async (req, res) => {
     }
 };
 
+
 module.exports = {
     createBooking,
+    getBookingContact,
     getBookings,
     getBookingById,
     updateBooking,

@@ -32,6 +32,9 @@ router.delete('/:id', bookingController.deleteBooking);
 // Check available seats
 router.get('/check-available-seats',authenticate, seatAvailabilityController.checkAvailableSeats);
 
+// Check all contact details from booking
+router.get('/contact/details', authenticate, bookingController.getBookingContact);
+
 
 // // Route for booking with transit
 // router.post('/createBookingWithTransit', createBookingWithTransit);
