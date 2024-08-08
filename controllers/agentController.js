@@ -383,12 +383,7 @@ exports.getAgentById = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
 // Delete agent
-
-
-
 exports.deleteAllAgentsAndResetMetrics = async (req, res) => {
     const transaction = await sequelize.transaction();
 
@@ -418,9 +413,6 @@ exports.deleteAllAgentsAndResetMetrics = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-
-
-
 
 
 exports.resetPasswordWithToken = async (req, res) => {
