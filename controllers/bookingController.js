@@ -591,74 +591,92 @@ const updateBookingPayment = async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 };
-
 const updateBookingDate = async (req, res) => {
     const { id } = req.params;
     const { booking_date } = req.body;
 
     try {
-        // Start a transaction
         await sequelize.transaction(async (t) => {
-            // Find the booking by ID
+            console.log('Finding booking...');
             const booking = await Booking.findByPk(id, { transaction: t });
             if (!booking) {
                 throw new Error('Booking not found.');
             }
             console.log('Current booking found:', booking);
 
-            // Find the seat availability for the current booking date
             const currentSeatAvailability = await SeatAvailability.findOne({
                 where: { date: booking.booking_date, schedule_id: booking.schedule_id },
                 transaction: t
             });
             console.log('Current seat availability found:', currentSeatAvailability);
 
-            // Find the seat availability for the new booking date
-            const newSeatAvailability = await SeatAvailability.findOne({
+            let newSeatAvailability = await SeatAvailability.findOne({
                 where: { date: booking_date, schedule_id: booking.schedule_id },
                 transaction: t
             });
 
             if (!newSeatAvailability) {
-                throw new Error('New seat availability not found for the new date.');
-            }
-            console.log('New seat availability found:', newSeatAvailability);
+                console.log('New seat availability not found, creating new entry...');
 
-            // Check if the new seat availability is frozen
+                const schedule = await Schedule.findByPk(booking.schedule_id, {
+                    include: {
+                        model: Boat,
+                        as: 'Boat',
+                        attributes: ['capacity']
+                    },
+                    transaction: t
+                });
+
+                if (!schedule) {
+                    throw new Error(`Schedule with ID ${booking.schedule_id} not found.`);
+                }
+
+                newSeatAvailability = await SeatAvailability.create({
+                    schedule_id: booking.schedule_id,
+                    available_seats: schedule.Boat.capacity - booking.total_passengers,
+                    total_seats: schedule.Boat.capacity,
+                    date: booking_date,
+                    availability: true
+                }, { transaction: t });
+                console.log('New seat availability created:', newSeatAvailability);
+            }
+
             if (!newSeatAvailability.availability) {
                 throw new Error(`The seat availability for date: ${booking_date} is frozen and cannot be booked at the moment.`);
             }
 
-            // Check if the new seat availability has enough seats
             if (newSeatAvailability.available_seats < booking.total_passengers) {
                 throw new Error(`The seat availability for date: ${booking_date} is full.`);
             }
 
-            // Update the available seats for the current booking date
-            await currentSeatAvailability.update({
-                available_seats: currentSeatAvailability.available_seats + booking.total_passengers
-            }, { transaction: t });
-            console.log('Updated current seat availability:', currentSeatAvailability);
+            console.log('Updating seat availability...');
+            
+            if (currentSeatAvailability) {
+                await currentSeatAvailability.update({
+                    available_seats: currentSeatAvailability.available_seats + booking.total_passengers
+                }, { transaction: t });
+                console.log('Updated current seat availability:', currentSeatAvailability);
+            } else {
+                console.log('No seat availability found for the current booking date, skipping update...');
+            }
 
-            // Update the available seats for the new booking date
             await newSeatAvailability.update({
                 available_seats: newSeatAvailability.available_seats - booking.total_passengers
             }, { transaction: t });
             console.log('Updated new seat availability:', newSeatAvailability);
 
-            // Update the booking date
+            console.log('Updating booking date...');
             await booking.update({ booking_date }, { transaction: t });
             console.log('Booking date updated:', booking);
 
-            // Commit the transaction and send the response
             res.status(200).json(booking);
         });
     } catch (error) {
-        // Log the error and send the error response
         console.log('Error updating booking date:', error.message);
         res.status(400).json({ error: error.message });
     }
 };
+
 
 
 const deleteBooking = async (req, res) => {
