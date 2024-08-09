@@ -190,6 +190,7 @@ const createBookingWithoutTransit = async (req, res) => {
             }, { transaction: t });
             console.log('Booking created:', booking);
 
+            // Find seat availability for the schedule and date
             let seatAvailability = await SeatAvailability.findOne({
                 where: {
                     schedule_id,
@@ -218,8 +219,10 @@ const createBookingWithoutTransit = async (req, res) => {
                 seatAvailability = await SeatAvailability.create({
                     schedule_id,
                     available_seats: schedule.Boat.capacity,
-                    date: booking_date
+                    date: booking_date,
+                    availability: true // Ensure availability is set to true by default
                 }, { transaction: t });
+                console.log('Seat availability created:', seatAvailability);
             }
 
             if (payment_status === 'paid') {
@@ -231,6 +234,7 @@ const createBookingWithoutTransit = async (req, res) => {
                 console.log('Updating seat availability...');
                 // Update seat availability
                 await seatAvailability.update({ available_seats: seatAvailability.available_seats - total_passengers }, { transaction: t });
+                console.log('Seat availability updated:', seatAvailability);
             }
 
             console.log('Adding passengers in batch...');
@@ -240,6 +244,7 @@ const createBookingWithoutTransit = async (req, res) => {
                 ...passenger
             }));
             await Passenger.bulkCreate(passengerData, { transaction: t });
+            console.log('Passengers added:', passengerData);
 
             console.log('Adding transports in batch...');
             // Add transports in batch
@@ -252,11 +257,13 @@ const createBookingWithoutTransit = async (req, res) => {
                 note: transport.note
             }));
             await TransportBooking.bulkCreate(transportData, { transaction: t });
+            console.log('Transports added:', transportData);
 
             console.log('Updating agent metrics if agent_id is present...');
             // Update agent metrics if agent_id is present
             if (agent_id) {
                 await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
+                console.log('Agent metrics updated for agent_id:', agent_id);
             }
 
             console.log('Linking booking with seat availability...');
@@ -265,6 +272,7 @@ const createBookingWithoutTransit = async (req, res) => {
                 booking_id: booking.id,
                 seat_availability_id: seatAvailability.id
             }, { transaction: t });
+            console.log('Booking linked with seat availability:', bookingSeatAvailability);
 
             console.log('Returning the created booking along with transport bookings and seat availability...');
             // Return the created booking along with transport bookings and seat availability
