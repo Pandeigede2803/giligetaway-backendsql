@@ -9,7 +9,7 @@ const {
   BookingSeatAvailability,
   Passenger,
 } = require("../models"); // Adjust the path as needed
-
+const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
 
 const checkAvailableSeats = async (req, res) => {
@@ -248,9 +248,118 @@ const updateSeatAvailability = async (req, res) => {
 };
 
 
+const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
+  const { schedule_id } = req.query;
+
+  try {
+    let seatAvailabilities;
+
+    if (schedule_id) {
+      console.log(`Fetching seat availabilities for schedule_id: ${schedule_id}`);
+      
+      // Fetch specific seat availability for the given schedule_id
+      seatAvailabilities = await SeatAvailability.findAll({
+        where: { schedule_id },
+        include: [
+          {
+            model: Schedule,
+            as: "Schedule",
+            include: [
+              { model: Boat, as: "Boat" },
+              { model: Destination, as: "DestinationFrom" },
+              { model: Destination, as: "DestinationTo" }
+            ]
+          },
+          {
+            model: SubSchedule,
+            as: "SubSchedule",
+            include: [
+              {
+                model: Schedule,
+                as: "Schedule",
+                include: [
+                  { model: Boat, as: "Boat" },
+                  { model: Destination, as: "DestinationFrom" },
+                  { model: Destination, as: "DestinationTo" }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+    } else {
+      console.log('Fetching all seat availabilities');
+      
+      // Fetch all seat availabilities
+      seatAvailabilities = await SeatAvailability.findAll({
+        include: [
+          {
+            model: Schedule,
+            as: "Schedule",
+            include: [
+              { model: Boat, as: "Boat" },
+              { model: Destination, as: "DestinationFrom" },
+              { model: Destination, as: "DestinationTo" }
+            ]
+          },
+          {
+            model: SubSchedule,
+            as: "SubSchedule",
+            include: [
+              {
+                model: Schedule,
+                as: "Schedule",
+                include: [
+                  { model: Boat, as: "Boat" },
+                  { model: Destination, as: "DestinationFrom" },
+                  { model: Destination, as: "DestinationTo" }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+    }
+
+    if (!seatAvailabilities || seatAvailabilities.length === 0) {
+      console.log('No seat availabilities found.');
+      return res.status(404).json({
+        status: "fail",
+        message: "No seat availabilities found."
+      });
+    }
+
+    console.log(`Found ${seatAvailabilities.length} seat availabilities`);
+
+    // Format the response using formatScheduleResponse utility
+    const responseData = seatAvailabilities.map(formatScheduleResponse);
+
+    console.log('Returning formatted seat availabilities data');
+    
+    // Return the response
+    return res.status(200).json({
+      status: "success",
+      message: "Seat availabilities with schedules and subschedules retrieved successfully",
+      seat_availabilities: responseData
+    });
+  } catch (error) {
+    console.error("Error retrieving seat availabilities:", error.message);
+    return res.status(500).json({
+      status: "error",
+      message: "An error occurred while retrieving seat availabilities",
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
 module.exports = {
   checkAvailableSeats,
   checkAllAvailableSeats,
   checkAllAvailableSeatsBookingCount,
-  updateSeatAvailability
+  updateSeatAvailability,
+  getAllSeatAvailabilityScheduleAndSubSchedule
 };

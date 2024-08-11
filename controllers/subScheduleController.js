@@ -1,4 +1,4 @@
-const { SubSchedule, Schedule, Transit, Destination } = require("../models");
+const { SubSchedule, Schedule,Boat, Transit, Destination } = require("../models");
 const { uploadImageToImageKit } = require("../middleware/upload");
 const { sequelize } = require("../models");
 const { mapTransitDetails } = require("../util/mapTransitDetails");;
@@ -368,6 +368,9 @@ const getSubScheduleById = async (req, res) => {
           as: "Schedule",
           attributes: [
             "id",
+            "validity_start",
+            "validity_end",
+            "boat_id",
             "check_in_time",
             "arrival_time",
             "journey_time",
@@ -376,6 +379,12 @@ const getSubScheduleById = async (req, res) => {
             "destination_to_id",
           ],
           include: [
+            {
+              model: Boat,
+              as: "Boat", // Include Boat details
+              attributes: ["id", "boat_name", "capacity", "boat_image"],
+            },
+            
             {
               model: Destination,
               as: "DestinationFrom",

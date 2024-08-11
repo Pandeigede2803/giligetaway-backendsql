@@ -1,0 +1,68 @@
+{
+  "status": "success",
+  "message": "Seat availabilities with schedules and subschedules retrieved successfully",
+  "seat_availabilities": [
+    {
+      "date": "2024-08-15",
+      "available_seats": 30,
+      "availability_status": true,
+      "schedule": {
+        "id": 1,
+        "boat": "Boat A",
+        "destination_from": "Port A",
+        "destination_to": "Port B",
+        "departure_time": "08:00:00",
+        "arrival_time": "10:00:00"
+      },
+      "subschedule": {
+        "id": 1,
+        "parent_schedule": {
+          "id": 2,
+          "boat": "Boat B",
+          "destination_from": "Port B",
+          "destination_to": "Port C"
+        },
+        "available_seats": 15,
+        "availability_status": true
+      }
+    },
+    {
+      "date": "2024-08-16",
+      "available_seats": 20,
+      "availability_status": false,
+      "schedule": {
+        "id": 2,
+        "boat": "Boat B",
+        "destination_from": "Port B",
+        "destination_to": "Port C",
+        "departure_time": "09:00:00",
+        "arrival_time": "11:00:00"
+      },
+      "subschedule": null
+    },
+    {
+      "date": "2024-08-17",
+      "available_seats": 10,
+      "availability_status": true,
+      "schedule": {
+        "id": 3,
+        "boat": "Boat C",
+        "destination_from": "Port A",
+        "destination_to": "Port D",
+        "departure_time": "07:30:00",
+        "arrival_time": "09:30:00"
+      },
+      "subschedule": {
+        "id": 2,
+        "parent_schedule": {
+          "id": 3,
+          "boat": "Boat C",
+          "destination_from": "Port A",
+          "destination_to": "Port D"
+        },
+        "available_seats": 5,
+        "availability_status": true
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { checkAvailableSeats,updateSeatAvailability, checkAllAvailableSeats, checkAllAvailableSeatsBookingCount } = require('../controllers/seatAvailabilityController'); // Adjust the path as needed
+const {getAllSeatAvailabilityScheduleAndSubSchedule, checkAvailableSeats,updateSeatAvailability, checkAllAvailableSeats, checkAllAvailableSeatsBookingCount } = require('../controllers/seatAvailabilityController'); // Adjust the path as needed
 const authenticate = require('../middleware/authenticate');
 // Route to check available seats for a specific schedule and date
 router.get('/check-available',authenticate, checkAvailableSeats);
@@ -19,5 +19,6 @@ router.get('/check-all/booking-count',authenticate, checkAllAvailableSeatsBookin
 
 // updateseatavailability
 
+router.get("/get-all-seat-availability-schedule-and-subschedule",authenticate,getAllSeatAvailabilityScheduleAndSubSchedule );
 
 module.exports = router;
