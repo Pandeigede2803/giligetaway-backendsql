@@ -742,8 +742,174 @@ const deleteSchedule = async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 };
+const getScheduleSubscheduleByIdSeat = async (req, res) => {
+  try {
+    console.log(`Fetching schedule with ID: ${req.params.id}`);
 
-//
+    const schedule = await Schedule.findByPk(req.params.id, {
+      attributes: ["id", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
+      include: [
+        {
+          model: Destination,
+          as: "DestinationFrom",
+          attributes: ["id", "name", 
+            // "port_map_url", "image_url"
+          ],
+        },
+        {
+          model: Destination,
+          as: "DestinationTo",
+          attributes: ["id", "name",
+            //  "port_map_url", "image_url"
+            ],
+        },
+        {
+          model: Transit,
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", 
+              // "port_map_url", "image_url"
+            ],
+          },
+        },
+        {
+          model: Boat,
+          as: "Boat",
+          attributes: ["id", "boat_name", "capacity", "boat_image"],
+        },
+        {
+          model: SeatAvailability,
+          as: "SeatAvailabilities",
+          attributes: ["id", "schedule_id", "date", "available_seats", "availability"],
+        },
+        {
+          model: SubSchedule,
+          as: "SubSchedules",
+          attributes: ["id", "schedule_id"],
+          include: [
+            {
+              model: Schedule,
+              as: "Schedule",
+              attributes: ["id", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
+              include: [
+                {
+                  model: Destination,
+                  as: "DestinationFrom",
+                  attributes: ["id", "name", "port_map_url", "image_url"],
+                },
+                {
+                  model: Destination,
+                  as: "DestinationTo",
+                  attributes: ["id", "name", "port_map_url", "image_url"],
+                },
+                {
+                  model: Boat,
+                  as: "Boat",
+                  attributes: ["id", "boat_name", "capacity", "boat_image"],
+                },
+             
+              ],
+            },
+            {
+              model: Schedule,
+              as: "DestinationFrom",
+              attributes: ["id", "destination_from_id","arrival_time","departure_time","journey_time","check_in_time"],
+              include: [
+                { model: Destination, as: "DestinationFrom", attributes: ["id", "name", ] },
+              ]
+            },
+            {
+              model: Schedule,
+              as: "DestinationTo",
+              attributes: ["id", "destination_to_id","arrival_time","departure_time","journey_time","check_in_time"],
+              include: [
+                { model: Destination,
+                  as: "DestinationTo",
+                  attributes: ["id", "name", "port_map_url", "image_url"] 
+                },
+
+              ]
+            
+            },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              include: [
+                { model: Destination, as: "Destination", attributes: ["id", "name"] },
+              ],
+            },
+         
+            {
+              model: SeatAvailability,
+              as: "SeatAvailabilities",
+              attributes: ["id", "subschedule_id", "date", "available_seats", "availability"],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (schedule) {
+      console.log("Schedule found:");
+      console.log(JSON.stringify(schedule, null, 2));
+
+      if (schedule.SubSchedules && schedule.SubSchedules.length > 0) {
+        console.log("SubSchedules found:");
+        schedule.SubSchedules.forEach((subSchedule, index) => {
+          console.log(`SubSchedule ${index + 1}:`);
+          console.log(JSON.stringify(subSchedule, null, 2));
+        });
+      } else {
+        console.log("No SubSchedules found for this schedule.");
+      }
+
+      res.status(200).json(schedule);
+    } else {
+      console.log("Schedule not found.");
+      res.status(404).json({ error: "Schedule not found" });
+    }
+  } catch (error) {
+    console.error("Error fetching schedule and subschedules:", error.message);
+    res.status(400).json({ error: error.message });
+  }
+};
+
 
 // Upload schedules (existing function)
 const uploadSchedules = async (req, res) => {
@@ -829,6 +995,7 @@ module.exports = {
   getScheduleById,
   getSchedulesByDestination,
   getSchedulesByValidity,
+  getScheduleSubscheduleByIdSeat,
   getSchedulesByBoat,
   getSchedulesByUser,
   updateSchedule,
@@ -837,6 +1004,7 @@ module.exports = {
   createScheduleWithTransit,
   getSchedulesByMultipleParams,
   getSchedulesWithTransits,
+
 };
 
 // Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize

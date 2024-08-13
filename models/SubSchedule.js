@@ -176,6 +176,15 @@ SubSchedule.associate = (models) => {
         foreignKey: 'subschedule_id',
         as: 'SeatAvailabilities'
     });
+    SubSchedule.belongsTo(models.Schedule, {
+        foreignKey: 'destination_from_schedule_id',
+        as: 'DestinationFrom'
+    });
+
+    SubSchedule.belongsTo(models.Schedule, {
+        foreignKey: 'destination_to_schedule_id',
+        as: 'DestinationTo'
+    });
 
  
 };
