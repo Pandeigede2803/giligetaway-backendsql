@@ -808,7 +808,6 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
                   as: "Boat",
                   attributes: ["id", "boat_name", "capacity", "boat_image"],
                 },
-             
               ],
             },
             {
