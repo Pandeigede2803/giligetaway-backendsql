@@ -786,12 +786,12 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
         {
           model: SubSchedule,
           as: "SubSchedules",
-          attributes: ["id", "schedule_id"],
+          attributes: ["id", "schedule_id","destination_from_schedule_id","destination_to_schedule_id"],
           include: [
             {
               model: Schedule,
               as: "Schedule",
-              attributes: ["id", "validity_start"," destination_from_schedule_id","destination_to_schedule_id", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
+              attributes: ["id", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
               include: [
                 {
                   model: Destination,
@@ -812,24 +812,16 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
               ],
             },
             {
-              model: Schedule,
-              as: "DestinationFrom",
-              attributes: ["id", "destination_from_id","arrival_time","departure_time","journey_time","check_in_time"],
-              include: [
-                { model: Destination, as: "DestinationFrom", attributes: ["id", "name", ] },
-              ]
+              
+                model: Destination,
+                as: "DestinationFrom",
+                attributes: ["id", "name", "port_map_url", "image_url"],
+              
             },
             {
-              model: Schedule,
+              model: Destination,
               as: "DestinationTo",
-              attributes: ["id", "destination_to_id","arrival_time","departure_time","journey_time","check_in_time"],
-              include: [
-                { model: Destination,
-                  as: "DestinationTo",
-                  attributes: ["id", "name", "port_map_url", "image_url"] 
-                },
-
-              ]
+              attributes: ["id", "name", "port_map_url", "image_url"],
             
             },
             {

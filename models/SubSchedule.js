@@ -18,7 +18,7 @@ const SubSchedule = sequelize.define('SubSchedule', {
         type: DataTypes.INTEGER,
         allowNull: true, // Allow null values
         references: {
-            model: 'Schedules',
+            model: 'Destinations',  // Reference the Destination model
             key: 'id'
         }
     },
@@ -26,7 +26,7 @@ const SubSchedule = sequelize.define('SubSchedule', {
         type: DataTypes.INTEGER,
         allowNull: true, // Allow null values
         references: {
-            model: 'Schedules',
+            model: 'Destinations',
             key: 'id'
         }
     },
@@ -176,12 +176,12 @@ SubSchedule.associate = (models) => {
         foreignKey: 'subschedule_id',
         as: 'SeatAvailabilities'
     });
-    SubSchedule.belongsTo(models.Schedule, {
+    SubSchedule.belongsTo(models.Destination, {
         foreignKey: 'destination_from_schedule_id',
         as: 'DestinationFrom'
     });
 
-    SubSchedule.belongsTo(models.Schedule, {
+    SubSchedule.belongsTo(models.Destination, {
         foreignKey: 'destination_to_schedule_id',
         as: 'DestinationTo'
     });
