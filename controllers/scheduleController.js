@@ -791,7 +791,7 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
             {
               model: Schedule,
               as: "Schedule",
-              attributes: ["id", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
+              attributes: ["id", "validity_start"," destination_from_schedule_id","destination_to_schedule_id", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
               include: [
                 {
                   model: Destination,
