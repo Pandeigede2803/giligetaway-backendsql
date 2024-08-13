@@ -13,7 +13,7 @@ const transitController = require('../controllers/transitController');
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
 
 //multiple params
-router.get('/search',authenticate, scheduleController.getSchedulesByMultipleParams);
+router.get('/search', scheduleController.getSchedulesByMultipleParams);
 
 
 //with transit

@@ -12,7 +12,7 @@ router.get('/', authenticate, transportController.getTransports);
 router.get('/:id', authenticate, transportController.getTransportById);
 
 // UPDATE transport
-router.put('/:id', authenticate, transportController.updateTransport);
+router.put('/:id',  transportController.updateTransport);
 
 // DELETE transport
 router.delete('/:id', authenticate, transportController.deleteTransport);
