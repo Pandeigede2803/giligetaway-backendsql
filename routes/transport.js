@@ -6,13 +6,13 @@ const authenticate = require('../middleware/authenticate');
 router.post('/', authenticate, transportController.createTransport);
 
 // READ transports
-router.get('/', authenticate, transportController.getTransports);
+router.get('/',  transportController.getTransports);
 
 // READ transport by id
 router.get('/:id', authenticate, transportController.getTransportById);
 
 // UPDATE transport
-router.put('/:id',  transportController.updateTransport);
+router.put('/:id', authenticate, transportController.updateTransport);
 
 // DELETE transport
 router.delete('/:id', authenticate, transportController.deleteTransport);
