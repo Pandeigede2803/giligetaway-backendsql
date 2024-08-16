@@ -1,12 +1,11 @@
 
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
-
 const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
-const handleMainScheduleBooking = require('./path/to/handleMainScheduleBooking');
-const handleSubScheduleBooking = require('./path/to/handleSubScheduleBooking');
-const { handleExpiredBookings } = require('../util/cornJobs');  // Mengimpor fungsi dari cronJobs.js
+const handleMainScheduleBooking = require('../util/handleMainScheduleBooking');
+const handleSubScheduleBooking = require('../util/handleSubScheduleBooking');
+const { handleExpiredBookings } = require('../util/cornJobs');;  // Mengimpor fungsi dari cronJobs.js
 
 const createBookingWithTransit = async (req, res) => {
     const {

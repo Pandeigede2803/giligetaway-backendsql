@@ -82,3 +82,5 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
 
     return remainingSeatAvailabilities;
 };
+
+module.exports = handleSubScheduleBooking;
