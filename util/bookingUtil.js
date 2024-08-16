@@ -1,8 +1,13 @@
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+
+
 const createBooking = async (data, transaction) => {
+    console.log('Creating booking with data:', data);
     return await Booking.create(data, { transaction });
 };
 
 const fetchSchedule = async (schedule_id, transaction) => {
+    console.log('Fetching schedule with ID:', schedule_id);
     const schedule = await Schedule.findByPk(schedule_id, { transaction });
     if (!schedule) {
         throw new Error(`Schedule with ID ${schedule_id} not found.`);
@@ -11,6 +16,7 @@ const fetchSchedule = async (schedule_id, transaction) => {
 };
 
 const updateScheduleSeats = async (schedule, total_passengers, transaction) => {
+    console.log(`Updating schedule seats. Available seats: ${schedule.available_seats}, Total passengers: ${total_passengers}`);
     if (schedule.available_seats < total_passengers) {
         throw new Error('Not enough seats available on the schedule.');
     }
@@ -18,6 +24,7 @@ const updateScheduleSeats = async (schedule, total_passengers, transaction) => {
 };
 
 const addPassengers = async (passengers, booking_id, transaction) => {
+    console.log('Adding passengers:', passengers);
     const passengerData = passengers.map((passenger) => ({
         booking_id,
         ...passenger
@@ -26,9 +33,11 @@ const addPassengers = async (passengers, booking_id, transaction) => {
 };
 
 const addTransportBookings = async (transports, booking_id, total_passengers, transaction) => {
+    console.log('Adding transport bookings:', transports);
     const transportData = transports.map((transport) => ({
         booking_id,
         transport_id: transport.transport_id,
+        transport_price: transport.transport_price || 0, // Assign a default value of 0 if not provided
         quantity: transport.quantity || total_passengers,
         transport_type: transport.transport_type,
         note: transport.note
@@ -37,6 +46,7 @@ const addTransportBookings = async (transports, booking_id, total_passengers, tr
 };
 
 const updateAgentMetrics = async (agent_id, gross_total, total_passengers, payment_status, transaction) => {
+    console.log('Updating agent metrics. Agent ID:', agent_id, 'Gross Total:', gross_total, 'Total Passengers:', total_passengers, 'Payment Status:', payment_status);
     const agentMetrics = await AgentMetrics.findOne({ where: { agent_id }, transaction });
 
     if (agentMetrics) {

@@ -15,7 +15,7 @@ const BookingSeatAvailability = sequelize.define('BookingSeatAvailability', {
         },
         allowNull: false
     },
-    seat_availability_id: {
+    seatavailability_id: {
         type: DataTypes.INTEGER,
         references: {
             model: 'SeatAvailability',

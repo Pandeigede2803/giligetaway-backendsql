@@ -2,6 +2,7 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
 const { updateAgentMetrics } = require('../util/updateAgentMetrics');
+const {addTransportBookings,addPassengers} =require('../util/bookingUtil');
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
 const handleMainScheduleBooking = require('../util/handleMainScheduleBooking');
 const handleSubScheduleBooking = require('../util/handleSubScheduleBooking');
@@ -18,10 +19,6 @@ const createBookingWithTransit = async (req, res) => {
 
     try {
         const result = await sequelize.transaction(async (t) => {
-            // Memeriksa dan menghandle expired bookings sebelum membuat booking baru
-            await handleExpiredBookings();
-
-            // Membuat entri baru di tabel Booking
             const booking = await Booking.create({
                 schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
                 contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
@@ -30,52 +27,48 @@ const createBookingWithTransit = async (req, res) => {
             }, { transaction: t });
 
             let remainingSeatAvailabilities;
-            // Memanggil fungsi untuk mengelola ketersediaan kursi berdasarkan jadwal utama atau subjadwal
             if (subschedule_id) {
                 remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, t);
             } else {
                 remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, t);
             }
 
-            // Menambahkan data penumpang ke tabel Passenger
-            const passengerData = passengers.map((passenger) => ({
-                booking_id: booking.id,
-                ...passenger
-            }));
-            await Passenger.bulkCreate(passengerData, { transaction: t });
+            // Menggunakan utilitas untuk menambahkan data penumpang ke tabel Passenger
+            await addPassengers(passengers, booking.id, t);
 
-            // Menambahkan data transportasi ke tabel TransportBooking
-            const transportData = transports.map((transport) => ({
-                booking_id: booking.id,
-                transport_id: transport.transport_id,
-                quantity: transport.quantity,
-                transport_price: transport.transport_price,
-                transport_type: transport.transport_type,
-                note: transport.note
-            }));
-            await TransportBooking.bulkCreate(transportData, { transaction: t });
+            // Menggunakan utilitas untuk menambahkan data transportasi ke tabel TransportBooking
+            await addTransportBookings(transports, booking.id, total_passengers, t);
 
             // Memperbarui metrik agen jika agent_id tersedia dan payment_status 'paid'
             if (agent_id && payment_status === 'paid') {
                 await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
             }
 
-            // Membuat entri di tabel BookingSeatAvailability untuk menghubungkan pemesanan dengan ketersediaan kursi
-            const bookingSeatAvailabilityData = transit_details.map(transit => ({
-                booking_id: booking.id,
-                seat_availability_id: transit.seat_availability_id
-            }));
-            await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+            // Periksa apakah `transit_details` ada dan bukan array kosong
+            if (transit_details && Array.isArray(transit_details) && transit_details.length > 0) {
+                // Membuat entri di tabel BookingSeatAvailability untuk menghubungkan pemesanan dengan ketersediaan kursi
+                const bookingSeatAvailabilityData = transit_details.map(transit => ({
+                    booking_id: booking.id,
+                    seat_availability_id: transit.seat_availability_id
+                }));
+                await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+            }
 
             const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
 
-            // Mengembalikan booking dan sisa seatAvailability
-            res.status(201).json({ booking, remainingSeatAvailabilities, transportBookings });
+            // Kembalikan booking, remainingSeatAvailabilities, dan transportBookings
+            res.status(201).json({ 
+                booking, 
+                remainingSeatAvailabilities, 
+                transportBookings 
+            });
         });
     } catch (error) {
+        console.log('Error:', error.message);
         res.status(400).json({ error: error.message });
     }
 };
+
 
 
 // const createBookingWithTransit = async (req, res) => {

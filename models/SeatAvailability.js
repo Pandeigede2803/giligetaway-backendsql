@@ -45,7 +45,7 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         field: 'availability'
     },
     date: {
-        type: DataTypes.DATE,
+        type: DataTypes.DATEONLY,
         allowNull: false,
         field: 'date'
     },

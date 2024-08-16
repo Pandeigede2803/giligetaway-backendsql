@@ -70,4 +70,5 @@ cron.schedule('*/5 * * * *', async () => {
     await handleExpiredBookings();
 });
 
-module.exports = handleExpiredBookings;
+module.exports = {
+    handleExpiredBookings};

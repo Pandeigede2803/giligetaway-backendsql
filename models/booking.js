@@ -35,7 +35,7 @@ const Booking = sequelize.define('Booking', {
             key: 'id'
         }
     },
-    sub_schedule_id: {
+    subschedule_id: {
         type: DataTypes.INTEGER,
         references: {
             model: 'SubSchedules',

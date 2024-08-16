@@ -1,4 +1,7 @@
 
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+
+
 const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transit_details, transaction) => {
     const subSchedule = await SubSchedule.findByPk(subschedule_id, { transaction });
 
@@ -13,7 +16,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         let seatAvailability = await SeatAvailability.findOne({
             where: {
                 schedule_id: schedule_id,
-                sub_schedule_id: subschedule_id,
+                subschedule_id: subschedule_id,
                 transit_id: transit.transit_id || null,
                 date: booking_date
             },
@@ -26,7 +29,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
 
             seatAvailability = await SeatAvailability.create({
                 schedule_id: schedule_id,
-                sub_schedule_id: subschedule_id,
+                subschedule_id: subschedule_id,
                 transit_id: transit.transit_id || null,
                 available_seats: boatCapacity,
                 date: booking_date,
@@ -50,7 +53,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         where: {
             schedule_id: schedule_id,
             transit_id: null,
-            sub_schedule_id: null,
+            subschedule_id: null,
             date: booking_date
         },
         transaction
@@ -63,7 +66,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         mainScheduleSeatAvailability = await SeatAvailability.create({
             schedule_id: schedule_id,
             transit_id: null,
-            sub_schedule_id: null,
+            subschedule_id: null,
             available_seats: boatCapacity,
             date: booking_date,
             availability: true
