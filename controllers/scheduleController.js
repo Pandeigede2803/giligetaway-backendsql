@@ -747,7 +747,7 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
     console.log(`Fetching schedule with ID: ${req.params.id}`);
 
     const schedule = await Schedule.findByPk(req.params.id, {
-      attributes: ["id", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
+      attributes: ["id","availability", "validity_start", "validity_end", "boat_id", "check_in_time", "arrival_time", "journey_time", "departure_time"],
       include: [
         {
           model: Destination,
