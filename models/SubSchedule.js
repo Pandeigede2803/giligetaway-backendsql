@@ -185,6 +185,10 @@ SubSchedule.associate = (models) => {
         foreignKey: 'destination_to_schedule_id',
         as: 'DestinationTo'
     });
+    SubSchedule.hasMany(models.Booking, {
+        foreignKey: 'sub_schedule_id',
+        as: 'Bookings'
+    });
 
  
 };

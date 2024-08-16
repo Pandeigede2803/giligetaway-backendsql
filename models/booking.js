@@ -35,6 +35,14 @@ const Booking = sequelize.define('Booking', {
             key: 'id'
         }
     },
+    sub_schedule_id: {
+        type: DataTypes.INTEGER,
+        references: {
+            model: 'SubSchedules',
+            key: 'id'
+        },
+        allowNull: true // Nullable as not every booking may have a sub_schedule_id
+    },
     agent_id: {
         type: DataTypes.INTEGER,
         references: {
@@ -79,6 +87,10 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.DATE,
         allowNull: false
     },
+    expiration_time: {
+        type: DataTypes.DATE,
+        allowNull: true // This will store the time until the booking is held
+    },
     ticket_id: {
         type: DataTypes.STRING,
         allowNull: false
@@ -112,6 +124,11 @@ Booking.associate = (models) => {
         foreignKey: 'schedule_id',
         as: 'schedule'
     });
+    Booking.belongsTo(models.SubSchedule, {
+        foreignKey: 'sub_schedule_id',
+        as: 'subSchedule'
+    });
+
 
     Booking.belongsToMany(models.Transport, {
         through: 'TransportBookings',
