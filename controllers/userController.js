@@ -30,6 +30,7 @@ const loginUser = async (req, res) => {
             user: { id: user.id, name: user.name, email: user.email, role: user.role } 
         });
     } catch (error) {
+        console.error('Error logging in:', error.message);
         res.status(400).json({ message: 'Error logging in', error });
     }
 };

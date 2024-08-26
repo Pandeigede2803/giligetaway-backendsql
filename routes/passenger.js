@@ -1,20 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const passengerController = require('../controllers/passengerController');
+const authenticate = require('../middleware/authenticate');
+
 
 // CREATE passenger
-router.post('/', passengerController.createPassenger);
+router.post('/', authenticate, passengerController.createPassenger);
 
 // READ passengers
-router.get('/', passengerController.getPassengers);
+router.get('/', authenticate, passengerController.getPassengers);
+
+// READ passengers by schedule and subschedule
+router.get('/by', authenticate, passengerController.getPassengersByScheduleAndSubSchedule);
+
 
 // READ passenger by id
-router.get('/:id', passengerController.getPassengerById);
+router.get('/:id', authenticate, passengerController.getPassengerById);
 
 // UPDATE passenger
-router.put('/:id', passengerController.updatePassenger);
+router.put('/:id', authenticate, passengerController.updatePassenger);
 
 // DELETE passenger
-router.delete('/:id', passengerController.deletePassenger);
+router.delete('/:id', authenticate, passengerController.deletePassenger);
 
 module.exports = router;

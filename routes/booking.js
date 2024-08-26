@@ -17,6 +17,9 @@ router.post('/non-transit', bookingController.createBookingWithoutTransit);
 // READ bookings
 router.get('/',authenticate, bookingController.getBookings);
 
+// READ bookings
+router.get('/date',authenticate, bookingController.getBookingsByDate);
+
 // READ booking by id
 router.get('/:id', bookingController.getBookingById);
 

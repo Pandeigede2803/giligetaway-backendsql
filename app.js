@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const sequelize = require('./config/database');
 const cors = require('cors');
 
+
 // Load environment variables
 // require('dotenv').config();
 

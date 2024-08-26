@@ -1,12 +1,58 @@
 
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
-
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { Op } = require("sequelize");
 const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 const {addTransportBookings,addPassengers} =require('../util/bookingUtil');
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
 const handleMainScheduleBooking = require('../util/handleMainScheduleBooking');
 const handleSubScheduleBooking = require('../util/handleSubScheduleBooking');
 const { handleExpiredBookings } = require('../util/cornJobs');;  // Mengimpor fungsi dari cronJobs.js
+
+
+const moment = require('moment'); // Use moment.js for date formatting
+
+const getBookingsByDate = async (req, res) => {
+    console.log('getBookingsByDate: start');
+    let { selectedDate } = req.query;
+
+    try {
+        // Ensure the selectedDate is in the correct format (YYYY-MM-DD)
+        selectedDate = moment(selectedDate).format('YYYY-MM-DD');
+
+        console.log('getBookingsByDate: filtering bookings by date');
+        const bookings = await Booking.findAll({
+            where: {
+                booking_date: {
+                    [Op.eq]: selectedDate
+                }
+            },
+            include: [
+                {
+                    association: 'passengers', // Include passengers associated with the bookings
+                    attributes: ['id', 'name', 'nationality', 'passenger_type']
+                },
+                {
+                    association: 'schedule', // Include schedule details if needed
+                    attributes: ['id', 'departure_time', 'arrival_time']
+                },
+                {
+                    association: 'subSchedule', // Include subschedule details if needed
+                    attributes: ['id', 'validity_start', 'validity_end']
+                }
+            ]
+        });
+
+        if (!bookings || bookings.length === 0) {
+            return res.status(404).json({ message: 'No bookings found for the selected date' });
+        }
+
+        console.log('getBookingsByDate: sending response');
+        res.status(200).json(bookings);
+    } catch (error) {
+        console.log('getBookingsByDate: catch error');
+        res.status(400).json({ error: error.message });
+    }
+};
 
 const createBookingWithTransit = async (req, res) => {
     const {
@@ -862,6 +908,7 @@ module.exports = {
     getBookingByTicketId,
     updateBookingPayment,
     updateBookingDate,
+    getBookingsByDate
 
 };
 
