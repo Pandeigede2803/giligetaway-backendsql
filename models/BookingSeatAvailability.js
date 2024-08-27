@@ -51,3 +51,4 @@ BookingSeatAvailability.associate = models => {
       });
     };
 module.exports = BookingSeatAvailability;
+``
