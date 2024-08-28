@@ -1,4 +1,4 @@
-const { SeatAvailability, BookingSeatAvailability, Booking, Passenger,Schedule, SubSchedule  } = require('../models');
+const { SeatAvailability, BookingSeatAvailability, Booking, Passenger,Schedule,Destination,Transit, SubSchedule  } = require('../models');
 
 const findSeatAvailabilityById = async (req, res) => {
     const { id } = req.params;
@@ -55,7 +55,7 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
   const { id } = req.params; // `id` here is the `seat_availability_id`
 
   try {
-      // Fetch seat availability by ID
+      // Fetch seat availability by ID, including related SubSchedule and its SeatAvailabilities
       const seatAvailability = await SeatAvailability.findOne({
           where: { id },
           include: [
@@ -73,10 +73,65 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
                               {
                                   model: Schedule,
                                   as: 'schedule',
+                                  attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                                  include: [
+                                      {
+                                          model: Destination,
+                                          as: 'FromDestination',
+                                          attributes: ['name']
+                                      },
+                                      {
+                                          model: Destination,
+                                          as: 'ToDestination',
+                                          attributes: ['name']
+                                      }
+                                  ]
                               },
                               {
                                   model: SubSchedule,
                                   as: 'subSchedule',
+                                  attributes: ['id'],
+                                  include: [
+                                      {
+                                          model: Destination,
+                                          as: 'DestinationFrom',
+                                          attributes: ['name']
+                                      },
+                                      {
+                                          model: Destination,
+                                          as: 'DestinationTo',
+                                          attributes: ['name']
+                                      },
+                                      {
+                                          model: Transit,
+                                          as: 'TransitFrom',
+                                          attributes: ['id', 'schedule_id', 'destination_id'],
+                                          include: [
+                                              {
+                                                  model: Destination,
+                                                  as: 'Destination',
+                                                  attributes: ['name']
+                                              }
+                                          ]
+                                      },
+                                      {
+                                          model: Transit,
+                                          as: 'TransitTo',
+                                          attributes: ['id', 'schedule_id', 'destination_id'],
+                                          include: [
+                                              {
+                                                  model: Destination,
+                                                  as: 'Destination',
+                                                  attributes: ['name']
+                                              }
+                                          ]
+                                      },
+                                      // Add the association to fetch related SeatAvailabilities for the SubSchedule
+                                      {
+                                          model: SeatAvailability,
+                                          as: 'SeatAvailabilities'
+                                      }
+                                  ]
                               },
                           ]
                       }
@@ -95,7 +150,13 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
       // Separate bookings based on the presence of `subschedule_id`
       const bookingsWithSubSchedule = seatAvailability.BookingSeatAvailabilities
           .filter(bsa => bsa.Booking.subschedule_id !== null)
-          .map(bsa => bsa.Booking);
+          .map(bsa => {
+              // Attach SeatAvailabilities related to the SubSchedule to the booking
+              return {
+                  ...bsa.Booking.dataValues,
+                  subScheduleSeatAvailabilities: bsa.Booking.subSchedule ? bsa.Booking.subSchedule.SeatAvailabilities : []
+              };
+          });
 
       const bookingsWithoutSubSchedule = seatAvailability.BookingSeatAvailabilities
           .filter(bsa => bsa.Booking.subschedule_id === null)
@@ -105,7 +166,8 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
           status: 'success',
           message: 'Filtered bookings retrieved successfully',
           bookings_with_subschedule: bookingsWithSubSchedule,
-          bookings_without_subschedule: bookingsWithoutSubSchedule
+          bookings_without_subschedule: bookingsWithoutSubSchedule,
+          seatAvailability // Include the seat availability data itself
       });
   } catch (error) {
       console.error('Error fetching filtered bookings:', error);
@@ -116,6 +178,8 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
       });
   }
 };
+
+
   
 
 module.exports = {
