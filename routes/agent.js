@@ -12,8 +12,9 @@ const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware
 router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);
 
 // GET all agents
-router.get('/', authenticate, agentController.getAllAgents);
+// router.get('/', authenticate, agentController.getAllAgents);
 
+router.get('/',  agentController.getAllAgents);
 // GET agent by id
 router.get('/:id', agentController.getAgentById);
 

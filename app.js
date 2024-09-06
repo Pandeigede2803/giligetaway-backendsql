@@ -2,6 +2,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const sequelize = require('./config/database');
 const cors = require('cors');
+const cronJobs = require('./util/cronJobs');
+
+// Middleware dan route configuration lainnya...
+
 
 
 // Load environment variables
@@ -35,6 +39,7 @@ const subscheduleRoutes = require('./routes/subScheduleRoutes');
 const agentMetricsRouter = require('./routes/agentMetrics');
 const seatAvailabilityRoutes = require('./routes/SeatAvailability');
 const bookingSeatAvailability = require('./routes/bookingSeatAvailability');
+const transactionRoutes = require('./routes/transactionRoutes');
 
 
 // Load routes
@@ -53,7 +58,8 @@ app.use('/api/agent-metrics', agentMetricsRouter);
 // Use the seatAvailability routes
 app.use('/api/seat', seatAvailabilityRoutes);
 
-app.use('/api/booking-seat',bookingSeatAvailability);;
+app.use('/api/booking-seat',bookingSeatAvailability);
+app.use('/api/transactions', transactionRoutes);
 
 //api/agents/reset-password
 
@@ -77,6 +83,9 @@ sequelize.sync()
     console.log('Connected to the database');
     app.listen(PORT, () => {
       console.log(`YAY Server is running on port ${PORT}`);
+
+      // Jalankan cron job saat server dimulai
+      cronJobs.handleExpiredBookings();
     });
   })
   .catch(err => {

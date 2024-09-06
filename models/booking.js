@@ -154,6 +154,12 @@ Booking.associate = (models) => {
         foreignKey: 'booking_id',
         as: 'agentCommissions'
     });
+      // **Adding Transaction Association**:
+    // One Booking can have many Transactions (for different payment attempts, refunds, etc.)
+    Booking.hasMany(models.Transaction, {
+        foreignKey: 'booking_id',
+        as: 'transactions' // Alias for accessing related transactions
+    });
 };
 
 module.exports = Booking;

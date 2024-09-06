@@ -1,15 +1,14 @@
 
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 const { Op } = require("sequelize");
 const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 const {addTransportBookings,addPassengers} =require('../util/bookingUtil');
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
 const handleMainScheduleBooking = require('../util/handleMainScheduleBooking');
 const handleSubScheduleBooking = require('../util/handleSubScheduleBooking');
-const { handleExpiredBookings } = require('../util/cornJobs');;  // Mengimpor fungsi dari cronJobs.js
-
-
 const moment = require('moment'); // Use moment.js for date formatting
+const cronJobs = require("../util/cronJobs");
+const { createTransaction } = require('../util/transactionUtils');
 
 const getBookingsByDate = async (req, res) => {
     console.log('getBookingsByDate: start');
@@ -56,62 +55,149 @@ const getBookingsByDate = async (req, res) => {
 
 const createBookingWithTransit = async (req, res) => {
     const {
-        schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
-        gross_total, payment_status, transports, contact_name, contact_phone,
-        contact_passport_id, contact_nationality, contact_email, payment_method,
-        booking_source, adult_passengers, child_passengers, infant_passengers,
-        ticket_id, transit_details
+      schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
+      gross_total, payment_status, transports, contact_name, contact_phone,
+      contact_passport_id, contact_nationality, contact_email, payment_method,
+      payment_gateway, booking_source, adult_passengers, child_passengers, infant_passengers,
+      ticket_id, transit_details, transaction_type, currency
     } = req.body;
-
+  
     try {
-        const result = await sequelize.transaction(async (t) => {
-            const booking = await Booking.create({
-                schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
-                contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
-                payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
-                ticket_id
-            }, { transaction: t });
+      const result = await sequelize.transaction(async (t) => {
 
-            let remainingSeatAvailabilities;
-            if (subschedule_id) {
-                remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, t);
-            } else {
-                remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, t);
-            }
-
-            // Menggunakan utilitas untuk menambahkan data penumpang ke tabel Passenger
-            await addPassengers(passengers, booking.id, t);
-
-            // Menggunakan utilitas untuk menambahkan data transportasi ke tabel TransportBooking
-            await addTransportBookings(transports, booking.id, total_passengers, t);
-
-            // Memperbarui metrik agen jika agent_id tersedia dan payment_status 'paid'
-            if (agent_id && payment_status === 'paid') {
-                await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
-            }
-
-         // Corrected part: Link Booking with the correct SeatAvailability
-         if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-            const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(sa => ({
-                booking_id: booking.id,
-                seat_availability_id: sa.id
-            }));
-            await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+         // Mengambil nilai expiration time dari environment, dengan default 30 menit jika tidak ada
+      const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
+      
+      // Menghitung expiration_time (n menit setelah booking_date)
+      const bookingDateTime = new Date(); // atau gunakan booking_date jika ada timestampnya
+      const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000); // Tambah menit dari env
+      
+        // Step 1: Create the Booking
+        const booking = await Booking.create({
+          schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
+          contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
+          payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
+          ticket_id,
+          expiration_time: expirationTime
+        }, { transaction: t });
+  
+        // Step 2: Handle Seat Availability
+        let remainingSeatAvailabilities;
+        if (subschedule_id) {
+          remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, t);
+        } else {
+          remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, t);
         }
-            const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
-
-            // Kembalikan booking, remainingSeatAvailabilities, dan transportBookings
-            res.status(201).json({ 
-                booking, 
-                remainingSeatAvailabilities, 
-                transportBookings 
-            });
+  
+        // Step 3: Add Passengers
+        await addPassengers(passengers, booking.id, t);
+  
+        // Step 4: Add Transport Bookings
+        await addTransportBookings(transports, booking.id, total_passengers, t);
+  
+        // Step 5: Update Agent Metrics
+        if (agent_id && payment_status === 'paid') {
+          await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
+        }
+  
+        // Step 6: Create a Transaction Entry using the utility function
+        const transaction = await createTransaction({
+          transaction_id: `TRANS-${Date.now()}`, // Unique transaction ID
+          payment_method,
+          payment_gateway,
+          amount: gross_total,
+          currency,
+          transaction_type,
+          booking_id: booking.id
+        }, t);
+  
+        // Step 7: Link Seat Availability
+        if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+          const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(sa => ({
+            booking_id: booking.id,
+            seat_availability_id: sa.id
+          }));
+          await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+        }
+  
+        // Step 8: Fetch Transport Bookings
+        const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
+  
+        // Step 9: Return the result, including transaction
+        res.status(201).json({
+          booking,
+          transaction, // Return the created transaction
+          remainingSeatAvailabilities,
+          transportBookings
         });
+      });
     } catch (error) {
-        console.log('Error:', error.message);
-        res.status(400).json({ error: error.message });
+      console.log('Error:', error.message);
+      res.status(400).json({ error: error.message });
     }
-};
+  };
+
+
+// CREATE BOOKING with transit origial without transaction code
+// const createBookingWithTransit = async (req, res) => {
+//     const {
+//         schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
+//         gross_total, payment_status, transports, contact_name, contact_phone,
+//         contact_passport_id, contact_nationality, contact_email, payment_method,
+//         booking_source, adult_passengers, child_passengers, infant_passengers,
+//         ticket_id, transit_details
+//     } = req.body;
+
+//     try {
+//         const result = await sequelize.transaction(async (t) => {
+//             const booking = await Booking.create({
+//                 schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
+//                 contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
+//                 payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
+//                 ticket_id
+//             }, { transaction: t });
+
+//             // Memanggil fungsi untuk mengelola ketersediaan kursi
+//             let remainingSeatAvailabilities;
+//             if (subschedule_id) {
+//                 remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, t);
+//             } else {
+//                 remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, t);
+//             }
+
+//             // Menggunakan utilitas untuk menambahkan data penumpang ke tabel Passenger
+//             await addPassengers(passengers, booking.id, t);
+
+//             // Menggunakan utilitas untuk menambahkan data transportasi ke tabel TransportBooking
+//             await addTransportBookings(transports, booking.id, total_passengers, t);
+
+//             // Memperbarui metrik agen jika agent_id tersedia dan payment_status 'paid'
+//             if (agent_id && payment_status === 'paid') {
+//                 await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
+//             }
+
+//          // Corrected part: Link Booking with the correct SeatAvailability
+//          if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+//             const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(sa => ({
+//                 booking_id: booking.id,
+//                 seat_availability_id: sa.id
+//             }));
+//             await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+//         }
+//             const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
+
+//             // Kembalikan booking, remainingSeatAvailabilities, dan transportBookings
+//             res.status(201).json({ 
+//                 booking, 
+//                 remainingSeatAvailabilities, 
+//                 transportBookings 
+//             });
+//         });
+//     } catch (error) {
+//         console.log('Error:', error.message);
+//         res.status(400).json({ error: error.message });
+//     }
+// };
 const createBookingWithoutTransit = async (req, res) => {
     const {
         schedule_id, total_passengers, booking_date, passengers, agent_id,
@@ -914,6 +1000,8 @@ module.exports = {
 
 
 
+
+
 // const createBookingWithoutTransit = async (req, res) => {
 //     const {
 //         schedule_id, total_passengers, booking_date, passengers, agent_id,
@@ -1093,3 +1181,6 @@ module.exports = {
 
 //     }
 // };
+
+
+//with transit trial #1

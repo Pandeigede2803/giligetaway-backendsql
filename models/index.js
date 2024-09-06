@@ -16,6 +16,8 @@ const SeatAvailability = require('./SeatAvailability');
 const BookingSeatAvailability = require('./BookingSeatAvailability');;
 const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
 const AgentCommission = require('./AgentComission');
+// import transaction 
+const Transaction = require('./Transaction');
 
 const models = {
     User,
@@ -32,7 +34,8 @@ const models = {
     SeatAvailability,
     BookingSeatAvailability,
     SubSchedule,
-    AgentCommission
+    AgentCommission,
+    Transaction
 };
 
 // Associations
@@ -76,6 +79,10 @@ SeatAvailability.belongsToMany(Booking, {
     foreignKey: 'seat_availability_id',
     otherKey: 'booking_id'
 });
+
+// Transaction associations
+// Booking.hasMany(Transaction, { foreignKey: 'booking_id' });
+// Transaction.belongsTo(Booking, { foreignKey: 'booking_id' });
 
 
 // BookingSeatAvailability associations
