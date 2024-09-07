@@ -205,193 +205,180 @@ const findSeatAvailabilityById = async (req, res) => {
  * @throws {Error} Jika terjadi kesalahan saat mengambil data.
  */
 const getFilteredBookingsBySeatAvailability = async (req, res) => {
-  const { id } = req.params; // `id` di sini adalah `seat_availability_id`
+    const { id } = req.params; // `id` di sini adalah `seat_availability_id`
+  
+    try {
+      const seatAvailability = await SeatAvailability.findOne({
+        where: { id },
+        include: [
+          {
+            model: BookingSeatAvailability,
+            as: 'BookingSeatAvailabilities',
+            include: [
+              {
+                model: Booking,
+                where:{payment_status:'paid'},
+                include: [
+                  {
+                    model: Passenger,
+                    as: 'passengers',
+                  },
+                  {
+                    model: Schedule,
+                    as: 'schedule',
+                    attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'FromDestination',
+                        attributes: ['name']
+                      },
+                      {
+                        model: Destination,
+                        as: 'ToDestination',
+                        attributes: ['name']
+                      }
+                    ]
+                  },
+                  {
+                    model: SubSchedule,
+                    as: 'subSchedule',
+                    attributes: ['id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'DestinationFrom',
+                        attributes: ['name']
+                      },
+                      {
+                        model: Destination,
+                        as: 'DestinationTo',
+                        attributes: ['name']
+                      },
+                      {
+                        model: Transit,
+                        as: 'TransitFrom',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      {
+                        model: Transit,
+                        as: 'TransitTo',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      //add transit 1-4
+                      {
+                        model: Transit,
+                        as: 'Transit1',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit2',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit3',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ],
+                      
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit4',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ],
+                      },
 
-  try {
-    // Fetch the primary seat availability record first
-    const seatAvailability = await SeatAvailability.findOne({
-      where: { id },
-      include: [
-        {
-          model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
-          include: [
-            {
-              model: Booking,
-              where: { payment_status: 'paid' },
-              include: [
-                {
-                  model: Passenger,
-                  as: 'passengers',
-                },
-                {
-                  model: Schedule,
-                  as: 'schedule',
-                  attributes: ['id', 'destination_from_id', 'destination_to_id'],
-                  include: [
-                    {
-                      model: Destination,
-                      as: 'FromDestination',
-                      attributes: ['name'],
-                    },
-                    {
-                      model: Destination,
-                      as: 'ToDestination',
-                      attributes: ['name'],
-                    },
-                  ],
-                },
-                {
-                  model: SubSchedule,
-                  as: 'subSchedule',
-                  attributes: ['id'],
-                  include: [
-                    {
-                      model: Destination,
-                      as: 'DestinationFrom',
-                      attributes: ['name'],
-                    },
-                    {
-                      model: Destination,
-                      as: 'DestinationTo',
-                      attributes: ['name'],
-                    },
-                    {
-                      model: Transit,
-                      as: 'TransitFrom',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    {
-                      model: Transit,
-                      as: 'TransitTo',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    // Add Transit1-4
-                    {
-                      model: Transit,
-                      as: 'Transit1',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    {
-                      model: Transit,
-                      as: 'Transit2',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    {
-                      model: Transit,
-                      as: 'Transit3',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    {
-                      model: Transit,
-                      as: 'Transit4',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
-                      include: [
-                        {
-                          model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
-                        },
-                      ],
-                    },
-                    {
-                      model: SeatAvailability,
-                      as: 'SeatAvailabilities',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-
-    if (!seatAvailability) {
-      return res.status(404).json({
-        status: 'fail',
-        message: `Seat availability not found for ID ${id}.`,
+                      {
+                        model: SeatAvailability,
+                        as: 'SeatAvailabilities'
+                      }
+                    ]
+                  },
+                ]
+              },
+        
+            ]
+          }
+        ]
+      });
+  
+      if (!seatAvailability) {
+        return res.status(404).json({
+          status: 'fail',
+          message: `Seat availability not found for ID ${id}.`
+        });
+      }
+  
+      // Refactored functions to handle related passengers and bookings
+      const { relatedPassenger, bookingsWithSubSchedule } = await fetchRelatedBookingsAndPassengers(
+        seatAvailability.BookingSeatAvailabilities
+      );
+  
+      // Handle bookings without SubSchedule
+      const bookingsWithoutSubSchedule = seatAvailability.BookingSeatAvailabilities
+        .filter(bsa => !bsa.Booking.subschedule_id)
+        .map(bsa => bsa.Booking);
+  
+      return res.status(200).json({
+        status: 'success',
+        message: 'Filtered bookings retrieved successfully',
+        bookings_with_subschedule: bookingsWithSubSchedule,
+        bookings_without_subschedule: bookingsWithoutSubSchedule,
+        relatedPassenger, // Only passengers related to Main Schedule + Related SubSchedules
+        relatedPassengerCount: relatedPassenger.length,
+        seatAvailability
+      });
+    } catch (error) {
+      console.error('Error fetching filtered bookings:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'An error occurred while fetching filtered bookings',
+        error: error.message
       });
     }
-
-    // Filter related seat availabilities based on the same schedule_id and booking_date
-    const relatedSeatAvailabilities = await SeatAvailability.findAll({
-      where: {
-        schedule_id: seatAvailability.schedule_id,
-        date: seatAvailability.date,
-      },
-    });
-
-    // Extract booking and passenger data
-    const bookingsWithSubSchedule = seatAvailability.BookingSeatAvailabilities.map((bsa) => ({
-      booking_id: bsa.booking_id,
-      passengers: bsa.Booking.passengers, // Related passengers for each booking
-    }));
-
-    // Handle bookings without SubSchedule
-    const bookingsWithoutSubSchedule = seatAvailability.BookingSeatAvailabilities
-      .filter((bsa) => !bsa.Booking.subschedule_id)
-      .map((bsa) => bsa.Booking);
-
-    return res.status(200).json({
-      status: 'success',
-      message: 'Filtered bookings retrieved successfully',
-      bookings_with_subschedule: bookingsWithSubSchedule,
-      bookings_without_subschedule: bookingsWithoutSubSchedule,
-      relatedPassengerCount: bookingsWithSubSchedule.reduce(
-        (total, booking) => total + booking.passengers.length,
-        0
-      ),
-      seatAvailability: {
-        ...seatAvailability.get({ plain: true }),
-        relatedSeatAvailabilities: relatedSeatAvailabilities.map((sa) => sa.id), // Return related seat_availability_ids
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching filtered bookings:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'An error occurred while fetching filtered bookings',
-      error: error.message,
-    });
-  }
-};
-
+  };
   
   // Refactored function to fetch related passengers and bookings
 // Refactored function to fetch related passengers and bookings
@@ -514,9 +501,6 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       });
     }
   };
-
-
-
   
 module.exports = {
     findSeatAvailabilityById,
