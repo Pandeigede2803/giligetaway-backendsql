@@ -255,10 +255,10 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         include: [
             { model: Transit, as: 'TransitFrom' },
             { model: Transit, as: 'TransitTo' },
-            { model: Transit1, as: 'Transit1' },
-            { model: Transit2, as: 'Transit2' },
-            { model: Transit3, as: 'Transit3' },
-            { model: Transit4, as: 'Transit4' }
+            { model: Transit, as: 'Transit1' },
+            { model: Transit, as: 'Transit2' },
+            { model: Transit, as: 'Transit3' },
+            { model: Transit, as: 'Transit4' }
         ],
         transaction
     });
