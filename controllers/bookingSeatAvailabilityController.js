@@ -279,6 +279,57 @@ const getFilteredBookingsBySeatAvailability = async (req, res) => {
                           }
                         ]
                       },
+                      //add transit 1-4
+                      {
+                        model: Transit,
+                        as: 'Transit1',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit2',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ]
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit3',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ],
+                      
+                      },
+                      {
+                        model: Transit,
+                        as: 'Transit4',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name']
+                          }
+                        ],
+                      },
+
                       {
                         model: SeatAvailability,
                         as: 'SeatAvailabilities'
