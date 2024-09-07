@@ -431,7 +431,73 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
   };
 
 
+  //create new controller to filter relatedpassenger to usaing fetch relatedBookingandPassengers by input seatavailability id only
+
+  const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
+    const { id } = req.params; // ID dari seat_availability
+  
+    try {
+      // Temukan SeatAvailability berdasarkan ID
+      const seatAvailability = await SeatAvailability.findOne({
+        where: { id },
+        include: [
+          {
+            model: BookingSeatAvailability,
+            as: 'BookingSeatAvailabilities',
+            include: [
+              {
+                model: Booking,
+                where: { payment_status: 'paid' },
+                include: [
+                  {
+                    model: Passenger,
+                    as: 'passengers',
+                  },
+                  {
+                    model: SubSchedule,
+                    as: 'subSchedule',
+                    attributes: ['id'],
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      });
+  
+      if (!seatAvailability) {
+        return res.status(404).json({
+          status: 'fail',
+          message: `Seat availability not found for ID ${id}.`,
+        });
+      }
+  
+      // Gunakan fungsi fetchRelatedBookingsAndPassengers untuk mencari penumpang terkait
+      const { relatedPassenger, bookingsWithSubSchedule } = await fetchRelatedBookingsAndPassengers(
+        seatAvailability.BookingSeatAvailabilities
+      );
+  
+      // Kembalikan hasil dalam bentuk respons JSON
+      return res.status(200).json({
+        status: 'success',
+        message: 'Related passengers retrieved successfully',
+        relatedPassenger,
+        relatedPassengerCount: relatedPassenger.length,
+        // bookings_with_subschedule: bookingsWithSubSchedule,
+      });
+    } catch (error) {
+      console.error('Error fetching related passengers:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'An error occurred while fetching related passengers',
+        error: error.message,
+      });
+    }
+  };
+  
 module.exports = {
     findSeatAvailabilityById,
-    getFilteredBookingsBySeatAvailability
+    getFilteredBookingsBySeatAvailability,
+    findRelatedPassengerBySeatAvailabilityId
 };
+
