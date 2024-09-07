@@ -1,6 +1,6 @@
 
 const { sequelize, Booking, SeatAvailability,Destination,SubSchedule,Transport, Schedule, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
-
+const { Op } = require('sequelize');
 const handleMainScheduleBooking = async (schedule_id, booking_date, total_passengers, transaction) => {
     // Ambil jadwal dan pastikan Boat tersedia
     const schedule = await Schedule.findByPk(schedule_id, {
@@ -20,6 +20,13 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
     if (!schedule) {
         throw new Error('Jadwal tidak tersedia');
     }
+
+    // Pastikan Boat memiliki kapasitas
+    if (!schedule.Boat || !schedule.Boat.capacity) {
+        throw new Error('Boat capacity tidak ditemukan');
+    }
+
+    const boatCapacity = schedule.Boat.capacity;
 
     // Gunakan tanggal tanpa waktu
     const formattedDate = booking_date.split('T')[0];  // Ambil hanya bagian tanggalnya
@@ -43,7 +50,7 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
             schedule_id: schedule_id,
             transit_id: null,
             subschedule_id: null,
-            available_seats: schedule.Boat.capacity,  // Inisialisasi dengan kapasitas boat
+            available_seats: boatCapacity,  // Inisialisasi dengan kapasitas boat
             date: formattedDate,
             availability: true
         }, { transaction });
@@ -57,7 +64,11 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
         throw new Error('Kursi tidak cukup tersedia');
     }
 
+    // Subtract seats, but ensure it doesn't go below zero
     seatAvailability.available_seats -= total_passengers;
+    if (seatAvailability.available_seats < 0) {
+        throw new Error('Seat availability cannot go below zero for the main schedule');
+    }
     console.log(`Available seats after subtraction: ${seatAvailability.available_seats}`);
 
     await seatAvailability.save({ transaction });
@@ -87,6 +98,12 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
             }, { transaction });
         } else {
             subScheduleSeatAvailability.available_seats = seatAvailability.available_seats;
+
+            // Ensure that the sub-schedule seat availability doesn't go below zero
+            if (subScheduleSeatAvailability.available_seats < 0) {
+                throw new Error(`Seat availability cannot go below zero for SubSchedule ID: ${subSchedule.id}`);
+            }
+
             await subScheduleSeatAvailability.save({ transaction });
         }
     }
@@ -96,4 +113,4 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
 
 module.exports = handleMainScheduleBooking;
 
-module.exports = handleMainScheduleBooking;
+

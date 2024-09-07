@@ -10,6 +10,9 @@ router.post('/', bookingController.createBooking);
 // Route for booking with transit
 router.post('/transit', bookingController.createBookingWithTransit);
 
+// Route for booking with transit
+router.post('/transit-queue', bookingController.createBookingWithTransitQueue);
+
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 

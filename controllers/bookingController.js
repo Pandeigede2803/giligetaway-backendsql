@@ -5,10 +5,13 @@ const { updateAgentMetrics } = require('../util/updateAgentMetrics');
 const {addTransportBookings,addPassengers} =require('../util/bookingUtil');
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
 const handleMainScheduleBooking = require('../util/handleMainScheduleBooking');
-const handleSubScheduleBooking = require('../util/handleSubScheduleBooking');
+
+const {handleSubScheduleBooking} = require('../util/handleSubScheduleBooking');
 const moment = require('moment'); // Use moment.js for date formatting
 const cronJobs = require("../util/cronJobs");
 const { createTransaction } = require('../util/transactionUtils');
+const Queue = require('bull');
+const bookingQueue = new Queue('bookingQueue'); // Inisialisasi Bull Queue
 
 const getBookingsByDate = async (req, res) => {
     console.log('getBookingsByDate: start');
@@ -64,43 +67,46 @@ const createBookingWithTransit = async (req, res) => {
   
     try {
       const result = await sequelize.transaction(async (t) => {
-
-         // Mengambil nilai expiration time dari environment, dengan default 30 menit jika tidak ada
-      const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
-      
-      // Menghitung expiration_time (n menit setelah booking_date)
-      const bookingDateTime = new Date(); // atau gunakan booking_date jika ada timestampnya
-      const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000); // Tambah menit dari env
-      
+        // Calculate expiration time (n minutes after booking_date)
+        const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
+        const bookingDateTime = new Date();
+        const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000);
+  
         // Step 1: Create the Booking
         const booking = await Booking.create({
           schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
           contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
           payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
-          ticket_id,
-          expiration_time: expirationTime
+          ticket_id, expiration_time: expirationTime
         }, { transaction: t });
+        
+        console.log(`Booking created with ID: ${booking.id}`);
   
         // Step 2: Handle Seat Availability
         let remainingSeatAvailabilities;
         if (subschedule_id) {
           remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, t);
+          console.log(`Seat availability handled for sub-schedule ID: ${subschedule_id}`);
         } else {
           remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, t);
+          console.log(`Seat availability handled for main schedule ID: ${schedule_id}`);
         }
   
         // Step 3: Add Passengers
         await addPassengers(passengers, booking.id, t);
+        console.log(`Passengers added for booking ID: ${booking.id}`);
   
         // Step 4: Add Transport Bookings
         await addTransportBookings(transports, booking.id, total_passengers, t);
+        console.log(`Transport bookings added for booking ID: ${booking.id}`);
   
         // Step 5: Update Agent Metrics
         if (agent_id && payment_status === 'paid') {
           await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, t);
+          console.log(`Agent metrics updated for agent ID: ${agent_id}`);
         }
   
-        // Step 6: Create a Transaction Entry using the utility function
+        // Step 6: Create a Transaction Entry
         const transaction = await createTransaction({
           transaction_id: `TRANS-${Date.now()}`, // Unique transaction ID
           payment_method,
@@ -110,6 +116,7 @@ const createBookingWithTransit = async (req, res) => {
           transaction_type,
           booking_id: booking.id
         }, t);
+        console.log(`Transaction created for booking ID: ${booking.id}`);
   
         // Step 7: Link Seat Availability
         if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
@@ -118,12 +125,14 @@ const createBookingWithTransit = async (req, res) => {
             seat_availability_id: sa.id
           }));
           await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction: t });
+          console.log(`Linked seat availability to booking ID: ${booking.id}`);
         }
   
         // Step 8: Fetch Transport Bookings
         const transportBookings = await TransportBooking.findAll({ where: { booking_id: booking.id }, transaction: t });
+        console.log(`Fetched transport bookings for booking ID: ${booking.id}`);
   
-        // Step 9: Return the result, including transaction
+        // Step 9: Return the result
         res.status(201).json({
           booking,
           transaction, // Return the created transaction
@@ -136,6 +145,146 @@ const createBookingWithTransit = async (req, res) => {
       res.status(400).json({ error: error.message });
     }
   };
+  
+
+  //with booking queue
+
+  // Function to create booking with queue and return early response
+  const createBookingWithTransitQueue = async (req, res) => {
+    const {
+      schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
+      gross_total, payment_status, transports, contact_name, contact_phone,
+      contact_passport_id, contact_nationality, contact_email, payment_method,
+      booking_source, adult_passengers, child_passengers, infant_passengers,
+      ticket_id, transit_details, transaction_type, currency
+    } = req.body;
+  
+    try {
+      const result = await sequelize.transaction(async (t) => {
+        // Set expiration time for booking
+        const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
+        const bookingDateTime = new Date();
+        const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000);
+  
+        // Step 1: Create the Booking
+        const booking = await Booking.create({
+          schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
+          contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
+          payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
+          ticket_id,
+          expiration_time: expirationTime
+        }, { transaction: t });
+  
+        console.log(`Booking created with ID: ${booking.id}`);
+  
+        // Step 2: Create an initial transaction
+        const transactionEntry = await createTransaction({
+          transaction_id: `TRANS-${Date.now()}`, // Unique transaction ID
+          payment_method,
+          payment_gateway: null, // Set payment gateway if needed
+          amount: gross_total,
+          currency,
+          transaction_type,
+          booking_id: booking.id,
+          status: 'pending' // Set status to pending initially
+        }, t);
+  
+        console.log(`Initial transaction created for booking ID: ${booking.id}`);
+  
+        // Queue job for background processing (including seat availability, transport, etc.)
+        bookingQueue.add({
+          schedule_id,
+          subschedule_id,
+          booking_date,
+          total_passengers,
+          passengers,
+          transports,
+          transit_details,
+          booking_id: booking.id, // Pass booking ID to the queue
+          agent_id,
+          gross_total,
+          payment_status
+        });
+  
+        // Return early response
+        res.status(201).json({
+          booking,
+          status: 'processing',
+          transaction: transactionEntry, // Include the created transaction in the response
+          transportBookings: [],
+          remainingSeatAvailabilities: null
+        });
+      });
+    } catch (error) {
+      console.log('Error:', error.message);
+      res.status(400).json({ error: error.message });
+    }
+  };
+  
+  
+  // Background job processing with Bull Queue
+  bookingQueue.process(async (job, done) => {
+    const {
+      schedule_id, subschedule_id, booking_date, total_passengers, passengers, transports,
+      transit_details, booking_id, agent_id, gross_total, payment_status
+    } = job.data;
+  
+    const transaction = await sequelize.transaction();
+    try {
+      // Step 2: Handle Seat Availability
+      let remainingSeatAvailabilities;
+      if (subschedule_id) {
+        console.log(`Processing sub-schedule booking for subschedule_id ${subschedule_id}`);
+        remainingSeatAvailabilities = await handleSubScheduleBooking(schedule_id, subschedule_id, booking_date, total_passengers, transit_details, transaction);
+      } else {
+        console.log(`Processing main schedule booking for schedule_id ${schedule_id}`);
+        remainingSeatAvailabilities = await handleMainScheduleBooking(schedule_id, booking_date, total_passengers, transaction);
+      }
+  
+      console.log('Remaining Seat Availabilities:', remainingSeatAvailabilities);
+  
+      // Step 3: Add Passengers
+      console.log(`Adding passengers for booking_id ${booking_id}`);
+      await addPassengers(passengers, booking_id, transaction);
+  
+      // Step 4: Add Transport Bookings
+      console.log(`Adding transport bookings for booking_id ${booking_id}`);
+      await addTransportBookings(transports, booking_id, total_passengers, transaction);
+  
+      // Step 5: Update Agent Metrics (only if payment is complete)
+      if (agent_id && payment_status === 'paid') {
+        console.log(`Updating agent metrics for agent_id ${agent_id}`);
+        await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
+      }
+  
+      console.log('Remaining Seat Availabilities:', remainingSeatAvailabilities);
+      console.log('Booking ID:', booking_id);
+      // Step 6: Add remaining Seat Availabilities
+      if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+        const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(sa => ({
+          booking_id,
+          seat_availability_id: sa.id
+        }));
+        
+        console.log('Data to Insert into BookingSeatAvailability:', bookingSeatAvailabilityData);
+        // Step 6: Add remaining Seat Availabilities to BookingSeatAvailability
+        await BookingSeatAvailability.bulkCreate(bookingSeatAvailabilityData, { transaction });
+      } else {
+        console.log('No seat availabilities found.');
+      }
+      
+      await transaction.commit(); // Commit the transaction if successful
+      console.log(`Booking queue success for booking ${booking_id}`);
+      done(); // Mark the job as done
+    } catch (error) {
+      await transaction.rollback(); // Rollback transaction if any error occurs
+      console.error('Error processing booking queue:', error.message);
+      done(error); // Mark the job as failed
+    }
+  });
+  
+
+  
 
 
 // CREATE BOOKING with transit origial without transaction code
@@ -983,6 +1132,7 @@ const deleteBooking = async (req, res) => {
 
 module.exports = {
     createBooking,
+
     getBookingContact,
     getBookings,
     getBookingById,
@@ -990,6 +1140,7 @@ module.exports = {
     deleteBooking,
     createBookingWithTransit2,
     createBookingWithTransit,
+    createBookingWithTransitQueue,
     createBookingWithoutTransit,
     getBookingByTicketId,
     updateBookingPayment,

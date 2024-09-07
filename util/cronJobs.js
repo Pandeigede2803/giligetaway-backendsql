@@ -5,45 +5,33 @@ const Booking = require('../models/booking');  // Pastikan path ini benar sesuai
 const { Op } = require('sequelize');
 const SeatAvailability = require('../models/SeatAvailability');
 
+const releaseMainScheduleSeats = require('../util/releaseMainScheduleSeats');
+const releaseSubScheduleSeats = require('../util/releaseSubScheduleSeats');
 /**
  * Fungsi untuk melepaskan kursi yang sudah dipesan ke available_seats
  * jika pemesanan telah melewati waktu kedaluwarsa
  * @param {Booking} booking Pemesanan yang akan dihapus
  */
-const releaseSeats = async (booking) => {
+
+
+const releaseSeats = async (booking, transaction) => {
     const { schedule_id, subschedule_id, total_passengers, booking_date } = booking;
 
-    // Update seat availability untuk Main Schedule
-    const mainScheduleSeatAvailability = await SeatAvailability.findOne({
-        where: {
-            schedule_id,
-            subschedule_id: null,
-            date: booking_date
+    try {
+        if (subschedule_id) {
+            // Jika SubSchedule ada, kembalikan kursi untuk SubSchedule
+            await releaseSubScheduleSeats(schedule_id, subschedule_id, booking_date, total_passengers, transaction);
+        } else {
+            // Jika Main Schedule, kembalikan kursi untuk Main Schedule
+            await releaseMainScheduleSeats(schedule_id, booking_date, total_passengers, transaction);
         }
-    });
 
-    if (mainScheduleSeatAvailability) {
-        mainScheduleSeatAvailability.available_seats += total_passengers;
-        await mainScheduleSeatAvailability.save();
-    }
-
-    // Update seat availability untuk SubSchedule jika ada
-    if (subschedule_id) {
-        const subScheduleSeatAvailability = await SeatAvailability.findOne({
-            where: {
-                schedule_id,
-                subschedule_id: subschedule_id,
-                date: booking_date
-            }
-        });
-
-        if (subScheduleSeatAvailability) {
-            subScheduleSeatAvailability.available_seats += total_passengers;
-            await subScheduleSeatAvailability.save();
-        }
+        console.log(`Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}`);
+    } catch (error) {
+        console.error(`Gagal melepaskan kursi untuk Booking ID: ${booking.id}`, error);
+        throw error;
     }
 };
-
 /**
  * Fungsi untuk menghandle pemesanan yang telah melewati waktu kedaluwarsa
  * Mencari pemesanan yang telah melewati waktu kedaluwarsa dan melepaskan kursi yang sudah dipesan
@@ -68,7 +56,7 @@ const handleExpiredBookings = async () => {
             booking.payment_status = 'cancelled';
             await booking.save();
 
-            console.log(`Booking ID ${booking.id} telah dibatalkan karena melewati waktu kedaluwarsa.`);
+            console.log(`Booking ID ${booking.id} dan ticket id ${booking.ticket_id} telah dibatalkan karena melewati waktu kedaluwarsa.`);
         }
     } catch (error) {
         console.error("Error handling expired bookings:", error);
@@ -76,7 +64,7 @@ const handleExpiredBookings = async () => {
 };
 
 // Ambil frekuensi cron dari variabel environment, dengan default setiap 15 menit
-const cronFrequency = process.env.CRON_FREQUENCY || '*/15 * * * *';  // Default 15 menit
+const cronFrequency = process.env.CRON_FREQUENCY || '*/5 * * * *';  // Default 15 menit
 
 // Menjadwalkan cron job dengan frekuensi dari env
 cron.schedule(cronFrequency, async () => {
