@@ -12,6 +12,75 @@ const {
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
 
+// create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
+const getFilteredSeatAvailabilityById = async (req, res) => {
+  const { id } = req.params; // `id` here is the seat_availability_id
+
+  try {
+    // Find the primary SeatAvailability record by ID
+    const seatAvailability = await SeatAvailability.findOne({
+      where: { id },
+      include: [
+        {
+          model: BookingSeatAvailability,
+          as: 'BookingSeatAvailabilities',
+          include: [
+            {
+              model: Booking,
+              where: { payment_status: 'paid' }, // Only include bookings with payment_status 'paid'
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!seatAvailability) {
+      return res.status(404).json({
+        status: 'fail',
+        message: `Seat availability not found for ID ${id}.`,
+      });
+    }
+
+    // Now find related seat availabilities with the same schedule_id and booking_date
+    const relatedSeatAvailabilities = await SeatAvailability.findAll({
+      where: {
+        schedule_id: seatAvailability.schedule_id,
+        date: seatAvailability.date, // Match booking_date
+      },
+      include: [
+        {
+          model: BookingSeatAvailability,
+          as: 'BookingSeatAvailabilities',
+          include: [
+            {
+              model: Booking,
+              where: { payment_status: 'paid' }, // Only include bookings with payment_status 'paid'
+            },
+          ],
+        },
+      ],
+    });
+
+    // Return only the seat_availability_id of the related records
+    const seatAvailabilityIds = relatedSeatAvailabilities.map(sa => sa.id);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Related seat availabilities retrieved successfully',
+      seatAvailabilityIds, // Return the list of seat_availability_ids
+    });
+  } catch (error) {
+    console.error('Error fetching related seat availabilities:', error.message);
+    return res.status(500).json({
+      status: 'error',
+      message: 'An error occurred while fetching seat availabilities',
+      error: error.message,
+    });
+  }
+};
+
+
+
 const checkAvailableSeats = async (req, res) => {
   const { schedule_id, booking_date } = req.query;
 
@@ -361,5 +430,6 @@ module.exports = {
   checkAllAvailableSeats,
   checkAllAvailableSeatsBookingCount,
   updateSeatAvailability,
-  getAllSeatAvailabilityScheduleAndSubSchedule
+  getAllSeatAvailabilityScheduleAndSubSchedule,
+  getFilteredSeatAvailabilityById
 };
