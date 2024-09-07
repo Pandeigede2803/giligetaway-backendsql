@@ -204,7 +204,7 @@ const findSeatAvailabilityById = async (req, res) => {
  *
  * @throws {Error} Jika terjadi kesalahan saat mengambil data.
  */
-const getFilteredBookingsBySeatAvailability2 = async (req, res) => {
+const getFilteredBookingsBySeatAvailability = async (req, res) => {
     const { id } = req.params; // `id` di sini adalah `seat_availability_id`
   
     try {
@@ -383,7 +383,7 @@ const getFilteredBookingsBySeatAvailability2 = async (req, res) => {
 
  
   
-  const getFilteredBookingsBySeatAvailability = async (req, res) => {
+  const getFilteredBookingsBySeatAvailability2 = async (req, res) => {
     const { id } = req.params; // `id` di sini adalah `seat_availability_id`
   
     try {
