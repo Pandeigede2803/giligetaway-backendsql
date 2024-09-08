@@ -633,12 +633,11 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
 
   //create new controller to filter relatedpassenger to usaing fetch relatedBookingandPassengers by input seatavailability id only
 
-  
   const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
-    const { id } = req.params; // ID dari seat_availability
+    const { id } = req.params; // ID from seat_availability
   
     try {
-      // Step 1: Find SeatAvailability by ID and include Schedule -> Boat to get capacity
+      // Step 1: Find SeatAvailability by ID and include related models
       const seatAvailability = await SeatAvailability.findOne({
         where: { id },
         include: [
@@ -655,9 +654,63 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                     as: 'passengers',
                   },
                   {
+                    model: Schedule,
+                    as: 'schedule',
+                    attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'FromDestination',
+                        attributes: ['name'],
+                      },
+                      {
+                        model: Destination,
+                        as: 'ToDestination',
+                        attributes: ['name'],
+                      },
+                    ],
+                  },
+                  {
                     model: SubSchedule,
                     as: 'subSchedule',
                     attributes: ['id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'DestinationFrom',
+                        attributes: ['name'],
+                      },
+                      {
+                        model: Destination,
+                        as: 'DestinationTo',
+                        attributes: ['name'],
+                      },
+                      {
+                        model: Transit,
+                        as: 'TransitFrom',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name'],
+                          },
+                        ],
+                      },
+                      {
+                        model: Transit,
+                        as: 'TransitTo',
+                        attributes: ['id', 'schedule_id', 'destination_id'],
+                        include: [
+                          {
+                            model: Destination,
+                            as: 'Destination',
+                            attributes: ['name'],
+                          },
+                        ],
+                      },
+                      // Other transits
+                    ],
                   },
                 ],
               },
@@ -666,6 +719,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
           {
             model: Schedule, // Include the related schedule
             as: 'Schedule', // Ensure this alias matches the one defined in the model
+            attributes: ['id'], // Ensure this alias matches the one defined in the model
             include: [
               {
                 model: Boat, // Get the boat to find its capacity
@@ -688,7 +742,6 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       // Step 2: Get the boat capacity from the related Schedule -> Boat
       const boatCapacity = seatAvailability.Schedule.Boat.capacity; // Get boat capacity
       const { available_seats } = seatAvailability; // Get available seats from seat availability
-  
       const occupiedSeats = boatCapacity - available_seats; // Calculate occupied seats (number of passengers)
   
       if (occupiedSeats <= 0) {
@@ -697,6 +750,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
           message: 'No passengers found for this seat availability.',
           relatedPassenger: [],
           relatedPassengerCount: 0,
+          availability: seatAvailability.availability, // Return availability directly from seatAvailability
+          schedule: seatAvailability.Schedule,
+          subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null,
         });
       }
   
@@ -715,6 +771,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         message: 'Related passengers retrieved successfully',
         relatedPassenger: passengers,
         relatedPassengerCount: passengers.length,
+        availability: seatAvailability.availability, // Return availability directly from seatAvailability
+        schedule: seatAvailability.Schedule, // Include the schedule details
+        subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null, // Include the subSchedule details
       });
     } catch (error) {
       console.error('Error fetching related passengers:', error);
@@ -725,7 +784,6 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       });
     }
   };
-  
   
 
 module.exports = {
