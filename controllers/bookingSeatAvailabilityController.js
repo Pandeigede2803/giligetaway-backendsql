@@ -709,7 +709,6 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                           },
                         ],
                       },
-                      // Other transits
                     ],
                   },
                 ],
@@ -725,6 +724,47 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                 model: Boat, // Get the boat to find its capacity
                 as: 'Boat', // Ensure this alias matches the one defined in the model
                 attributes: ['capacity'],
+              },
+              {
+                model: SubSchedule,
+                as: 'SubSchedules',
+                attributes: ['id'],
+                include: [
+                  {
+                    model: Destination,
+                    as: 'DestinationFrom',
+                    attributes: ['name'],
+                  },
+                  {
+                    model: Destination,
+                    as: 'DestinationTo',
+                    attributes: ['name'],
+                  },
+                  {
+                    model: Transit,
+                    as: 'TransitFrom',
+                    attributes: ['id', 'schedule_id', 'destination_id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'Destination',
+                        attributes: ['name'],
+                      },
+                    ],
+                  },
+                  {
+                    model: Transit,
+                    as: 'TransitTo',
+                    attributes: ['id', 'schedule_id', 'destination_id'],
+                    include: [
+                      {
+                        model: Destination,
+                        as: 'Destination',
+                        attributes: ['name'],
+                      },
+                    ],
+                  },
+                ],
               },
             ],
           },
@@ -753,6 +793,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
           availability: seatAvailability.availability, // Return availability directly from seatAvailability
           schedule: seatAvailability.Schedule,
           subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null,
+          subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Return all related SubSchedule IDs
         });
       }
   
@@ -774,6 +815,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         availability: seatAvailability.availability, // Return availability directly from seatAvailability
         schedule: seatAvailability.Schedule, // Include the schedule details
         subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null, // Include the subSchedule details
+        subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Include all related SubSchedule IDs
       });
     } catch (error) {
       console.error('Error fetching related passengers:', error);
