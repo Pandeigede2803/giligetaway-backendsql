@@ -633,252 +633,256 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
 
   //create new controller to filter relatedpassenger to usaing fetch relatedBookingandPassengers by input seatavailability id only
 
-  const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
-    const { id } = req.params; // ID from seat_availability
-  
-    try {
-      // Step 1: Find SeatAvailability by ID and include related models
-      const seatAvailability = await SeatAvailability.findOne({
-        where: { id },
-        include: [
-          {
-            model: BookingSeatAvailability,
-            as: 'BookingSeatAvailabilities',
-            include: [
-              {
-                model: Booking,
-                where: { payment_status: 'paid' }, // Only include paid bookings
-                attributes: ['id', 'booking_date', 'ticket_id'], // Include booking_date and ticket_id
-                include: [
-                  {
-                    model: Passenger,
-                    as: 'passengers',
-                  },
-                  {
-                    model: Schedule,
-                    as: 'schedule',
-                    attributes: ['id', 'destination_from_id', 'destination_to_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'FromDestination',
-                        attributes: ['name'],
-                      },
-                      {
-                        model: Destination,
-                        as: 'ToDestination',
-                        attributes: ['name'],
-                      },
-                    ],
-                  },
-                  {
-                    model: SubSchedule,
-                    as: 'subSchedule',
-                    attributes: ['id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'DestinationFrom',
-                        attributes: ['name'],
-                      },
-                      {
-                        model: Destination,
-                        as: 'DestinationTo',
-                        attributes: ['name'],
-                      },
-                      {
-                        model: Transit,
-                        as: 'TransitFrom',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
-                      {
-                        model: Transit,
-                        as: 'TransitTo',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
-                       //add transit 1-4
-              
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            model: Schedule, // Include the related schedule
-            as: 'Schedule', // Ensure this alias matches the one defined in the model
-            attributes: ['id'], // Ensure this alias matches the one defined in the model
-            include: [
-              {
-                model: Boat, // Get the boat to find its capacity
-                as: 'Boat', // Ensure this alias matches the one defined in the model
-                attributes: ['capacity'],
-              },
-              {
-                model: SubSchedule,
-                as: 'SubSchedules',
-                attributes: ['id'],
-                include: [
-                  {
-                    model: Destination,
-                    as: 'DestinationFrom',
-                    attributes: ['name'],
-                  },
-                  {
-                    model: Destination,
-                    as: 'DestinationTo',
-                    attributes: ['name'],
-                  },
-                  {
-                    model: Transit,
-                    as: 'TransitFrom',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name'],
-                      },
-                    ],
-                  },
-                  {
-                    model: Transit,
-                    as: 'TransitTo',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name'],
-                      },
-                    ],
-                  },
-                  {
-                    model: Transit,
-                    as: 'Transit1',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name']
-                      }
-                    ]
-                  },
-                  {
-                    model: Transit,
-                    as: 'Transit2',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name']
-                      }
-                    ]
-                  },
-                  {
-                    model: Transit,
-                    as: 'Transit3',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name']
-                      }
-                    ],
-                  
-                  },
-                  {
-                    model: Transit,
-                    as: 'Transit4',
-                    attributes: ['id', 'schedule_id', 'destination_id'],
-                    include: [
-                      {
-                        model: Destination,
-                        as: 'Destination',
-                        attributes: ['name']
-                      }
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      });
-  
-      // Check if seatAvailability is found and Schedule and Boat exist
-      if (!seatAvailability || !seatAvailability.Schedule || !seatAvailability.Schedule.Boat) {
-        return res.status(404).json({
-          status: 'fail',
-          message: `Seat availability or related schedule/boat not found for ID ${id}.`,
-        });
-      }
-  
-      // Step 2: Get the boat capacity from the related Schedule -> Boat
-      const boatCapacity = seatAvailability.Schedule.Boat.capacity; // Get boat capacity
-      const { available_seats } = seatAvailability; // Get available seats from seat availability
-      const occupiedSeats = boatCapacity - available_seats; // Calculate occupied seats (number of passengers)
-  
-      if (occupiedSeats <= 0) {
-        return res.status(200).json({
-          status: 'success',
-          message: 'No passengers found for this seat availability.',
-          relatedPassenger: [],
-          relatedPassengerCount: 0,
-          availability: seatAvailability.availability, // Return availability directly from seatAvailability
-          schedule: seatAvailability.Schedule,
-          subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null,
-          subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Return all related SubSchedule IDs
-        });
-      }
-  
-      // Step 3: Fetch related passengers and limit the number of passengers to occupied seats
-      const passengers = [];
-      seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
-        bsa.Booking.passengers.forEach((passenger) => {
-          if (passengers.length < occupiedSeats) {
-            passengers.push(passenger);
-          }
-        });
-      });
-  
-      return res.status(200).json({
-        status: 'success',
-        message: 'Related passengers retrieved successfully',
-        relatedPassenger: passengers,
-        relatedPassengerCount: passengers.length,
-        availability: seatAvailability.availability, // Return availability directly from seatAvailability
-        schedule: seatAvailability.Schedule, // Include the schedule details
-        subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null, // Include the subSchedule details
-        subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Include all related SubSchedule IDs
-      });
-    } catch (error) {
-      console.error('Error fetching related passengers:', error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'An error occurred while fetching related passengers',
-        error: error.message,
+const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
+  const { id } = req.params; // ID from seat_availability
+
+  try {
+    // Step 1: Find SeatAvailability by ID and include related models
+    const seatAvailability = await SeatAvailability.findOne({
+      where: { id },
+      include: [
+        {
+          model: BookingSeatAvailability,
+          as: 'BookingSeatAvailabilities',
+          include: [
+            {
+              model: Booking,
+              where: { payment_status: 'paid' }, // Only include paid bookings
+              attributes: ['id', 'booking_date', 'ticket_id'], // Include booking_date and ticket_id
+              include: [
+                {
+                  model: Passenger,
+                  as: 'passengers',
+                },
+                {
+                  model: Schedule,
+                  as: 'schedule',
+                  attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'FromDestination',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Destination,
+                      as: 'ToDestination',
+                      attributes: ['name'],
+                    },
+                  ],
+                },
+                {
+                  model: SubSchedule,
+                  as: 'subSchedule',
+                  attributes: ['id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'DestinationFrom',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Destination,
+                      as: 'DestinationTo',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Transit,
+                      as: 'TransitFrom',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    {
+                      model: Transit,
+                      as: 'TransitTo',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    // Add transit 1-4
+                    {
+                      model: Transit,
+                      as: 'Transit1',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    {
+                      model: Transit,
+                      as: 'Transit2',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    {
+                      model: Transit,
+                      as: 'Transit3',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    {
+                      model: Transit,
+                      as: 'Transit4',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: Schedule, // Include the related schedule
+          as: 'Schedule', // Ensure this alias matches the one defined in the model
+          attributes: ['id'], // Ensure this alias matches the one defined in the model
+          include: [
+            {
+              model: Boat, // Get the boat to find its capacity
+              as: 'Boat', // Ensure this alias matches the one defined in the model
+              attributes: ['capacity'],
+            },
+            {
+              model: SubSchedule,
+              as: 'SubSchedules',
+              attributes: ['id'],
+              include: [
+                {
+                  model: Destination,
+                  as: 'DestinationFrom',
+                  attributes: ['name'],
+                },
+                {
+                  model: Destination,
+                  as: 'DestinationTo',
+                  attributes: ['name'],
+                },
+                {
+                  model: Transit,
+                  as: 'TransitFrom',
+                  attributes: ['id', 'schedule_id', 'destination_id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name'],
+                    },
+                  ],
+                },
+                {
+                  model: Transit,
+                  as: 'TransitTo',
+                  attributes: ['id', 'schedule_id', 'destination_id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name'],
+                    },
+                  ],
+                },
+                // Additional transits (1-4) already included above
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    // Check if seatAvailability is found and Schedule and Boat exist
+    if (!seatAvailability || !seatAvailability.Schedule || !seatAvailability.Schedule.Boat) {
+      return res.status(404).json({
+        status: 'fail',
+        message: `Seat availability or related schedule/boat not found for ID ${id}.`,
       });
     }
-  };
-  
+
+    // Step 2: Get the boat capacity from the related Schedule -> Boat
+    const boatCapacity = seatAvailability.Schedule.Boat.capacity; // Get boat capacity
+    const { available_seats } = seatAvailability; // Get available seats from seat availability
+    const occupiedSeats = boatCapacity - available_seats; // Calculate occupied seats (number of passengers)
+
+    if (occupiedSeats <= 0) {
+      return res.status(200).json({
+        status: 'success',
+        message: 'No passengers found for this seat availability.',
+        relatedPassenger: [],
+        relatedPassengerCount: 0,
+        availability: seatAvailability.availability, // Return availability directly from seatAvailability
+        schedule: seatAvailability.Schedule,
+        subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null,
+        subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Return all related SubSchedule IDs
+      });
+    }
+
+    // Step 3: Fetch related passengers and limit the number of passengers to occupied seats
+    const passengers = [];
+    seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
+      const { booking_date, ticket_id } = bsa.Booking; // Extract booking_date and ticket_id from Booking
+      bsa.Booking.passengers.forEach((passenger) => {
+        if (passengers.length < occupiedSeats) {
+          passengers.push({
+            ...passenger.get({ plain: true }), // Include passenger details
+            booking_date, // Include booking date
+            ticket_id, // Include ticket ID
+          });
+        }
+      });
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Related passengers retrieved successfully',
+      relatedPassenger: passengers,
+      relatedPassengerCount: passengers.length,
+      availability: seatAvailability.availability, // Return availability directly from seatAvailability
+      schedule: seatAvailability.Schedule, // Include the schedule details
+      subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null, // Include the subSchedule details
+      subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Include all related SubSchedule IDs
+    });
+  } catch (error) {
+    console.error('Error fetching related passengers:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'An error occurred while fetching related passengers',
+      error: error.message,
+    });
+  }
+};
+
 
 module.exports = {
     findSeatAvailabilityById,
