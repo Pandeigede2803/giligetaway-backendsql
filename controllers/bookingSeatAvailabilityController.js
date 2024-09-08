@@ -710,55 +710,8 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                           },
                         ],
                       },
-                      // Add transit 1-4
-                      {
-                        model: Transit,
-                        as: 'Transit1',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
-                      {
-                        model: Transit,
-                        as: 'Transit2',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
-                      {
-                        model: Transit,
-                        as: 'Transit3',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
-                      {
-                        model: Transit,
-                        as: 'Transit4',
-                        attributes: ['id', 'schedule_id', 'destination_id'],
-                        include: [
-                          {
-                            model: Destination,
-                            as: 'Destination',
-                            attributes: ['name'],
-                          },
-                        ],
-                      },
+                       //add transit 1-4
+              
                     ],
                   },
                 ],
@@ -822,9 +775,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                       {
                         model: Destination,
                         as: 'Destination',
-                        attributes: ['name'],
-                      },
-                    ],
+                        attributes: ['name']
+                      }
+                    ]
                   },
                   {
                     model: Transit,
@@ -834,9 +787,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                       {
                         model: Destination,
                         as: 'Destination',
-                        attributes: ['name'],
-                      },
-                    ],
+                        attributes: ['name']
+                      }
+                    ]
                   },
                   {
                     model: Transit,
@@ -846,9 +799,10 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                       {
                         model: Destination,
                         as: 'Destination',
-                        attributes: ['name'],
-                      },
+                        attributes: ['name']
+                      }
                     ],
+                  
                   },
                   {
                     model: Transit,
@@ -858,11 +812,10 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                       {
                         model: Destination,
                         as: 'Destination',
-                        attributes: ['name'],
-                      },
+                        attributes: ['name']
+                      }
                     ],
                   },
-                  // Additional transits (1-4) already included above
                 ],
               },
             ],
@@ -899,14 +852,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       // Step 3: Fetch related passengers and limit the number of passengers to occupied seats
       const passengers = [];
       seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
-        const { booking_date, ticket_id } = bsa.Booking; // Extract booking_date and ticket_id from Booking
         bsa.Booking.passengers.forEach((passenger) => {
           if (passengers.length < occupiedSeats) {
-            passengers.push({
-              ...passenger.get({ plain: true }), // Include passenger details
-              booking_date, // Include booking date
-              ticket_id, // Include ticket ID
-            });
+            passengers.push(passenger);
           }
         });
       });
