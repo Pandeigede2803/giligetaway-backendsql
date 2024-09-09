@@ -763,6 +763,55 @@ const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
                 },
               ],
             },
+            // {
+            //   model: SeatAvailability,
+            //   as: 'SeatAvailability',
+            //   attributes: ['id', 'schedule_id',"subschedule_id"],
+            //   include: [
+            //     {
+            //       model: SubSchedule,
+            //       as: 'SubSchedule',
+            //       attributes: ['id'],
+            //       include: [
+            //         {
+            //           model: Destination,
+            //           as: 'DestinationFrom',
+            //           attributes: ['name'],
+            //         },
+            //         {
+            //           model: Destination,
+            //           as: 'DestinationTo',
+            //           attributes: ['name'],
+            //         },
+            //         {
+            //           model: Transit,
+            //           as: 'TransitFrom',
+            //           attributes: ['id', 'schedule_id', 'destination_id'],
+            //           include: [
+            //             {
+            //               model: Destination,
+            //               as: 'Destination',
+            //               attributes: ['name'],
+            //             },
+            //           ],
+            //         },
+            //         {
+            //           model: Transit,
+            //           as: 'TransitTo',
+            //           attributes: ['id', 'schedule_id', 'destination_id'],
+            //           include: [
+            //             {
+            //               model: Destination,
+            //               as: 'Destination',
+            //               attributes: ['name'],
+            //             },
+            //           ],
+            //         },
+            //         // Additional transits (1-4) already included above
+            //       ],
+            //     },
+            //   ]
+            // }
           ],
         },
         {
@@ -819,6 +868,48 @@ const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
             },
           ],
         },
+               {
+                  model: SubSchedule,
+                  as: 'SubSchedule',
+                  attributes: ['id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'DestinationFrom',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Destination,
+                      as: 'DestinationTo',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Transit,
+                      as: 'TransitFrom',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    {
+                      model: Transit,
+                      as: 'TransitTo',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    },
+                    // Additional transits (1-4) already included above
+                  ],
+                },
       ],
     });
 
@@ -842,7 +933,6 @@ const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
         relatedPassenger: [],
         relatedPassengerCount: 0,
         availability: seatAvailability.availability, // Return availability directly from seatAvailability
-        schedule: seatAvailability.Schedule,
         subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null,
         subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Return all related SubSchedule IDs
       });
@@ -870,6 +960,7 @@ const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
       relatedPassengerCount: passengers.length,
       availability: seatAvailability.availability, // Return availability directly from seatAvailability
       schedule: seatAvailability.Schedule, // Include the schedule details
+      seatAvailability: seatAvailability,
       subSchedule: seatAvailability.BookingSeatAvailabilities[0]?.Booking?.subSchedule || null, // Include the subSchedule details
       subScheduleIds: seatAvailability.Schedule.SubSchedules.map(sub => sub.id), // Include all related SubSchedule IDs
     });
