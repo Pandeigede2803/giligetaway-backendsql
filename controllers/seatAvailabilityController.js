@@ -13,6 +13,9 @@ const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
+const { Op } = require('sequelize'); // Import Sequelize operators
+
+
 const getFilteredSeatAvailabilityById = async (req, res) => {
   const { id } = req.params; // `id` here is the seat_availability_id
 
@@ -46,6 +49,7 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
       where: {
         schedule_id: seatAvailability.schedule_id,
         date: seatAvailability.date, // Match booking_date
+        id: { [Op.ne]: id }, // Exclude the seat_availability_id passed in the request
       },
       include: [
         {
