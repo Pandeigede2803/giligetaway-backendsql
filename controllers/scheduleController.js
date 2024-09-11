@@ -11,6 +11,8 @@ const {
 } = require("../models");
 const { uploadImageToImageKit } = require("../middleware/upload");
 const { Op } = require("sequelize");
+const buildSearchConditions = require('../util/buildSearchCondition');
+const { formatSchedules, formatSubSchedules } = require('../util/formatSchedules');
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
@@ -267,54 +269,17 @@ const getAllSchedulesWithDetails = async (req, res) => {
  * Notes:
  * - The function uses Sequelize's `findAll` to fetch records and Op operators for date and comparison-based conditions.
  */
+
+
 const getSchedulesByMultipleParams = async (req, res) => {
   const { search_date, from, to, availability, passengers_total } = req.query;
 
-  // Parse availability to a boolean value
-  const availabilityBool = availability === "true";
-
   try {
-    const whereCondition = {};
-    const subWhereCondition = {};
-
-    // Filter by date
-    if (search_date) {
-      const searchDate = new Date(search_date);
-      whereCondition[Op.and] = [
-        { validity_start: { [Op.lte]: searchDate } },
-        { validity_end: { [Op.gte]: searchDate } },
-      ];
-      subWhereCondition[Op.and] = [
-        { validity_start: { [Op.lte]: searchDate } },
-        { validity_end: { [Op.gte]: searchDate } },
-      ];
-    }
-
-    // Filter langsung menggunakan ID dari `from` dan `to`
-    if (from) {
-      whereCondition.destination_from_id = from; // Langsung gunakan ID dari `from`
-      subWhereCondition.destination_from_schedule_id = from;
-    }
-
-    if (to) {
-      whereCondition.destination_to_id = to; // Langsung gunakan ID dari `to`
-      subWhereCondition.destination_to_schedule_id = to;
-    }
-
-    // Filter by availability
-    if (availability !== undefined) {
-      whereCondition.availability = availabilityBool;
-      subWhereCondition.availability = availabilityBool;
-    }
-
-    // Log the whereCondition to debug
-    console.log("whereCondition:", JSON.stringify(whereCondition, null, 2));
-    console.log(
-      "subWhereCondition:",
-      JSON.stringify(subWhereCondition, null, 2)
+    // Bangun kondisi pencarian menggunakan utilitas
+    const { whereCondition, subWhereCondition } = buildSearchConditions(
+      search_date, from, to, availability
     );
 
-    // Fetch schedules and subschedules
     const schedules = await Schedule.findAll({
       where: whereCondition,
       include: [
@@ -356,86 +321,52 @@ const getSchedulesByMultipleParams = async (req, res) => {
       ],
     });
 
-    // Log the result to debug
-    console.log("schedules:", JSON.stringify(schedules, null, 2));
-    console.log("subSchedules:", JSON.stringify(subSchedules, null, 2));
-
-    // Format schedules and subschedules
-    const formattedSchedules = schedules.map((schedule) => ({
-      ...schedule.get({ plain: true }),
-      type: "Schedule",
-    }));
-
-    const formattedSubSchedules = subSchedules.map((subSchedule) => ({
-      ...subSchedule.get({ plain: true }),
-      type: "SubSchedule",
-      SeatAvailabilities:
-        subSchedule.SeatAvailabilities.length > 0
-          ? subSchedule.SeatAvailabilities
-          : "Seat availability not created",
-    }));
+    // Format hasil menggunakan utilitas
+    const formattedSchedules = formatSchedules(schedules);
+    const formattedSubSchedules = formatSubSchedules(subSchedules);
 
     // Separate schedules by availability
-    const availableSchedules = [];
-    const fullSchedules = [];
-    const noSeatAvailabilitySchedules = [];
+    const [availableSchedules, fullSchedules, noSeatAvailabilitySchedules] = [[], [], []];
 
     formattedSubSchedules.forEach((subSchedule) => {
-      if (subSchedule.SeatAvailabilities === "Seat availability not created") {
+      const seatAvailabilities = subSchedule.SeatAvailabilities;
+
+      if (seatAvailabilities === "Seat availability not created") {
         availableSchedules.push(subSchedule);
-      } else if (subSchedule.SeatAvailabilities.length > 0) {
-        const seatAvailability = subSchedule.SeatAvailabilities[0];
+      } else if (seatAvailabilities.length > 0) {
+        const seatAvailability = seatAvailabilities[0];
         if (seatAvailability.available_seats === 0) {
           fullSchedules.push(subSchedule);
-        } else if (seatAvailability.availability) {
-          availableSchedules.push(subSchedule);
         } else {
-          noSeatAvailabilitySchedules.push(subSchedule);
+          availableSchedules.push(subSchedule);
         }
+      } else {
+        noSeatAvailabilitySchedules.push(subSchedule);
       }
     });
 
-    // Filter schedules where availability is false
-    const filteredFormattedSchedules = formattedSchedules.filter(
-      (schedule) => schedule.availability !== false
-    );
-
-    // Combine formattedSchedules with availableSchedules
+    // Combine schedules with available subSchedules
     const combinedAvailableResults = [
-      ...filteredFormattedSchedules,
+      ...formattedSchedules.filter((schedule) => schedule.availability !== false),
       ...availableSchedules,
     ];
 
-    // Log the combined results for debugging
-    console.log(
-      "combinedAvailableResults:",
-      JSON.stringify(combinedAvailableResults, null, 2)
-    );
-    console.log("fullSchedules:", JSON.stringify(fullSchedules, null, 2));
-    console.log(
-      "noSeatAvailabilitySchedules:",
-      JSON.stringify(noSeatAvailabilitySchedules, null, 2)
-    );
-
-    // Determine response status and content
+    // Determine response status
     let responseStatus = "success";
     let responseData = {
       availableSchedules: combinedAvailableResults,
-      noSeatAvailabilitySchedules: noSeatAvailabilitySchedules,
+      noSeatAvailabilitySchedules,
     };
 
     if (fullSchedules.length > 0 && combinedAvailableResults.length === 0) {
       responseStatus = "full";
       responseData = "The schedule for the selected date is full";
-    } else if (
-      combinedAvailableResults.length === 0 &&
-      noSeatAvailabilitySchedules.length === 0
-    ) {
+    } else if (combinedAvailableResults.length === 0 && noSeatAvailabilitySchedules.length === 0) {
       responseStatus = "no schedules found";
       responseData = [];
     }
 
-    // Send response
+    // Send the response
     res.status(200).json({
       status: responseStatus,
       data: responseData,
@@ -448,7 +379,6 @@ const getSchedulesByMultipleParams = async (req, res) => {
     });
   }
 };
-
 
 const getSchedulesWithTransits = async (req, res) => {
   try {
