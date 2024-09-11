@@ -219,6 +219,54 @@ const getAllSchedulesWithDetails = async (req, res) => {
   }
 };
 
+/**
+ * Controller: getSchedulesByMultipleParams
+ * Description: This controller fetches schedules and subschedules based on multiple parameters from the request query. 
+ *              It searches for schedules based on departure and destination locations, availability status, number of passengers, and a specific date.
+ *              The results are then formatted to separate schedules based on their availability.
+ * 
+ * Query Parameters:
+ * - search_date (string): The date for which the schedules should be searched. It will be parsed into a JavaScript Date object.
+ * - from (string): Name of the departure location. The system will fetch its corresponding destination ID from the `Destination` model.
+ * - to (string): Name of the destination location. The system will fetch its corresponding destination ID from the `Destination` model.
+ * - availability (string): Indicates whether only available schedules should be fetched. The value is parsed to a boolean.
+ * - passengers_total (string|number): The total number of passengers. It filters schedules that have at least this many available seats.
+ * 
+ * Workflow:
+ * 1. Parse the query parameters and check availability status.
+ * 2. Fetch destination IDs for 'from' and 'to' destinations based on their names.
+ * 3. Build search conditions (`whereCondition` for schedules and `subWhereCondition` for subschedules).
+ * 4. Fetch the main schedules and subschedules that meet the search conditions.
+ * 5. Format the fetched data to make it suitable for the response. This includes separating schedules based on seat availability.
+ * 6. Filter out schedules where availability is explicitly marked as false.
+ * 7. Combine the available schedules and subschedules.
+ * 8. Send the response based on the availability of schedules, or return appropriate error messages if no schedules or seats are available.
+ * 
+ * Response:
+ * - Success:
+ *    - `availableSchedules`: List of available schedules and subschedules that meet the criteria.
+ *    - `noSeatAvailabilitySchedules`: List of schedules with no seat availability information created.
+ * - Full:
+ *    - Returns a message indicating that all schedules for the selected date are full.
+ * - No Schedules Found:
+ *    - Returns an empty array if no schedules were found.
+ * 
+ * Errors:
+ * - Returns a 400 error if there's an issue fetching the schedules.
+ * 
+ * Models:
+ * - Schedule: Main schedule data.
+ * - Destination: Departure and destination locations.
+ * - Transit: Transit details, including intermediate destinations.
+ * - SubSchedule: Schedule data for sub-routes.
+ * - SeatAvailability: Availability information for seats, used to check if there are enough available seats.
+ * 
+ * Example usage:
+ * GET /schedules?search_date=2023-09-11&from=CityA&to=CityB&availability=true&passengers_total=4
+ * 
+ * Notes:
+ * - The function uses Sequelize's `findAll` to fetch records and Op operators for date and comparison-based conditions.
+ */
 const getSchedulesByMultipleParams = async (req, res) => {
   const { search_date, from, to, availability, passengers_total } = req.query;
 
@@ -226,17 +274,10 @@ const getSchedulesByMultipleParams = async (req, res) => {
   const availabilityBool = availability === "true";
 
   try {
-    // Fetch destination IDs based on the names
-    const fromDestination = from
-      ? await Destination.findOne({ where: { name: from } })
-      : null;
-    const toDestination = to
-      ? await Destination.findOne({ where: { name: to } })
-      : null;
-
     const whereCondition = {};
     const subWhereCondition = {};
 
+    // Filter by date
     if (search_date) {
       const searchDate = new Date(search_date);
       whereCondition[Op.and] = [
@@ -249,16 +290,18 @@ const getSchedulesByMultipleParams = async (req, res) => {
       ];
     }
 
-    if (fromDestination) {
-      whereCondition.destination_from_id = fromDestination.id;
-      subWhereCondition.destination_from_schedule_id = fromDestination.id;
+    // Filter langsung menggunakan ID dari `from` dan `to`
+    if (from) {
+      whereCondition.destination_from_id = from; // Langsung gunakan ID dari `from`
+      subWhereCondition.destination_from_schedule_id = from;
     }
 
-    if (toDestination) {
-      whereCondition.destination_to_id = toDestination.id;
-      subWhereCondition.destination_to_schedule_id = toDestination.id;
+    if (to) {
+      whereCondition.destination_to_id = to; // Langsung gunakan ID dari `to`
+      subWhereCondition.destination_to_schedule_id = to;
     }
 
+    // Filter by availability
     if (availability !== undefined) {
       whereCondition.availability = availabilityBool;
       subWhereCondition.availability = availabilityBool;
@@ -271,6 +314,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
       JSON.stringify(subWhereCondition, null, 2)
     );
 
+    // Fetch schedules and subschedules
     const schedules = await Schedule.findAll({
       where: whereCondition,
       include: [
@@ -316,12 +360,12 @@ const getSchedulesByMultipleParams = async (req, res) => {
     console.log("schedules:", JSON.stringify(schedules, null, 2));
     console.log("subSchedules:", JSON.stringify(subSchedules, null, 2));
 
+    // Format schedules and subschedules
     const formattedSchedules = schedules.map((schedule) => ({
       ...schedule.get({ plain: true }),
       type: "Schedule",
     }));
 
-    // Format subSchedules
     const formattedSubSchedules = subSchedules.map((subSchedule) => ({
       ...subSchedule.get({ plain: true }),
       type: "SubSchedule",
@@ -331,7 +375,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
           : "Seat availability not created",
     }));
 
-    // Separate results based on seat availability
+    // Separate schedules by availability
     const availableSchedules = [];
     const fullSchedules = [];
     const noSeatAvailabilitySchedules = [];
@@ -351,7 +395,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
       }
     });
 
-    // Filter out schedules with availability false
+    // Filter schedules where availability is false
     const filteredFormattedSchedules = formattedSchedules.filter(
       (schedule) => schedule.availability !== false
     );
@@ -404,6 +448,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
     });
   }
 };
+
 
 const getSchedulesWithTransits = async (req, res) => {
   try {
