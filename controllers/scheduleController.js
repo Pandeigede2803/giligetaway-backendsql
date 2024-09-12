@@ -275,7 +275,6 @@ const getSchedulesByMultipleParams = async (req, res) => {
   const { search_date, from, to, availability, passengers_total } = req.query;
 
   try {
-    // Bangun kondisi pencarian menggunakan utilitas
     const { whereCondition, subWhereCondition } = buildSearchConditions(
       search_date, from, to, availability
     );
@@ -321,18 +320,40 @@ const getSchedulesByMultipleParams = async (req, res) => {
       ],
     });
 
-    // Format hasil menggunakan utilitas
+    // Format schedules
     const formattedSchedules = formatSchedules(schedules);
-    const formattedSubSchedules = formatSubSchedules(subSchedules);
+
+    // Format subSchedules with detailed SeatAvailability information
+    const formattedSubSchedules = subSchedules.map((subSchedule) => {
+      const seatAvailabilities = subSchedule.SeatAvailabilities;
+
+      // Check if SeatAvailabilities exist and create relevant message
+      const seatAvailabilityInfo = seatAvailabilities.length > 0
+        ? seatAvailabilities
+        : "Seat availability not created"; // Provide message if not available
+
+      return {
+        ...subSchedule.get({ plain: true }),
+        type: "SubSchedule",
+        SeatAvailabilities: seatAvailabilityInfo,
+        availability_status: seatAvailabilities.length > 0 
+          ? seatAvailabilities[0].available_seats > 0 
+            ? "Available"
+            : "Full"
+          : "No seat information", // Additional seat availability status
+      };
+    });
 
     // Separate schedules by availability
-    const [availableSchedules, fullSchedules, noSeatAvailabilitySchedules] = [[], [], []];
+    const availableSchedules = [];
+    const fullSchedules = [];
+    const noSeatAvailabilitySchedules = [];
 
     formattedSubSchedules.forEach((subSchedule) => {
       const seatAvailabilities = subSchedule.SeatAvailabilities;
 
       if (seatAvailabilities === "Seat availability not created") {
-        availableSchedules.push(subSchedule);
+        noSeatAvailabilitySchedules.push(subSchedule);
       } else if (seatAvailabilities.length > 0) {
         const seatAvailability = seatAvailabilities[0];
         if (seatAvailability.available_seats === 0) {
@@ -340,8 +361,6 @@ const getSchedulesByMultipleParams = async (req, res) => {
         } else {
           availableSchedules.push(subSchedule);
         }
-      } else {
-        noSeatAvailabilitySchedules.push(subSchedule);
       }
     });
 
@@ -379,6 +398,7 @@ const getSchedulesByMultipleParams = async (req, res) => {
     });
   }
 };
+
 
 const getSchedulesWithTransits = async (req, res) => {
   try {
