@@ -171,6 +171,7 @@ const getSchedules = async (req, res) => {
         },
         {
           model: Boat,
+          as: "Boat",
           attributes: ["id", "boat_name", "capacity", "boat_image"],
         },
       ],

@@ -16,6 +16,9 @@ router.post('/transit-queue', bookingController.createBookingWithTransitQueue);
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
+//ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
+router.get('/pagination',authenticate, bookingController.getPaginatedBookings);
+
 
 // READ bookings
 router.get('/',authenticate, bookingController.getBookings);
