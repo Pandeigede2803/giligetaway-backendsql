@@ -101,7 +101,7 @@ const Schedule = sequelize.define('Schedule', {
     },
     days_of_week: {
         type: DataTypes.TINYINT.UNSIGNED,
-        defaultValue: 127,
+       
         allowNull: false,
     },
     created_at: {
