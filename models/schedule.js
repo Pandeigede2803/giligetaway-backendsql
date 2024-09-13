@@ -99,6 +99,11 @@ const Schedule = sequelize.define('Schedule', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    days_of_week: {
+        type: DataTypes.TINYINT.UNSIGNED,
+        defaultValue: 127,
+        allowNull: false,
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
