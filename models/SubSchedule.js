@@ -119,6 +119,11 @@ const SubSchedule = sequelize.define('SubSchedule', {
             key: 'id'
         }
     },
+    days_of_week: {
+        type: DataTypes.TINYINT.UNSIGNED,
+       
+        allowNull: false,
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
