@@ -16,7 +16,7 @@ const getPassengerCountByMonth = async (req, res) => {
   
     try {
       const results = await SeatAvailability.findAll({
-        attributes: ['date', 'schedule_id', 'subschedule_id'],
+        attributes: ['id', 'date', 'schedule_id', 'subschedule_id'], // Pastikan 'id' disertakan
         include: getSeatAvailabilityIncludes(),
         where: {
           [Op.and]: [
@@ -32,11 +32,12 @@ const getPassengerCountByMonth = async (req, res) => {
         const route = buildRoute(seatAvailability);
   
         return {
+          seatavailability_id: seatAvailability.id, // Menggunakan 'seatavailability_id' alih-alih 'id'
           date: seatAvailability.date,
           schedule_id: seatAvailability.schedule_id,
           subschedule_id: seatAvailability.subschedule_id,
           total_passengers: totalPassengers,
-          route:route
+          route: route
         };
       });
   
@@ -52,6 +53,7 @@ const getPassengerCountByMonth = async (req, res) => {
       });
     }
   };
+  
 
 
 
