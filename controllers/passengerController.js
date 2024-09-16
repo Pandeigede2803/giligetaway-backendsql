@@ -1,4 +1,59 @@
-const { Passenger } = require('../models');
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { Op, fn, col } = require("sequelize");  // Import fn and col from Sequelize
+const getSeatAvailabilityIncludes = require('../util/getSeatAvailabilityIncludes');
+const {sumTotalPassengers} = require('../util/sumTotalPassengers');
+const {buildRoute} = require('../util/buildRoute');
+
+const getPassengerCountByMonth = async (req, res) => {
+    const { month, year } = req.query;
+  
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide both month and year in the query parameters.'
+      });
+    }
+  
+    try {
+      const results = await SeatAvailability.findAll({
+        attributes: ['date', 'schedule_id', 'subschedule_id'],
+        include: getSeatAvailabilityIncludes(),
+        where: {
+          [Op.and]: [
+            sequelize.where(fn('MONTH', col('SeatAvailability.date')), month),
+            sequelize.where(fn('YEAR', col('SeatAvailability.date')), year)
+          ]
+        }
+      });
+  
+      // Format the results
+      const formattedResults = results.map(seatAvailability => {
+        const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+        const route = buildRoute(seatAvailability);
+  
+        return {
+          date: seatAvailability.date,
+          schedule_id: seatAvailability.schedule_id,
+          subschedule_id: seatAvailability.subschedule_id,
+          total_passengers: totalPassengers,
+          route:route
+        };
+      });
+  
+      return res.status(200).json({
+        success: true,
+        data: formattedResults
+      });
+    } catch (error) {
+      console.error('Error fetching passenger count by month:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve passenger count for the specified month.'
+      });
+    }
+  };
+
+
 
 const createPassenger = async (req, res) => {
     try {
@@ -97,8 +152,63 @@ const getPassengersByScheduleAndSubSchedule = async (req, res) => {
     }
 };
 
+// Controller to fetch total passengers by schedule/subschedule and date
+const getPassengerCountByDate = async (req, res) => {
+  const { date } = req.query;  // Expect the date in query parameters
+  
+  if (!date) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a date in the query parameters.'
+    });
+  }
+
+  try {
+    const results = await SeatAvailability.findAll({
+      attributes: [
+        'date',
+        'schedule_id',
+        'sub_schedule_id',
+        [Sequelize.fn('SUM', Sequelize.col('Bookings.total_passengers')), 'total_passengers']
+      ],
+      include: [
+        {
+          model: BookingSeatAvailability,
+          include: [
+            {
+              model: Bookings,
+              where: { payment_status: 'paid' },
+              attributes: []
+            }
+          ]
+        }
+      ],
+      where: {
+        date: date  // Filter by the specific date provided in the query
+      },
+      group: ['SeatAvailability.date', 'SeatAvailability.schedule_id', 'SeatAvailability.sub_schedule_id']
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error fetching passenger count:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve passenger count'
+    });
+  }
+};
+
+// Controller to fetch total passengers by schedule/subschedule and month
+// Controller to fetch total passengers by schedule/subschedule and month with full date
+
 module.exports = {
     createPassenger,
+    getPassengerCountByDate,
+    getPassengerCountByMonth,
     getPassengersByScheduleAndSubSchedule,
     getPassengers,
     getPassengerById,

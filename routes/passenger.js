@@ -10,6 +10,12 @@ router.post('/', authenticate, passengerController.createPassenger);
 // READ passengers
 router.get('/', authenticate, passengerController.getPassengers);
 
+// READ passengers count by date
+router.get('/coun-by-date', authenticate, passengerController.getPassengerCountByDate);
+
+// READ passengers count by date
+router.get('/count-by-month', authenticate, passengerController.getPassengerCountByMonth);
+
 // READ passengers by schedule and subschedule
 router.get('/by', authenticate, passengerController.getPassengersByScheduleAndSubSchedule);
 
