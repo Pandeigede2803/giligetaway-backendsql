@@ -19,7 +19,7 @@ const buildRoute = (seatAvailability) => {
       const transitTo = seatAvailability.SubSchedule?.TransitTo?.Destination?.name || 'Unknown';
       const destinationToSchedule = seatAvailability.SubSchedule?.DestinationToSchedule?.name || 'Unknown';
   
-      route = `${destinationFromSchedule} / ${transitFrom} / ${[transit1, transit2, transit3, transit4].filter(Boolean).join(' - ')} / ${transitTo} / ${destinationToSchedule}`;
+      route = `${destinationFromSchedule} - ${transitFrom} - ${[transit1, transit2, transit3, transit4].filter(Boolean).join(' - ')} - ${transitTo} - ${destinationToSchedule}`;
     }
   
     return route;
