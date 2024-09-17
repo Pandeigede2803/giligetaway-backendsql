@@ -15,6 +15,8 @@ router.post('/withtransits', authenticate, upload, scheduleController.createSche
 //multiple params
 router.get('/search',authenticate, scheduleController.getSchedulesByMultipleParams);
 
+//multiple params
+router.get('/search/v2',authenticate, scheduleController.searchSchedulesAndSubSchedules);
 
 //with transit
 router.get('/with-transits', authenticate, scheduleController.getSchedulesWithTransits);
