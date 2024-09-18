@@ -11,7 +11,7 @@ const getDaysInMonth = (month, year) => {
       const date = new Date(year, month - 1, i + 1); // Ensure we get correct dates for the month
       return date.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
   });
-};
+};;
 
 // const getPassengerCountByMonth = async (req, res) => {
 //     const { month, year } = req.query;
