@@ -35,14 +35,19 @@ const Agent = sequelize.define('Agent', {
         allowNull: false,
         defaultValue: 0.00
     },
-    commission_long_transport: {
+    commission_mid: {
         type: DataTypes.DECIMAL(5, 2),
-        allowNull: false,
+        allowNull: true,
         defaultValue: 0.00
     },
-    commission_short_transport: {
+    commission_intermediate: {
         type: DataTypes.DECIMAL(5, 2),
-        allowNull: false,
+        allowNull: true,
+        defaultValue: 0.00
+    },
+    commission_transport: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
         defaultValue: 0.00
     },
     password: {
