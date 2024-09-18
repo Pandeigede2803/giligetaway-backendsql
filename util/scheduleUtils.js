@@ -1,5 +1,5 @@
 const { Destination, Transit, Schedule, SubSchedule, Boat } = require('../models');
-const { Op, fn, col } = require('sequelize'); // Import fn and col from Sequelize
+const { Op, fn, col } = require('sequelize');; // Import fn and col from Sequelize
 
 const getScheduleAndSubScheduleByDate = async (date) => {
     try {
