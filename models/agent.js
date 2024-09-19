@@ -26,30 +26,31 @@ const Agent = sequelize.define('Agent', {
         allowNull: false
     },
     commission_long: {
-        type: DataTypes.DECIMAL(5, 2),
+        type: DataTypes.DECIMAL(10, 2), // 10 total digits, with 2 digits after the decimal point (e.g., 100000.00)
         allowNull: false,
         defaultValue: 0.00
     },
     commission_short: {
-        type: DataTypes.DECIMAL(5, 2),
+        type: DataTypes.DECIMAL(10, 2), // 10 total digits, with 2 digits after the decimal point
         allowNull: false,
         defaultValue: 0.00
     },
     commission_mid: {
-        type: DataTypes.DECIMAL(5, 2),
+        type: DataTypes.DECIMAL(10, 2), // 10 total digits, with 2 digits after the decimal point
         allowNull: true,
         defaultValue: 0.00
     },
     commission_intermediate: {
-        type: DataTypes.DECIMAL(5, 2),
+        type: DataTypes.DECIMAL(10, 2), // 10 total digits, with 2 digits after the decimal point
         allowNull: true,
         defaultValue: 0.00
     },
     commission_transport: {
-        type: DataTypes.DECIMAL(5, 2),
+        type: DataTypes.DECIMAL(10, 2), // 10 total digits, with 2 digits after the decimal point
         allowNull: true,
         defaultValue: 0.00
     },
+    
     password: {
         type: DataTypes.STRING,
         allowNull: false

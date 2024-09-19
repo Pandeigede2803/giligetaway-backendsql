@@ -144,10 +144,9 @@ exports.updateAgent = async (req, res) => {
     });
   } catch (error) {
     console.log("Error during update process:", error);
-    await t.rollback();
-
-    // Log the entire error object if possible
     console.error("Detailed Error:", error);
+
+    await t.rollback();
 
     return res
       .status(500)
