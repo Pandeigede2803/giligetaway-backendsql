@@ -54,7 +54,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     const selectedDate = new Date(date);
     const selectedDayOfWeek = getDay(selectedDate);
 
-    // Fetch Schedules
     const schedules = await Schedule.findAll({
       where: {
         destination_from_id: from,
@@ -80,7 +79,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         {
           model: Boat,
           as: "Boat",
-          attributes: ["id", "capacity"],
+          attributes: ["id", "capacity","boat_name"],
         },
         {
           model: Transit,
@@ -100,157 +99,175 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           ],
         },
       ],
-    });
-
-    // Fetch SubSchedules
-    const subSchedules = await SubSchedule.findAll({
-      where: {
-        [Op.and]: [
-          {
-            [Op.or]: [
-              { destination_from_schedule_id: from },
-              { "$TransitFrom.destination_id$": from },
-            ],
-          },
-          {
-            [Op.or]: [
-              { destination_to_schedule_id: to },
-              { "$TransitTo.destination_id$": to },
-            ],
-          },
-          {
-            validity_start: { [Op.lte]: selectedDate },
-            validity_end: { [Op.gte]: selectedDate },
-            [Op.and]: sequelize.literal(
-              `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
-            ),
-          },
-        ],
-        availability: true,
-      },
-      include: [
-        {
-          model: Destination,
-          as: "DestinationFrom",
-          attributes: ["id", "name"],
-        },
-        {
-          model: Destination,
-          as: "DestinationTo",
-          attributes: ["id", "name"],
-        },
-        {
-          model: Transit,
-          as: "TransitFrom",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        {
-          model: Transit,
-          as: "TransitTo",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        // Add transit_1, transit_2, transit_3, transit_4 associations
-        {
-          model: Transit,
-          as: "Transit1",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit2",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit3",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit4",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name"],
-          },
-        },
-        {
-          model: Schedule,
-          as: "Schedule",
-          attributes: ["id"],
-          include: [
-            {
-              model: Boat,
-              as: "Boat",
-              attributes: ["id", "capacity"],
-            },
-          ],
-        },
+      attributes: [
+        "id",
+        "route_image",
+        "low_season_price",
+        "high_season_price",
+        "peak_season_price",
+        "departure_time",
+        "check_in_time",
+        "arrival_time",
+        "journey_time",
       ],
     });
+
+
+       // Fetch SubSchedules
+       const subSchedules = await SubSchedule.findAll({
+        where: {
+          [Op.and]: [
+            {
+              [Op.or]: [
+                { destination_from_schedule_id: from },
+                { "$TransitFrom.destination_id$": from },
+              ],
+            },
+            {
+              [Op.or]: [
+                { destination_to_schedule_id: to },
+                { "$TransitTo.destination_id$": to },
+              ],
+            },
+            {
+              validity_start: { [Op.lte]: selectedDate },
+              validity_end: { [Op.gte]: selectedDate },
+              [Op.and]: sequelize.literal(
+                `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+              ),
+            },
+          ],
+          availability: true,
+        },
+        include: [
+          {
+            model: Destination,
+            as: "DestinationFrom",
+            attributes: ["id", "name"],
+          },
+          {
+            model: Destination,
+            as: "DestinationTo",
+            attributes: ["id", "name"],
+          },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+  
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          // Add transit_1, transit_2, transit_3, transit_4 associations
+          {
+            model: Transit,
+            as: "Transit1",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit2",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit3",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit4",
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          },
+          {
+            model: Schedule,
+            as: "Schedule",
+            attributes: ["id", "departure_time",
+              "check_in_time",
+              "arrival_time",
+              "journey_time",],
+            include: [
+              {
+                model: Boat,
+                as: "Boat",
+                attributes: ["id", "capacity"],
+              },
+            ],
+          },
+        ],
+     
+      });
+  
+
 
     // Check Seat Availability for Schedules
     for (const schedule of schedules) {
