@@ -382,6 +382,7 @@ const createScheduleWithTransit = async (req, res) => {
       schedule_type,
       departure_time, // Include the departure_time field
       days_of_week,
+      trip_type,
     } = req.body;
 
     console.log("Received schedule data:", req.body);
@@ -412,6 +413,7 @@ const createScheduleWithTransit = async (req, res) => {
           journey_time,
           days_of_week,
           schedule_type,
+          trip_type,
           departure_time, // Include the departure_time field
           route_image: req.file.url, // Use ImageKit URL for route_image
         },

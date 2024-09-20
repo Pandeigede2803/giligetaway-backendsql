@@ -304,6 +304,7 @@ const createSubSchedule = async (req, res, next) => {
       transit_2,
       transit_3,
       transit_4,
+      trip_type,
       days_of_week,
     } = req.body;
 
@@ -341,6 +342,7 @@ const createSubSchedule = async (req, res, next) => {
           route_image: req.file.url,
           availability: true,
           days_of_week,
+          trip_type,
           transit_1: transit_1 || null,
           transit_2: transit_2 || null,
           transit_3: transit_3 || null,
