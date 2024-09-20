@@ -340,8 +340,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     res.status(200).json({
       status: "success",
       data: {
-        schedules: formatSchedules(schedules),
-        subSchedules: formatSubSchedules(subSchedules),
+        schedules: formatSchedules(schedules,selectedDate),
+        subSchedules: formatSubSchedules(subSchedules,selectedDate),
       },
     });
   } catch (error) {

@@ -7,8 +7,34 @@ const { id } = require("date-fns/locale");
  * @param {Array} schedules - The array of schedule objects.
  * @returns {Array} - Formatted schedules.
  */
-const formatSchedules = (schedules) => {
-  console.log("schedules data ini cuk:", schedules);
+// Utility function to determine the season based on the month
+const getSeasonPrice = (date, lowSeasonPrice, highSeasonPrice, peakSeasonPrice) => {
+  const month = new Date(date).getMonth() + 1;  // getMonth() is zero-based, so adding 1
+
+  // Get season months from environment variables
+  const lowSeasonMonths = process.env.LOW_SEASON_MONTHS.split(',').map(Number);
+  const highSeasonMonths = process.env.HIGH_SEASON_MONTHS.split(',').map(Number);
+  const peakSeasonMonths = process.env.PEAK_SEASON_MONTHS.split(',').map(Number);
+
+  // Check which season the current month falls into
+  if (lowSeasonMonths.includes(month)) {
+    return lowSeasonPrice || "N/A";
+  } else if (highSeasonMonths.includes(month)) {
+    return highSeasonPrice || "N/A";
+  } else if (peakSeasonMonths.includes(month)) {
+    return peakSeasonPrice || "N/A";
+  } else {
+    return "N/A";
+  }
+};
+
+/**
+ * Format schedules with transit data, destination information, and seat availability.
+ * @param {Array} schedules - The array of schedule objects.
+ * @param {String} selectedDate - The selected date to determine season pricing.
+ * @returns {Array} - Formatted schedules.
+ */
+const formatSchedules = (schedules, selectedDate) => {
   return schedules.map(schedule => ({
     id: schedule.id,
     from: schedule.FromDestination?.name || "N/A",
@@ -25,9 +51,7 @@ const formatSchedules = (schedules) => {
     arrival_time: schedule.arrival_time || "N/A",
     journey_time: schedule.journey_time || "N/A",
     check_in_time: schedule.check_in_time || "N/A",
-    low_season_price: schedule.low_season_price || "N/A",
-    high_season_price: schedule.high_season_price || "N/A",
-    peak_season_price: schedule.peak_season_price || "N/A",
+    price: getSeasonPrice(selectedDate, schedule.low_season_price, schedule.high_season_price, schedule.peak_season_price), // Get the correct price based on the season
     seatAvailability: {
       id: schedule.dataValues.seatAvailability?.id || "N/A",
       available_seats: schedule.dataValues.seatAvailability?.available_seats || "N/A",
@@ -41,9 +65,10 @@ const formatSchedules = (schedules) => {
 /**
  * Format subschedules with transit data, destination information, and seat availability.
  * @param {Array} subSchedules - The array of subschedule objects.
+ * @param {String} selectedDate - The selected date to determine season pricing.
  * @returns {Array} - Formatted subschedules.
  */
-const formatSubSchedules = (subSchedules) => {
+const formatSubSchedules = (subSchedules, selectedDate) => {
   return subSchedules.map(subSchedule => {
     // Check if there's a TransitFrom or TransitTo
     const hasTransitFrom = !!subSchedule.TransitFrom;
@@ -58,13 +83,6 @@ const formatSubSchedules = (subSchedules) => {
       ? subSchedule.TransitFrom.check_in_time
       : subSchedule.Schedule?.check_in_time || "N/A";
 
-    // Log to show which source is used for departure and check-in times
-    if (hasTransitFrom) {
-      console.log(`SubSchedule ID: ${subSchedule.id} - Using TransitFrom for departure_time and check_in_time`);
-    } else {
-      console.log(`SubSchedule ID: ${subSchedule.id} - Using Schedule for departure_time and check_in_time`);
-    }
-
     // Get arrival_time and journey_time from TransitTo or fallback to Schedule
     const arrival_time = hasTransitTo
       ? subSchedule.TransitTo.arrival_time
@@ -74,16 +92,9 @@ const formatSubSchedules = (subSchedules) => {
       ? subSchedule.TransitTo.journey_time
       : subSchedule.Schedule?.journey_time || "N/A";
 
-    // Log to show which source is used for arrival and journey times
-    if (hasTransitTo) {
-      console.log(`SubSchedule ID: ${subSchedule.id} - Using TransitTo for arrival_time and journey_time`);
-    } else {
-      console.log(`SubSchedule ID: ${subSchedule.id} - Using Schedule for arrival_time and journey_time`);
-    }
-
     return {
       id: subSchedule.id,
-      schedule_id: subSchedule.Schedule?.id || "N/A",  // Check if Schedule exists before accessing id
+      schedule_id: subSchedule.Schedule?.id || "N/A",
       from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || "N/A",
       to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || "N/A",
       transits: [
@@ -117,9 +128,7 @@ const formatSubSchedules = (subSchedules) => {
         } : null,
       ].filter(Boolean),
       route_image: subSchedule.route_image || "N/A",
-      low_season_price: subSchedule.low_season_price || "N/A",
-      high_season_price: subSchedule.high_season_price || "N/A",
-      peak_season_price: subSchedule.peak_season_price || "N/A",
+      price: getSeasonPrice(selectedDate, subSchedule.low_season_price, subSchedule.high_season_price, subSchedule.peak_season_price), // Get the correct price based on the season
       departure_time,  // Use the computed departure_time
       check_in_time,  // Use the computed check_in_time
       arrival_time,  // Use the computed arrival_time
@@ -134,7 +143,6 @@ const formatSubSchedules = (subSchedules) => {
     };
   });
 };
-
 
 module.exports = {
   formatSchedules,

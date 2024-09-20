@@ -104,6 +104,10 @@ const Schedule = sequelize.define('Schedule', {
        
         allowNull: false,
     },
+    trip_type: {
+        type: DataTypes.ENUM('mid', 'short', 'long', 'intermediate'),
+        allowNull: false,
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
