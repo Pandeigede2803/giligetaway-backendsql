@@ -12,8 +12,22 @@ const cronJobs = require('./util/cronJobs');
 // require('dotenv').config();
 
 // Konfigurasi kebijakan CORS
+// const corsOptions = {
+//   origin: process.env.CORS_ORIGIN, // Menggunakan variabel lingkungan
+//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+//   allowedHeaders: 'Content-Type,Authorization',
+// };
+
+// konfigurasi cors 2 domain
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN, // Menggunakan variabel lingkungan
+  origin: (origin, callback) => {
+    const allowedDomains = [process.env.CORS_ORIGIN_1, process.env.CORS_ORIGIN_2]; // Mengambil dua domain dari variabel lingkungan
+    if (allowedDomains.indexOf(origin) !== -1 || !origin) {
+      callback(null, true); // Mengizinkan jika origin cocok atau tidak ada origin (untuk request dari same-origin)
+    } else {
+      callback(new Error('Not allowed by CORS')); // Menolak jika origin tidak ada di daftar
+    }
+  },
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   allowedHeaders: 'Content-Type,Authorization',
 };
