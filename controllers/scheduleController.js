@@ -47,6 +47,7 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
   }
 };
 
+// Controller function to fetch schedules and sub-schedules
 const searchSchedulesAndSubSchedules = async (req, res) => {
   const { from, to, date, passengers_total } = req.query;
 
@@ -259,7 +260,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
               {
                 model: Boat,
                 as: "Boat",
-                attributes: ["id", "capacity"],
+                attributes: ["id", "capacity", "boat_name"],
               },
             ],
           },
