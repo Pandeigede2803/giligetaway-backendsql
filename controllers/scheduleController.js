@@ -26,6 +26,142 @@ const { getSubScheduleInclude } = require('../util/formattedData2');
 
 
 
+// const getScheduleSubschedule = async (req, res) => {
+//   const { boat_id } = req.query;
+
+//   try {
+//     let schedules;
+
+//     // Fetch schedules by boat_id, or all schedules if no boat_id provided
+//     if (boat_id) {
+//       schedules = await Schedule.findAll({
+//         where: { boat_id },
+//         include: [
+//           { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
+//           { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
+//           { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
+//         ],
+//         logging: console.log,
+//       });
+
+//       if (schedules.length === 0) {
+//         return res.status(404).json({
+//           status: "error",
+//           message: `No schedules found for boat_id ${boat_id}`,
+//         });
+//       }
+//     } else {
+//       schedules = await Schedule.findAll({
+//         include: [
+//           { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
+//           { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
+//           { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
+//         ],
+//         logging: console.log,
+//       });
+//     }
+
+//     const scheduleIds = schedules.map((schedule) => schedule.id);
+
+//     // Fetch related sub-schedules
+//     const subSchedules = await SubSchedule.findAll({
+//       where: {
+//         schedule_id: scheduleIds,
+//       },
+//       include: getSubScheduleInclude(),
+//       logging: console.log,
+//     });
+
+//     if (subSchedules.length === 0) {
+//       return res.status(404).json({
+//         status: "error",
+//         message: `No subschedules found for boat_id ${boat_id || 'all boats'}`,
+//       });
+//     }
+
+//     // Format schedules and sub-schedules
+//     const formattedSchedules = schedules.map((schedule) => {
+//       const boat_name = schedule.Boat?.boat_name || 'N/A';
+//       const main_route = `${schedule.FromDestination?.name || 'N/A'} to ${schedule.ToDestination?.name || 'N/A'}`;
+//       const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
+
+//       // Format the main schedule similarly to a sub-schedule
+//       const formattedMainSchedule = {
+//         id: schedule.id,
+//         schedule_id: schedule.id, // Main schedule has its own ID
+//         from: schedule.FromDestination?.name || 'N/A',
+//         to: schedule.ToDestination?.name || 'N/A',
+//         transits: [], // Main schedule has no transits
+//         route_image: schedule.route_image || 'N/A', // Add if schedule has an image
+//         departure_time: schedule.departure_time || 'N/A',
+//         check_in_time: schedule.check_in_time || 'N/A',
+//         arrival_time: schedule.arrival_time || 'N/A',
+//         journey_time: schedule.journey_time || 'N/A',
+//         boat_id: schedule.Boat?.id || 'N/A',
+//         low_season_price: schedule.low_season_price || 'N/A',
+//         high_season_price: schedule.high_season_price || 'N/A',
+//         peak_season_price: schedule.peak_season_price || 'N/A',
+//         validity: `${schedule.validity_start} to ${schedule.validity_end}`,
+//       };
+
+//       // Filter subSchedules related to this schedule
+//       const scheduleSubSchedules = subSchedules.filter(subSchedule => subSchedule.schedule_id === schedule.id);
+
+//       // Format subSchedules
+//       const formattedSubSchedules = scheduleSubSchedules.map((subSchedule) => {
+//         // Get timing data
+//         const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
+//         const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
+//         const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
+//         const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
+
+//         return {
+//           id: subSchedule.id,
+//           schedule_id: subSchedule.schedule_id,
+//           from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
+//           to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
+//           transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
+//             destination: transit.Destination?.name || 'N/A',
+//             departure_time: transit.departure_time || 'N/A',
+//             arrival_time: transit.arrival_time || 'N/A',
+//             journey_time: transit.journey_time || 'N/A',
+//           })) : [],
+//           route_image: subSchedule.route_image || 'N/A',
+//           departure_time,
+//           check_in_time,
+//           arrival_time,
+//           journey_time,
+//           boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
+//           low_season_price: subSchedule.low_season_price || 'N/A',
+//           high_season_price: subSchedule.high_season_price || 'N/A',
+//           peak_season_price: subSchedule.peak_season_price || 'N/A',
+//           validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
+//         };
+//       });
+
+//       // Combine main schedule and subSchedules into one array
+//       return {
+//         boat_name,
+//         main_route,
+//         days_of_week,
+//         allSchedules: [formattedMainSchedule, ...formattedSubSchedules], // Main schedule first, then sub-schedules
+//       };
+//     });
+
+//     // Return the response, ensuring an array of schedules is returned
+//     res.status(200).json({
+//       status: "success",
+//       data: formattedSchedules,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching subschedules:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: error.message,
+//     });
+//   }
+// };
+
 const getScheduleSubschedule = async (req, res) => {
   const { boat_id } = req.query;
 
@@ -72,13 +208,6 @@ const getScheduleSubschedule = async (req, res) => {
       logging: console.log,
     });
 
-    if (subSchedules.length === 0) {
-      return res.status(404).json({
-        status: "error",
-        message: `No subschedules found for boat_id ${boat_id || 'all boats'}`,
-      });
-    }
-
     // Format schedules and sub-schedules
     const formattedSchedules = schedules.map((schedule) => {
       const boat_name = schedule.Boat?.boat_name || 'N/A';
@@ -107,44 +236,46 @@ const getScheduleSubschedule = async (req, res) => {
       // Filter subSchedules related to this schedule
       const scheduleSubSchedules = subSchedules.filter(subSchedule => subSchedule.schedule_id === schedule.id);
 
-      // Format subSchedules
-      const formattedSubSchedules = scheduleSubSchedules.map((subSchedule) => {
-        // Get timing data
-        const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
-        const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
-        const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
-        const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
+      // Format subSchedules, or leave an empty array if none exist
+      const formattedSubSchedules = scheduleSubSchedules.length > 0
+        ? scheduleSubSchedules.map((subSchedule) => {
+          // Get timing data
+          const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
+          const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
+          const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
+          const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
 
-        return {
-          id: subSchedule.id,
-          schedule_id: subSchedule.schedule_id,
-          from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
-          to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
-          transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
-            destination: transit.Destination?.name || 'N/A',
-            departure_time: transit.departure_time || 'N/A',
-            arrival_time: transit.arrival_time || 'N/A',
-            journey_time: transit.journey_time || 'N/A',
-          })) : [],
-          route_image: subSchedule.route_image || 'N/A',
-          departure_time,
-          check_in_time,
-          arrival_time,
-          journey_time,
-          boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
-          low_season_price: subSchedule.low_season_price || 'N/A',
-          high_season_price: subSchedule.high_season_price || 'N/A',
-          peak_season_price: subSchedule.peak_season_price || 'N/A',
-          validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
-        };
-      });
+          return {
+            id: subSchedule.id,
+            schedule_id: subSchedule.schedule_id,
+            from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
+            to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
+            transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
+              destination: transit.Destination?.name || 'N/A',
+              departure_time: transit.departure_time || 'N/A',
+              arrival_time: transit.arrival_time || 'N/A',
+              journey_time: transit.journey_time || 'N/A',
+            })) : [],
+            route_image: subSchedule.route_image || 'N/A',
+            departure_time,
+            check_in_time,
+            arrival_time,
+            journey_time,
+            boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
+            low_season_price: subSchedule.low_season_price || 'N/A',
+            high_season_price: subSchedule.high_season_price || 'N/A',
+            peak_season_price: subSchedule.peak_season_price || 'N/A',
+            validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
+          };
+        })
+        : []; // No sub-schedules found for this schedule
 
       // Combine main schedule and subSchedules into one array
       return {
         boat_name,
         main_route,
         days_of_week,
-        allSchedules: [formattedMainSchedule, ...formattedSubSchedules], // Main schedule first, then sub-schedules
+        allSchedules: [formattedMainSchedule, ...formattedSubSchedules], // Main schedule first, then sub-schedules (if any)
       };
     });
 
@@ -161,7 +292,6 @@ const getScheduleSubschedule = async (req, res) => {
     });
   }
 };
-
 
 
 
