@@ -4,6 +4,8 @@ const { Op, fn, col } = require("sequelize");  // Import fn and col from Sequeli
 const {sumTotalPassengers} = require('../util/sumTotalPassengers');
 const {buildRoute ,  buildRouteFromSchedule} = require('../util/buildRoute');
 const {getScheduleAndSubScheduleByDate} = require('../util/scheduleUtils');
+
+const getSeatAvailabilityIncludes = require('../util/getSeatAvailabilityIncludes');
 // Fix date utility function
 const getDaysInMonth = (month, year) => {
   const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
@@ -68,7 +70,6 @@ const getDaysInMonth = (month, year) => {
 
 // Controller untuk mendapatkan data penumpang berdasarkan bulan
 
-const getSeatAvailabilityIncludes = require('../util/getSeatAvailabilityIncludes');
 
 const getPassengerCountByMonth = async (req, res) => {
   const { month, year, boat_id } = req.query;  // boat_id sebagai parameter wajib

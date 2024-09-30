@@ -18,6 +18,11 @@ router.get('/search',authenticate, scheduleController.getSchedulesByMultiplePara
 //multiple params
 router.get('/search/v2',authenticate, scheduleController.searchSchedulesAndSubSchedules);
 
+//multiple params
+router.get('/fetchtimetable/',authenticate, scheduleController.getScheduleSubschedule);
+
+
+
 //with transit
 router.get('/with-transits', authenticate, scheduleController.getSchedulesWithTransits);
 
