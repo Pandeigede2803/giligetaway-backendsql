@@ -79,11 +79,30 @@ const getScheduleSubschedule = async (req, res) => {
       });
     }
 
-    // Format schedules with associated subSchedules
+    // Format schedules and sub-schedules
     const formattedSchedules = schedules.map((schedule) => {
-      const boat_name = schedule.Boat?.boat_name || 'N/A'; // Get boat_name from the schedule
+      const boat_name = schedule.Boat?.boat_name || 'N/A';
       const main_route = `${schedule.FromDestination?.name || 'N/A'} to ${schedule.ToDestination?.name || 'N/A'}`;
       const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
+
+      // Format the main schedule similarly to a sub-schedule
+      const formattedMainSchedule = {
+        id: schedule.id,
+        schedule_id: schedule.id, // Main schedule has its own ID
+        from: schedule.FromDestination?.name || 'N/A',
+        to: schedule.ToDestination?.name || 'N/A',
+        transits: [], // Main schedule has no transits
+        route_image: schedule.route_image || 'N/A', // Add if schedule has an image
+        departure_time: schedule.departure_time || 'N/A',
+        check_in_time: schedule.check_in_time || 'N/A',
+        arrival_time: schedule.arrival_time || 'N/A',
+        journey_time: schedule.journey_time || 'N/A',
+        boat_id: schedule.Boat?.id || 'N/A',
+        low_season_price: schedule.low_season_price || 'N/A',
+        high_season_price: schedule.high_season_price || 'N/A',
+        peak_season_price: schedule.peak_season_price || 'N/A',
+        validity: `${schedule.validity_start} to ${schedule.validity_end}`,
+      };
 
       // Filter subSchedules related to this schedule
       const scheduleSubSchedules = subSchedules.filter(subSchedule => subSchedule.schedule_id === schedule.id);
@@ -120,11 +139,12 @@ const getScheduleSubschedule = async (req, res) => {
         };
       });
 
+      // Combine main schedule and subSchedules into one array
       return {
         boat_name,
-        main_route, // Add main_route from schedule
-        days_of_week, // Add days_of_week from schedule
-        subSchedules: formattedSubSchedules,
+        main_route,
+        days_of_week,
+        allSchedules: [formattedMainSchedule, ...formattedSubSchedules], // Main schedule first, then sub-schedules
       };
     });
 
@@ -141,6 +161,7 @@ const getScheduleSubschedule = async (req, res) => {
     });
   }
 };
+
 
 
 
