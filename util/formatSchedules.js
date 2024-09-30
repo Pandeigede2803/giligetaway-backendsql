@@ -1,5 +1,6 @@
 // utils/formatUtils.js
 
+const { sub } = require("date-fns");
 const { id } = require("date-fns/locale");
 
 /**
@@ -44,6 +45,8 @@ const getSeasonPrice = (
 const formatSchedules = (schedules, selectedDate) => {
   return schedules.map((schedule) => ({
     id: schedule.id,
+    schedule_id:schedule.id || "N/A",
+    subschedule_id: schedule.sub_schedule_id || "N/A",
     from: schedule.FromDestination?.name || "N/A",
     to: schedule.ToDestination?.name || "N/A",
     transits: schedule.Transits.map((transit) => ({
@@ -112,7 +115,9 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
 
     return {
       id: subSchedule.id,
+    
       schedule_id: subSchedule.Schedule?.id || "N/A",
+      subschedule_id: subSchedule.id || "N/A",
       from:
         subSchedule.DestinationFrom?.name ||
         subSchedule.TransitFrom?.Destination?.name ||
