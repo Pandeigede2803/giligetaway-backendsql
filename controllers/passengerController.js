@@ -8,149 +8,114 @@ const {getScheduleAndSubScheduleByDate} = require('../util/scheduleUtils');
 const getSeatAvailabilityIncludes = require('../util/getSeatAvailabilityIncludes');
 // Fix date utility function
 const getDaysInMonth = (month, year) => {
-  const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
-  return new Array(daysInMonth).fill('').map((_, i) => {
-      const date = new Date(year, month - 1, i + 1); // Ensure we get correct dates for the month
-      return date.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-  });
-};;
-
-// const getPassengerCountByMonth = async (req, res) => {
-//     const { month, year } = req.query;
-  
-//     if (!month || !year) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Please provide both month and year in the query parameters.'
-//       });
-//     }
-  
-//     try {
-//       const results = await SeatAvailability.findAll({
-//         attributes: ['id', 'date', 'schedule_id', 'subschedule_id'], // Pastikan 'id' disertakan
-//         include: getSeatAvailabilityIncludes(),
-//         where: {
-//           [Op.and]: [
-//             sequelize.where(fn('MONTH', col('SeatAvailability.date')), month),
-//             sequelize.where(fn('YEAR', col('SeatAvailability.date')), year)
-//           ]
-//         }
-//       });
-  
-//       // Format the results
-//       const formattedResults = results.map(seatAvailability => {
-//         const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
-//         const route = buildRoute(seatAvailability);
-  
-//         return {
-//           seatavailability_id: seatAvailability.id, // Menggunakan 'seatavailability_id' alih-alih 'id'
-//           date: seatAvailability.date,
-//           schedule_id: seatAvailability.schedule_id,
-//           subschedule_id: seatAvailability.subschedule_id,
-//           total_passengers: totalPassengers,
-//           route: route
-//         };
-//       });
-  
-//       return res.status(200).json({
-//         success: true,
-//         data: formattedResults
-//       });
-//     } catch (error) {
-//       console.error('Error fetching passenger count by month:', error);
-//       return res.status(500).json({
-//         success: false,
-//         message: 'Failed to retrieve passenger count for the specified month.'
-//       });
-//     }
-//   };
+    const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
+    return Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const monthString = String(month).padStart(2, '0');
+      const dayString = String(day).padStart(2, '0');
+      return `${year}-${monthString}-${dayString}`; // Format date as 'YYYY-MM-DD'
+    });
+  };
   
 
 
-
-// Controller untuk mendapatkan data penumpang berdasarkan bulan
-
-
+// this controller is perfect but the boat_id is error
 const getPassengerCountByMonth = async (req, res) => {
-  const { month, year, boat_id } = req.query;  // boat_id sebagai parameter wajib
-
-  if (!month || !year || !boat_id) {
+    const { month, year, boat_id } = req.query; // boat_id as a required parameter
+  
+    if (!month || !year || !boat_id) {
       return res.status(400).json({
-          success: false,
-          message: 'Please provide month, year, and boat_id in the query parameters.'
+        success: false,
+        message: 'Please provide month, year, and boat_id in the query parameters.'
       });
-  }
-
-  try {
-      const daysInMonth = getDaysInMonth(month, year);
-
-      // Query SeatAvailability berdasarkan bulan, tahun, dan boat_id
-      const seatAvailabilities = await SeatAvailability.findAll({
-          attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
-          where: {
-              [Op.and]: [
-                  sequelize.where(fn('MONTH', col('SeatAvailability.date')), month),
-                  sequelize.where(fn('YEAR', col('SeatAvailability.date')), year)
-              ]
-          },
-          include: getSeatAvailabilityIncludes()  // Gunakan utilitas untuk include relasi
-      });
-
-      const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
-          const seatAvailability = seatAvailabilities.find(sa => sa.date === date);
-
-          if (seatAvailability) {
-              const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
-              const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
-
-              return [{
-                  seatavailability_id: seatAvailability.id,
-                  date: seatAvailability.date,
-                  schedule_id: seatAvailability.schedule_id,
-                  subschedule_id: seatAvailability.subschedule_id,
-                  total_passengers: totalPassengers,
-                  route: route
-              }];
-          } else {
-              // Query Schedule dan SubSchedule menggunakan utils, lalu filter berdasarkan boat_id
-              const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
-              const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id);  // Filter berdasarkan boat_id
-              let results = [];
-
-              subSchedules.forEach(subSchedule => {
-                  const relatedSchedule = filteredSchedules.find(schedule => schedule.id === subSchedule.schedule_id);
-                  if (relatedSchedule) {
-                      let route = buildRouteFromSchedule(relatedSchedule, subSchedule);
-                      results.push({
-                          seatavailability_id: null,
-                          date: date,
-                          schedule_id: relatedSchedule.id,
-                          subschedule_id: subSchedule.id,
-                          total_passengers: 0,
-                          route: route
-                      });
-                  }
-              });
-
-              return results;
-          }
-      }));
-
-      const finalResults = formattedResults.flat();
-
-      return res.status(200).json({
+    }
+  
+    try {
+      // Check if the boat_id exists in the database
+      const boatExists = await Boat.findByPk(boat_id);
+  
+      if (!boatExists) {
+        // If boat_id doesn't exist, return an empty array
+        return res.status(200).json({
           success: true,
-          data: finalResults
+          data: []
+        });
+      }
+  
+      const daysInMonth = getDaysInMonth(month, year); // Assuming this function returns dates in 'YYYY-MM-DD' format
+  
+      // Query SeatAvailability based on month, year, and boat_id
+      const seatAvailabilities = await SeatAvailability.findAll({
+        attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
+        where: {
+          [Op.and]: [
+            sequelize.where(sequelize.fn('MONTH', sequelize.col('SeatAvailability.date')), month),
+            sequelize.where(sequelize.fn('YEAR', sequelize.col('SeatAvailability.date')), year)
+          ]
+        },
+        include: getSeatAvailabilityIncludes(), // Use utility to include relations
       });
-  } catch (error) {
+  
+      // Filter seatAvailabilities by boat_id
+      const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
+  
+      const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
+        // Find seatAvailability for the date and boat_id
+        const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
+  
+        if (seatAvailability) {
+          const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+          const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
+  
+          return [{
+            seatavailability_id: seatAvailability.id,
+            date: seatAvailability.date,
+            schedule_id: seatAvailability.schedule_id,
+            subschedule_id: seatAvailability.subschedule_id,
+            total_passengers: totalPassengers,
+            route: route
+          }];
+        } else {
+          // Query Schedule and SubSchedule using utils, then filter based on boat_id
+          const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+          const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id); // Filter based on boat_id
+          let results = [];
+  
+          subSchedules.forEach(subSchedule => {
+            const relatedSchedule = filteredSchedules.find(schedule => schedule.id === subSchedule.schedule_id);
+            if (relatedSchedule) {
+              let route = buildRouteFromSchedule(relatedSchedule, subSchedule);
+              results.push({
+                seatavailability_id: null,
+                date: date,
+                schedule_id: relatedSchedule.id,
+                subschedule_id: subSchedule.id,
+                total_passengers: 0,
+                route: route
+              });
+            }
+          });
+  
+          return results;
+        }
+      }));
+  
+      const finalResults = formattedResults.flat();
+  
+      return res.status(200).json({
+        success: true,
+        data: finalResults
+      });
+    } catch (error) {
       console.error('Error fetching passenger count by month:', error);
       return res.status(500).json({
-          success: false,
-          message: 'Failed to retrieve passenger count for the specified month.'
+        success: false,
+        message: 'Failed to retrieve passenger count for the specified month.'
       });
-  }
-};
+    }
+  };
 
+  
 const createPassenger = async (req, res) => {
     try {
         const passenger = await Passenger.create(req.body);
@@ -311,3 +276,59 @@ module.exports = {
     updatePassenger,
     deletePassenger
 };
+
+
+// const getPassengerCountByMonth = async (req, res) => {
+//     const { month, year } = req.query;
+  
+//     if (!month || !year) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Please provide both month and year in the query parameters.'
+//       });
+//     }
+  
+//     try {
+//       const results = await SeatAvailability.findAll({
+//         attributes: ['id', 'date', 'schedule_id', 'subschedule_id'], // Pastikan 'id' disertakan
+//         include: getSeatAvailabilityIncludes(),
+//         where: {
+//           [Op.and]: [
+//             sequelize.where(fn('MONTH', col('SeatAvailability.date')), month),
+//             sequelize.where(fn('YEAR', col('SeatAvailability.date')), year)
+//           ]
+//         }
+//       });
+  
+//       // Format the results
+//       const formattedResults = results.map(seatAvailability => {
+//         const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+//         const route = buildRoute(seatAvailability);
+  
+//         return {
+//           seatavailability_id: seatAvailability.id, // Menggunakan 'seatavailability_id' alih-alih 'id'
+//           date: seatAvailability.date,
+//           schedule_id: seatAvailability.schedule_id,
+//           subschedule_id: seatAvailability.subschedule_id,
+//           total_passengers: totalPassengers,
+//           route: route
+//         };
+//       });
+  
+//       return res.status(200).json({
+//         success: true,
+//         data: formattedResults
+//       });
+//     } catch (error) {
+//       console.error('Error fetching passenger count by month:', error);
+//       return res.status(500).json({
+//         success: false,
+//         message: 'Failed to retrieve passenger count for the specified month.'
+//       });
+//     }
+//   };
+  
+
+
+
+// Controller untuk mendapatkan data penumpang berdasarkan bulan
