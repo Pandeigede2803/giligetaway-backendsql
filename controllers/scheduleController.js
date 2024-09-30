@@ -39,7 +39,7 @@ const getScheduleSubschedule = async (req, res) => {
         include: [
           { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
           { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
-          {model: Boat,as:"Boat",attributes:["id","boat_name"]}
+          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
         ],
         logging: console.log,
       });
@@ -55,6 +55,7 @@ const getScheduleSubschedule = async (req, res) => {
         include: [
           { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
           { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
+          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
         ],
         logging: console.log,
       });
@@ -78,54 +79,59 @@ const getScheduleSubschedule = async (req, res) => {
       });
     }
 
-    // We're assuming only one schedule is being used, so we take the first one in the array
-    const schedule = schedules[0];
-    const boat_name = schedule.Boat?.boat_name || 'N/A'; // Get boat_name from the schedule
-    
-    const main_route = `${schedule.FromDestination?.name || 'N/A'} to ${schedule.ToDestination?.name || 'N/A'}`;
-    const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
+    // Format schedules with associated subSchedules
+    const formattedSchedules = schedules.map((schedule) => {
+      const boat_name = schedule.Boat?.boat_name || 'N/A'; // Get boat_name from the schedule
+      const main_route = `${schedule.FromDestination?.name || 'N/A'} to ${schedule.ToDestination?.name || 'N/A'}`;
+      const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
 
-    // Format subSchedules
-    const formattedSubSchedules = subSchedules.map((subSchedule) => {
-      // Get timing data
-      const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
-      const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
-      const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
-      const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
+      // Filter subSchedules related to this schedule
+      const scheduleSubSchedules = subSchedules.filter(subSchedule => subSchedule.schedule_id === schedule.id);
+
+      // Format subSchedules
+      const formattedSubSchedules = scheduleSubSchedules.map((subSchedule) => {
+        // Get timing data
+        const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
+        const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
+        const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
+        const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
+
+        return {
+          id: subSchedule.id,
+          schedule_id: subSchedule.schedule_id,
+          from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
+          to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
+          transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
+            destination: transit.Destination?.name || 'N/A',
+            departure_time: transit.departure_time || 'N/A',
+            arrival_time: transit.arrival_time || 'N/A',
+            journey_time: transit.journey_time || 'N/A',
+          })) : [],
+          route_image: subSchedule.route_image || 'N/A',
+          departure_time,
+          check_in_time,
+          arrival_time,
+          journey_time,
+          boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
+          low_season_price: subSchedule.low_season_price || 'N/A',
+          high_season_price: subSchedule.high_season_price || 'N/A',
+          peak_season_price: subSchedule.peak_season_price || 'N/A',
+          validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
+        };
+      });
 
       return {
-        id: subSchedule.id,
-        schedule_id: subSchedule.schedule_id,
-        from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
-        to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
-        transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
-          destination: transit.Destination?.name || 'N/A',
-          departure_time: transit.departure_time || 'N/A',
-          arrival_time: transit.arrival_time || 'N/A',
-          journey_time: transit.journey_time || 'N/A',
-        })) : [],
-        route_image: subSchedule.route_image || 'N/A',
-        departure_time,
-        check_in_time,
-        arrival_time,
-        journey_time,
-        boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
-        low_season_price: subSchedule.low_season_price || 'N/A',
-        high_season_price: subSchedule.high_season_price || 'N/A',
-        peak_season_price: subSchedule.peak_season_price || 'N/A',
-        validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
-      };
-    });
-
-    // Return the response including main_route and days_of_week
-    res.status(200).json({
-      status: "success",
-      data: {
         boat_name,
         main_route, // Add main_route from schedule
         days_of_week, // Add days_of_week from schedule
         subSchedules: formattedSubSchedules,
-      },
+      };
+    });
+
+    // Return the response, ensuring an array of schedules is returned
+    res.status(200).json({
+      status: "success",
+      data: formattedSchedules,
     });
   } catch (error) {
     console.error("Error fetching subschedules:", error);
@@ -135,6 +141,7 @@ const getScheduleSubschedule = async (req, res) => {
     });
   }
 };
+
 
 
 
