@@ -77,9 +77,10 @@ const formatSchedules = (schedules, selectedDate) => {
           ).toLocaleDateString() // Format date to readable format
         : "N/A",
 
-      // Add boat_name to the schedule output
-      boat_name: schedule.Boat?.boat_name || "N/A",
+     
     },
+     // Add boat_name to the schedule output
+     boat_name: schedule.Boat?.boat_name || "N/A",
   }));
 };
 
