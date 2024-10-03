@@ -306,10 +306,11 @@ const getScheduleSubschedule = async (req, res) => {
                 ? subSchedule.arrival_time
                 : subSchedule.TransitTo?.arrival_time
                 ? subSchedule.TransitTo.arrival_time
-                : lastTransit?.arrival_time
-                ? lastTransit.arrival_time
                 : schedule.arrival_time
                 ? schedule.arrival_time
+                : lastTransit?.arrival_time
+                ? lastTransit.arrival_time
+               
                 : "N/A";
 
               const journey_time = subSchedule.journey_time
