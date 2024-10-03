@@ -12,7 +12,7 @@ const {
 const { uploadImageToImageKit } = require("../middleware/upload");
 const { Op } = require("sequelize");
 const buildSearchConditions = require("../util/buildSearchCondition");
-const {buildRoute ,  buildRouteFromSchedule} = require('../util/buildRoute');
+const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const {
   formatSchedules,
   formatSubSchedules,
@@ -20,11 +20,10 @@ const {
 const { getDay } = require("date-fns"); // Correctly importing getDay
 const {
   formatSchedulesSimple,
-  formatSubSchedulesSimple,getDayNamesFromBitmask
+  formatSubSchedulesSimple,
+  getDayNamesFromBitmask,
 } = require("../util/formatUtilsSimple");
-const { getSubScheduleInclude } = require('../util/formattedData2');
-
-
+const { getSubScheduleInclude } = require("../util/formattedData2");
 
 // const getScheduleSubschedule = async (req, res) => {
 //   const { boat_id } = req.query;
@@ -173,9 +172,27 @@ const getScheduleSubschedule = async (req, res) => {
       schedules = await Schedule.findAll({
         where: { boat_id },
         include: [
-          { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
-          { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
-          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
+          {
+            model: Destination,
+            as: "FromDestination",
+            attributes: ["id", "name"],
+          },
+          {
+            model: Transit,
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+          },
+          {
+            model: Destination,
+            as: "ToDestination",
+            attributes: ["id", "name"],
+          },
+          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] },
         ],
         logging: console.log,
       });
@@ -189,9 +206,17 @@ const getScheduleSubschedule = async (req, res) => {
     } else {
       schedules = await Schedule.findAll({
         include: [
-          { model: Destination, as: "FromDestination", attributes: ["id", "name"] },
-          { model: Destination, as: "ToDestination", attributes: ["id", "name"] },
-          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] }
+          {
+            model: Destination,
+            as: "FromDestination",
+            attributes: ["id", "name"],
+          },
+          {
+            model: Destination,
+            as: "ToDestination",
+            attributes: ["id", "name"],
+          },
+          { model: Boat, as: "Boat", attributes: ["id", "boat_name"] },
         ],
         logging: console.log,
       });
@@ -210,65 +235,118 @@ const getScheduleSubschedule = async (req, res) => {
 
     // Format schedules and sub-schedules
     const formattedSchedules = schedules.map((schedule) => {
-      const boat_name = schedule.Boat?.boat_name || 'N/A';
-      const main_route = `${schedule.FromDestination?.name || 'N/A'} to ${schedule.ToDestination?.name || 'N/A'}`;
+      const boat_name = schedule.Boat?.boat_name || "N/A";
+      const main_route = `${schedule.FromDestination?.name || "N/A"} to ${
+        schedule.ToDestination?.name || "N/A"
+      }`;
       const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
 
       // Format the main schedule similarly to a sub-schedule
       const formattedMainSchedule = {
         id: schedule.id,
         schedule_id: schedule.id, // Main schedule has its own ID
-        from: schedule.FromDestination?.name || 'N/A',
-        to: schedule.ToDestination?.name || 'N/A',
+        from: schedule.FromDestination?.name || "N/A",
+        to: schedule.ToDestination?.name || "N/A",
         transits: [], // Main schedule has no transits
-        route_image: schedule.route_image || 'N/A', // Add if schedule has an image
-        departure_time: schedule.departure_time || 'N/A',
-        check_in_time: schedule.check_in_time || 'N/A',
-        arrival_time: schedule.arrival_time || 'N/A',
-        journey_time: schedule.journey_time || 'N/A',
-        boat_id: schedule.Boat?.id || 'N/A',
-        low_season_price: schedule.low_season_price || 'N/A',
-        high_season_price: schedule.high_season_price || 'N/A',
-        peak_season_price: schedule.peak_season_price || 'N/A',
+        route_image: schedule.route_image || "N/A", // Add if schedule has an image
+        departure_time: schedule.departure_time || "N/A",
+        check_in_time: schedule.check_in_time || "N/A",
+        arrival_time: schedule.arrival_time || "N/A",
+        journey_time: schedule.journey_time || "N/A",
+        boat_id: schedule.Boat?.id || "N/A",
+        low_season_price: schedule.low_season_price || "N/A",
+        high_season_price: schedule.high_season_price || "N/A",
+        peak_season_price: schedule.peak_season_price || "N/A",
         validity: `${schedule.validity_start} to ${schedule.validity_end}`,
       };
 
       // Filter subSchedules related to this schedule
-      const scheduleSubSchedules = subSchedules.filter(subSchedule => subSchedule.schedule_id === schedule.id);
+      const scheduleSubSchedules = subSchedules.filter(
+        (subSchedule) => subSchedule.schedule_id === schedule.id
+      );
 
       // Format subSchedules, or leave an empty array if none exist
-      const formattedSubSchedules = scheduleSubSchedules.length > 0
-        ? scheduleSubSchedules.map((subSchedule) => {
-          // Get timing data
-          const departure_time = subSchedule.departure_time || subSchedule.TransitFrom?.departure_time || schedule.departure_time || 'N/A';
-          const check_in_time = subSchedule.check_in_time || subSchedule.TransitFrom?.check_in_time || schedule.check_in_time || 'N/A';
-          const arrival_time = subSchedule.arrival_time || subSchedule.TransitTo?.arrival_time || schedule.arrival_time || 'N/A';
-          const journey_time = subSchedule.journey_time || subSchedule.TransitTo?.journey_time || schedule.journey_time || 'N/A';
+      const formattedSubSchedules =
+        scheduleSubSchedules.length > 0
+          ? scheduleSubSchedules.map((subSchedule) => {
+              const lastTransit = schedule.Transit
+                ? schedule.Transit[schedule.Transit.length - 1]
+                : null;
+                console.log(`Using lastTransit: ${lastTransit}`);
 
-          return {
-            id: subSchedule.id,
-            schedule_id: subSchedule.schedule_id,
-            from: subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name || 'N/A',
-            to: subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name || 'N/A',
-            transits: subSchedule.Transits ? subSchedule.Transits.map((transit) => ({
-              destination: transit.Destination?.name || 'N/A',
-              departure_time: transit.departure_time || 'N/A',
-              arrival_time: transit.arrival_time || 'N/A',
-              journey_time: transit.journey_time || 'N/A',
-            })) : [],
-            route_image: subSchedule.route_image || 'N/A',
-            departure_time,
-            check_in_time,
-            arrival_time,
-            journey_time,
-            boat_id: subSchedule.Schedule?.Boat?.id || 'N/A',
-            low_season_price: subSchedule.low_season_price || 'N/A',
-            high_season_price: subSchedule.high_season_price || 'N/A',
-            peak_season_price: subSchedule.peak_season_price || 'N/A',
-            validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
-          };
-        })
-        : []; // No sub-schedules found for this schedule
+              // Get timing data
+              const departure_time = subSchedule.departure_time
+                ? `SubSchedule: ${subSchedule.departure_time}`
+                : subSchedule.TransitFrom?.departure_time
+                ? `TransitFrom: ${subSchedule.TransitFrom.departure_time}`
+                : schedule.departure_time
+                ? `Schedule: ${schedule.departure_time}`
+                : "N/A";
+              console.log(`Using departure_time: ${departure_time}`);
+
+              const check_in_time = subSchedule.check_in_time
+                ? `SubSchedule: ${subSchedule.check_in_time}`
+                : subSchedule.TransitFrom?.check_in_time
+                ? `TransitFrom: ${subSchedule.TransitFrom.check_in_time}`
+                : schedule.check_in_time
+                ? `Schedule: ${schedule.check_in_time}`
+                : "N/A";
+              console.log(`Using check_in_time: ${check_in_time}`);
+
+              const arrival_time = subSchedule.arrival_time
+                ? `SubSchedule: ${subSchedule.arrival_time}`
+                : subSchedule.TransitTo?.arrival_time
+                ? `TransitTo: ${subSchedule.TransitTo.arrival_time}`
+                : lastTransit?.arrival_time
+                ? `LastTransit: ${lastTransit.arrival_time}`
+                : schedule.arrival_time
+                ? `Schedule: ${schedule.arrival_time}`
+                : "N/A";
+              console.log(`Using arrival_time: ${arrival_time}`);
+
+              const journey_time = subSchedule.journey_time
+                ? `SubSchedule: ${subSchedule.journey_time}`
+                : subSchedule.TransitTo?.journey_time
+                ? `TransitTo: ${subSchedule.TransitTo.journey_time}`
+                : lastTransit?.journey_time
+                ? `LastTransit: ${lastTransit.journey_time}`
+                : schedule.journey_time
+                ? `Schedule: ${schedule.journey_time}`
+                : "N/A";
+              console.log(`Using journey_time: ${journey_time}`);
+
+              return {
+                id: subSchedule.id,
+                schedule_id: subSchedule.schedule_id,
+                from:
+                  subSchedule.DestinationFrom?.name ||
+                  subSchedule.TransitFrom?.Destination?.name ||
+                  "N/A",
+                to:
+                  subSchedule.DestinationTo?.name ||
+                  subSchedule.TransitTo?.Destination?.name ||
+                  "N/A",
+                transits: subSchedule.Transits
+                  ? subSchedule.Transits.map((transit) => ({
+                      destination: transit.Destination?.name || "N/A",
+                      departure_time: transit.departure_time || "N/A",
+                      arrival_time: transit.arrival_time || "N/A",
+                      journey_time: transit.journey_time || "N/A",
+                    }))
+                  : [],
+                route_image: subSchedule.route_image || "N/A",
+                departure_time,
+                check_in_time,
+                arrival_time,
+                journey_time,
+                boat_id: subSchedule.Schedule?.Boat?.id || "N/A",
+                low_season_price: subSchedule.low_season_price || "N/A",
+                high_season_price: subSchedule.high_season_price || "N/A",
+                peak_season_price: subSchedule.peak_season_price || "N/A",
+                validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
+              };
+            })
+          : []; // No sub-schedules found for this schedule
 
       // Combine main schedule and subSchedules into one array
       return {
@@ -293,12 +371,9 @@ const getScheduleSubschedule = async (req, res) => {
   }
 };
 
-
-
-
-const  getScheduleFormatted = async (req, res) => {
+const getScheduleFormatted = async (req, res) => {
   const { boat_id } = req.query;
-  console.log("this is boat_id",boat_id)
+  console.log("this is boat_id", boat_id);
 
   try {
     // Build where clause for Schedule
@@ -550,10 +625,6 @@ const  getScheduleFormatted = async (req, res) => {
   }
 };
 
-
-
-
-
 const createSeatAvailability = async (schedule, subschedule, date) => {
   try {
     // Determine the boat capacity based on schedule or subschedule
@@ -616,7 +687,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         {
           model: Boat,
           as: "Boat",
-          attributes: ["id", "capacity","boat_name"],
+          attributes: ["id", "capacity", "boat_name"],
         },
         {
           model: Transit,
@@ -649,162 +720,161 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       ],
     });
 
-
-       // Fetch SubSchedules
-       const subSchedules = await SubSchedule.findAll({
-        where: {
-          [Op.and]: [
-            {
-              [Op.or]: [
-                { destination_from_schedule_id: from },
-                { "$TransitFrom.destination_id$": from },
-              ],
-            },
-            {
-              [Op.or]: [
-                { destination_to_schedule_id: to },
-                { "$TransitTo.destination_id$": to },
-              ],
-            },
-            {
-              validity_start: { [Op.lte]: selectedDate },
-              validity_end: { [Op.gte]: selectedDate },
-              [Op.and]: sequelize.literal(
-                `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
-              ),
-            },
-          ],
-          availability: true,
-        },
-        include: [
+    // Fetch SubSchedules
+    const subSchedules = await SubSchedule.findAll({
+      where: {
+        [Op.and]: [
           {
-            model: Destination,
-            as: "DestinationFrom",
-            attributes: ["id", "name"],
-          },
-          {
-            model: Destination,
-            as: "DestinationTo",
-            attributes: ["id", "name"],
-          },
-          {
-            model: Transit,
-            as: "TransitFrom",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
+            [Op.or]: [
+              { destination_from_schedule_id: from },
+              { "$TransitFrom.destination_id$": from },
             ],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
           },
           {
-            model: Transit,
-            as: "TransitTo",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
+            [Op.or]: [
+              { destination_to_schedule_id: to },
+              { "$TransitTo.destination_id$": to },
             ],
-  
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          },
-          // Add transit_1, transit_2, transit_3, transit_4 associations
-          {
-            model: Transit,
-            as: "Transit1",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
-            ],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
           },
           {
-            model: Transit,
-            as: "Transit2",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
-            ],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          },
-          {
-            model: Transit,
-            as: "Transit3",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
-            ],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          },
-          {
-            model: Transit,
-            as: "Transit4",
-            attributes: [
-              "id",
-              "destination_id",
-              "departure_time",
-              "arrival_time",
-              "journey_time",
-            ],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          },
-          {
-            model: Schedule,
-            as: "Schedule",
-            attributes: ["id", "departure_time",
-              "check_in_time",
-              "arrival_time",
-              "journey_time",],
-            include: [
-              {
-                model: Boat,
-                as: "Boat",
-                attributes: ["id", "capacity", "boat_name"],
-              },
-            ],
+            validity_start: { [Op.lte]: selectedDate },
+            validity_end: { [Op.gte]: selectedDate },
+            [Op.and]: sequelize.literal(
+              `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+            ),
           },
         ],
-     
-      });
-  
+        availability: true,
+      },
+      include: [
+        {
+          model: Destination,
+          as: "DestinationFrom",
+          attributes: ["id", "name"],
+        },
+        {
+          model: Destination,
+          as: "DestinationTo",
+          attributes: ["id", "name"],
+        },
+        {
+          model: Transit,
+          as: "TransitFrom",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "TransitTo",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
 
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        // Add transit_1, transit_2, transit_3, transit_4 associations
+        {
+          model: Transit,
+          as: "Transit1",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit2",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit3",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit4",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
+        },
+        {
+          model: Schedule,
+          as: "Schedule",
+          attributes: [
+            "id",
+            "departure_time",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: [
+            {
+              model: Boat,
+              as: "Boat",
+              attributes: ["id", "capacity", "boat_name"],
+            },
+          ],
+        },
+      ],
+    });
 
     // Check Seat Availability for Schedules
     for (const schedule of schedules) {
@@ -877,8 +947,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     res.status(200).json({
       status: "success",
       data: {
-        schedules: formatSchedules(schedules,selectedDate),
-        subSchedules: formatSubSchedules(subSchedules,selectedDate),
+        schedules: formatSchedules(schedules, selectedDate),
+        subSchedules: formatSubSchedules(subSchedules, selectedDate),
       },
     });
   } catch (error) {
@@ -1854,8 +1924,6 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
 
 // controllers/scheduleController.js
 
-
-
 // Upload schedules (existing function)
 const uploadSchedules = async (req, res) => {
   const schedules = [];
@@ -1951,7 +2019,7 @@ module.exports = {
   getSchedulesWithTransits,
   searchSchedulesAndSubSchedules,
   getScheduleFormatted,
-  getScheduleSubschedule
+  getScheduleSubschedule,
 };
 
 // Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize
