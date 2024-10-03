@@ -212,6 +212,16 @@ const getScheduleSubschedule = async (req, res) => {
             attributes: ["id", "name"],
           },
           {
+            model: Transit,
+            attributes: [
+              "id",
+              "destination_id",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
+          },
+          {
             model: Destination,
             as: "ToDestination",
             attributes: ["id", "name"],
@@ -269,8 +279,9 @@ const getScheduleSubschedule = async (req, res) => {
       const formattedSubSchedules =
         scheduleSubSchedules.length > 0
           ? scheduleSubSchedules.map((subSchedule) => {
-              const lastTransit = schedule.Transit
-                ? schedule.Transit[schedule.Transit.length - 1]
+
+              const lastTransit = schedule.Transits
+                ? schedule.Transits[schedule.Transits.length - 1]
                 : null;
                 console.log(`Using lastTransit: ${lastTransit}`);
 
