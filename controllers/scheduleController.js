@@ -276,40 +276,44 @@ const getScheduleSubschedule = async (req, res) => {
 
               // Get timing data
               const departure_time = subSchedule.departure_time
-                ? subSchedule.departure_time
+                ? `SubSchedule: ${subSchedule.departure_time}`
                 : subSchedule.TransitFrom?.departure_time
-                ? subSchedule.TransitFrom.departure_time
+                ? `TransitFrom: ${subSchedule.TransitFrom.departure_time}`
                 : schedule.departure_time
-                ? schedule.departure_time
-                : null;
+                ? `Schedule: ${schedule.departure_time}`
+                : "N/A";
+              console.log(`Using departure_time: ${departure_time}`);
 
               const check_in_time = subSchedule.check_in_time
-                ? subSchedule.check_in_time
+                ? `SubSchedule: ${subSchedule.check_in_time}`
                 : subSchedule.TransitFrom?.check_in_time
-                ? subSchedule.TransitFrom.check_in_time
+                ? `TransitFrom: ${subSchedule.TransitFrom.check_in_time}`
                 : schedule.check_in_time
-                ? schedule.check_in_time
-                : null;
+                ? `Schedule: ${schedule.check_in_time}`
+                : "N/A";
+              console.log(`Using check_in_time: ${check_in_time}`);
 
               const arrival_time = subSchedule.arrival_time
-                ? subSchedule.arrival_time
+                ? `SubSchedule: ${subSchedule.arrival_time}`
                 : subSchedule.TransitTo?.arrival_time
-                ? subSchedule.TransitTo.arrival_time
+                ? `TransitTo: ${subSchedule.TransitTo.arrival_time}`
                 : lastTransit?.arrival_time
-                ? lastTransit.arrival_time
+                ? `LastTransit: ${lastTransit.arrival_time}`
                 : schedule.arrival_time
-                ? schedule.arrival_time
-                : null;
+                ? `Schedule: ${schedule.arrival_time}`
+                : "N/A";
+              console.log(`Using arrival_time: ${arrival_time}`);
 
               const journey_time = subSchedule.journey_time
-                ? subSchedule.journey_time
+                ? `SubSchedule: ${subSchedule.journey_time}`
                 : subSchedule.TransitTo?.journey_time
-                ? subSchedule.TransitTo.journey_time
+                ? `TransitTo: ${subSchedule.TransitTo.journey_time}`
                 : lastTransit?.journey_time
-                ? lastTransit.journey_time
+                ? `LastTransit: ${lastTransit.journey_time}`
                 : schedule.journey_time
-                ? schedule.journey_time
-                : null;
+                ? `Schedule: ${schedule.journey_time}`
+                : "N/A";
+              console.log(`Using journey_time: ${journey_time}`);
 
               return {
                 id: subSchedule.id,

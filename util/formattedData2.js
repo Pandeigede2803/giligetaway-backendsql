@@ -84,7 +84,7 @@ const getCommonInclude = () => [
     {
       model: Transit,
       as: 'TransitFrom',
-      attributes: ['id', 'destination_id', 'departure_time', 'arrival_time', 'journey_time'],
+      attributes: ['id', 'destination_id','check_in_time', 'departure_time', 'arrival_time', 'journey_time'],
       include: {
         model: Destination,
         as: 'Destination',
@@ -94,12 +94,41 @@ const getCommonInclude = () => [
     {
       model: Transit,
       as: 'TransitTo',
-      attributes: ['id', 'destination_id', 'departure_time', 'arrival_time', 'journey_time'],
+      attributes: ['id', 'destination_id', 'departure_time','check_in_time', 'arrival_time', 'journey_time'],
       include: {
         model: Destination,
         as: 'Destination',
         attributes: ['id', 'name'],
       },
+    },
+    // provide the transit 1 - 4
+    {
+      model: Transit,
+      as: 'Transit1',
+      attributes: ['id', 'destination_id', 'check_in_time', 'departure_time', 'arrival_time', 'journey_time'],
+      where: {id: sequelize.col('transit_1')},
+      required: false,
+    },
+    {
+      model: Transit,
+      as: 'Transit2',
+      attributes: ['id', 'destination_id', 'check_in_time', 'departure_time', 'arrival_time', 'journey_time'],
+      where: {id: sequelize.col('transit_2')},
+      required: false,
+    },
+    {
+      model: Transit,
+      as: 'Transit3',
+      attributes: ['id', 'destination_id', 'check_in_time', 'departure_time', 'arrival_time', 'journey_time'],
+      where: {id: sequelize.col('transit_3')},
+      required: false,
+    },
+    {
+      model: Transit,
+      as: 'Transit4',
+      attributes: ['id', 'destination_id', 'check_in_time', 'departure_time', 'arrival_time', 'journey_time'],
+      where: {id: sequelize.col('transit_4')},
+      required: false,
     },
     {
       model: Schedule,
