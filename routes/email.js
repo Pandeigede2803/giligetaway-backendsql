@@ -4,7 +4,7 @@ const {sendInvoiceAndEticketEmail,sendNotificationEmail } = require('../controll
 const router = express.Router();
 
 // Route to send invoice email
-router.post('/sendInvoiceEticket', sendInvoiceAndEticketEmail);
+router.post('/send-invoice-eticket', sendInvoiceAndEticketEmail);
 
 // Route to send notification email
 router.post('/send-notification', sendNotificationEmail);
