@@ -3,6 +3,7 @@ const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const seatAvailabilityController = require('../controllers/seatAvailabilityController');
 const authenticate = require('../middleware/authenticate');
+const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limiting middleware
 
 // CREATE booking
 router.post('/', bookingController.createBooking);
@@ -11,7 +12,7 @@ router.post('/', bookingController.createBooking);
 router.post('/transit', bookingController.createBookingWithTransit);
 
 // Route for booking with transit
-router.post('/transit-queue', bookingController.createBookingWithTransitQueue);
+router.post('/transit-queue',authenticate,bookingRateLimiter, bookingController.createBookingWithTransitQueue);
 
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);

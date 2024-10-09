@@ -59,6 +59,10 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
+    ticket_total: {
+        type: DataTypes.DECIMAL(10, 2),  // New field for ticket total
+        allowNull: false,
+    },
     total_passengers: {
         type: DataTypes.INTEGER,
         allowNull: false

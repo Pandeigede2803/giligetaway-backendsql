@@ -12,6 +12,9 @@ const cronJobs = require("../util/cronJobs");
 const { createTransaction } = require('../util/transactionUtils');
 const Queue = require('bull');
 const bookingQueue = new Queue('bookingQueue'); // Inisialisasi Bull Queue
+const { createPayPalOrder } = require('../util/payment/paypal'); // PayPal utility
+const { generateMidtransToken } = require('../util/payment/generateMidtransToken'); // MidTrans utility
+
 
 const getBookingsByDate = async (req, res) => {
     console.log('getBookingsByDate: start');
@@ -150,10 +153,82 @@ const createBookingWithTransit = async (req, res) => {
   //with booking queue
 
   // Function to create booking with queue and return early response
-  const createBookingWithTransitQueue = async (req, res) => {
+//   the booking is suscceded if the booking is created in the queue
+//   const createBookingWithTransitQueue = async (req, res) => {
+//     const {
+//       schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
+//       gross_total, payment_status, transports, contact_name, contact_phone,
+//       contact_passport_id, contact_nationality, contact_email, payment_method,
+//       booking_source, adult_passengers, child_passengers, infant_passengers,
+//       ticket_id, transit_details, transaction_type, currency,ticket_total
+//     } = req.body;
+  
+//     try {
+//       const result = await sequelize.transaction(async (t) => {
+//         // Set expiration time for booking
+//         const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
+//         const bookingDateTime = new Date();
+//         const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000);
+  
+//         // Step 1: Create the Booking
+//         const booking = await Booking.create({
+//           schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
+//           contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
+//           payment_method,ticket_total, booking_source, adult_passengers, child_passengers, infant_passengers,
+//           ticket_id,
+//           expiration_time: expirationTime
+//         }, { transaction: t });
+  
+//         console.log(`Booking created with ID: ${booking.id}`);
+  
+//         // Step 2: Create an initial transaction
+//         const transactionEntry = await createTransaction({
+//           transaction_id: `TRANS-${Date.now()}`, // Unique transaction ID
+//           payment_method,
+//           payment_gateway: null, // Set payment gateway if needed
+//           amount: gross_total,
+//           currency,
+//           transaction_type,
+//           booking_id: booking.id,
+//           status: 'pending' // Set status to pending initially
+//         }, t);
+  
+//         console.log(`Initial transaction created for booking ID: ${booking.id}`);
+  
+//         // Queue job for background processing (including seat availability, transport, etc.)
+//         bookingQueue.add({
+//           schedule_id,
+//           subschedule_id,
+//           booking_date,
+//           total_passengers,
+//           passengers,
+//           transports,
+//           transit_details,
+//           booking_id: booking.id, // Pass booking ID to the queue
+//           agent_id,
+//           gross_total,
+//           payment_status
+//         });
+  
+//         // Return early response
+//         res.status(201).json({
+//           booking,
+//           status: 'processing',
+//           transaction: transactionEntry, // Include the created transaction in the response
+//           transportBookings: [],
+//           remainingSeatAvailabilities: null
+//         });
+//       });
+//     } catch (error) {
+//       console.log('Error:', error.message);
+//       res.status(400).json({ error: error.message });
+//     }
+//   };
+  
+const createBookingWithTransitQueue = async (req, res) => {
     const {
       schedule_id, subschedule_id, total_passengers, booking_date, passengers, agent_id,
-      gross_total, payment_status, transports, contact_name, contact_phone,
+      gross_total, ticket_total, payment_status, transports, contact_name, contact_phone,
       contact_passport_id, contact_nationality, contact_email, payment_method,
       booking_source, adult_passengers, child_passengers, infant_passengers,
       ticket_id, transit_details, transaction_type, currency
@@ -161,28 +236,45 @@ const createBookingWithTransit = async (req, res) => {
   
     try {
       const result = await sequelize.transaction(async (t) => {
-        // Set expiration time for booking
-        const expirationTimeMinutes = process.env.EXPIRATION_TIME_MINUTES || 30;
-        const bookingDateTime = new Date();
-        const expirationTime = new Date(bookingDateTime.getTime() + expirationTimeMinutes * 60000);
+        // Step 1: Calculate transport_total if transports exist
+        const transportTotal = Array.isArray(transports)
+          ? transports.reduce((total, transport) => total + parseFloat(transport.transport_price) * transport.quantity, 0)
+          : 0;
+        
+        const totalAmount = ticket_total + transportTotal;  // Gross total adalah gabungan tiket + transport
   
-        // Step 1: Create the Booking
+        // Step 2: Create the Booking dengan ticket_total dan gross_total
         const booking = await Booking.create({
-          schedule_id, subschedule_id, total_passengers, booking_date, agent_id, gross_total, payment_status,
-          contact_name, contact_phone, contact_passport_id, contact_nationality, contact_email,
-          payment_method, booking_source, adult_passengers, child_passengers, infant_passengers,
+          schedule_id, 
+          subschedule_id, 
+          total_passengers, 
+          booking_date, 
+          agent_id, 
+          gross_total: totalAmount,  // Gross total mencakup tiket + transport
+          ticket_total: parseFloat(ticket_total), // Ticket total dari frontend
+          payment_status, 
+          contact_name, 
+          contact_phone, 
+          contact_passport_id, 
+          contact_nationality,
+          contact_email, 
+          payment_method, 
+          booking_source, 
+          adult_passengers, 
+          child_passengers, 
+          infant_passengers,
           ticket_id,
-          expiration_time: expirationTime
+          expiration_time: new Date(Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000)
         }, { transaction: t });
   
         console.log(`Booking created with ID: ${booking.id}`);
   
-        // Step 2: Create an initial transaction
+        // Step 3: Create an initial transaction
         const transactionEntry = await createTransaction({
           transaction_id: `TRANS-${Date.now()}`, // Unique transaction ID
           payment_method,
           payment_gateway: null, // Set payment gateway if needed
-          amount: gross_total,
+          amount: totalAmount,  // Menggunakan gross_total untuk transaksi
           currency,
           transaction_type,
           booking_id: booking.id,
@@ -191,7 +283,46 @@ const createBookingWithTransit = async (req, res) => {
   
         console.log(`Initial transaction created for booking ID: ${booking.id}`);
   
-        // Queue job for background processing (including seat availability, transport, etc.)
+        // Step 4: Handle payment method
+        let paymentResponse = null;
+  
+        if (payment_method === 'paypal') {
+          // Create PayPal Order
+          const orderDetails = {
+            amount: totalAmount,  // Menggunakan totalAmount yang mencakup tiket + transport
+            currency: currency || 'USD', // Default to USD
+          };
+          try {
+            paymentResponse = await createPayPalOrder(orderDetails);
+            console.log('PayPal order created:', paymentResponse);
+          } catch (error) {
+            throw new Error('Failed to create PayPal order');
+          }
+  
+        } else if (payment_method === 'midtrans') {
+          // Use the existing utility function for MidTrans
+          try {
+            const midtransDetails = {
+              ticket_id,
+              gross_total: totalAmount,  // Menggunakan totalAmount untuk MidTrans
+              total_passengers,
+              ticket_total: parseFloat(ticket_total),  // Menggunakan ticketTotal dari frontend
+              transports,
+              contact_name,
+              contact_email,
+              contact_phone,
+              booking_date,
+              passengers,
+            };
+  
+            paymentResponse = await generateMidtransToken(midtransDetails);
+            console.log('MidTrans token created:', paymentResponse);
+          } catch (error) {
+            throw new Error('Failed to generate MidTrans token');
+          }
+        }
+  
+        // Step 5: Queue job for background processing (including seat availability, transport, etc.)
         bookingQueue.add({
           schedule_id,
           subschedule_id,
@@ -202,15 +333,16 @@ const createBookingWithTransit = async (req, res) => {
           transit_details,
           booking_id: booking.id, // Pass booking ID to the queue
           agent_id,
-          gross_total,
+          gross_total: totalAmount,  // Gross total for the queue
           payment_status
         });
   
-        // Return early response
+        // Step 6: Return response
         res.status(201).json({
           booking,
           status: 'processing',
           transaction: transactionEntry, // Include the created transaction in the response
+          paymentResponse, // Include payment token or approval link in the response
           transportBookings: [],
           remainingSeatAvailabilities: null
         });
