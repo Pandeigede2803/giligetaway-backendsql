@@ -7,7 +7,7 @@ const PAYPAL_API = process.env.PAYPAL_API || 'https://api-m.sandbox.paypal.com';
  */
 const generatePayPalAccessToken = async () => {
   try {
-    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT;
     const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
 
     const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
@@ -27,6 +27,7 @@ const generatePayPalAccessToken = async () => {
       throw new Error('Failed to generate PayPal access token');
     }
 
+    console.log('Generated PayPal access token:', data.access_token);
     return data.access_token;
   } catch (error) {
     console.error('Error generating PayPal access token:', error);
@@ -72,6 +73,9 @@ const createPayPalOrder = async (orderDetails) => {
 
     const approvalLink = data.links.find((link) => link.rel === 'approve').href;
 
+    console.log('Created PayPal order:', data);
+    console.log('Approval link:', approvalLink);
+
     return {
       id: data.id,
       approvalLink,
@@ -85,3 +89,4 @@ const createPayPalOrder = async (orderDetails) => {
 module.exports = {
   createPayPalOrder,
 };
+
