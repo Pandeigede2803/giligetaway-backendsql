@@ -13,7 +13,7 @@ const { createTransaction } = require('../util/transactionUtils');
 const Queue = require('bull');
 const bookingQueue = new Queue('bookingQueue'); // Inisialisasi Bull Queue
 const { createPayPalOrder } = require('../util/payment/paypal'); // PayPal utility
-const { generateMidtransToken } = require('../util/payment/generateMidtransToken'); // MidTrans utility
+const { generateMidtransToken } = require('../util/payment/generateMidtransToken');; // MidTrans utility
 
 
 const getBookingsByDate = async (req, res) => {
