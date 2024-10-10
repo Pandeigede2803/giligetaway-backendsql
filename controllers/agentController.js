@@ -15,7 +15,7 @@ const {
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { uploadImageToImageKit } = require("../middleware/uploadImage");;
+const { uploadImageToImageKit } = require("../middleware/uploadImage");
 
 exports.loginAgent = async (req, res) => {
   try {
