@@ -289,7 +289,7 @@ const createBookingWithTransitQueue = async (req, res) => {
         if (payment_method === 'paypal') {
           // Create PayPal Order
           const orderDetails = {
-            amount: totalAmount,  // Menggunakan totalAmount yang mencakup tiket + transport
+            amount: gross_total,  // Menggunakan totalAmount yang mencakup tiket + transport
             currency: currency || 'USD', // Default to USD
           };
           try {
