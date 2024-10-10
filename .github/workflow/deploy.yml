@@ -1,0 +1,28 @@
+name: CI/CD for Backendsql
+
+on:
+  push:
+    branches:
+      - main  # Jalankan pipeline setiap kali ada push ke branch 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Job akan dijalankan di mesin Ubuntu
+
+    steps:
+      # Checkout repository untuk menarik kode dari GitHub
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Setup SSH untuk terhubung ke server VPS
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 103.172.204.179 >> ~/.ssh/known_hosts
+
+      # Deploy aplikasi ke VPS
+      - name: Deploy to VPS
+        run: |
+          ssh giligetaway@103.172.204.179 "cd ~/giligetaway-backendsql && git pull origin main && npm install && pm2 restart 0"
