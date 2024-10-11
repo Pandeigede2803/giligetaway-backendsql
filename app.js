@@ -57,6 +57,7 @@ const seatAvailabilityRoutes = require('./routes/SeatAvailability');
 const bookingSeatAvailability = require('./routes/bookingSeatAvailability');
 const transactionRoutes = require('./routes/transactionRoutes');
 const emailRoutes = require('./routes/email');
+const paymentRoutes = require('./routes/payment');
 
 
 // Load routes
@@ -78,6 +79,7 @@ app.use('/api/seat', seatAvailabilityRoutes);
 app.use('/api/booking-seat',bookingSeatAvailability);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/payment', paymentRoutes);
 
 //api/agents/reset-password
 

@@ -39,30 +39,37 @@ const generatePayPalAccessToken = async () => {
  * Create a PayPal order
  * @param {Object} orderDetails - Object containing details for the PayPal order
  * @returns {Promise<Object>} - PayPal order ID and approval link
- */
-const createPayPalOrder = async (orderDetails) => {
+ */const createPayPalOrder = async (orderDetails) => {
   try {
+    // Ensure the amount is a string, which PayPal API requires
+    const amountString = orderDetails.amount.toString();
+
+    // Generate PayPal access token
     const accessToken = await generatePayPalAccessToken();
 
+    // Prepare the PayPal request body
     const requestBody = {
       intent: 'CAPTURE',
       purchase_units: [
         {
           amount: {
             currency_code: orderDetails.currency || 'USD',
-            value: orderDetails.amount, // Amount to be charged
+            value: amountString,  // Ensure value is a string
           },
         },
       ],
     };
 
+    console.log("PayPal Request Body:", JSON.stringify(requestBody, null, 2));
+
+    // Make the API request to PayPal
     const response = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(requestBody),  // Ensure proper JSON formatting
     });
 
     const data = await response.json();
@@ -71,6 +78,7 @@ const createPayPalOrder = async (orderDetails) => {
       throw new Error('Failed to create PayPal order');
     }
 
+    // Extract the approval link from PayPal response
     const approvalLink = data.links.find((link) => link.rel === 'approve').href;
 
     console.log('Created PayPal order:', data);
