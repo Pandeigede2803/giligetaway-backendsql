@@ -72,6 +72,8 @@ const createMidtransTransactionLink = async (req, res) => {
   try {
     const bookingDetails = req.body.booking;
 
+    console.log('Booking Details:', bookingDetails);
+
     // Generate MidTrans payment link
     const paymentUrl = await generateMidtransPaymentLink(bookingDetails);
 

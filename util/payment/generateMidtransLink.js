@@ -1,4 +1,5 @@
 // utils/generateMidtransPaymentLink.js
+// utils/generateMidtransPaymentLink.js
 const axios = require('axios');
 
 // Midtrans Payment Link API Configuration
@@ -13,8 +14,7 @@ const midtransConfig = {
  * @returns {Promise<String>} - MidTrans payment link URL
  */
 const generateMidtransPaymentLink = async (bookingDetails) => {
-  // console log
-  console.log('Booking details FROM BODY:', bookingDetails);
+  console.log('Generate MidTrans Payment Link:', bookingDetails);
   
   try {
     // Mengambil `ticket_total` dari bookingDetails
@@ -87,3 +87,4 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
   }
 };
 module.exports={generateMidtransPaymentLink}
+
