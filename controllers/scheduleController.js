@@ -170,7 +170,7 @@ const getScheduleSubschedule = async (req, res) => {
     // Fetch schedules by boat_id, or all schedules if no boat_id provided
     if (boat_id) {
       schedules = await Schedule.findAll({
-        where: { boat_id },
+        where: { boat_id, availability: true },
         include: [
           {
             model: Destination,
@@ -238,6 +238,7 @@ const getScheduleSubschedule = async (req, res) => {
     const subSchedules = await SubSchedule.findAll({
       where: {
         schedule_id: scheduleIds,
+        availability: true,
       },
       include: getSubScheduleInclude(),
       logging: console.log,
