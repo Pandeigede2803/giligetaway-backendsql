@@ -9,4 +9,8 @@ router.post('/midtrans/create-transaction',validateMidtransPaymentMethod, paymen
 // Route to create a PayPal order
 router.post('/paypal/create-order',validatePayPalPaymentMethod, paymentController.createPayPalTransaction);
 
+// Route to create a MidTrans transaction
+router.post('/midtrans/create-transaction-link', validateMidtransPaymentMethod, paymentController.createMidtransTransactionLink);
+
+
 module.exports = router;

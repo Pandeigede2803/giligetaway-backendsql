@@ -1,5 +1,6 @@
 const { generateMidtransToken } = require('../util/payment/generateMidtransToken');
 const { createPayPalOrder } = require('../util/payment/paypal');
+const {generateMidtransPaymentLink} = require('../util/payment/generateMidtransLink');
 
 // MidTrans Payment Token Controller
 const createMidtransTransaction = async (req, res) => {
@@ -63,9 +64,38 @@ const createPayPalTransaction = async (req, res) => {
       });
     }
   };
+
+
+
+
+const createMidtransTransactionLink = async (req, res) => {
+  try {
+    const bookingDetails = req.body.booking;
+
+    // Generate MidTrans payment link
+    const paymentUrl = await generateMidtransPaymentLink(bookingDetails);
+
+    // Send the payment link URL back to the client
+    res.status(200).json({
+      success: true,
+      message: 'MidTrans payment link generated successfully',
+      payment_url: paymentUrl,
+    });
+  } catch (error) {
+    console.error('Error creating MidTrans payment link:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create MidTrans payment link',
+      error: error.message,
+    });
+  }
+};
+
+
   
 module.exports = {
   createMidtransTransaction,
+  createMidtransTransactionLink,
   createPayPalTransaction,
 };
  
