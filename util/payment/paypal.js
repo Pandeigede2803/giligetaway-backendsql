@@ -1,37 +1,30 @@
 const fetch = require('node-fetch');
 const PAYPAL_API = process.env.PAYPAL_API || 'https://api-m.sandbox.paypal.com'; // Sandbox environment by default
 
+
+const axios = require('axios');
+
 /**
  * Generate an access token using PayPal Client ID and Secret
  * @returns {Promise<String>} - PayPal access token
  */
 const generatePayPalAccessToken = async () => {
   try {
-    const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT;
-    const PAYPAL_SECRET = process.env.PAYPAL_SECRET;
-
-    const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
-    
-    const response = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+    const response = await axios({
+      url: `${process.env.PAYPAL_API}/v1/oauth2/token`,
+      method: 'post',
+      data: 'grant_type=client_credentials',
+      auth: {
+        username: process.env.PAYPAL_CLIENT,
+        password: process.env.PAYPAL_SECRET,
       },
-      body: 'grant_type=client_credentials',
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Failed to generate PayPal access token:', data);
-      throw new Error('Failed to generate PayPal access token');
-    }
-
-    console.log('Generated PayPal access token:', data.access_token);
-    return data.access_token;
+    console.log('PayPal access token response jANCUK:', response.data); // Log the response data to verify
+    return response.data.access_token;
   } catch (error) {
-    console.error('Error generating PayPal access token:', error);
-    throw new Error('Could not generate PayPal access token');
+    console.error('Error generating PayPal access token:', error.response ? error.response.data : error.message);
+    throw new Error('Failed to generate PayPal access token');
   }
 };
 
@@ -39,11 +32,9 @@ const generatePayPalAccessToken = async () => {
  * Create a PayPal order
  * @param {Object} orderDetails - Object containing details for the PayPal order
  * @returns {Promise<Object>} - PayPal order ID and approval link
- */const createPayPalOrder = async (orderDetails) => {
+ */
+const createPayPalOrder = async (orderDetails) => {
   try {
-    // Ensure the amount is a string, which PayPal API requires
-    const amountString = orderDetails.amount.toString();
-
     // Generate PayPal access token
     const accessToken = await generatePayPalAccessToken();
 
@@ -52,51 +43,93 @@ const generatePayPalAccessToken = async () => {
       intent: 'CAPTURE',
       purchase_units: [
         {
+          reference_id: 'default', // Add a reference_id for clarity
           amount: {
             currency_code: orderDetails.currency || 'USD',
-            value: amountString,  // Ensure value is a string
+            value: orderDetails.amount,
+            breakdown: {
+              item_total: {
+                currency_code: orderDetails.currency || 'USD',
+                value: orderDetails.amount, // Set item_total to match the amount
+              }
+            }
           },
+          items: orderDetails.items, // Items array is passed as is
         },
       ],
+      application_context: {
+        return_url: orderDetails.returnUrl,
+        cancel_url: orderDetails.cancelUrl,
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'PAY_NOW',
+        brand_name: 'YourBrandName',
+      },
     };
 
-    console.log("PayPal Request Body:", JSON.stringify(requestBody, null, 2));
-
     // Make the API request to PayPal
-    const response = await fetch(`${PAYPAL_API}/v2/checkout/orders`, {
+    const response = await axios({
+      url: `${process.env.PAYPAL_API}/v2/checkout/orders`,
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      data: requestBody,
+    });
+
+    const approvalLink = response.data.links.find(link => link.rel === 'approve').href;
+
+    return {
+      id: response.data.id,
+      approvalLink,
+    };
+  } catch (error) {
+    console.error('Error creating PayPal order:', error.response ? error.response.data : error.message);
+    throw new Error('Failed to create PayPal order');
+  }
+};
+
+
+
+/**
+ * Capture the PayPal order
+ * @param {String} orderId - PayPal order ID
+ * @returns {Promise<Object>} - Captured PayPal order details
+ */
+const capturePayment = async (orderId) => {
+  try {
+    // Generate PayPal access token
+    const accessToken = await generatePayPalAccessToken();
+
+    // Make the API request to capture the order
+    const response = await axios({
+      url: `${process.env.PAYPAL_API}/v2/checkout/orders/${orderId}/capture`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify(requestBody),  // Ensure proper JSON formatting
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('PayPal create order failed:', data);
-      throw new Error('Failed to create PayPal order');
+    console.log('PayPal capture response:', response.data);
+    return response.data; // Return captured payment details
+  } catch (error) {
+    console.error('Error capturing PayPal order:', error.response ? error.response.data : error.message);
+
+    // If the error response exists, throw the full PayPal error response back to the controller
+    if (error.response && error.response.data) {
+      throw error.response.data; // Pass the full error object
     }
 
-    // Extract the approval link from PayPal response
-    const approvalLink = data.links.find((link) => link.rel === 'approve').href;
-
-    console.log('Created PayPal order:', data);
-    console.log('Approval link:', approvalLink);
-
-    return {
-      id: data.id,
-      approvalLink,
-    };
-  } catch (error) {
-    console.error('Error creating PayPal order:', error);
-    throw new Error('Failed to create PayPal order');
+    throw new Error('Gagal menangkap pembayaran PayPal'); // General fallback error
   }
 };
 
 module.exports = {
   createPayPalOrder,
+  capturePayment,
 };
+
 
 // const fetch = require('node-fetch');
 // const PAYPAL_API = process.env.PAYPAL_API || 'https://api-m.sandbox.paypal.com';

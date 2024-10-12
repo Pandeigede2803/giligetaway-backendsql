@@ -1,6 +1,8 @@
 const { generateMidtransToken } = require('../util/payment/generateMidtransToken');
-const { createPayPalOrder } = require('../util/payment/paypal');
+const { createPayPalOrder,capturePayment } = require('../util/payment/paypal');
 const {generateMidtransPaymentLink} = require('../util/payment/generateMidtransLink');
+
+
 
 // MidTrans Payment Token Controller
 const createMidtransTransaction = async (req, res) => {
@@ -36,13 +38,29 @@ const createPayPalTransaction = async (req, res) => {
         throw new Error('Missing gross_total in booking details');
       }
   
+      // Prepare detailed PayPal order items
+      const items = [
+        {
+          name: `Booking for ${bookingDetails.total_passengers} Passengers`, // Description of the booking
+          description: `Adult: ${bookingDetails.adult_passengers}, Child: ${bookingDetails.child_passengers}, Infant: ${bookingDetails.infant_passengers}`, // Additional breakdown of passengers
+          quantity: 1, // Treat the booking as one unit (a single booking)
+          unit_amount: {
+            currency_code: 'USD', // PayPal requires the currency
+            value: bookingDetails.gross_total.toFixed(2), // Ensure the total is formatted as a string
+          }
+        }
+      ];
+  
       // Prepare PayPal order details
       const orderDetails = {
-        amount: bookingDetails.gross_total, // This should be a valid number
+        amount: bookingDetails.gross_total.toFixed(2), // Ensure it's formatted as a string
         currency: 'USD', // or any other currency you prefer
+        items, // Add the detailed items array
+        returnUrl: `${process.env.BASE_URL}/complete-order`,
+        cancelUrl: `${process.env.BASE_URL}/cancel-order`
       };
   
-      console.log("Order Details:", orderDetails); // Add this log to inspect the order details
+      console.log("Order Details:", orderDetails); // Log the order details for inspection
   
       // Create PayPal order and get approval link
       const { id, approvalLink } = await createPayPalOrder(orderDetails);
@@ -64,7 +82,7 @@ const createPayPalTransaction = async (req, res) => {
       });
     }
   };
-
+  
 
 
 
@@ -94,10 +112,51 @@ const createMidtransTransactionLink = async (req, res) => {
 };
 
 
+
+const handlePayPalReturn = async (req, res) => {
+    try {
+      // Mengambil orderId atau token dari query parameters
+      const orderId = req.query.token || req.query.orderId;
+  
+      if (!orderId) {
+        throw new Error('Order ID (token) PayPal tidak ditemukan');
+      }
+  
+      // Menangkap pembayaran menggunakan orderId
+      const captureResult = await capturePayment(orderId);
+  
+      // Tanggapi hasil capture dari PayPal
+      res.status(200).json({
+        success: true,
+        message: 'Pembayaran berhasil ditangkap',
+        captureResult,
+      });
+    } catch (error) {
+      console.error('Error menangani pengembalian PayPal:', error);
+  
+      // Kirimkan kembali seluruh error yang diterima dari PayPal jika terjadi
+      if (error.details) {
+        return res.status(422).json({
+          success: false,
+          error: error, // Pass the full error object
+        });
+      }
+  
+      // Jika error umum lainnya
+      res.status(500).json({
+        success: false,
+        message: 'Gagal menangkap pembayaran PayPal',
+        error: error.message,
+      });
+    }
+  };
+  
+
   
 module.exports = {
   createMidtransTransaction,
   createMidtransTransactionLink,
   createPayPalTransaction,
+  handlePayPalReturn
 };
  
