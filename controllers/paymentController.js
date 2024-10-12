@@ -120,45 +120,45 @@ const createMidtransTransactionLink = async (req, res) => {
 };
 
 
-
+  // Handle PayPal return (controller function)
 const handlePayPalReturn = async (req, res) => {
-    try {
-      // Mengambil orderId atau token dari query parameters
-      const orderId = req.query.token || req.query.orderId;
-  
-      if (!orderId) {
-        throw new Error('Order ID (token) PayPal tidak ditemukan');
-      }
-  
-      // Menangkap pembayaran menggunakan orderId
-      const captureResult = await capturePayment(orderId);
-  
-      // Tanggapi hasil capture dari PayPal
-      res.status(200).json({
-        success: true,
-        message: 'Pembayaran berhasil ditangkap',
-        captureResult,
-      });
-    } catch (error) {
-      console.error('Error menangani pengembalian PayPal:', error);
-  
-      // Kirimkan kembali seluruh error yang diterima dari PayPal jika terjadi
-      if (error.details) {
-        return res.status(422).json({
-          success: false,
-          error: error, // Pass the full error object
-        });
-      }
-  
-      // Jika error umum lainnya
-      res.status(500).json({
+  try {
+    // Extract the orderId (token) from the query parameters
+    const orderId = req.query.token || req.query.orderId;
+
+    if (!orderId) {
+      throw new Error('PayPal order ID (token) not found');
+    }
+
+    // Capture the payment using the orderId
+    const captureResult = await capturePayment(orderId);
+
+    // Respond with a success message if payment is captured
+    return res.status(200).json({
+      success: true,
+      message: 'Payment successfully captured',
+      captureResult,
+    });
+  } catch (error) {
+    console.error('Error handling PayPal return:', error);
+
+    // Return the full PayPal error if available
+    if (error.details) {
+      return res.status(422).json({
         success: false,
-        message: 'Gagal menangkap pembayaran PayPal',
-        error: error.message,
+        error: error, // Return the full error object
       });
     }
-  };
-  
+
+    // General error handling
+    res.status(500).json({
+      success: false,
+      message: 'Failed to capture PayPal payment',
+      error: error.message,
+    });
+  }
+};
+
 
   
 module.exports = {

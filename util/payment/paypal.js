@@ -100,32 +100,32 @@ const createPayPalOrder = async (orderDetails) => {
  * @param {String} orderId - PayPal order ID
  * @returns {Promise<Object>} - Captured PayPal order details
  */
+// Capture PayPal payment
 const capturePayment = async (orderId) => {
   try {
-    // Generate PayPal access token
+    // Generate access token
     const accessToken = await generatePayPalAccessToken();
 
-    // Make the API request to capture the order
+    // Send capture request to PayPal API
     const response = await axios({
       url: `${process.env.PAYPAL_API}/v2/checkout/orders/${orderId}/capture`,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
-    console.log('PayPal capture response:', response.data);
-    return response.data; // Return captured payment details
+    return response.data;
   } catch (error) {
-    console.error('Error capturing PayPal order:', error.response ? error.response.data : error.message);
+    console.error('Error capturing PayPal payment:', error.response ? error.response.data : error.message);
 
-    // If the error response exists, throw the full PayPal error response back to the controller
+    // Return PayPal error if available
     if (error.response && error.response.data) {
-      throw error.response.data; // Pass the full error object
+      throw error.response.data;
     }
 
-    throw new Error('Gagal menangkap pembayaran PayPal'); // General fallback error
+    throw new Error('Failed to capture PayPal payment');
   }
 };
 
