@@ -34,10 +34,12 @@ const generatePayPalAccessToken = async () => {
  * @returns {Promise<Object>} - PayPal order ID and approval link
  */
 const createPayPalOrder = async (orderDetails) => {
+  console.log('1. Generate PayPal access token...');
   try {
     // Generate PayPal access token
     const accessToken = await generatePayPalAccessToken();
 
+    console.log('2. Prepare the PayPal request body...');
     // Prepare the PayPal request body
     const requestBody = {
       intent: 'CAPTURE',
@@ -62,10 +64,11 @@ const createPayPalOrder = async (orderDetails) => {
         cancel_url: orderDetails.cancelUrl,
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
-        brand_name: 'YourBrandName',
+        brand_name: 'Giligetaway.com',
       },
     };
 
+    console.log('3. Make the API request to PayPal...');
     // Make the API request to PayPal
     const response = await axios({
       url: `${process.env.PAYPAL_API}/v2/checkout/orders`,
@@ -77,6 +80,7 @@ const createPayPalOrder = async (orderDetails) => {
       data: requestBody,
     });
 
+    console.log('4. Get the approval link...');
     const approvalLink = response.data.links.find(link => link.rel === 'approve').href;
 
     return {

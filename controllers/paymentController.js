@@ -31,12 +31,16 @@ const createMidtransTransaction = async (req, res) => {
 // PayPal Payment Order Controller
 const createPayPalTransaction = async (req, res) => {
     try {
+      console.log('1. Received booking details:', req.body.booking);
+  
       const bookingDetails = req.body.booking;
   
       // Ensure gross_total is present
       if (!bookingDetails.gross_total) {
         throw new Error('Missing gross_total in booking details');
       }
+  
+      console.log('2. Calculating PayPal order items...');
   
       // Prepare detailed PayPal order items
       const items = [
@@ -51,6 +55,8 @@ const createPayPalTransaction = async (req, res) => {
         }
       ];
   
+      console.log('3. Preparing PayPal order details...');
+  
       // Prepare PayPal order details
       const orderDetails = {
         amount: bookingDetails.gross_total.toFixed(2), // Ensure it's formatted as a string
@@ -60,10 +66,12 @@ const createPayPalTransaction = async (req, res) => {
         cancelUrl: `${process.env.BASE_URL}/cancel-order`
       };
   
-      console.log("Order Details:", orderDetails); // Log the order details for inspection
+      console.log('4. Creating PayPal order...');
   
       // Create PayPal order and get approval link
       const { id, approvalLink } = await createPayPalOrder(orderDetails);
+  
+      console.log('5. Sending PayPal order ID and approval link to frontend...');
   
       // Send PayPal order ID and approval link to the frontend
       res.status(200).json({
