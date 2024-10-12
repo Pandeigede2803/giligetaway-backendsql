@@ -121,43 +121,29 @@ const createMidtransTransactionLink = async (req, res) => {
 
 
   // Handle PayPal return (controller function)
-const handlePayPalReturn = async (req, res) => {
-  try {
-    // Extract the orderId (token) from the query parameters
-    const orderId = req.query.token || req.query.orderId;
-
-    if (!orderId) {
-      throw new Error('PayPal order ID (token) not found');
-    }
-
-    // Capture the payment using the orderId
-    const captureResult = await capturePayment(orderId);
-
-    // Respond with a success message if payment is captured
-    return res.status(200).json({
-      success: true,
-      message: 'Payment successfully captured',
-      captureResult,
-    });
-  } catch (error) {
-    console.error('Error handling PayPal return:', error);
-
-    // Return the full PayPal error if available
-    if (error.details) {
-      return res.status(422).json({
+  const handlePayPalReturn = async (req, res) => {
+    try {
+      const orderId = req.body.token; // Expect token (orderId) in the request body
+      if (!orderId) {
+        throw new Error('PayPal order ID (token) not found');
+      }
+  
+      // Capture the payment using the token
+      const captureResult = await capturePayment(orderId);
+      res.status(200).json({
+        success: true,
+        message: 'Payment successfully captured',
+        captureResult,
+      });
+    } catch (error) {
+      console.error('Error handling PayPal return:', error);
+      res.status(500).json({
         success: false,
-        error: error, // Return the full error object
+        message: 'Failed to capture PayPal payment',
+        error: error.message || 'Internal Server Error',
       });
     }
-
-    // General error handling
-    res.status(500).json({
-      success: false,
-      message: 'Failed to capture PayPal payment',
-      error: error.message,
-    });
-  }
-};
+  };
 
 
   
