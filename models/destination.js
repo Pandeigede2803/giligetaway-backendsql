@@ -12,7 +12,7 @@ const Destination = sequelize.define('Destination', {
         allowNull: false
     },
     port_map_url: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true
     },
     image_url: {

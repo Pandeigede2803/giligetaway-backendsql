@@ -37,7 +37,7 @@ const TransportBooking = sequelize.define(
       allowNull: false,
     },
     note: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: true,
     },
     created_at: {
