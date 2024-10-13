@@ -686,12 +686,12 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         {
           model: Destination,
           as: "FromDestination",
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "port_map_url", "image_url"],
         },
         {
           model: Destination,
           as: "ToDestination",
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "port_map_url", "image_url"],
         },
         {
           model: Boat,
@@ -759,12 +759,12 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         {
           model: Destination,
           as: "DestinationFrom",
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "port_map_url", "image_url"],
         },
         {
           model: Destination,
           as: "DestinationTo",
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "port_map_url", "image_url"],
         },
         {
           model: Transit,
@@ -779,7 +779,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         {
@@ -796,7 +796,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         // Add transit_1, transit_2, transit_3, transit_4 associations
@@ -813,7 +813,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         {
@@ -829,7 +829,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         {
@@ -845,7 +845,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         {
@@ -861,7 +861,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           include: {
             model: Destination,
             as: "Destination",
-            attributes: ["id", "name"],
+            attributes: ["id", "name", "port_map_url", "image_url"],
           },
         },
         {
