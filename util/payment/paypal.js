@@ -105,6 +105,7 @@ const capturePayment = async (orderId) => {
   try {
     // Generate access token
     const accessToken = await generatePayPalAccessToken();
+    console.log(`PayPal access token: ${accessToken}`);
 
     // Send capture request to PayPal API
     const response = await axios({

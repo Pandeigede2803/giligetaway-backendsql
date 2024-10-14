@@ -90,6 +90,38 @@ const createPayPalTransaction = async (req, res) => {
       });
     }
   };
+   // Handle PayPal return (controller function)
+   const handlePayPalReturn = async (req, res) => {
+    console.log('1. Handling PayPal return...');
+  
+    try {
+      // Extract orderId from query parameters
+      const orderId = req.query.orderId; // Get orderId from query string
+      console.log('2. Received order ID (token):', orderId);
+  
+      if (!orderId) {
+        throw new Error('PayPal order ID (token) not found');
+      }
+  
+      console.log('3. Capturing payment using the token...');
+      // Capture the payment using the token (orderId)
+      const captureResult = await capturePayment(orderId);
+      console.log('4. Payment capture result:', captureResult);
+  
+      res.status(200).json({
+        success: true,
+        message: 'Payment successfully captured',
+        captureResult,
+      });
+    } catch (error) {
+      console.error('Error handling PayPal return:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to capture PayPal payment',
+        error: error.message || 'Internal Server Error',
+      });
+    }
+  };
   
 
 
@@ -120,31 +152,7 @@ const createMidtransTransactionLink = async (req, res) => {
 };
 
 
-  // Handle PayPal return (controller function)
-  const handlePayPalReturn = async (req, res) => {
-    try {
-      const orderId = req.body.token; // Expect token (orderId) in the request body
-      if (!orderId) {
-        throw new Error('PayPal order ID (token) not found');
-      }
-  
-      // Capture the payment using the token
-      const captureResult = await capturePayment(orderId);
-      res.status(200).json({
-        success: true,
-        message: 'Payment successfully captured',
-        captureResult,
-      });
-    } catch (error) {
-      console.error('Error handling PayPal return:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Failed to capture PayPal payment',
-        error: error.message || 'Internal Server Error',
-      });
-    }
-  };
-
+ 
 
   
 module.exports = {
