@@ -59,6 +59,19 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
+
+    currency: {
+        type: DataTypes.STRING(10),
+        defaultValue: 'IDR'
+    },
+    gross_total_in_usd: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
+    exchange_rate: {
+        type: DataTypes.DECIMAL(10, 6),
+        allowNull: true
+    },
     ticket_total: {
         type: DataTypes.DECIMAL(10, 2),  // New field for ticket total
         allowNull: false,

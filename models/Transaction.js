@@ -32,6 +32,18 @@ const Transaction = sequelize.define('Transaction', {
         allowNull: true,
         field: 'currency'
     },
+    amount_in_usd: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+        defaultValue: null,
+        field: 'amount_in_usd'
+    },
+    exchange_rate: {
+        type: DataTypes.DECIMAL(10, 6),
+        allowNull: true,
+        defaultValue: null,
+        field: 'exchange_rate'
+    },
     status: {
         type: DataTypes.STRING,
         allowNull: false,
