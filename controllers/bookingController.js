@@ -65,7 +65,7 @@ const createBookingWithTransit = async (req, res) => {
       gross_total, payment_status, transports, contact_name, contact_phone,
       contact_passport_id, contact_nationality, contact_email, payment_method,
       payment_gateway, booking_source, adult_passengers, child_passengers, infant_passengers,
-      ticket_id, transit_details, transaction_type, currency
+      ticket_id, transit_details, transaction_type, currency,gross_amount_in_usd,exchange_rate
     } = req.body;
   
     try {
@@ -359,7 +359,7 @@ const createBookingWithTransitQueue = async (req, res) => {
       gross_total, ticket_total, payment_status, transports, contact_name, contact_phone,
       contact_passport_id, contact_nationality, contact_email, payment_method,
       booking_source, adult_passengers, child_passengers, infant_passengers,
-      ticket_id, transit_details, transaction_type, currency
+      ticket_id, transit_details, transaction_type, currency,gross_total_in_usd,exchange_rate
     } = req.body;
   
     try {
@@ -379,6 +379,8 @@ const createBookingWithTransitQueue = async (req, res) => {
           booking_date,
           agent_id,
           gross_total: totalAmount,
+          gross_total_in_usd: gross_total_in_usd,
+          exchange_rate: exchange_rate,
           ticket_total: parseFloat(ticket_total),
           payment_status,
           contact_name,

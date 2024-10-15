@@ -1,7 +1,8 @@
 // /utils/cronJobs.js
 
 const cron = require('node-cron');
-const Booking = require('../models/booking');  // Pastikan path ini benar sesuai struktur proyek Anda
+const Booking = require('../models/booking'); 
+const Transaction = require('../models/transaction'); // Pastikan path ini benar sesuai struktur proyek Anda
 const { Op } = require('sequelize');
 const SeatAvailability = require('../models/SeatAvailability');
 
@@ -45,7 +46,11 @@ const handleExpiredBookings = async () => {
                 expiration_time: {
                     [Op.lte]: new Date()  // Mencari pemesanan yang sudah melewati waktu kedaluwarsa
                 }
-            }
+            },
+            include: [{
+                model: Transaction, // Include the related transaction
+                as: 'transactions'  // Assuming the association is correctly named
+            }]
         });
 
         for (let booking of expiredBookings) {
@@ -56,13 +61,24 @@ const handleExpiredBookings = async () => {
             booking.payment_status = 'cancelled';
             await booking.save();
 
+            // Update related transaction status to 'cancelled'
+            const transaction = await Transaction.findOne({
+                where: { booking_id: booking.id, status: 'pending' }  // Only cancel pending transactions
+            });
+
+            if (transaction) {
+                transaction.status = 'cancelled';
+                await transaction.save();
+
+                console.log(`Transaction ID ${transaction.transaction_id} telah dibatalkan karena pemesanan melewati waktu kedaluwarsa.`);
+            }
+
             console.log(`Booking ID ${booking.id} dan ticket id ${booking.ticket_id} telah dibatalkan karena melewati waktu kedaluwarsa.`);
         }
     } catch (error) {
         console.error("Error handling expired bookings:", error);
     }
 };
-
 // Ambil frekuensi cron dari variabel environment, dengan default setiap 15 menit
 const cronFrequency = process.env.CRON_FREQUENCY || '*/5 * * * *';  // Default 15 menit
 

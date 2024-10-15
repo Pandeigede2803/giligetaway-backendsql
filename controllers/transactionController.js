@@ -7,7 +7,7 @@ const { Booking, Transaction } = require('../models'); // Import the Booking and
 // Controller to handle updating transaction status and other details
 const updateTransactionStatusHandler = async (req, res) => {
   const { transaction_id } = req.params;
-  const { status, failure_reason, refund_reason, payment_method, payment_gateway, amount, currency } = req.body;
+  const { status, failure_reason, refund_reason, payment_method, payment_gateway,amount_in_usd,exchange_rate, amount, currency } = req.body;
 
   try {
     // Ensure that status and other fields are properly formatted (not arrays or objects)
@@ -18,6 +18,8 @@ const updateTransactionStatusHandler = async (req, res) => {
       payment_method: payment_method || null,
       payment_gateway: payment_gateway || null,
       amount: amount || null,
+      amount_in_usd: amount_in_usd || 0,
+      exchange_rate: exchange_rate || 0, 
       currency: currency || null
     };
 
