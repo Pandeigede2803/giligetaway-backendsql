@@ -2,7 +2,7 @@
 
 const cron = require('node-cron');
 const Booking = require('../models/booking'); 
-const Transaction = require('../models/transaction'); // Pastikan path ini benar sesuai struktur proyek Anda
+const Transaction = require('../models/Transaction'); // Pastikan path ini benar sesuai struktur proyek Anda
 const { Op } = require('sequelize');
 const SeatAvailability = require('../models/SeatAvailability');
 
