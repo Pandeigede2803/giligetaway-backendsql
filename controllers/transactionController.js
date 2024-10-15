@@ -7,7 +7,10 @@ const { Booking, Transaction } = require('../models'); // Import the Booking and
 // Controller to handle updating transaction status and other details
 const updateTransactionStatusHandler = async (req, res) => {
   const { transaction_id } = req.params;
-  const { status, failure_reason, refund_reason, payment_method, payment_gateway,amount_in_usd,exchange_rate, amount, currency } = req.body;
+  const { status, failure_reason, refund_reason, payment_method, payment_gateway, amount_in_usd, exchange_rate, amount, currency } = req.body;
+
+  console.log(`Received transaction update request for transaction ID: ${transaction_id}`);
+  console.log('Request body:', req.body);
 
   try {
     // Ensure that status and other fields are properly formatted (not arrays or objects)
@@ -19,29 +22,38 @@ const updateTransactionStatusHandler = async (req, res) => {
       payment_gateway: payment_gateway || null,
       amount: amount || null,
       amount_in_usd: amount_in_usd || 0,
-      exchange_rate: exchange_rate || 0, 
-      currency: currency || null
+      exchange_rate: exchange_rate || 0,
+      currency: currency || null,
     };
 
+    console.log('Data to update transaction:', updateData);
+
     // Update the transaction details
+    console.log(`Updating transaction status for transaction ID: ${transaction_id}`);
     await updateTransactionStatus(transaction_id, updateData);
+    console.log(`Transaction ${transaction_id} updated successfully`);
 
     // Find the related transaction to access the booking_id
+    console.log(`Fetching transaction with ID: ${transaction_id}`);
     const transaction = await Transaction.findOne({ where: { transaction_id } });
 
     if (!transaction) {
       throw new Error(`Transaction with ID ${transaction_id} not found`);
     }
+    console.log(`Transaction found:`, transaction);
 
     // Update the related Booking table using the booking_id from the transaction
+    console.log(`Fetching booking with ID: ${transaction.booking_id}`);
     const booking = await Booking.findOne({ where: { id: transaction.booking_id } });
 
     if (!booking) {
       throw new Error(`Booking with ID ${transaction.booking_id} not found`);
     }
+    console.log(`Booking found:`, booking);
 
     // If the transaction is successful, update the booking's payment status and stop expiration time
     if (status === 'paid') {
+      console.log(`Transaction ${transaction_id} is successful, updating booking ID: ${booking.id}`);
       await Booking.update(
         {
           payment_status: 'paid',  // Update payment status
@@ -50,12 +62,15 @@ const updateTransactionStatusHandler = async (req, res) => {
         },
         { where: { id: booking.id } }
       );
+      console.log(`Booking ${booking.id} updated successfully to 'paid' status`);
     }
 
     res.status(200).json({
       message: `Transaction ${transaction_id} and related booking updated successfully`,
     });
+    console.log(`Response sent: Transaction ${transaction_id} and booking updated`);
   } catch (error) {
+    console.error('Error occurred:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
