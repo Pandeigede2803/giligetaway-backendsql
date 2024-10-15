@@ -39,7 +39,7 @@ const Transaction = sequelize.define('Transaction', {
         field: 'amount_in_usd'
     },
     exchange_rate: {
-        type: DataTypes.DECIMAL(10, 6),
+        type: DataTypes.DECIMAL(15, 6),
         allowNull: true,
         defaultValue: null,
         field: 'exchange_rate'
