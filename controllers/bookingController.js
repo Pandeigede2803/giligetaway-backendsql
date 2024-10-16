@@ -1113,42 +1113,41 @@ const getBookings = async (req, res) => {
 
 const getPaginatedBookings = async (req, res) => {
     try {
-        // Ambil query params
+        // Extract query params
         const { page = 0, pageSize = 10, monthly, ticket_id } = req.query;
 
-        // Konversi ke integer untuk limit dan offset
-        const offset = parseInt(page, 10) * parseInt(pageSize, 10);
-        const limit = parseInt(pageSize, 10);
-
-        // Buat filter untuk booking_date berdasarkan bulan (jika ada)
+        // Initialize filters
         let dateFilter = {};
-        if (monthly) {
-            const [year, month] = monthly.split('-');
-            dateFilter = {
-                booking_date: {
-                    [Op.gte]: new Date(year, month - 1, 1), // Awal bulan
-                    [Op.lt]: new Date(year, month, 1) // Awal bulan berikutnya
-                }
-            };
-        }
+        let pagination = {};
 
-        // Buat filter untuk ticket_id (jika ada)
-        let ticketFilter = {};
+        // If ticket_id is provided, ignore pagination and monthly filters
         if (ticket_id) {
-            ticketFilter = {
-                ticket_id: ticket_id // Assuming ticket_id is the correct field name in the bookings table
+            // Filter by ticket_id only
+            pagination = {}; // No pagination applied
+            dateFilter = {
+                ticket_id: ticket_id // Assuming ticket_id is a field in your Booking model
             };
+        } else {
+            // Apply pagination and monthly filters if no ticket_id
+            const offset = parseInt(page, 10) * parseInt(pageSize, 10);
+            const limit = parseInt(pageSize, 10);
+
+            pagination = { limit, offset };
+
+            if (monthly) {
+                const [year, month] = monthly.split('-');
+                dateFilter = {
+                    booking_date: {
+                        [Op.gte]: new Date(year, month - 1, 1), // Start of the month
+                        [Op.lt]: new Date(year, month, 1) // Start of the next month
+                    }
+                };
+            }
         }
 
-        // Gabungkan filter dateFilter dan ticketFilter
-        const combinedFilter = {
-            ...dateFilter,
-            ...ticketFilter
-        };
-
-        // Temukan semua bookings dengan pagination dan filter bulan & ticket_id
+        // Find bookings based on the combined filter
         const { count, rows: bookings } = await Booking.findAndCountAll({
-            where: combinedFilter, // Gabungkan filter tanggal dan ticket_id
+            where: dateFilter,
             include: [
                 {
                     model: Schedule,
@@ -1201,28 +1200,27 @@ const getPaginatedBookings = async (req, res) => {
                     as: 'Agent'
                 }
             ],
-            limit, // Batas jumlah data per halaman
-            offset // Offset untuk pagination
+            ...pagination // Apply pagination if no ticket_id
         });
 
-        // Hitung total halaman
-        const totalPages = Math.ceil(count / limit);
+        // Calculate total pages
+        const totalPages = ticket_id ? 1 : Math.ceil(count / pageSize);
 
-        // Respon dengan data yang sudah dipaginasi dan difilter
+        // Respond with data
         res.status(200).json({
             bookings,
             totalPages,
             totalItems: count,
             currentPage: parseInt(page, 10),
-            pageSize: limit,
-            monthly, // Kembalikan nilai monthly agar bisa digunakan di frontend
-            ticket_id // Kembalikan nilai ticket_id agar bisa digunakan di frontend
+            pageSize: pagination.limit || 0, // Return 0 for pageSize if no pagination
+            ticket_id, // Return ticket_id for frontend use
         });
     } catch (error) {
         console.error('Error retrieving paginated and filtered bookings:', error.message);
         res.status(400).json({ error: error.message });
     }
 };
+
 
 
 const getBookingByTicketId = async (req, res) => {
