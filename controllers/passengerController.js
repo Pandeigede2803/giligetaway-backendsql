@@ -80,92 +80,99 @@ const getPassengerCountByMonth = async (req, res) => {
     const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
     console.log(`Filtered seat availabilities untuk boat_id ${boat_id}:`, filteredSeatAvailabilities);
 
-    const formattedResults = await Promise.all(
-      daysInMonth.map(async (date) => {
-        console.log(`Memproses tanggal: ${date}`);
-
-        // Temukan seatAvailability untuk tanggal dan boat_id tertentu
-        const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
-        console.log(`Seat availability ditemukan untuk tanggal ${date}:`, seatAvailability);
-
-        if (seatAvailability) {
-          const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
-          console.log(`Total penumpang untuk seat availability ${seatAvailability.id}: ${totalPassengers}`);
-
-          // Panggil buildRouteFromSchedule jika seatAvailability ada
-          const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
-          console.log(`Route dibangun untuk seat availability ${seatAvailability.id}: ${route}`);
-
-          return {
-            seatavailability_id: seatAvailability.id,
-            date: seatAvailability.date,
-            schedule_id: seatAvailability.schedule_id,
-            subschedule_id: seatAvailability.subschedule_id,
-            total_passengers: totalPassengers,
-            route: route
-          };
-        } else {
-          console.log(`Tidak ada seat availability untuk tanggal ${date}. Mengambil jadwal dan sub-jadwal.`);
-          // Jika tidak ada seatAvailability, periksa schedules dan subschedules
-          const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
-          console.log(`Schedules untuk tanggal ${date}:`, schedules);
-          console.log(`SubSchedules untuk tanggal ${date}:`, subSchedules);
-
-          // Filter schedules berdasarkan boat_id
-          const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id);
-          console.log(`Filtered schedules untuk boat_id ${boat_id} pada tanggal ${date}:`, filteredSchedules);
-
-          let results = [];
-
-          // Proses schedules yang difilter
-          filteredSchedules.forEach(schedule => {
-            console.log(`Membangun route untuk Schedule:`, schedule);
-
-            // Jika tidak ada sub-schedule, gunakan schedule untuk membangun route
-            const route = buildRouteFromSchedule(schedule, null);
-            console.log(`Route dibangun (hanya schedule) pada tanggal ${date}: ${route}`);
-
-            results.push({
-              seatavailability_id: null,
-              date: date,
-              schedule_id: schedule.id,
-              subschedule_id: null,
-              total_passengers: 0,
-              route: route
-            });
+ 
+    
+    const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
+      console.log(`Processing date: ${date}`);
+    
+      // Find the seatAvailability for the current date and boat_id
+      const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
+      console.log(`Seat availability found for date ${date}:`, seatAvailability);
+    
+      if (seatAvailability) {
+        const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+        console.log(`Total passengers for seat availability ${seatAvailability.id}: ${totalPassengers}`);
+    
+        // Call buildRouteFromSchedule when seatAvailability exists
+        const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
+        console.log(`Route built for seat availability ${seatAvailability.id}: ${route}`);
+    
+        // Use isDayAvailable to filter based on days_of_week
+        const isAvailable = isDayAvailable(date, seatAvailability.Schedule.days_of_week);
+        if (!isAvailable) return null;
+    
+        return {
+          seatavailability_id: seatAvailability.id,
+          date: seatAvailability.date,
+          schedule_id: seatAvailability.schedule_id,
+          subschedule_id: seatAvailability.subschedule_id,
+          total_passengers: totalPassengers,
+          route: route,
+          days_of_week: seatAvailability.Schedule?.days_of_week || null
+        };
+      } else {
+        console.log(`No seat availability found for date ${date}. Fetching schedules and subschedules.`);
+    
+        // If no seatAvailability, check schedules and subschedules
+        const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+        console.log(`Schedules for date ${date}:`, schedules);
+        console.log(`SubSchedules for date ${date}:`, subSchedules);
+    
+        let results = [];
+    
+        schedules.forEach(schedule => {
+          // Use isDayAvailable to filter based on days_of_week
+          const isAvailable = isDayAvailable(date, schedule.days_of_week);
+          if (!isAvailable) return;
+    
+          const route = buildRouteFromSchedule(schedule, null); // Call buildRouteFromSchedule even if no subSchedule
+          console.log(`Route built for schedule only (no subschedule) on date ${date}: ${route}`);
+    
+          results.push({
+            seatavailability_id: null,
+            date: date,
+            schedule_id: schedule.id,
+            subschedule_id: null,
+            total_passengers: 0,
+            route: route,
+            days_of_week: schedule.days_of_week
           });
-
-          // Proses subSchedules yang difilter
+    
           subSchedules.forEach(subSchedule => {
-            const relatedSchedule = filteredSchedules.find(sch => sch.id === subSchedule.schedule_id);
+            const relatedSchedule = schedules.find(sch => sch.id === subSchedule.schedule_id);
+    
             if (relatedSchedule) {
               const route = buildRouteFromSchedule(relatedSchedule, subSchedule);
-              console.log(`Route dibangun untuk schedule dan subschedule pada tanggal ${date}: ${route}`);
-
+              console.log(`Route built for schedule and subschedule on date ${date}: ${route}`);
+    
               results.push({
                 seatavailability_id: null,
                 date: date,
                 schedule_id: relatedSchedule.id,
                 subschedule_id: subSchedule.id,
                 total_passengers: 0,
-                route: route
+                route: route,
+                days_of_week: relatedSchedule.days_of_week
               });
             }
           });
-
-          return results;
-        }
-      })
-    );
-
-    // Menggabungkan hasil akhir
-    const finalResults = formattedResults.flat();
-    console.log(`Hasil akhir untuk bulan ${month} dan tahun ${year}:`, finalResults);
-
+        });
+    
+        return results;
+      }
+    }));
+    
+    // Filter out any null results due to isDayAvailable filtering
+    const finalResults = formattedResults.flat().filter(result => result !== null);
+    
+    console.log(`Final results for month:`, finalResults);
+    
     return res.status(200).json({
       success: true,
       data: finalResults
     });
+    
+
   } catch (error) {
     console.error('Error fetching passenger count by month:', error);
     return res.status(500).json({
