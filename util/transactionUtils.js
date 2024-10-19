@@ -59,8 +59,35 @@ const updateTransactionStatus = async (transaction_id, updateData) => {
       throw new Error(`Failed to update transaction: ${error.message}`);
     }
   };
+
+
+
+// Function to update the status of multiple transactions
+// Function to update the status of multiple transactions by transaction_ids
+const updateMultiTransactionStatus = async (transaction_ids, updateData, transaction) => {
+  try {
+    // Pastikan transaction_ids berupa array
+    if (!Array.isArray(transaction_ids)) {
+      throw new Error('transaction_ids should be an array');
+    }
+
+    console.log('Transaction IDs:', transaction_ids);
+
+    // Update semua transaksi yang sesuai dengan transaction_ids
+    await Transaction.update(updateData, {
+      where: { transaction_id: { [Op.in]: transaction_ids } }, // Menggunakan Sequelize 'in' operator
+      transaction
+    });
+
+    console.log(`All transactions with IDs ${transaction_ids.join(', ')} updated successfully.`);
+  } catch (error) {
+    throw new Error(`Failed to update multiple transactions: ${error.message}`);
+  }
+};
+
   
   module.exports = {
     createTransaction,
-    updateTransactionStatus
+    updateTransactionStatus,
+    updateMultiTransactionStatus
   };

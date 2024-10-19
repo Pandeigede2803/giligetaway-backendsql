@@ -21,70 +21,120 @@ const getDaysInMonth = (month, year) => {
 
 // this controller is perfect but the boat_id is error
 const getPassengerCountByMonth = async (req, res) => {
-    const { month, year, boat_id } = req.query; // boat_id as a required parameter
-  
-    if (!month || !year || !boat_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide month, year, and boat_id in the query parameters.'
+  const { month, year, boat_id } = req.query; // boat_id as a required parameter
+
+  // Log the initial request
+  console.log(`Received request for boat_id: ${boat_id}, month: ${month}, year: ${year}`);
+
+  if (!month || !year || !boat_id) {
+    console.log('Missing required query parameters');
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide month, year, and boat_id in the query parameters.'
+    });
+  }
+
+  try {
+    // Check if the boat_id exists in the database
+    const boatExists = await Boat.findByPk(boat_id);
+    console.log(`Boat exists check for boat_id: ${boat_id}`, boatExists);
+
+    if (!boatExists) {
+      // If boat_id doesn't exist, return an empty array
+      console.log(`Boat with id ${boat_id} not found.`);
+      return res.status(200).json({
+        success: true,
+        data: []
       });
     }
-  
-    try {
-      // Check if the boat_id exists in the database
-      const boatExists = await Boat.findByPk(boat_id);
-  
-      if (!boatExists) {
-        // If boat_id doesn't exist, return an empty array
-        return res.status(200).json({
-          success: true,
-          data: []
-        });
-      }
-  
-      const daysInMonth = getDaysInMonth(month, year); // Assuming this function returns dates in 'YYYY-MM-DD' format
-  
-      // Query SeatAvailability based on month, year, and boat_id
-      const seatAvailabilities = await SeatAvailability.findAll({
-        attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
-        where: {
-          [Op.and]: [
-            sequelize.where(sequelize.fn('MONTH', sequelize.col('SeatAvailability.date')), month),
-            sequelize.where(sequelize.fn('YEAR', sequelize.col('SeatAvailability.date')), year)
-          ]
-        },
-        include: getSeatAvailabilityIncludes(), // Use utility to include relations
-      });
-  
-      // Filter seatAvailabilities by boat_id
-      const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
-  
-      const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
-        // Find seatAvailability for the date and boat_id
-        const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
-  
-        if (seatAvailability) {
-          const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
-          const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
-  
-          return [{
-            seatavailability_id: seatAvailability.id,
-            date: seatAvailability.date,
-            schedule_id: seatAvailability.schedule_id,
-            subschedule_id: seatAvailability.subschedule_id,
-            total_passengers: totalPassengers,
-            route: route
-          }];
-        } else {
-          // Query Schedule and SubSchedule using utils, then filter based on boat_id
-          const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
-          const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id); // Filter based on boat_id
-          let results = [];
-  
+
+    // Get all days in the given month and year
+    const daysInMonth = getDaysInMonth(month, year); // Assuming this function returns dates in 'YYYY-MM-DD' format
+    console.log(`Days in month: ${daysInMonth}`);
+
+    // Query SeatAvailability based on month, year, and boat_id
+    const seatAvailabilities = await SeatAvailability.findAll({
+      attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
+      where: {
+        [Op.and]: [
+          sequelize.where(sequelize.fn('MONTH', sequelize.col('SeatAvailability.date')), month),
+          sequelize.where(sequelize.fn('YEAR', sequelize.col('SeatAvailability.date')), year)
+        ]
+      },
+      include: getSeatAvailabilityIncludes(), // Use utility to include relations
+    });
+
+    console.log(`Fetched seatAvailabilities for month: ${month}, year: ${year}:`, seatAvailabilities);
+
+    // Filter seatAvailabilities by boat_id
+    const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
+    console.log(`Filtered seat availabilities by boat_id ${boat_id}:`, filteredSeatAvailabilities);
+
+    const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
+      console.log(`Processing date: ${date}`);
+
+      // Find seatAvailability for the date and boat_id
+      const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
+      console.log(`Seat availability found for date ${date}:`, seatAvailability);
+
+      if (seatAvailability) {
+        const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+        console.log(`Total passengers for seat availability ${seatAvailability.id}: ${totalPassengers}`);
+
+        // Call buildRouteFromSchedule when seatAvailability exists
+        const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
+        console.log(`Route built for seat availability ${seatAvailability.id}: ${route}`);
+
+        return {
+          seatavailability_id: seatAvailability.id,
+          date: seatAvailability.date,
+          schedule_id: seatAvailability.schedule_id,
+          subschedule_id: seatAvailability.subschedule_id,
+          total_passengers: totalPassengers,
+          route: route // Ensure route is passed here
+        };
+      } else {
+        console.log(`No seat availability found for date ${date}. Fetching schedules and subschedules.`);
+        // If no seatAvailability, check schedules and subschedules
+        const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+        console.log(`Schedules for date ${date}:`, schedules);
+        console.log(`SubSchedules for date ${date}:`, subSchedules);
+
+        const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id); // Filter based on boat_id
+        console.log(`Filtered schedules for boat_id ${boat_id} on date ${date}:`, filteredSchedules);
+
+        let results = [];
+
+        filteredSchedules.forEach(schedule => {
+             console.log(`Passing to buildRouteFromSchedule - Schedule:`, schedule);
+          
+          // If no sub-schedule, use schedule to build route
+          if (subSchedules.length === 0) {
+            console.log("ini schedle ke buildroute jancuk",schedule)
+            const route = buildRouteFromSchedule(schedule, null); // Call buildRouteFromSchedule even if no subSchedule
+
+            
+            console.log(`Route built for schedule only (no subschedule) on date ${date}: ${route}`);
+
+            results.push({
+              seatavailability_id: null,
+              date: date,
+              schedule_id: schedule.id,
+              subschedule_id: null,
+              total_passengers: 0,
+              route: route
+            });
+          }
+
           subSchedules.forEach(subSchedule => {
-            const relatedSchedule = filteredSchedules.find(schedule => schedule.id === subSchedule.schedule_id);
+            const relatedSchedule = filteredSchedules.find(sch => sch.id === subSchedule.schedule_id);
+            console.log("ini subschedul jancukkkk",relatedSchedule)
             if (relatedSchedule) {
-              let route = buildRouteFromSchedule(relatedSchedule, subSchedule);
+
+              const route = buildRouteFromSchedule(relatedSchedule, subSchedule); // Ensure buildRoute is always called
+
+              console.log(`Route built for schedule and subschedule on date ${date}: ${route}`);
+
               results.push({
                 seatavailability_id: null,
                 date: date,
@@ -95,25 +145,27 @@ const getPassengerCountByMonth = async (req, res) => {
               });
             }
           });
-  
-          return results;
-        }
-      }));
-  
-      const finalResults = formattedResults.flat();
-  
-      return res.status(200).json({
-        success: true,
-        data: finalResults
-      });
-    } catch (error) {
-      console.error('Error fetching passenger count by month:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to retrieve passenger count for the specified month.'
-      });
-    }
-  };
+        });
+
+        return results;
+      }
+    }));
+
+    const finalResults = formattedResults.flat();
+    console.log(`Final results for month ${month} and year ${year}:`, finalResults);
+
+    return res.status(200).json({
+      success: true,
+      data: finalResults
+    });
+  } catch (error) {
+    console.error('Error fetching passenger count by month:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve passenger count for the specified month.'
+    });
+  }
+};
 
   
 const createPassenger = async (req, res) => {

@@ -974,6 +974,10 @@ const getDayOfWeekMask = (date) => {
   return 2 ** dayOfWeek; // Sun = 1, Mon = 2, ..., Sat = 64
 };
 
+
+
+
+
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
   const t = await sequelize.transaction();

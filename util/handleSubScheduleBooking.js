@@ -6,6 +6,7 @@ const { Op } = require('sequelize');
 const findRelatedSubSchedulesGet = async (schedule_id, subSchedule, transaction) => {
     console.log('Schedule ID anjiung:', schedule_id);
 console.log('SubSchedule ID: anjing', subSchedule);
+console.log('Transaction ID: anjing', transaction);
 if (!subSchedule || !schedule_id) {
     throw new Error('SubSchedule atau Schedule ID tidak valid');
 }
@@ -118,6 +119,11 @@ if (!subSchedule || !schedule_id) {
 
 //UNTUK SEMENTARA INI BERHASIL
 const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
+
+    // console log semua
+    console.log('Schedule ID dari findRelatedSubSchedules:', schedule_id);
+    console.log('SubSchedule: dari findRelatedSubSchedules', subSchedule);
+    console.log('Transaction:', transaction);
     const transitIds = [
         subSchedule.transit_from_id,
         subSchedule.transit_1,

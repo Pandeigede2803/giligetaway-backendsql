@@ -20,7 +20,12 @@ const getSeatAvailabilityIncludes = () => {
         include: [
           {
             model: Destination,
-            as: 'DestinationFrom',
+            as: 'FromDestination',
+            attributes: ['name']
+          },
+          {
+            model: Destination,
+            as: 'ToDestination',
             attributes: ['name']
           },
           {

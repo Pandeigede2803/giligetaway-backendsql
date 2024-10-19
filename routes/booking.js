@@ -14,6 +14,11 @@ router.post('/transit', bookingController.createBookingWithTransit);
 // Route for booking with transit
 router.post('/transit-queue',authenticate,bookingRateLimiter, bookingController.createBookingWithTransitQueue);
 
+
+// Route for booking with transit multiple
+router.post('/multi-queue',authenticate,bookingRateLimiter, bookingController.createBookingMultiple);
+
+
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
