@@ -17,42 +17,52 @@ const getDaysInMonth = (month, year) => {
     });
   };
   
+  // Fungsi untuk memeriksa apakah hari dari sebuah date cocok dengan days_of_week bitmap
+const isDayAvailable = (date, daysOfWeek) => {
+  // Dapatkan hari dalam minggu (0 untuk Minggu, 1 untuk Senin, dst.)
+  const dayOfWeek = new Date(date).getDay();
+
+  // daysOfWeek adalah bitmap (misalnya, 0b0111110 untuk Senin-Jumat)
+  // Periksa apakah hari tersebut tersedia berdasarkan bitmap
+  return (daysOfWeek & (1 << dayOfWeek)) !== 0;
+};
+
 
 
 // this controller is perfect but the boat_id is error
 const getPassengerCountByMonth = async (req, res) => {
-  const { month, year, boat_id } = req.query; // boat_id as a required parameter
+  const { month, year, boat_id } = req.query; // boat_id sebagai parameter yang diperlukan
 
-  // Log the initial request
-  console.log(`Received request for boat_id: ${boat_id}, month: ${month}, year: ${year}`);
+  // Log permintaan awal
+  console.log(`Menerima permintaan untuk boat_id: ${boat_id}, bulan: ${month}, tahun: ${year}`);
 
   if (!month || !year || !boat_id) {
-    console.log('Missing required query parameters');
+    console.log('Parameter kueri yang diperlukan tidak lengkap');
     return res.status(400).json({
       success: false,
-      message: 'Please provide month, year, and boat_id in the query parameters.'
+      message: 'Harap sertakan bulan, tahun, dan boat_id di parameter kueri.'
     });
   }
 
   try {
-    // Check if the boat_id exists in the database
+    // Periksa apakah boat_id ada di database
     const boatExists = await Boat.findByPk(boat_id);
-    console.log(`Boat exists check for boat_id: ${boat_id}`, boatExists);
+    console.log(`Pemeriksaan keberadaan boat_id: ${boat_id}`, boatExists);
 
     if (!boatExists) {
-      // If boat_id doesn't exist, return an empty array
-      console.log(`Boat with id ${boat_id} not found.`);
+      // Jika boat_id tidak ditemukan, kembalikan array kosong
+      console.log(`Boat dengan id ${boat_id} tidak ditemukan.`);
       return res.status(200).json({
         success: true,
         data: []
       });
     }
 
-    // Get all days in the given month and year
-    const daysInMonth = getDaysInMonth(month, year); // Assuming this function returns dates in 'YYYY-MM-DD' format
-    console.log(`Days in month: ${daysInMonth}`);
+    // Dapatkan semua hari dalam bulan dan tahun yang diminta
+    const daysInMonth = getDaysInMonth(month, year); // Menganggap fungsi ini mengembalikan tanggal dalam format 'YYYY-MM-DD'
+    console.log(`Hari dalam bulan: ${daysInMonth}`);
 
-    // Query SeatAvailability based on month, year, and boat_id
+    // Query SeatAvailability berdasarkan bulan, tahun, dan boat_id
     const seatAvailabilities = await SeatAvailability.findAll({
       attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
       where: {
@@ -61,60 +71,59 @@ const getPassengerCountByMonth = async (req, res) => {
           sequelize.where(sequelize.fn('YEAR', sequelize.col('SeatAvailability.date')), year)
         ]
       },
-      include: getSeatAvailabilityIncludes(), // Use utility to include relations
+      include: getSeatAvailabilityIncludes() // Menggunakan utilitas untuk memasukkan relasi
     });
 
-    console.log(`Fetched seatAvailabilities for month: ${month}, year: ${year}:`, seatAvailabilities);
+    console.log(`Ditemukan seatAvailabilities untuk bulan: ${month}, tahun: ${year}:`, seatAvailabilities);
 
-    // Filter seatAvailabilities by boat_id
+    // Filter seatAvailabilities berdasarkan boat_id
     const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
-    console.log(`Filtered seat availabilities by boat_id ${boat_id}:`, filteredSeatAvailabilities);
+    console.log(`Filtered seat availabilities untuk boat_id ${boat_id}:`, filteredSeatAvailabilities);
 
-    const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
-      console.log(`Processing date: ${date}`);
+    const formattedResults = await Promise.all(
+      daysInMonth.map(async (date) => {
+        console.log(`Memproses tanggal: ${date}`);
 
-      // Find seatAvailability for the date and boat_id
-      const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
-      console.log(`Seat availability found for date ${date}:`, seatAvailability);
+        // Temukan seatAvailability untuk tanggal dan boat_id tertentu
+        const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
+        console.log(`Seat availability ditemukan untuk tanggal ${date}:`, seatAvailability);
 
-      if (seatAvailability) {
-        const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
-        console.log(`Total passengers for seat availability ${seatAvailability.id}: ${totalPassengers}`);
+        if (seatAvailability) {
+          const totalPassengers = sumTotalPassengers(seatAvailability.BookingSeatAvailabilities);
+          console.log(`Total penumpang untuk seat availability ${seatAvailability.id}: ${totalPassengers}`);
 
-        // Call buildRouteFromSchedule when seatAvailability exists
-        const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
-        console.log(`Route built for seat availability ${seatAvailability.id}: ${route}`);
+          // Panggil buildRouteFromSchedule jika seatAvailability ada
+          const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
+          console.log(`Route dibangun untuk seat availability ${seatAvailability.id}: ${route}`);
 
-        return {
-          seatavailability_id: seatAvailability.id,
-          date: seatAvailability.date,
-          schedule_id: seatAvailability.schedule_id,
-          subschedule_id: seatAvailability.subschedule_id,
-          total_passengers: totalPassengers,
-          route: route // Ensure route is passed here
-        };
-      } else {
-        console.log(`No seat availability found for date ${date}. Fetching schedules and subschedules.`);
-        // If no seatAvailability, check schedules and subschedules
-        const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
-        console.log(`Schedules for date ${date}:`, schedules);
-        console.log(`SubSchedules for date ${date}:`, subSchedules);
+          return {
+            seatavailability_id: seatAvailability.id,
+            date: seatAvailability.date,
+            schedule_id: seatAvailability.schedule_id,
+            subschedule_id: seatAvailability.subschedule_id,
+            total_passengers: totalPassengers,
+            route: route
+          };
+        } else {
+          console.log(`Tidak ada seat availability untuk tanggal ${date}. Mengambil jadwal dan sub-jadwal.`);
+          // Jika tidak ada seatAvailability, periksa schedules dan subschedules
+          const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+          console.log(`Schedules untuk tanggal ${date}:`, schedules);
+          console.log(`SubSchedules untuk tanggal ${date}:`, subSchedules);
 
-        const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id); // Filter based on boat_id
-        console.log(`Filtered schedules for boat_id ${boat_id} on date ${date}:`, filteredSchedules);
+          // Filter schedules berdasarkan boat_id
+          const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id);
+          console.log(`Filtered schedules untuk boat_id ${boat_id} pada tanggal ${date}:`, filteredSchedules);
 
-        let results = [];
+          let results = [];
 
-        filteredSchedules.forEach(schedule => {
-             console.log(`Passing to buildRouteFromSchedule - Schedule:`, schedule);
-          
-          // If no sub-schedule, use schedule to build route
-          if (subSchedules.length === 0) {
-            console.log("ini schedle ke buildroute jancuk",schedule)
-            const route = buildRouteFromSchedule(schedule, null); // Call buildRouteFromSchedule even if no subSchedule
+          // Proses schedules yang difilter
+          filteredSchedules.forEach(schedule => {
+            console.log(`Membangun route untuk Schedule:`, schedule);
 
-            
-            console.log(`Route built for schedule only (no subschedule) on date ${date}: ${route}`);
+            // Jika tidak ada sub-schedule, gunakan schedule untuk membangun route
+            const route = buildRouteFromSchedule(schedule, null);
+            console.log(`Route dibangun (hanya schedule) pada tanggal ${date}: ${route}`);
 
             results.push({
               seatavailability_id: null,
@@ -124,16 +133,14 @@ const getPassengerCountByMonth = async (req, res) => {
               total_passengers: 0,
               route: route
             });
-          }
+          });
 
+          // Proses subSchedules yang difilter
           subSchedules.forEach(subSchedule => {
             const relatedSchedule = filteredSchedules.find(sch => sch.id === subSchedule.schedule_id);
-            console.log("ini subschedul jancukkkk",relatedSchedule)
             if (relatedSchedule) {
-
-              const route = buildRouteFromSchedule(relatedSchedule, subSchedule); // Ensure buildRoute is always called
-
-              console.log(`Route built for schedule and subschedule on date ${date}: ${route}`);
+              const route = buildRouteFromSchedule(relatedSchedule, subSchedule);
+              console.log(`Route dibangun untuk schedule dan subschedule pada tanggal ${date}: ${route}`);
 
               results.push({
                 seatavailability_id: null,
@@ -145,14 +152,15 @@ const getPassengerCountByMonth = async (req, res) => {
               });
             }
           });
-        });
 
-        return results;
-      }
-    }));
+          return results;
+        }
+      })
+    );
 
+    // Menggabungkan hasil akhir
     const finalResults = formattedResults.flat();
-    console.log(`Final results for month ${month} and year ${year}:`, finalResults);
+    console.log(`Hasil akhir untuk bulan ${month} dan tahun ${year}:`, finalResults);
 
     return res.status(200).json({
       success: true,
@@ -162,10 +170,11 @@ const getPassengerCountByMonth = async (req, res) => {
     console.error('Error fetching passenger count by month:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to retrieve passenger count for the specified month.'
+      message: 'Gagal mengambil data jumlah penumpang untuk bulan yang diminta.'
     });
   }
 };
+
 
   
 const createPassenger = async (req, res) => {
