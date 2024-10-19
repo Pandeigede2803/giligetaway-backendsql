@@ -80,8 +80,6 @@ const getPassengerCountByMonth = async (req, res) => {
     const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
     console.log(`Filtered seat availabilities untuk boat_id ${boat_id}:`, filteredSeatAvailabilities);
 
- 
-    
     const formattedResults = await Promise.all(daysInMonth.map(async (date) => {
       console.log(`Processing date: ${date}`);
     
@@ -96,10 +94,6 @@ const getPassengerCountByMonth = async (req, res) => {
         // Call buildRouteFromSchedule when seatAvailability exists
         const route = buildRouteFromSchedule(seatAvailability.Schedule, seatAvailability.SubSchedule);
         console.log(`Route built for seat availability ${seatAvailability.id}: ${route}`);
-    
-        // Use isDayAvailable to filter based on days_of_week
-        const isAvailable = isDayAvailable(date, seatAvailability.Schedule.days_of_week);
-        if (!isAvailable) return null;
     
         return {
           seatavailability_id: seatAvailability.id,
@@ -118,13 +112,12 @@ const getPassengerCountByMonth = async (req, res) => {
         console.log(`Schedules for date ${date}:`, schedules);
         console.log(`SubSchedules for date ${date}:`, subSchedules);
     
+        const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id); // Filter based on boat_id
+        console.log(`Filtered schedules for boat_id ${boat_id} on date ${date}:`, filteredSchedules);
+    
         let results = [];
     
-        schedules.forEach(schedule => {
-          // Use isDayAvailable to filter based on days_of_week
-          const isAvailable = isDayAvailable(date, schedule.days_of_week);
-          if (!isAvailable) return;
-    
+        filteredSchedules.forEach(schedule => {
           const route = buildRouteFromSchedule(schedule, null); // Call buildRouteFromSchedule even if no subSchedule
           console.log(`Route built for schedule only (no subschedule) on date ${date}: ${route}`);
     
@@ -139,8 +132,7 @@ const getPassengerCountByMonth = async (req, res) => {
           });
     
           subSchedules.forEach(subSchedule => {
-            const relatedSchedule = schedules.find(sch => sch.id === subSchedule.schedule_id);
-    
+            const relatedSchedule = filteredSchedules.find(sch => sch.id === subSchedule.schedule_id);
             if (relatedSchedule) {
               const route = buildRouteFromSchedule(relatedSchedule, subSchedule);
               console.log(`Route built for schedule and subschedule on date ${date}: ${route}`);
@@ -162,17 +154,15 @@ const getPassengerCountByMonth = async (req, res) => {
       }
     }));
     
-    // Filter out any null results due to isDayAvailable filtering
-    const finalResults = formattedResults.flat().filter(result => result !== null);
     
-    console.log(`Final results for month:`, finalResults);
-    
+    // Menggabungkan hasil akhir
+    const finalResults = formattedResults.flat();
+    console.log(`Hasil akhir untuk bulan ${month} dan tahun ${year}:`, finalResults);
+
     return res.status(200).json({
       success: true,
       data: finalResults
     });
-    
-
   } catch (error) {
     console.error('Error fetching passenger count by month:', error);
     return res.status(500).json({
