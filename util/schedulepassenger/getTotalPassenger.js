@@ -40,5 +40,5 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
   
   module.exports = {
     getTotalPassengers
-  };
+  };;
   
