@@ -26,6 +26,8 @@ const isDayAvailable = (date, daysOfWeek) => {
   // Periksa apakah hari tersebut tersedia berdasarkan bitmap
   return (daysOfWeek & (1 << dayOfWeek)) !== 0;
 };
+
+
 const getPassengerCountByMonth = async (req, res) => {
   const { month, year, boat_id } = req.query;
 
@@ -37,6 +39,7 @@ const getPassengerCountByMonth = async (req, res) => {
   }
 
   try {
+    // Check if the boat exists
     const boatExists = await Boat.findByPk(boat_id);
     if (!boatExists) {
       return res.status(200).json({
@@ -45,8 +48,9 @@ const getPassengerCountByMonth = async (req, res) => {
       });
     }
 
-    const daysInMonth = getDaysInMonth(month, year); // Assume this function returns dates in 'YYYY-MM-DD' format
+    const daysInMonth = getDaysInMonth(month, year); // Returns an array of all dates in 'YYYY-MM-DD' format
 
+    // Fetch seat availability for the month, year, and boat_id
     const seatAvailabilities = await SeatAvailability.findAll({
       attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
       where: {
@@ -58,11 +62,12 @@ const getPassengerCountByMonth = async (req, res) => {
       include: getSeatAvailabilityIncludes(),
     });
 
+    // Filter seat availabilities by boat_id
     const filteredSeatAvailabilities = seatAvailabilities.filter(sa => sa.Schedule && sa.Schedule.boat_id == boat_id);
 
     const formattedResults = await Promise.all(
       daysInMonth.map(async (date) => {
-        // Find the seatAvailability for the current date and boat_id
+        // Check if there's seat availability for the date
         const seatAvailability = filteredSeatAvailabilities.find(sa => sa.date === date);
 
         if (seatAvailability) {
@@ -76,33 +81,28 @@ const getPassengerCountByMonth = async (req, res) => {
             subschedule_id: seatAvailability.subschedule_id,
             total_passengers: totalPassengers,
             route: route,
-            days_of_week: seatAvailability.Schedule?.days_of_week || null,
           };
         } else {
-          // No seat availability, fetch schedules and subschedules
+          // If no seat availability, fetch schedules and subschedules
           const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
           const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id);
 
           let results = [];
 
           filteredSchedules.forEach((schedule) => {
-            // Check if the schedule is available for this day
-            if (isDayAvailable(date, schedule.days_of_week)) {
-              const route = buildRouteFromSchedule(schedule, null); // No subschedule
-              results.push({
-                seatavailability_id: null,
-                date: date,
-                schedule_id: schedule.id,
-                subschedule_id: null,
-                total_passengers: 0,
-                route: route,
-                days_of_week: schedule.days_of_week,
-              });
-            }
+            const route = buildRouteFromSchedule(schedule, null);
+            results.push({
+              seatavailability_id: null,
+              date: date,
+              schedule_id: schedule.id,
+              subschedule_id: null,
+              total_passengers: 0,
+              route: route,
+            });
 
             subSchedules.forEach((subSchedule) => {
               const relatedSchedule = filteredSchedules.find(sch => sch.id === subSchedule.schedule_id);
-              if (relatedSchedule && isDayAvailable(date, relatedSchedule.days_of_week)) {
+              if (relatedSchedule) {
                 const route = buildRouteFromSchedule(relatedSchedule, subSchedule);
                 results.push({
                   seatavailability_id: null,
@@ -111,7 +111,6 @@ const getPassengerCountByMonth = async (req, res) => {
                   subschedule_id: subSchedule.id,
                   total_passengers: 0,
                   route: route,
-                  days_of_week: relatedSchedule.days_of_week,
                 });
               }
             });
@@ -122,7 +121,9 @@ const getPassengerCountByMonth = async (req, res) => {
       })
     );
 
+    // Flatten the array of results
     const finalResults = formattedResults.flat();
+
     return res.status(200).json({
       success: true,
       data: finalResults,
@@ -135,6 +136,7 @@ const getPassengerCountByMonth = async (req, res) => {
     });
   }
 };
+
 const createPassenger = async (req, res) => {
     try {
         const passenger = await Passenger.create(req.body);

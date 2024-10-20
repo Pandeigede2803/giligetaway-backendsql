@@ -11,6 +11,8 @@ const transitController = require('../controllers/transitController');
 
 /// CREATE schedule with transits
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
+router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);
+
 
 //multiple params
 router.get('/search',authenticate, scheduleController.getSchedulesByMultipleParams);
@@ -49,6 +51,7 @@ router.put('/:scheduleId/transits',authenticate, transitController.updateTransit
 
 // DELETE schedule
 router.delete('/:id', authenticate, scheduleController.deleteSchedule);
+
 
 
 

@@ -13,6 +13,12 @@ const { uploadImageToImageKit } = require("../middleware/upload");
 const { Op } = require("sequelize");
 const buildSearchConditions = require("../util/buildSearchCondition");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
+const { buildRouteFromSchedule2 } =require("../util/schedulepassenger/buildRouteFromSchedule");
+const { getScheduleAndSubScheduleByDate } = require('../util/scheduleUtils');
+const { fn, col } = require('sequelize');
+const { getSchedulesWithSubSchedules2 } = require('../util/schedulepassenger/scheduleUtils');
+
+
 const {
   formatSchedules,
   formatSubSchedules,
@@ -24,6 +30,108 @@ const {
   getDayNamesFromBitmask,
 } = require("../util/formatUtilsSimple");
 const { getSubScheduleInclude } = require("../util/formattedData2");
+const {getTotalPassengers} = require("../util/schedulepassenger/getTotalPassenger");
+
+// Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
+
+
+const isDayAvailable = (date, daysOfWeek) => {
+  const dayOfWeek = new Date(date).getDay(); // Dapatkan hari dalam minggu (0 untuk Minggu, 1 untuk Senin, dst.)
+  return (daysOfWeek & (1 << dayOfWeek)) !== 0; // Periksa apakah hari tersebut sesuai dengan bitmask
+};
+const getDaysInMonth = (month, year) => {
+  const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const monthString = String(month).padStart(2, '0');
+    const dayString = String(day).padStart(2, '0');
+    return `${year}-${monthString}-${dayString}`; // Format date as 'YYYY-MM-DD'
+  });
+};
+
+
+
+const getAllSchedulesWithSubSchedules = async (req, res) => {
+  const { month, year, boat_id } = req.query;
+
+  if (!month || !year || !boat_id) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide month, year, and boat_id in the query parameters.',
+    });
+  }
+
+  try {
+    // Use the utility function to fetch schedules with sub-schedules
+    const schedules = await getSchedulesWithSubSchedules2(
+      Schedule, // Your Schedule model
+      SubSchedule, // Your SubSchedule model
+      Destination, // Your Destination model
+      Transit, // Your Transit model
+      Boat, // Your Boat model
+      { month, year, boat_id } // Query parameters
+    );
+
+    if (!schedules || schedules.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No schedules found for the given month and boat_id.'
+      });
+    }
+
+    // Use getDaysInMonth to generate all days in the requested month
+    const daysInMonth = getDaysInMonth(month, year);
+    const results = [];
+
+    // Iterate through each day of the month
+    for (const date of daysInMonth) {
+      console.log(`Processing date: ${date}`);
+
+      for (const schedule of schedules) {
+        // Fetch the total passengers for this schedule on the given date
+        const totalPassengersForSchedule = await getTotalPassengers(schedule.id, null, date);
+
+        // Push the main schedule for each day with total_passengers
+        results.push({
+          seatavailability_id: null,
+          date: date,
+          schedule_id: schedule.id,
+          subschedule_id: null,
+          total_passengers: totalPassengersForSchedule, // Insert total passengers
+          route: buildRouteFromSchedule2(schedule, null),
+          days_of_week: schedule.days_of_week
+        });
+
+        // Iterate through each sub-schedule and fetch total passengers for it
+        for (const subSchedule of schedule.SubSchedules) {
+          const totalPassengersForSubSchedule = await getTotalPassengers(subSchedule.schedule_id, subSchedule.id, date);
+
+          results.push({
+            seatavailability_id: null,
+            date: date,
+            schedule_id: subSchedule.schedule_id,
+            subschedule_id: subSchedule.id,
+            total_passengers: totalPassengersForSubSchedule, // Insert total passengers
+            route: buildRouteFromSchedule2(schedule, subSchedule),
+            days_of_week: subSchedule.days_of_week
+          });
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error fetching schedules with sub-schedules:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch schedules for the specified month and boat.'
+    });
+  }
+};
+
 
 // const getScheduleSubschedule = async (req, res) => {
 //   const { boat_id } = req.query;
@@ -967,11 +1075,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       message: error.message,
     });
   }
-};
-// Helper function to get bitmask for the day of the week
-const getDayOfWeekMask = (date) => {
-  const dayOfWeek = date.getDay();
-  return 2 ** dayOfWeek; // Sun = 1, Mon = 2, ..., Sat = 64
 };
 
 
@@ -2015,6 +2118,7 @@ const uploadSchedules = async (req, res) => {
 
 module.exports = {
   getScheduleByIdSeat,
+  getAllSchedulesWithSubSchedules,
   createSchedule,
   getAllSchedulesWithDetails,
   getSchedules,
