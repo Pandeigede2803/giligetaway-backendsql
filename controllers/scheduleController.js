@@ -884,6 +884,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
           include: {
             model: Destination,
@@ -900,6 +901,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
 
           include: {
@@ -918,6 +920,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
           include: {
             model: Destination,
@@ -934,6 +937,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
           include: {
             model: Destination,
@@ -950,6 +954,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
           include: {
             model: Destination,
@@ -966,6 +971,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
+            "check_in_time"
           ],
           include: {
             model: Destination,
@@ -982,6 +988,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "check_in_time",
             "arrival_time",
             "journey_time",
+            
           ],
           include: [
             {
