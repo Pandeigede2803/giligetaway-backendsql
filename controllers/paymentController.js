@@ -7,8 +7,11 @@ const {generateMidtransPaymentLink} = require('../util/payment/generateMidtransL
 // MidTrans Payment Token Controller
 const createMidtransTransaction = async (req, res) => {
   try {
-    const bookingDetails = req.body.booking; // Assuming booking details are sent in the request body
+    const { booking, transports } = req.body; // Destructure booking and transports from the request body
 
+    // Merge transports into booking details
+    const bookingDetails = { ...booking, transports }; // Add transports into bookingDetails
+    console.log('bookingDetails:', bookingDetails);
     // Generate MidTrans transaction token
     const transactionToken = await generateMidtransToken(bookingDetails);
 
@@ -27,6 +30,7 @@ const createMidtransTransaction = async (req, res) => {
     });
   }
 };
+
 
 // PayPal Payment Order Controller
 const createPayPalTransaction = async (req, res) => {
@@ -128,9 +132,11 @@ const createPayPalTransaction = async (req, res) => {
 
 const createMidtransTransactionLink = async (req, res) => {
   try {
-    const bookingDetails = req.body.booking;
+    const { booking, transports } = req.body; // Destructure booking and transports from the request body
 
-    console.log('Booking Details:', bookingDetails);
+    // Merge transports into booking details
+    const bookingDetails = { ...booking, transports }; // Add transports into bookingDetails
+    console.log('bookingDetails:', bookingDetails);
 
     // Generate MidTrans payment link
     const paymentUrl = await generateMidtransPaymentLink(bookingDetails);

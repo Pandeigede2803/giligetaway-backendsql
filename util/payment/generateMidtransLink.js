@@ -2,6 +2,7 @@
 // utils/generateMidtransPaymentLink.js
 const axios = require('axios');
 
+
 // Midtrans Payment Link API Configuration
 const midtransConfig = {
   apiBaseUrl: 'https://api.sandbox.midtrans.com/v1/payment-links',
@@ -17,10 +18,11 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
   console.log('Generate MidTrans Payment Link:', bookingDetails);
   
   try {
-    // Mengambil `ticket_total` dari bookingDetails
+    // Extract `ticket_total` from bookingDetails
     const ticketTotal = parseFloat(bookingDetails.ticket_total);
-    
-    // Menambahkan detail tiket ke dalam item details
+    console.log('Ticket Total:', ticketTotal);
+
+    // Add ticket details to item details
     const itemDetails = [
       {
         id: bookingDetails.ticket_id,
@@ -40,10 +42,15 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
     
     console.log('Item details:', itemDetails);
 
-    // Hitung total gross amount
-    const grossAmount = itemDetails.reduce((total, item) => total + item.price * item.quantity, 0);
-    
-    // Persiapkan customer details
+    // Calculate the total gross amount
+    const grossAmount = itemDetails.reduce((total, item) => {
+      console.log(`Adding item: ${item.name}, Price: ${item.price}, Quantity: ${item.quantity}`);
+      return total + item.price * item.quantity;
+    }, 0);
+
+    console.log('Gross Amount:', grossAmount);
+
+    // Prepare customer details
     const customerDetails = {
       first_name: bookingDetails.contact_name.split(' ')[0],
       last_name: bookingDetails.contact_name.split(' ').slice(1).join(' '),
@@ -51,10 +58,12 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
       phone: bookingDetails.contact_phone,
     };
 
-    // Persiapkan parameter transaksi untuk MidTrans Payment Link
+    console.log('Customer Details:', customerDetails);
+
+    // Prepare transaction parameters for MidTrans Payment Link
     const parameter = {
       transaction_details: {
-        order_id: `ORDER-${Date.now()}`, // Unik order ID
+        order_id: `ORDER-${Date.now()}`, // Unique order ID
         gross_amount: grossAmount,
       },
       item_details: itemDetails,
@@ -65,6 +74,8 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
       },
       custom_field1: `Booking on ${bookingDetails.booking_date}`,
     };
+
+    console.log('Transaction Parameters:', parameter);
 
     // Request headers for Midtrans API
     const headers = {
@@ -86,5 +97,6 @@ const generateMidtransPaymentLink = async (bookingDetails) => {
     throw new Error('Failed to generate MidTrans payment link');
   }
 };
-module.exports={generateMidtransPaymentLink}
+
+module.exports = { generateMidtransPaymentLink };
 

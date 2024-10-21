@@ -558,6 +558,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           : 0;
   
         const totalAmount = ticket_total + transportTotal;  // Gross total adalah gabungan tiket + transport
+        console.log(`Gross total: ${totalAmount}`);
   
         // Step 2: Create the Booking dengan ticket_total dan gross_total
         const booking = await Booking.create({
@@ -621,7 +622,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           booking,
           status: 'processing',
           transaction: transactionEntry, // Include the created transaction in the response
-          transportBookings: [],
+          transports:transports,
           remainingSeatAvailabilities: null
         });
       });
