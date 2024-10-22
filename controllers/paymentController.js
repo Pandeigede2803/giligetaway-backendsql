@@ -165,10 +165,10 @@ const handlePayPalReturn = async (req, res) => {
 
 const createMidtransTransactionLink = async (req, res) => {
   try {
-    const { bookings, transports } = req.body; // Destructure booking and transports from the request body
+    const { booking, transports } = req.body; // Destructure booking and transports from the request body
 
     // Merge transports into booking details
-    const bookingDetails = { ...bookings, transports }; // Add transports into bookingDetails
+    const bookingDetails = { ...booking, transports }; // Add transports into bookingDetails
     console.log("bookingDetails:", bookingDetails);
 
     // Generate MidTrans payment link

@@ -536,6 +536,8 @@ const createBookingWithTransitQueue = async (req, res) => {
       booking_source, adult_passengers, child_passengers, infant_passengers,
       ticket_id, transit_details, transaction_type, currency,gross_total_in_usd,exchange_rate
     } = req.body;
+
+    
   
     try {
       const result = await sequelize.transaction(async (t) => {
@@ -553,6 +555,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           }
     
 
+        console.log('Step 1: Calculate transport_total if transports exist');
         // Step 1: Calculate transport_total if transports exist
         const transportTotal = Array.isArray(transports)
           ? transports.reduce((total, transport) => total + parseFloat(transport.transport_price) * transport.quantity, 0)
@@ -561,6 +564,7 @@ const createBookingWithTransitQueue = async (req, res) => {
         const totalAmount = ticket_total + transportTotal;  // Gross total adalah gabungan tiket + transport
         console.log(`Gross total: ${totalAmount}`);
   
+        console.log('Step 2: Create the Booking dengan ticket_total dan gross_total');
         // Step 2: Create the Booking dengan ticket_total dan gross_total
         const booking = await Booking.create({
           schedule_id,
@@ -589,6 +593,7 @@ const createBookingWithTransitQueue = async (req, res) => {
   
         console.log(`Booking created with ID: ${booking.id}`);
   
+        console.log('Step 3: Create an initial transaction');
         // Step 3: Create an initial transaction
         const transactionEntry = await createTransaction({
           transaction_id: `TRANS-${Date.now()}`,
@@ -603,6 +608,7 @@ const createBookingWithTransitQueue = async (req, res) => {
   
         console.log(`Initial transaction created for booking ID: ${booking.id}`);
   
+        console.log('Step 4: Queue job for background processing (including seat availability, transport, etc.)');
         // Step 4: Queue job for background processing (including seat availability, transport, etc.)
         bookingQueue.add({
           schedule_id,
@@ -618,6 +624,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           payment_status
         });
   
+        console.log('Step 5: Return response with status code 201 (Created)');
         // Step 5: Return response with status code 201 (Created)
         return res.status(201).json({
           booking,
@@ -627,8 +634,6 @@ const createBookingWithTransitQueue = async (req, res) => {
           remainingSeatAvailabilities: null
         });
       });
-
-
 
     } catch (error) {
       console.log('Error:', error.message);
