@@ -455,6 +455,7 @@ const createBookingMultiple = async (req, res) => {
         return res.status(201).json({
           bookings, // Array of all created bookings
           transactions, // Array of all created transactions
+          transports,
           status: 'processing'
         });
       });

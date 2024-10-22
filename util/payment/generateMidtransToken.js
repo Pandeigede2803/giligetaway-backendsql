@@ -74,4 +74,96 @@ const generateMidtransToken = async (bookingDetails) => {
   }
 };
 
-module.exports = { generateMidtransToken };
+/**
+ * Generate a MidTrans transaction token based on array of booking details
+ * @param {Object} data - Contains an array of bookings and transactions
+ * @returns {Promise<String>} - MidTrans transaction token
+ */
+const generateMidtransTokenMulti = async (data) => {
+  let { bookings, transports } = data;
+
+  // Jika 'bookings' tidak berbentuk array, konversi objek 'bookings' menjadi array, dan abaikan properti 'transports'
+  if (!Array.isArray(bookings)) {
+    bookings = Object.values(bookings).filter((item) => typeof item === 'object' && !Array.isArray(item)); // Hanya ambil objek booking
+  }
+
+  // Log untuk memeriksa isi bookings dan transports
+  console.log('Bookings:', bookings);
+  console.log('Transports:', transports);
+
+  try {
+    // Initialize an empty array to hold all item details
+    let itemDetails = [];
+
+    // Loop through each booking and add its details to itemDetails
+    bookings.forEach((booking, index) => {
+      const ticketTotal = parseFloat(booking.ticket_total);
+      console.log(`Processing booking ${index + 1}:`, booking);
+      console.log(`Ticket total for booking ${index + 1}:`, ticketTotal);
+
+      // Add ticket details
+      itemDetails.push({
+        id: booking.ticket_id,
+        price: ticketTotal,
+        quantity: booking.total_passengers,
+        name: `Ticket for ${booking.total_passengers} Passengers (Booking ID: ${booking.id})`,
+      });
+    });
+
+    // Add transports to itemDetails if available
+    if (Array.isArray(transports)) {
+      console.log(`Adding transports:`, transports);
+      transports.forEach((transport) => {
+        itemDetails.push({
+          id: `transport_${transport.transport_id}`,
+          price: parseFloat(transport.transport_price),
+          quantity: transport.quantity,
+          name: `${transport.transport_type} - ${transport.note}`,
+        });
+      });
+    }
+
+    console.log('Item details:', itemDetails);
+
+    // Calculate the total gross amount from all item details
+    const grossAmount = itemDetails.reduce((total, item) => total + item.price * item.quantity, 0);
+    console.log('Total gross amount:', grossAmount);
+
+    // Validate and prepare customer details
+    const customerDetails = {
+      first_name: bookings[0].contact_name ? bookings[0].contact_name.split(' ')[0] : '',
+      last_name: bookings[0].contact_name ? bookings[0].contact_name.split(' ').slice(1).join(' ') : '',
+      email: bookings[0].contact_email || '',
+      phone: bookings[0].contact_phone || '',
+    };
+
+    console.log('Customer details:', customerDetails);
+
+    // Prepare the transaction parameters for MidTrans
+    const parameter = {
+      transaction_details: {
+        order_id: `ORDER-${Date.now()}`, // Generate a unique order ID
+        gross_amount: grossAmount, // Total transaction amount
+      },
+      item_details: itemDetails, // All item details including tickets and transports
+      customer_details: customerDetails,
+      custom_field1: `Multiple bookings on ${bookings[0].booking_date}`, // Use the first booking date as a reference
+    };
+
+    console.log('Transaction parameters:', parameter);
+
+    // Generate the transaction token using MidTrans Snap API
+    const transactionToken = await snap.createTransactionToken(parameter);
+    console.log(`Generated MidTrans Transaction Token: ${transactionToken}`);
+
+    return transactionToken;
+  } catch (error) {
+    console.error('Error generating MidTrans token:', error.message);
+    throw new Error('Failed to generate MidTrans transaction token');
+  }
+};
+
+
+
+
+module.exports = { generateMidtransToken,generateMidtransTokenMulti };
