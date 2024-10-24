@@ -56,6 +56,7 @@ const formatSchedules = (schedules, selectedDate) => {
       journey_time: transit.journey_time,
     })),
     route_image: schedule.route_image || "N/A",
+   
     // ADD TIME
     departure_time: schedule.departure_time || "N/A",
     arrival_time: schedule.arrival_time || "N/A",

@@ -1,5 +1,6 @@
 // utils/transactionUtils.js
 const { Transaction } = require('../models');
+const { Op } = require('sequelize'); // Import Sequelize operators
 
 const createTransaction = async ({
   transaction_id,
@@ -64,27 +65,46 @@ const updateTransactionStatus = async (transaction_id, updateData) => {
 
 // Function to update the status of multiple transactions
 // Function to update the status of multiple transactions by transaction_ids
+// Function to update the status of multiple transactions by transaction_ids
 const updateMultiTransactionStatus = async (transaction_ids, updateData, transaction) => {
   try {
-    // Pastikan transaction_ids berupa array
+    // Validate that transaction_ids is an array
     if (!Array.isArray(transaction_ids)) {
       throw new Error('transaction_ids should be an array');
     }
 
-    console.log('Transaction IDs:', transaction_ids);
+    // Ensure transaction_ids array is not empty
+    if (transaction_ids.length === 0) {
+      throw new Error('transaction_ids array should not be empty');
+    }
 
-    // Update semua transaksi yang sesuai dengan transaction_ids
-    await Transaction.update(updateData, {
-      where: { transaction_id: { [Op.in]: transaction_ids } }, // Menggunakan Sequelize 'in' operator
+    // Validate that updateData is an object and contains at least one key-value pair
+    if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
+      throw new Error('updateData should be a non-empty object');
+    }
+
+    console.log('Transaction IDs:', transaction_ids);
+    console.log('Update Data:', updateData);
+
+    // Update all transactions that match the provided transaction_ids
+    const [updatedCount] = await Transaction.update(updateData, {
+      where: { transaction_id: { [Op.in]: transaction_ids } }, // Using Sequelize 'in' operator
       transaction
     });
 
-    console.log(`All transactions with IDs ${transaction_ids.join(', ')} updated successfully.`);
+    if (updatedCount === 0) {
+      console.warn(`No transactions were updated for IDs: ${transaction_ids.join(', ')}`);
+    } else {
+      console.log(`All transactions with IDs ${transaction_ids.join(', ')} updated successfully.`);
+    }
+
+    return updatedCount; // Return the number of updated rows
   } catch (error) {
+    // Log error details
+    console.error(`Failed to update multiple transactions for IDs ${transaction_ids.join(', ')}: ${error.message}`);
     throw new Error(`Failed to update multiple transactions: ${error.message}`);
   }
 };
-
   
   module.exports = {
     createTransaction,
