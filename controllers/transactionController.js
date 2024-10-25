@@ -125,12 +125,12 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
       status: status || 'pending',
       failure_reason: failure_reason || null,
       refund_reason: refund_reason || null,
-      payment_method: payment_method || null,
-      payment_gateway: payment_gateway || null,
-      amount: amount ? parseFloat(amount) : null,
-      amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
-      exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
-      currency: currency || null,
+      // payment_method: payment_method || null,
+      // payment_gateway: payment_gateway || null,
+      // amount: amount ? parseFloat(amount) : null,
+      // amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
+      // exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
+      // currency: currency || null,
     };
 
     console.log("Updating transactions with data:", updateData);
