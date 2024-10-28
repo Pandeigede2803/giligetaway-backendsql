@@ -31,9 +31,18 @@ exports.loginAgent = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Login successful", agent: agent.dataValues });
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: agent.id, email: agent.email }, // payload
+      process.env.JWT_SECRET, // secret key
+      { expiresIn: "1h" } // expiration time
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      agent: agent.dataValues,
+      token: token, // return the token
+    });
   } catch (error) {
     console.error("Error during agent login:", error.message);
     res.status(500).json({ message: error.message });
@@ -468,91 +477,3 @@ exports.resetPasswordWithToken = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-// Function to create an agent
-// exports.createAgent = async (req, res) => {
-//     console.log('req body:', req.body);
-//     const transaction = await sequelize.transaction();
-
-//     try {
-//         console.log('Data received for creating agent:', req.body);
-
-//         // Generate random password
-//         const randomPassword = generateRandomPassword(10);
-//         console.log('Generated random password:', randomPassword);
-
-//         let imageUrl = null;
-
-//         if (req.file) {
-//             // Upload image and get the URL
-//             imageUrl = req.file.url;
-//             console.log('Uploaded image URL:', imageUrl);
-//         }
-
-//         // Create the agent with the generated password and optional image URL
-//         const agentData = { ...req.body, password: randomPassword, image_url: imageUrl };
-//         console.log('Agent data to be created:', agentData);
-
-//         const agent = await Agent.create(agentData, { transaction });
-//         console.log('Agent created with ID:', agent.id);
-
-//         // Create corresponding AgentMetrics entry
-//         const agentMetrics = await AgentMetrics.create({
-//             agent_id: agent.id,
-//             total_revenue: 0.00,
-//             total_customers: 0,
-//             total_bookings: 0,
-//             gross_revenue: 0.00,
-//             net_profit: 0.00,
-//             gross_pending_payment: 0.00,
-//             net_pending_profit: 0.00,
-//             unpaid_payment: 0.00,
-//             pending_payment: 0.00,
-//             outstanding: 0.00,
-//             payout: 0.00
-//         }, { transaction });
-//         console.log('AgentMetrics created with ID:', agentMetrics.id);
-
-//         // Commit the transaction
-//         await transaction.commit();
-
-//         // Return the agent and the random password
-//         console.log('Returning agent and random password');
-//         res.status(201).json({
-//             agent: {
-//                 id: agent.id,
-//                 name: agent.name,
-//                 email: agent.email,
-//                 phone: agent.phone,
-//                 commission_rate: agent.commission_rate,
-//                 address: agent.address,
-//                 image_url: agent.image_url,
-//                 created_at: agent.created_at,
-//                 updated_at: agent.updated_at
-//             },
-//             randomPassword: randomPassword
-//         });
-//     } catch (error) {
-//         // Rollback the transaction in case of error
-//         await transaction.rollback();
-
-//         console.log('Error creating agent:', error.message);
-//         res.status(500).json({ message: error.message });
-//     }
-// };
-// exports.updateAgent = async (req, res) => {
-//     try {
-//       const [updated] = await Agent.update(req.body, {
-//         where: { id: req.params.id }
-//       });
-
-//       if (updated) {
-//         const updatedAgent = await Agent.findByPk(req.params.id);
-//         res.status(200).json(updatedAgent);
-//       } else {
-//         res.status(404).json({ message: 'Agent not found' });
-//       }
-//     } catch (error) {
-//       res.status(500).json({ message: error.message });
-//     }
-//   };
