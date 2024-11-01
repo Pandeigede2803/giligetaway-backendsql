@@ -1,9 +1,17 @@
 // controllers/transactionController.js
 
-const { sequelize, Booking, Transaction, TransportBooking } = require('../models');
-const { updateAgentCommission } = require('../util/updateAgentComission');
-const { updateTransactionStatus,updateMultiTransactionStatus } = require('../util/transactionUtils');
-const { Op } = require('sequelize'); // Import Sequelize operators
+const {
+  sequelize,
+  Booking,
+  Transaction,
+  TransportBooking,
+} = require("../models");
+const { updateAgentCommission } = require("../util/updateAgentComission");
+const {
+  updateTransactionStatus,
+  updateMultiTransactionStatus,
+} = require("../util/transactionUtils");
+const { Op } = require("sequelize"); // Import Sequelize operators
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const { transaction_ids } = req.body; // transaction_ids is now an array of transaction IDs
@@ -49,7 +57,6 @@ const { Op } = require('sequelize'); // Import Sequelize operators
 //     res.status(500).json({ error: error.message });
 //   }
 // };
-
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const {
@@ -266,11 +273,17 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
   console.log("Starting updateMultiTransactionStatusHandler...");
 
   // Validasi input
-  if (!transaction_ids || !Array.isArray(transaction_ids) || transaction_ids.length === 0) {
-    console.error("Validation Error: transaction_ids must be a non-empty array");
+  if (
+    !transaction_ids ||
+    !Array.isArray(transaction_ids) ||
+    transaction_ids.length === 0
+  ) {
+    console.error(
+      "Validation Error: transaction_ids must be a non-empty array"
+    );
     return res.status(400).json({
       success: false,
-      error: 'transaction_ids must be a non-empty array'
+      error: "transaction_ids must be a non-empty array",
     });
   }
 
@@ -282,7 +295,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
     console.error("Validation Error: Duplicate transaction IDs detected.");
     return res.status(400).json({
       success: false,
-      error: 'Duplicate transaction IDs are not allowed'
+      error: "Duplicate transaction IDs are not allowed",
     });
   }
 
@@ -290,44 +303,54 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
 
   try {
     console.log("Step 1: Verifying if all transactions exist...");
-    
+
     // Ambil transaksi yang ada dan statusnya
     const existingTransactions = await Transaction.findAll({
       where: {
         transaction_id: {
-          [Op.in]: uniqueTransactionIds
-        }
+          [Op.in]: uniqueTransactionIds,
+        },
       },
-      attributes: ['transaction_id', 'booking_id', 'status'],
-      transaction
+      attributes: ["transaction_id", "booking_id", "status"],
+      transaction,
     });
 
     console.log("Existing transactions found:", existingTransactions);
 
     // Pastikan semua transaksi ada
     const nonExistentTransactionIds = uniqueTransactionIds.filter(
-      id => !existingTransactions.map(t => t.transaction_id).includes(id)
+      (id) => !existingTransactions.map((t) => t.transaction_id).includes(id)
     );
 
     if (nonExistentTransactionIds.length > 0) {
-      console.error("Some transaction IDs do not exist:", nonExistentTransactionIds);
+      console.error(
+        "Some transaction IDs do not exist:",
+        nonExistentTransactionIds
+      );
       await transaction.rollback();
       return res.status(404).json({
         success: false,
-        error: 'Some transaction IDs do not exist',
-        nonExistentTransactionIds
+        error: "Some transaction IDs do not exist",
+        nonExistentTransactionIds,
       });
     }
 
     // Periksa apakah semua transaksi berstatus "pending"
-    const nonPendingTransactions = existingTransactions.filter(t => t.status !== 'pending');
+    const nonPendingTransactions = existingTransactions.filter(
+      (t) => t.status !== "pending"
+    );
     if (nonPendingTransactions.length > 0) {
-      console.error("Only transactions with status 'pending' can be updated. Found non-pending transactions:", nonPendingTransactions);
+      console.error(
+        "Only transactions with status 'pending' can be updated. Found non-pending transactions:",
+        nonPendingTransactions
+      );
       await transaction.rollback();
       return res.status(400).json({
         success: false,
         error: 'Only transactions with status "pending" can be updated',
-        nonPendingTransactions: nonPendingTransactions.map(t => t.transaction_id)
+        nonPendingTransactions: nonPendingTransactions.map(
+          (t) => t.transaction_id
+        ),
       });
     }
 
@@ -336,98 +359,116 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
       status: status,
       failure_reason: failure_reason || null,
       refund_reason: refund_reason || null,
-      payment_method: payment_method ,
-      payment_gateway: payment_gateway ,
+      payment_method: payment_method,
+      payment_gateway: payment_gateway,
       amount: amount ? parseFloat(amount) : null,
       amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
       exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
-      currency: currency ,
+      currency: currency,
     };
 
     console.log("Updating transactions with data:", updateData);
 
     // Step 3: Lakukan pembaruan transaksi
-    const updatedCount = await updateMultiTransactionStatus(uniqueTransactionIds, updateData, transaction);
+    const updatedCount = await updateMultiTransactionStatus(
+      uniqueTransactionIds,
+      updateData,
+      transaction
+    );
 
     if (updatedCount === 0) {
       console.warn("No transactions were updated.");
       await transaction.rollback();
       return res.status(404).json({
         success: false,
-        error: 'No transactions were updated'
+        error: "No transactions were updated",
       });
     }
 
     console.log(`${updatedCount} transactions updated successfully.`);
 
     console.log("Step 4: Retrieving related bookings...");
-    const bookingIds = existingTransactions.map(t => t.booking_id);
+    const bookingIds = existingTransactions.map((t) => t.booking_id);
     const bookings = await Booking.findAll({
       where: { id: { [Op.in]: bookingIds } },
-      include: [{ model: TransportBooking, as: 'transportBookings' }],
-      transaction
+      include: [{ model: TransportBooking, as: "transportBookings" }],
+      transaction,
     });
 
     console.log("Related bookings found:", bookings);
 
-    console.log("Step 5: Processing each booking and calculating commissions if necessary...");
+    console.log(
+      "Step 5: Processing each booking and calculating commissions if necessary..."
+    );
     const results = [];
     for (const booking of bookings) {
       let commissionResponse = { success: false, commission: 0 };
 
       console.log(`Processing booking ID: ${booking.id}`);
 
-      if (status === 'paid') {
-        console.log(`Updating booking payment status to 'paid' for booking ID: ${booking.id}`);
-        
+      if (status === "paid") {
+        console.log(
+          `Updating booking payment status to 'paid' for booking ID: ${booking.id}`
+        );
+
         await Booking.update(
           {
-            payment_status: 'paid',
+            payment_status: "paid",
             payment_method: payment_method || booking.payment_method,
-            expiration_time: null
+            expiration_time: null,
           },
           {
             where: { id: booking.id },
-            transaction
+            transaction,
           }
         );
 
         if (booking.agent_id) {
-          console.log(`Calculating commission for agent ID: ${booking.agent_id}, booking ID: ${booking.id}`);
+          console.log(
+            `Calculating commission for agent ID: ${booking.agent_id}, booking ID: ${booking.id}`
+          );
           try {
             commissionResponse = await updateAgentCommission(
               booking.agent_id,
               booking.gross_total,
               booking.total_passengers,
-              'paid',
+              "paid",
               booking.schedule_id,
               booking.subschedule_id,
               booking.id,
               transaction,
               booking.transportBookings
             );
-            console.log(`Commission calculated successfully for booking ID: ${booking.id}:`, commissionResponse);
+            console.log(
+              `Commission calculated successfully for booking ID: ${booking.id}:`,
+              commissionResponse
+            );
           } catch (error) {
-            console.error(`Error calculating commission for booking ${booking.id}:`, error);
+            console.error(
+              `Error calculating commission for booking ${booking.id}:`,
+              error
+            );
             commissionResponse = {
               success: false,
               commission: 0,
-              error: error.message
+              error: error.message,
             };
           }
         } else {
           console.warn(`No agent linked to booking ID: ${booking.id}`);
         }
       } else {
-        console.log(`Booking ID: ${booking.id} not marked as 'paid'. No commission calculation needed.`);
+        console.log(
+          `Booking ID: ${booking.id} not marked as 'paid'. No commission calculation needed.`
+        );
       }
 
       results.push({
         booking_id: booking.id,
         agent_id: booking.agent_id,
         commission: commissionResponse.commission,
-        commission_status: commissionResponse.success ? 'Success' : 'Failed',
-        commission_error: commissionResponse.error
+        commission_status: commissionResponse.success ? "Success" : "Failed",
+        commission_error: commissionResponse.error,
       });
     }
 
@@ -441,29 +482,214 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
       message: `Transactions and related bookings updated successfully`,
       updated_transactions: uniqueTransactionIds,
       booking_results: results,
-      total_commissions: results.reduce((sum, result) => sum + result.commission, 0)
+      total_commissions: results.reduce(
+        (sum, result) => sum + result.commission,
+        0
+      ),
     });
-
   } catch (error) {
-    console.error('Error processing transactions:', error);
+    console.error("Error processing transactions:", error);
 
     await transaction.rollback();
 
     return res.status(500).json({
       success: false,
-      error: 'Failed to process transactions and bookings',
-      details: error.message
+      error: "Failed to process transactions and bookings",
+      details: error.message,
+    });
+  }
+};
+
+
+const updateMultiAgentTransactionStatus = async (req, res) => {
+  const {
+    transaction_ids,
+    status,
+    failure_reason,
+    refund_reason,
+    payment_method,
+    payment_gateway,
+    amount_in_usd,
+    exchange_rate,
+    amount,
+    currency,
+  } = req.body;
+
+  console.log("Starting updateMultiTransactionStatusHandler...");
+
+  // Validate transaction_ids array
+  if (!transaction_ids || !Array.isArray(transaction_ids) || transaction_ids.length === 0) {
+    console.error("Validation Error: transaction_ids must be a non-empty array");
+    return res.status(400).json({
+      success: false,
+      error: "transaction_ids must be a non-empty array",
+    });
+  }
+
+  const uniqueTransactionIds = [...new Set(transaction_ids)];
+  if (uniqueTransactionIds.length !== transaction_ids.length) {
+    console.error("Validation Error: Duplicate transaction IDs detected.");
+    return res.status(400).json({
+      success: false,
+      error: "Duplicate transaction IDs are not allowed",
+    });
+  }
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    console.log("Step 1: Verifying if all transactions exist and are updatable...");
+
+    // Fetch existing transactions and their statuses
+    const existingTransactions = await Transaction.findAll({
+      where: {
+        transaction_id: { [Op.in]: uniqueTransactionIds },
+      },
+      attributes: ["transaction_id", "booking_id", "status"],
+      transaction,
+    });
+
+    // Identify transactions that do not exist
+    const nonExistentTransactionIds = uniqueTransactionIds.filter(
+      (id) => !existingTransactions.map((t) => t.transaction_id).includes(id)
+    );
+
+    if (nonExistentTransactionIds.length > 0) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        error: "Some transaction IDs do not exist",
+        nonExistentTransactionIds,
+      });
+    }
+
+    // Identify transactions that are already "paid" or "invoiced"
+    const nonUpdatableTransactions = existingTransactions.filter(
+      (t) => t.status === "paid" || t.status === "invoiced"
+    );
+
+    if (nonUpdatableTransactions.length > 0) {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        error: 'Transactions with status "paid" or "invoiced" cannot be updated',
+        nonUpdatableTransactions: nonUpdatableTransactions.map((t) => t.transaction_id),
+      });
+    }
+
+    console.log("Step 2: Preparing data to update transactions...");
+    const updateData = {
+      status,
+      failure_reason: failure_reason || null,
+      refund_reason: refund_reason || null,
+      payment_method,
+      payment_gateway,
+      amount: amount ? parseFloat(amount) : null,
+      amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
+      exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
+      currency,
+    };
+
+    console.log("Updating transactions with data:", updateData);
+
+    // Update transactions
+    const updatedCount = await Transaction.update(updateData, {
+      where: { transaction_id: { [Op.in]: uniqueTransactionIds } },
+      transaction,
+    });
+
+    if (updatedCount[0] === 0) {
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        error: "No transactions were updated",
+      });
+    }
+
+    console.log("Step 4: Retrieving related bookings...");
+    const bookingIds = existingTransactions.map((t) => t.booking_id);
+    const bookings = await Booking.findAll({
+      where: { id: { [Op.in]: bookingIds } },
+      include: [{ model: TransportBooking, as: "transportBookings" }],
+      transaction,
+    });
+
+    const results = [];
+    for (const booking of bookings) {
+      let commissionResponse = { success: false, commission: 0 };
+
+      if (status === "paid" || status === "invoiced") {
+        console.log(`Updating booking payment status to '${status}' for booking ID: ${booking.id}`);
+
+        await Booking.update(
+          {
+            payment_status: status,
+            payment_method: payment_method || booking.payment_method,
+            expiration_time: null,
+          },
+          {
+            where: { id: booking.id },
+            transaction,
+          }
+        );
+
+        if (booking.agent_id) {
+          console.log(`Calculating commission for agent ID: ${booking.agent_id}, booking ID: ${booking.id}, with status: ${status}`);
+          
+          try {
+            commissionResponse = await updateAgentCommission(
+              booking.agent_id,
+              booking.gross_total,
+              booking.total_passengers,
+              status,
+              booking.schedule_id,
+              booking.subschedule_id,
+              booking.id,
+              transaction,
+              booking.transportBookings
+            );
+            console.log(`Commission calculated successfully for booking ID: ${booking.id}`, commissionResponse);
+          } catch (error) {
+            console.error(`Error calculating commission for booking ${booking.id}:`, error);
+            commissionResponse = { success: false, commission: 0, error: error.message };
+          }
+        }
+      }
+
+      results.push({
+        booking_id: booking.id,
+        agent_id: booking.agent_id,
+        commission: commissionResponse.commission,
+        commission_status: commissionResponse.success ? "Success" : "Failed",
+        commission_error: commissionResponse.error,
+      });
+    }
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: `Transactions and related bookings updated successfully`,
+      updated_transactions: uniqueTransactionIds,
+      booking_results: results,
+      total_commissions: results.reduce((sum, result) => sum + result.commission, 0),
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    return res.status(500).json({
+      success: false,
+      error: "Failed to process transactions and bookings",
+      details: error.message,
     });
   }
 };
 
 // Helper function to validate booking status
 const isValidBookingStatus = (status) => {
-  const validStatuses = ['pending', 'paid', 'cancelled', 'refunded'];
+  const validStatuses = ["pending", "paid", "cancelled", "refunded"];
   return validStatuses.includes(status);
 };
-
-
 
 // Your controller function here
 const updateTransactionStatusHandler = async (req, res) => {
@@ -481,31 +707,35 @@ const updateTransactionStatusHandler = async (req, res) => {
   } = req.body;
 
   if (!transaction_id) {
-    return res.status(400).json({ error: 'transaction_id parameter is required' });
+    return res
+      .status(400)
+      .json({ error: "transaction_id parameter is required" });
   }
 
   // Validasi status
-  const validStatuses = ['paid', 'pending', 'failed'];
+  const validStatuses = ["paid", "pending", "failed"];
   if (status && !validStatuses.includes(status)) {
     return res.status(400).json({
-      error: `Invalid status. Allowed statuses are: ${validStatuses.join(', ')}`,
+      error: `Invalid status. Allowed statuses are: ${validStatuses.join(
+        ", "
+      )}`,
     });
   }
 
   // Validasi data numerik
-  if (amount_in_usd && typeof amount_in_usd !== 'number') {
-    return res.status(400).json({ error: 'amount_in_usd must be a number' });
+  if (amount_in_usd && typeof amount_in_usd !== "number") {
+    return res.status(400).json({ error: "amount_in_usd must be a number" });
   }
-  if (exchange_rate && typeof exchange_rate !== 'number') {
-    return res.status(400).json({ error: 'exchange_rate must be a number' });
+  if (exchange_rate && typeof exchange_rate !== "number") {
+    return res.status(400).json({ error: "exchange_rate must be a number" });
   }
-  if (amount && typeof amount !== 'number') {
-    return res.status(400).json({ error: 'amount must be a number' });
+  if (amount && typeof amount !== "number") {
+    return res.status(400).json({ error: "amount must be a number" });
   }
 
   const transaction = await sequelize.transaction();
   try {
-    console.log('Step 1: Starting transaction');
+    console.log("Step 1: Starting transaction");
 
     // Pastikan transaksi ada dan belum berstatus "paid"
     const existingTransaction = await Transaction.findOne({
@@ -517,13 +747,15 @@ const updateTransactionStatusHandler = async (req, res) => {
       throw new Error(`Transaction with ID ${transaction_id} not found`);
     }
 
-    if (existingTransaction.status === 'paid') {
-      throw new Error(`Cannot update transaction with ID ${transaction_id} as it is already paid`);
+    if (existingTransaction.status === "paid") {
+      throw new Error(
+        `Cannot update transaction with ID ${transaction_id} as it is already paid`
+      );
     }
 
     // Persiapkan data yang akan diupdate
     const updateData = {
-      status: status || 'pending',
+      status: status || "pending",
       failure_reason: failure_reason || null,
       refund_reason: refund_reason || null,
       payment_method: payment_method || null,
@@ -534,32 +766,36 @@ const updateTransactionStatusHandler = async (req, res) => {
       currency: currency || null,
     };
 
-    console.log('Step 2: Data to update transaction:', updateData);
+    console.log("Step 2: Data to update transaction:", updateData);
 
     // Update the transaction details
-    console.log('Step 3: Updating transaction details');
+    console.log("Step 3: Updating transaction details");
     await updateTransactionStatus(transaction_id, updateData);
 
     // Find the related booking using booking_id from the transaction
-    console.log('Step 4: Finding related transaction');
+    console.log("Step 4: Finding related transaction");
     const booking = await Booking.findOne({
       where: { id: existingTransaction.booking_id },
-      include: [{ model: TransportBooking, as: 'transportBookings' }],
+      include: [{ model: TransportBooking, as: "transportBookings" }],
       transaction,
     });
 
     if (!booking) {
-      throw new Error(`Booking with ID ${existingTransaction.booking_id} not found`);
+      throw new Error(
+        `Booking with ID ${existingTransaction.booking_id} not found`
+      );
     }
 
     let commissionResponse = { success: false, commission: 0 };
 
     // If the transaction status is "paid", update booking and calculate commission
-    if (status === 'paid') {
-      console.log('Step 6: Updating booking payment status and stopping expiration time');
+    if (status === "paid") {
+      console.log(
+        "Step 6: Updating booking payment status and stopping expiration time"
+      );
       await Booking.update(
         {
-          payment_status: 'paid',
+          payment_status: "paid",
           payment_method: payment_method || booking.payment_method,
           expiration_time: null,
         },
@@ -568,12 +804,12 @@ const updateTransactionStatusHandler = async (req, res) => {
 
       // Calculate commission if booking is linked to an agent
       if (booking.agent_id) {
-        console.log('Step 7: Updating agent commission');
+        console.log("Step 7: Updating agent commission");
         commissionResponse = await updateAgentCommission(
           booking.agent_id,
           booking.gross_total,
           booking.total_passengers,
-          'paid',
+          "paid",
           booking.schedule_id,
           booking.subschedule_id,
           booking.id,
@@ -589,14 +825,15 @@ const updateTransactionStatusHandler = async (req, res) => {
       message: `Transaction ${transaction_id} and related booking updated successfully`,
       commission: commissionResponse.commission,
       agent_id: booking.agent_id,
-      success: commissionResponse.success ? 'Commission calculated successfully' : 'No commission calculated'
+      success: commissionResponse.success
+        ? "Commission calculated successfully"
+        : "No commission calculated",
     });
   } catch (error) {
     await transaction.rollback(); // Rollback transaction if any error occurs
     res.status(500).json({ error: error.message });
   }
 };
-
 
 const updateAgentTransactionStatusHandler = async (req, res) => {
   const { transaction_id } = req.params;
@@ -613,14 +850,12 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
     currency,
   } = req.body;
 
-  if (!transaction_id) {
-    return res.status(400).json({ error: 'transaction_id parameter is required' });
-  }
-
   const transaction = await sequelize.transaction();
-  try {
-    console.log('Starting transaction update');
 
+  try {
+    console.log("Starting transaction update for ID:", transaction_id);
+
+    // Retrieve the existing transaction
     const existingTransaction = await Transaction.findOne({
       where: { transaction_id },
       transaction,
@@ -630,63 +865,106 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
       throw new Error(`Transaction with ID ${transaction_id} not found`);
     }
 
-    let updateData = { status: existingTransaction.status };
-
-    if (status === 'invoiced' && existingTransaction.status !== 'paid') {
-      updateData.status = 'invoiced';
-    } else if (status === 'paid' && existingTransaction.status === 'invoiced') {
-      updateData.status = 'paid';
-    } else if (status !== 'invoiced' && status !== 'paid') {
-      throw new Error('Invalid transaction status');
+    if (existingTransaction.status === "paid") {
+      throw new Error(
+        `Cannot update transaction with ID ${transaction_id} as it is already paid`
+      );
     }
 
-    updateData = {
-      ...updateData,
+    // Prepare the data to update transaction
+    const updateData = {
+      status: status || "pending",
       failure_reason: failure_reason || null,
       refund_reason: refund_reason || null,
       payment_method: payment_method || null,
       payment_gateway: payment_gateway || null,
-      amount: amount || existingTransaction.amount,
-      amount_in_usd: amount_in_usd || existingTransaction.amount_in_usd,
-      exchange_rate: exchange_rate || existingTransaction.exchange_rate,
-      currency: currency || existingTransaction.currency,
+      amount: amount || null,
+      amount_in_usd: amount_in_usd || 0,
+      exchange_rate: exchange_rate || 0,
+      currency: currency || null,
     };
 
-    await Transaction.update(updateData, { where: { transaction_id }, transaction });
+    console.log("Updating transaction details:", updateData);
 
+    // Update the transaction details
+    await updateTransactionStatus(transaction_id, updateData);
+
+    // Find the related booking using booking_id from the transaction
     const booking = await Booking.findOne({
       where: { id: existingTransaction.booking_id },
+      include: [{ model: TransportBooking, as: "transportBookings" }],
       transaction,
     });
 
-    if (status === 'paid' || status === 'invoice') {
+    if (!booking) {
+      throw new Error(
+        `Booking with ID ${existingTransaction.booking_id} not found`
+      );
+    }
+
+    let commissionResponse = { success: false, commission: 0 };
+
+    // If the transaction status is "paid" or "invoiced", update booking and calculate commission
+    if (status === "paid" || status === "invoiced") {
+      console.log("Updating booking payment status for status:", status);
+
       await Booking.update(
         {
           payment_status: status,
           payment_method: payment_method || booking.payment_method,
-          expiration_time: status === 'invoice' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
+          expiration_time: null,
         },
         { where: { id: booking.id }, transaction }
       );
+
+      // Calculate commission if booking is linked to an agent
+      if (booking.agent_id) {
+        console.log("Calculating commission for agent ID:", booking.agent_id);
+        commissionResponse = await updateAgentCommission(
+          booking.agent_id,
+          booking.gross_total,
+          booking.total_passengers,
+          status,
+          booking.schedule_id,
+          booking.subschedule_id,
+          booking.id,
+          transaction,
+          booking.transportBookings
+        );
+      }
     }
 
-    await transaction.commit();
+    await transaction.commit(); // Commit transaction if successful
+
     res.status(200).json({
-      message: `Transaction ${transaction_id} updated successfully to ${status}`,
-      ...req.commissionResponse,  // Include commission response from middleware
+      message: `Transaction ${transaction_id} and related booking updated successfully`,
+      commission: commissionResponse.commission,
+      agent_id: booking.agent_id,
+      success: commissionResponse.success
+        ? "Commission calculated successfully"
+        : "No commission calculated",
     });
   } catch (error) {
-    await transaction.rollback();
+    await transaction.rollback(); // Rollback transaction if any error occurs
     res.status(500).json({ error: error.message });
   }
 };
 
 
 
+
+
 // Controller to fetch transactions with filters and pagination
 const getTransactions = async (req, res) => {
   try {
-    const { date, month, year, page = 1, limit = 10, payment_status } = req.query;
+    const {
+      date,
+      month,
+      year,
+      page = 1,
+      limit = 10,
+      payment_status,
+    } = req.query;
 
     // Initialize filter conditions as an empty object
     const filterConditions = {};
@@ -732,7 +1010,7 @@ const getTransactions = async (req, res) => {
       where: hasFilters ? filterConditions : {}, // If no filters, pass an empty condition to fetch all data
       limit: parseInt(limit), // Limit per page
       offset: parseInt(offset), // Offset for pagination
-      order: [['transaction_date', 'DESC']], // Order by transaction date descending
+      order: [["transaction_date", "DESC"]], // Order by transaction date descending
     });
 
     // Return the transactions with pagination info
@@ -747,11 +1025,13 @@ const getTransactions = async (req, res) => {
   }
 };
 
-
-
-
-module.exports = { updateTransactionStatusHandler,updateMultiTransactionStatusHandler, getTransactions,updateAgentTransactionStatusHandler };
-
+module.exports = {
+  updateTransactionStatusHandler,
+  updateMultiAgentTransactionStatus,
+  updateMultiTransactionStatusHandler,
+  getTransactions,
+  updateAgentTransactionStatusHandler,
+};
 
 // Controller to handle updating transaction status and other details
 // const updateTransactionStatusHandler = async (req, res) => {
