@@ -11,6 +11,8 @@ const transitController = require('../controllers/transitController');
 
 /// CREATE schedule with transits
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
+
+// for availabilty seat table
 router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);
 
 

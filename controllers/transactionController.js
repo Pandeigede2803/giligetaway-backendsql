@@ -597,6 +597,92 @@ const updateTransactionStatusHandler = async (req, res) => {
   }
 };
 
+
+const updateAgentTransactionStatusHandler = async (req, res) => {
+  const { transaction_id } = req.params;
+  const {
+    status,
+    booking_status,
+    failure_reason,
+    refund_reason,
+    payment_method,
+    payment_gateway,
+    amount_in_usd,
+    exchange_rate,
+    amount,
+    currency,
+  } = req.body;
+
+  if (!transaction_id) {
+    return res.status(400).json({ error: 'transaction_id parameter is required' });
+  }
+
+  const transaction = await sequelize.transaction();
+  try {
+    console.log('Starting transaction update');
+
+    const existingTransaction = await Transaction.findOne({
+      where: { transaction_id },
+      transaction,
+    });
+
+    if (!existingTransaction) {
+      throw new Error(`Transaction with ID ${transaction_id} not found`);
+    }
+
+    let updateData = { status: existingTransaction.status };
+
+    if (status === 'invoiced' && existingTransaction.status !== 'paid') {
+      updateData.status = 'invoiced';
+    } else if (status === 'paid' && existingTransaction.status === 'invoiced') {
+      updateData.status = 'paid';
+    } else if (status !== 'invoiced' && status !== 'paid') {
+      throw new Error('Invalid transaction status');
+    }
+
+    updateData = {
+      ...updateData,
+      failure_reason: failure_reason || null,
+      refund_reason: refund_reason || null,
+      payment_method: payment_method || null,
+      payment_gateway: payment_gateway || null,
+      amount: amount || existingTransaction.amount,
+      amount_in_usd: amount_in_usd || existingTransaction.amount_in_usd,
+      exchange_rate: exchange_rate || existingTransaction.exchange_rate,
+      currency: currency || existingTransaction.currency,
+    };
+
+    await Transaction.update(updateData, { where: { transaction_id }, transaction });
+
+    const booking = await Booking.findOne({
+      where: { id: existingTransaction.booking_id },
+      transaction,
+    });
+
+    if (status === 'paid' || status === 'invoice') {
+      await Booking.update(
+        {
+          payment_status: status,
+          payment_method: payment_method || booking.payment_method,
+          expiration_time: status === 'invoice' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
+        },
+        { where: { id: booking.id }, transaction }
+      );
+    }
+
+    await transaction.commit();
+    res.status(200).json({
+      message: `Transaction ${transaction_id} updated successfully to ${status}`,
+      ...req.commissionResponse,  // Include commission response from middleware
+    });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
 // Controller to fetch transactions with filters and pagination
 const getTransactions = async (req, res) => {
   try {
@@ -664,7 +750,7 @@ const getTransactions = async (req, res) => {
 
 
 
-module.exports = { updateTransactionStatusHandler,updateMultiTransactionStatusHandler, getTransactions };
+module.exports = { updateTransactionStatusHandler,updateMultiTransactionStatusHandler, getTransactions,updateAgentTransactionStatusHandler };
 
 
 // Controller to handle updating transaction status and other details

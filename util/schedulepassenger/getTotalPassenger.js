@@ -18,7 +18,7 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
           booking_date: {
             [Op.eq]: date
           },
-          payment_status: 'paid' // Hanya menghitung bookings dengan payment_status 'paid'
+          payment_status: ['paid','invoiced'] // Hanya menghitung bookings dengan payment_status 'paid' dan 'invoiced'
         },
         attributes: ['total_passengers'] // Hanya mengambil field total_passengers
       });
