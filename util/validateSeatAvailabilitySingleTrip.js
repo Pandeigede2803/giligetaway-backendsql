@@ -1,14 +1,8 @@
 const { SeatAvailability } = require('../models');
 const { Op } = require('sequelize');
 
-/**
- * Validasi ketersediaan seat dari single trip yang diberikan
- * @param {Number} schedule_id - Schedule ID untuk trip
- * @param {Number} subschedule_id - SubSchedule ID (bisa null jika tidak ada sub-schedule)
- * @param {Date} booking_date - Tanggal pemesanan
- * @param {Number} total_passengers - Total penumpang untuk trip tersebut
- * @returns {Object} Result dari validasi, termasuk detail seat availability atau pesan error
- */
+
+
 const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, booking_date, total_passengers) => {
   try {
     // Step 1: Log the input data
@@ -31,9 +25,11 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
     // Step 3: Check if seat availability is found
     if (!seatAvailability) {
       console.warn('No seat availability data found for the provided schedule and subschedule.');
+      // Return a neutral response without proceeding to block booking
       return {
-        success: false,
-        message: 'No seat availability found for the provided schedule and subschedule. Proceeding with booking is not possible.',
+        success: true,
+        seatAvailability: null,
+        message: 'No seat availability found, proceeding without it.',
       };
     }
 
