@@ -17,9 +17,10 @@ router.post('/paypal/capture-order', paymentController.handlePayPalReturn);
 
 
 // Route to create a MidTrans transaction
-router.post('/midtrans/create-transaction-link', validateMidtransPaymentMethod, paymentController.createMidtransTransactionLink);
+// router.post('/midtrans/create-transaction-link', validateMidtransPaymentMethod, paymentController.createMidtransTransactionLink);
+router.post('/midtrans/create-transaction-link',validateMidtransPaymentMethod,  paymentController.generateMidtransLink);
 // Route to create a MidTrans transaction
-router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentController.createMidtransMulti);
-
+// router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentController.createMidtransMulti);
+router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentController.generateSingleMidtransLink);
 
 module.exports = router;
