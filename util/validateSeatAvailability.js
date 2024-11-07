@@ -10,19 +10,22 @@ const { Op } = require('sequelize');
  */
 
 
-
 const validateSeatAvailability = async (trips, total_passengers) => {
   try {
     // Step 1: Log the trips and total passengers received
     console.log('Trips received:', trips);
     console.log('Total passengers:', total_passengers);
 
-    // Step 2: Map the trip details
-    const tripDetails = trips.map((trip) => ({
-      schedule_id: trip.schedule_id,
-      subschedule_id: trip.subschedule_id || null,
-      booking_date: trip.booking_date,
-    }));
+    // Step 2: Map the trip details, setting subschedule_id to null if it's "N/A" or null
+    const tripDetails = trips.map((trip) => {
+      const tripDetail = {
+        schedule_id: trip.schedule_id,
+        booking_date: trip.booking_date,
+        subschedule_id: trip.subschedule_id === 'N/A' || trip.subschedule_id === null ? null : trip.subschedule_id,
+      };
+
+      return tripDetail;
+    });
     console.log('Mapped trip details:', tripDetails);
 
     // Step 3: Find seat availability for each trip
@@ -30,8 +33,8 @@ const validateSeatAvailability = async (trips, total_passengers) => {
       where: {
         [Op.or]: tripDetails.map((trip) => ({
           schedule_id: trip.schedule_id,
-          subschedule_id: trip.subschedule_id, // null subschedule_id is okay
           date: trip.booking_date,
+          ...(trip.subschedule_id ? { subschedule_id: trip.subschedule_id } : {}),
         })),
       },
     });
@@ -48,16 +51,14 @@ const validateSeatAvailability = async (trips, total_passengers) => {
     }
 
     // Step 5: Calculate total seat availability
-    const totalSeatsAvailable = seatAvailabilities.reduce((total, seat) => {
-      return total + seat.available_seats;
-    }, 0);
+    const totalSeatsAvailable = seatAvailabilities.reduce((total, seat) => total + seat.available_seats, 0);
     console.log('Total seats available:', totalSeatsAvailable);
 
     // Step 6: Check if available seats are less than total passengers
     if (totalSeatsAvailable < total_passengers) {
-      console.error('Kursi tidak mencukupi untuk jumlah penumpang. Diperlukan:', total_passengers, 'Tersedia:', totalSeatsAvailable);
+      console.error('Insufficient seats for the number of passengers. Required:', total_passengers, 'Available:', totalSeatsAvailable);
       return {
-        error: 'Kursi tidak mencukupi untuk jumlah penumpang. Silakan periksa kembali.',
+        error: 'Insufficient seats for the number of passengers. Please check again.',
         availableSeats: totalSeatsAvailable,
       };
     }
