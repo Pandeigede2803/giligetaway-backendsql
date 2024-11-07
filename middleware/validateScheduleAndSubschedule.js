@@ -16,8 +16,8 @@ const validateScheduleAndSubSchedule = async (req, res, next) => {
     }
     console.log(`Validation passed: schedule_id ${schedule_id} exists in the Schedule table.`);
 
-    // Step 2: If subschedule_id is provided, validate it and ensure it matches the given schedule_id
-    if (subschedule_id) {
+    // Step 2: If subschedule_id is provided and is not null or "N/A", validate it
+    if (subschedule_id && subschedule_id !== 'N/A' && subschedule_id !== null) {
       const subSchedule = await SubSchedule.findOne({
         where: {
           id: subschedule_id,
@@ -32,7 +32,7 @@ const validateScheduleAndSubSchedule = async (req, res, next) => {
 
       console.log(`Validation passed: subschedule_id ${subschedule_id} is correctly associated with schedule_id ${schedule_id}.`);
     } else {
-      console.log('No subschedule_id provided; skipping subschedule validation.');
+      console.log('No valid subschedule_id provided (null or "N/A"); skipping subschedule validation.');
     }
 
     // If all validations pass, proceed to the next middleware or route handler
