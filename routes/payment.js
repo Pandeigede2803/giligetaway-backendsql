@@ -4,7 +4,7 @@ const paymentController = require('../controllers/paymentController');
 const { validateMidtransPaymentMethod, validatePayPalPaymentMethod,
     validateMidtransPaymentMethodMulti, validatePayPalPaymentMethodMulti
  } = require('../middleware/paymentValidation');
-
+const {handleMidtransNotification} = require('../controllers/paymentController');
 // Route to create a MidTrans transaction
 router.post('/midtrans/create-transaction',validateMidtransPaymentMethod, paymentController.createMidtransTransaction);
 router.post('/midtrans/create-transaction-multi',validateMidtransPaymentMethodMulti, paymentController.createMidtransTransactionMulti);
@@ -22,5 +22,9 @@ router.post('/midtrans/create-transaction-link',validateMidtransPaymentMethod,  
 // Route to create a MidTrans transaction
 // router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentController.createMidtransMulti);
 router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentController.generateSingleMidtransLink);
+
+// Rute untuk menerima notifikasi dari Midtrans
+router.post('/midtrans-notification', handleMidtransNotification);
+
 
 module.exports = router;

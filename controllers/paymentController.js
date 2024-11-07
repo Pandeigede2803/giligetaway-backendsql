@@ -23,6 +23,47 @@ function formatDateToMidtrans(date) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0700`;
 }
 
+const handleMidtransNotification = async (req, res) => {
+  try {
+    const notification = req.body; // Data notifikasi dari Midtrans
+
+    // Tampilkan data notifikasi di console untuk debugging
+    console.log('Notifikasi dari Midtrans:');
+    console.log('Status transaksi:', notification.transaction_status);
+    console.log('Transaction ID:', notification.transaction_id);
+    console.log('Order ID:', notification.order_id);
+    console.log('Jumlah total:', notification.gross_amount);
+
+    // Proses status transaksi berdasarkan `transaction_status`
+    switch (notification.transaction_status) {
+      case 'settlement':
+        // Pembayaran berhasil
+        console.log(`Transaksi dengan Order ID: ${notification.order_id} berhasil.`);
+        break;
+      case 'pending':
+        // Pembayaran menunggu
+        console.log(`Transaksi dengan Order ID: ${notification.order_id} masih menunggu.`);
+        break;
+      case 'cancel':
+      case 'expire':
+        // Pembayaran dibatalkan atau kadaluarsa
+        console.log(`Transaksi dengan Order ID: ${notification.order_id} dibatalkan atau kadaluarsa.`);
+        break;
+      case 'deny':
+        // Pembayaran ditolak
+        console.log(`Transaksi dengan Order ID: ${notification.order_id} ditolak.`);
+        break;
+      default:
+        console.log(`Status transaksi tidak dikenal: ${notification.transaction_status}`);
+    }
+
+    // Setelah diproses, kirim respons sukses ke Midtrans
+    res.status(200).json({ message: 'Notifikasi diterima', transactionId: notification.transaction_id });
+  } catch (error) {
+    console.error('Error menangani notifikasi Midtrans:', error);
+    res.status(500).json({ message: 'Terjadi kesalahan saat memproses notifikasi', error: error.message });
+  }
+};
 const generateSingleMidtransLink = async (req, res) => {
   try {
       const { bookings, transactions, transports } = req.body;
@@ -82,7 +123,7 @@ const generateSingleMidtransLink = async (req, res) => {
       // Use transaction ID from the first transaction for order_id
       const primaryTransaction = transactions[0];
       const transactionDetails = {
-          order_id: `${primaryTransaction.transaction_id}-${Date.now()}`, // Unique order_id
+          order_id: `${primaryTransaction.transaction_id}`, // Unique order_id
           gross_amount: grossAmount, // Total amount based on item details
       };
       console.log("Transaction Details:", transactionDetails);
@@ -476,6 +517,6 @@ module.exports = {
   handlePayPalReturn,
   createMidtransTransactionMulti,
   generateMidtransLink,
-  createMidtransMulti,generateSingleMidtransLink
+  createMidtransMulti,generateSingleMidtransLink,handleMidtransNotification
 
 };

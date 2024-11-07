@@ -23,8 +23,8 @@ const validateTrips = async (req, res, next) => {
       }
       console.log(`Validation passed: schedule_id ${schedule_id} exists in the Schedule table.`);
 
-      // Step 2: If subschedule_id is provided and is not null or "N/A", validate it
-      if (subschedule_id && subschedule_id !== 'N/A' && subschedule_id !== null) {
+      // Step 2: If subschedule_id is provided and valid, validate it
+      if (subschedule_id !== undefined && subschedule_id !== 'N/A' && subschedule_id !== null) {
         const subSchedule = await SubSchedule.findOne({
           where: {
             id: subschedule_id,
@@ -39,7 +39,7 @@ const validateTrips = async (req, res, next) => {
 
         console.log(`Validation passed: subschedule_id ${subschedule_id} is correctly associated with schedule_id ${schedule_id}.`);
       } else {
-        console.log('No valid subschedule_id provided (null or "N/A"); skipping subschedule validation.');
+        console.log('No valid subschedule_id provided (undefined, null, or "N/A"); skipping subschedule validation.');
       }
     }
 
@@ -51,5 +51,8 @@ const validateTrips = async (req, res, next) => {
     return res.status(500).json({ error: 'Internal server error during validation.' });
   }
 };
+
+
+
 
 module.exports = validateTrips;

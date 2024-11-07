@@ -18,10 +18,9 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
       },
     };
 
-    // Set subschedule_id to null if it is "N/A" or null, and include it in the query if valid
-    const normalizedSubScheduleId = subschedule_id === 'N/A' || subschedule_id === null ? null : subschedule_id;
-    if (normalizedSubScheduleId !== null) {
-      seatAvailabilityQuery.where.subschedule_id = normalizedSubScheduleId;
+    // Only include subschedule_id in the query if it's provided and valid
+    if (subschedule_id !== undefined && subschedule_id !== 'N/A' && subschedule_id !== null) {
+      seatAvailabilityQuery.where.subschedule_id = subschedule_id;
     }
 
     // Step 3: Find seat availability with the constructed query
