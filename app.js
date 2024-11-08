@@ -3,31 +3,18 @@ const bodyParser = require('body-parser');
 const sequelize = require('./config/database');
 const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
-
-// Middleware dan route configuration lainnya...
-
-
-
-// Load environment variables
-// require('dotenv').config();
-
-// Konfigurasi kebijakan CORS
-// const corsOptions = {
-//   origin: process.env.CORS_ORIGIN, // Menggunakan variabel lingkungan
-//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-//   allowedHeaders: 'Content-Type,Authorization',
-// };
-
-// konfigurasi cors 2 domain
+const { initWebSocketServer } = require('./config/websocket'); // Import fungsi WebSocket
+const http = require('http');
+// Konfigurasi CORS
 const corsOptions = {
   origin: (origin, callback) => {
-    const allowedDomains = [process.env.CORS_ORIGIN_1, process.env.CORS_ORIGIN_2]; // Mengambil dua domain dari variabel lingkungan
+    const allowedDomains = [process.env.CORS_ORIGIN_1, process.env.CORS_ORIGIN_2];
     if (allowedDomains.indexOf(origin) !== -1 || !origin) {
       console.log(`CORS allowed from: ${origin}`);
-      callback(null, true); // Mengizinkan jika origin cocok atau tidak ada origin (untuk request dari same-origin)
+      callback(null, true);
     } else {
       console.log(`CORS blocked from: ${origin}`);
-      callback(new Error('Not allowed by CORS')); // Menolak jika origin tidak ada di daftar
+      callback(new Error('Not allowed by CORS'));
     }
   },
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -35,10 +22,9 @@ const corsOptions = {
 };
 
 const app = express();
-
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); // Middleware to parse URL-encoded form data
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
 const userRoutes = require('./routes/user');
@@ -59,7 +45,6 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const emailRoutes = require('./routes/email');
 const paymentRoutes = require('./routes/payment');
 
-
 // Load routes
 app.use('/api/users', userRoutes);
 app.use('/api/boats', boatRoutes);
@@ -73,21 +58,17 @@ app.use('/api/passengers', passengerRoutes);
 app.use('/api/transport-bookings', transportBookingRoutes);
 app.use('/api/subschedule', subscheduleRoutes);
 app.use('/api/agent-metrics', agentMetricsRouter);
-// Use the seatAvailability routes
 app.use('/api/seat', seatAvailabilityRoutes);
-
-app.use('/api/booking-seat',bookingSeatAvailability);
+app.use('/api/booking-seat', bookingSeatAvailability);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/payment', paymentRoutes);
-
-//api/agents/reset-password
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
 });
 
-// Middleware untuk menangani semua error harus diletakkan setelah semua route handlers
+// Middleware untuk menangani semua error
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send({
@@ -96,18 +77,26 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+
+// Inisialisasi server HTTP
+const server = http.createServer(app);
+
+// Inisialisasi WebSocket server dengan menggunakan server HTTP
+initWebSocketServer(server);
+
+// Mulai server pada port yang ditentukan
 const PORT = process.env.PORT || 8000;
 
 sequelize.sync()
   .then(() => {
     console.log('Connected to the database');
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {  // Ganti app.listen dengan server.listen
       console.log(`YAY Server is running on port ${PORT}`);
-
-      // Jalankan cron job saat server dimulai
-      cronJobs.handleExpiredBookings();
+      cronJobs.handleExpiredBookings(); // Jalankan cron job saat server dimulai
     });
   })
   .catch(err => {
     console.error('Unable to connect to the database:', err);
   });
+

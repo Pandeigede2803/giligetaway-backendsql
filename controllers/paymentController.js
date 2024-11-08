@@ -9,6 +9,8 @@ const {
 } = require("../util/payment/generateMidtransLink");
 const base64 = require('base-64');
 const fetch = require('node-fetch');
+// controllers/paymentController.js
+const { broadcast } = require('../config/websocket'); // Mengimpor broadcast dari websocket.js
 
 // Controller to Generate Midtrans Payment Link
 
@@ -23,41 +25,52 @@ function formatDateToMidtrans(date) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0700`;
 }
 
+
 const handleMidtransNotification = async (req, res) => {
   try {
-    const notification = req.body; // Data notifikasi dari Midtrans
+    const notification = req.body;
 
-    // Tampilkan data notifikasi di console untuk debugging
     console.log('Notifikasi dari Midtrans:');
     console.log('Status transaksi:', notification.transaction_status);
     console.log('Transaction ID:', notification.transaction_id);
     console.log('Order ID:', notification.order_id);
     console.log('Jumlah total:', notification.gross_amount);
 
-    // Proses status transaksi berdasarkan `transaction_status`
+    // Proses status transaksi
+    let message;
     switch (notification.transaction_status) {
       case 'settlement':
-        // Pembayaran berhasil
-        console.log(`Transaksi dengan Order ID: ${notification.order_id} berhasil.`);
+        message = `Transaksi dengan Order ID: ${notification.order_id} berhasil.`;
+        console.log(message);
         break;
       case 'pending':
-        // Pembayaran menunggu
-        console.log(`Transaksi dengan Order ID: ${notification.order_id} masih menunggu.`);
+        message = `Transaksi dengan Order ID: ${notification.order_id} masih menunggu.`;
+        console.log(message);
         break;
       case 'cancel':
       case 'expire':
-        // Pembayaran dibatalkan atau kadaluarsa
-        console.log(`Transaksi dengan Order ID: ${notification.order_id} dibatalkan atau kadaluarsa.`);
+        message = `Transaksi dengan Order ID: ${notification.order_id} dibatalkan atau kadaluarsa.`;
+        console.log(message);
         break;
       case 'deny':
-        // Pembayaran ditolak
-        console.log(`Transaksi dengan Order ID: ${notification.order_id} ditolak.`);
+        message = `Transaksi dengan Order ID: ${notification.order_id} ditolak.`;
+        console.log(message);
         break;
       default:
-        console.log(`Status transaksi tidak dikenal: ${notification.transaction_status}`);
+        message = `Status transaksi tidak dikenal: ${notification.transaction_status}`;
+        console.log(message);
     }
 
-    // Setelah diproses, kirim respons sukses ke Midtrans
+    // Kirim notifikasi ke klien melalui WebSocket
+    broadcast({
+      orderId: notification.order_id,
+      transactionStatus: notification.transaction_status,
+      transactionId: notification.transaction_id,
+      grossAmount: notification.gross_amount,
+      message,
+    });
+
+    // Kirim respons sukses ke Midtrans
     res.status(200).json({ message: 'Notifikasi diterima', transactionId: notification.transaction_id });
   } catch (error) {
     console.error('Error menangani notifikasi Midtrans:', error);
