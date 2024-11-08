@@ -401,7 +401,7 @@ module.exports = {
     handleSubScheduleBooking,
     findRelatedSubSchedules,
     findRelatedSubSchedulesGet
-};
+};;
 
 
 // const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
