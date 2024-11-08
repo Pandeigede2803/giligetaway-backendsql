@@ -17,7 +17,7 @@ function initWebSocketServer(server) {
   console.log('WebSocket server initialized');
 }
 
-// Fungsi broadcast untuk mengirim data ke semua klien WebSocket
+// Fungsi broadcast untuk mengirim data ke semua klien WebSocket`
 function broadcast(data) {
   if (!wss) {
     console.error('WebSocket server belum diinisialisasi.');

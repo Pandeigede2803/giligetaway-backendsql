@@ -23,7 +23,7 @@ const getDayNamesFromBitmask = (bitmask) => {
       }
     }
   
-    return selectedDays;
+    return selectedDays;;
   };
 const formatSchedulesSimple = (schedules) => {
   console.log("this is formatSchedulesSimple", schedules);
