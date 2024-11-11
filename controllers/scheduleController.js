@@ -783,7 +783,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       where: {
         destination_from_id: from,
         destination_to_id: to,
-        availability: true,
+        availability: 1,
         validity_start: { [Op.lte]: selectedDate },
         validity_end: { [Op.gte]: selectedDate },
         [Op.and]: sequelize.literal(
@@ -1008,7 +1008,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         where: {
           schedule_id: schedule.id,
           date: selectedDate,
-          availability: true,
+          availability: 1,
           available_seats: { [Op.gte]: passengers_total },
         },
       });
