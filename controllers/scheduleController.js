@@ -841,6 +841,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     // Fetch SubSchedules
     const subSchedules = await SubSchedule.findAll({
       where: {
+        availability: true,
         [Op.and]: [
           {
             [Op.or]: [
