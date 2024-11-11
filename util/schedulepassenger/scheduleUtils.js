@@ -14,6 +14,7 @@ const getSchedulesWithSubSchedules2 = async (Schedule, SubSchedule, Destination,
     // Fetch all schedules and sub-schedules valid within the month for the specified boat_id
     const schedules = await Schedule.findAll({
       where: {
+        availability: true,
         boat_id: boat_id,
         [Op.or]: [
           {
@@ -27,6 +28,7 @@ const getSchedulesWithSubSchedules2 = async (Schedule, SubSchedule, Destination,
           model: SubSchedule,
           as: 'SubSchedules',
           where: {
+            availability: true,
             [Op.or]: [
               {
                 validity_start: { [Op.lte]: lastDate },
