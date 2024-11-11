@@ -13,11 +13,14 @@ const { uploadImageToImageKit } = require("../middleware/upload");
 const { Op } = require("sequelize");
 const buildSearchConditions = require("../util/buildSearchCondition");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
-const { buildRouteFromSchedule2 } =require("../util/schedulepassenger/buildRouteFromSchedule");
-const { getScheduleAndSubScheduleByDate } = require('../util/scheduleUtils');
-const { fn, col } = require('sequelize');
-const { getSchedulesWithSubSchedules2 } = require('../util/schedulepassenger/scheduleUtils');
-
+const {
+  buildRouteFromSchedule2,
+} = require("../util/schedulepassenger/buildRouteFromSchedule");
+const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
+const { fn, col } = require("sequelize");
+const {
+  getSchedulesWithSubSchedules2,
+} = require("../util/schedulepassenger/scheduleUtils");
 
 const {
   formatSchedules,
@@ -30,10 +33,11 @@ const {
   getDayNamesFromBitmask,
 } = require("../util/formatUtilsSimple");
 const { getSubScheduleInclude } = require("../util/formattedData2");
-const {getTotalPassengers} = require("../util/schedulepassenger/getTotalPassenger");
+const {
+  getTotalPassengers,
+} = require("../util/schedulepassenger/getTotalPassenger");
 
 // Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
-
 
 const isDayAvailable = (date, daysOfWeek) => {
   const dayOfWeek = new Date(date).getDay(); // Dapatkan hari dalam minggu (0 untuk Minggu, 1 untuk Senin, dst.)
@@ -43,13 +47,11 @@ const getDaysInMonth = (month, year) => {
   const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
   return Array.from({ length: daysInMonth }, (_, i) => {
     const day = i + 1;
-    const monthString = String(month).padStart(2, '0');
-    const dayString = String(day).padStart(2, '0');
+    const monthString = String(month).padStart(2, "0");
+    const dayString = String(day).padStart(2, "0");
     return `${year}-${monthString}-${dayString}`; // Format date as 'YYYY-MM-DD'
   });
 };
-
-
 
 const getAllSchedulesWithSubSchedules = async (req, res) => {
   const { month, year, boat_id } = req.query;
@@ -57,7 +59,8 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
   if (!month || !year || !boat_id) {
     return res.status(400).json({
       success: false,
-      message: 'Please provide month, year, and boat_id in the query parameters.',
+      message:
+        "Please provide month, year, and boat_id in the query parameters.",
     });
   }
 
@@ -75,7 +78,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     if (!schedules || schedules.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'No schedules found for the given month and boat_id.'
+        message: "No schedules found for the given month and boat_id.",
       });
     }
 
@@ -89,7 +92,11 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
 
       for (const schedule of schedules) {
         // Fetch the total passengers for this schedule on the given date
-        const totalPassengersForSchedule = await getTotalPassengers(schedule.id, null, date);
+        const totalPassengersForSchedule = await getTotalPassengers(
+          schedule.id,
+          null,
+          date
+        );
 
         // Push the main schedule for each day with total_passengers
         results.push({
@@ -99,12 +106,16 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
           subschedule_id: null,
           total_passengers: totalPassengersForSchedule, // Insert total passengers
           route: buildRouteFromSchedule2(schedule, null),
-          days_of_week: schedule.days_of_week
+          days_of_week: schedule.days_of_week,
         });
 
         // Iterate through each sub-schedule and fetch total passengers for it
         for (const subSchedule of schedule.SubSchedules) {
-          const totalPassengersForSubSchedule = await getTotalPassengers(subSchedule.schedule_id, subSchedule.id, date);
+          const totalPassengersForSubSchedule = await getTotalPassengers(
+            subSchedule.schedule_id,
+            subSchedule.id,
+            date
+          );
 
           results.push({
             seatavailability_id: null,
@@ -113,7 +124,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
             subschedule_id: subSchedule.id,
             total_passengers: totalPassengersForSubSchedule, // Insert total passengers
             route: buildRouteFromSchedule2(schedule, subSchedule),
-            days_of_week: subSchedule.days_of_week
+            days_of_week: subSchedule.days_of_week,
           });
         }
       }
@@ -121,17 +132,16 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: results
+      data: results,
     });
   } catch (error) {
-    console.error('Error fetching schedules with sub-schedules:', error);
+    console.error("Error fetching schedules with sub-schedules:", error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to fetch schedules for the specified month and boat.'
+      message: "Failed to fetch schedules for the specified month and boat.",
     });
   }
 };
-
 
 // const getScheduleSubschedule = async (req, res) => {
 //   const { boat_id } = req.query;
@@ -352,6 +362,28 @@ const getScheduleSubschedule = async (req, res) => {
       logging: console.log,
     });
 
+    const calculateJourneyTime = (departure, arrival) => {
+      if (departure && arrival) {
+        const [depHours, depMinutes] = departure.split(":").map(Number);
+        const [arrHours, arrMinutes] = arrival.split(":").map(Number);
+    
+        const departureInMinutes = depHours * 60 + depMinutes;
+        const arrivalInMinutes = arrHours * 60 + arrMinutes;
+    
+        let difference = arrivalInMinutes - departureInMinutes;
+    
+        // Handle overnight trips (e.g., departure 23:00, arrival 02:00)
+        if (difference < 0) difference += 24 * 60; // Add 24 hours in minutes
+    
+        // Convert total minutes to hours and minutes
+        const hours = Math.floor(difference / 60);
+        const minutes = difference % 60;
+    
+        // Format as HH:mm (e.g., 2 hours 0 minutes becomes "02:00")
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+      }
+      return "N/A"; // Return "N/A" if either time is missing
+    };
     // Format schedules and sub-schedules
     const formattedSchedules = schedules.map((schedule) => {
       const boat_name = schedule.Boat?.boat_name || "N/A";
@@ -388,11 +420,10 @@ const getScheduleSubschedule = async (req, res) => {
       const formattedSubSchedules =
         scheduleSubSchedules.length > 0
           ? scheduleSubSchedules.map((subSchedule) => {
-
               const lastTransit = schedule.Transits
                 ? schedule.Transits[schedule.Transits.length - 1]
                 : null;
-                console.log(`Using lastTransit: ${lastTransit}`);
+              console.log(`Using lastTransit: ${lastTransit}`);
 
               // Get timing data
               const departure_time = subSchedule.departure_time
@@ -419,18 +450,12 @@ const getScheduleSubschedule = async (req, res) => {
                 ? schedule.arrival_time
                 : lastTransit?.arrival_time
                 ? lastTransit.arrival_time
-               
                 : "N/A";
-
-              const journey_time = subSchedule.journey_time
-                ? subSchedule.journey_time
-                : subSchedule.TransitTo?.journey_time
-                ? subSchedule.TransitTo.journey_time
-                : lastTransit?.journey_time
-                ? lastTransit.journey_time
-                : schedule.journey_time
-                ? schedule.journey_time
-                : "N/A";
+              // Calculate journey time if both departure and arrival times are available
+              const journey_time =
+                departure_time !== "N/A" && arrival_time !== "N/A"
+                  ? calculateJourneyTime(departure_time, arrival_time)
+                  : "N/A";
 
               return {
                 id: subSchedule.id,
@@ -885,7 +910,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
           include: {
             model: Destination,
@@ -902,7 +927,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
 
           include: {
@@ -921,7 +946,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
           include: {
             model: Destination,
@@ -938,7 +963,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
           include: {
             model: Destination,
@@ -955,7 +980,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
           include: {
             model: Destination,
@@ -972,7 +997,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "departure_time",
             "arrival_time",
             "journey_time",
-            "check_in_time"
+            "check_in_time",
           ],
           include: {
             model: Destination,
@@ -989,7 +1014,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             "check_in_time",
             "arrival_time",
             "journey_time",
-            
           ],
           include: [
             {
@@ -1085,10 +1109,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     });
   }
 };
-
-
-
-
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
