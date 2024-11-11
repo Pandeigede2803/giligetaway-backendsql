@@ -44,7 +44,7 @@ const bookingSeatAvailability = require('./routes/bookingSeatAvailability');
 const transactionRoutes = require('./routes/transactionRoutes');
 const emailRoutes = require('./routes/email');
 const paymentRoutes = require('./routes/payment');
-
+const agentComission = require('./routes/agentComission');
 // Load routes
 app.use('/api/users', userRoutes);
 app.use('/api/boats', boatRoutes);
@@ -53,6 +53,7 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/transports', transportRoutes);
 app.use('/api/transits', transitRoutes);
 app.use('/api/agents', agentRoutes);
+app.use('/api/agentsv2', agentComission);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/passengers', passengerRoutes);
 app.use('/api/transport-bookings', transportBookingRoutes);
