@@ -55,7 +55,7 @@ const {
                         'id', 'contact_name', 'contact_phone', 'contact_email',
                         'schedule_id', 'subschedule_id', 'gross_total', 'currency', 'payment_status','payment_method',
                         'booking_date', 'total_passengers', 'adult_passengers', 
-                        'child_passengers', 'infant_passengers'
+                        'child_passengers', 'infant_passengers','ticket_id','booking_source'
                     ],
                     include: [
                         {
