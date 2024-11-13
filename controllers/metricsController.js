@@ -115,7 +115,6 @@ const getMetrics = async (req, res) => {
     });
 
     // Previous period filter
-  
 
     // Previous metrics calculations
     const previousAverageOrderValue = await Booking.findOne({
@@ -290,5 +289,82 @@ const getMetrics = async (req, res) => {
       .json({ status: "error", error: "Failed to retrieve metrics" });
   }
 };
+// Helper function to calculate comparison status and percentage change
+const calculateComparison = (current, previous) => {
+  const change = previous ? ((current - previous) / previous) * 100 : 0;
+  return {
+    value: current ?? 0,
+    status: current >= previous ? "increase" : "decrease",
+    change: `${change.toFixed(2)}%`
+  };
+};
+const getMetricsByAgentId = async (req, res) => {
+  const { agent_id } = req.params;
+  const { month, year, day } = req.query;
 
-module.exports = { getMetrics };
+  if (!agent_id) {
+    return res.status(400).json({ error: 'Agent ID is required as a route parameter.' });
+  }
+
+  try {
+    const dateFilter = buildDateFilter({ month, year, day });
+
+    // Define previous period filter (e.g., previous month or year)
+    const previousPeriodFilter = buildDateFilter({
+      year: month && month === 1 ? year - 1 : year,
+      month: month ? month - 1 : undefined,
+      day
+    });
+
+    // Current metrics
+    const currentBookingValue = (await Booking.sum('gross_total', { where: { agent_id, booking_date: dateFilter } })) ?? 0;
+    const currentTotalBookingCount = (await Booking.count({ where: { agent_id, booking_date: dateFilter } })) ?? 0;
+    const currentTransportBookingCount = (await TransportBooking.count({
+      include: [{ model: Booking, where: { agent_id, booking_date: dateFilter } }]
+    })) ?? 0;
+    const currentTotalCustomers = (await Passenger.count({
+      distinct: true,
+      col: 'id',
+      include: { model: Booking, as: "booking", where: { agent_id, booking_date: dateFilter } }
+    })) ?? 0;
+    const currentTotalCommission = (await AgentCommission.sum('amount', { where: { agent_id, created_at: dateFilter } })) ?? 0;
+    const currentUnpaidToGiligetaway = (await Booking.sum('gross_total', { where: { agent_id, payment_status: 'invoiced', booking_date: dateFilter } })) ?? 0;
+
+    // Previous metrics for comparison
+    const previousBookingValue = (await Booking.sum('gross_total', { where: { agent_id, booking_date: previousPeriodFilter } })) ?? 0;
+    const previousTotalBookingCount = (await Booking.count({ where: { agent_id, booking_date: previousPeriodFilter } })) ?? 0;
+    const previousTransportBookingCount = (await TransportBooking.count({
+      include: [{ model: Booking, where: { agent_id, booking_date: previousPeriodFilter } }]
+    })) ?? 0;
+    const previousTotalCustomers = (await Passenger.count({
+      distinct: true,
+      col: 'id',
+      include: { model: Booking, as: "booking", where: { agent_id, booking_date: previousPeriodFilter } }
+    })) ?? 0;
+    const previousTotalCommission = (await AgentCommission.sum('amount', { where: { agent_id, created_at: previousPeriodFilter } })) ?? 0;
+    const previousUnpaidToGiligetaway = (await Booking.sum('gross_total', { where: { agent_id, payment_status: 'invoiced', booking_date: previousPeriodFilter } })) ?? 0;
+
+    // Metrics with comparison
+    const metrics = {
+      bookingValue: calculateComparison(currentBookingValue, previousBookingValue),
+      totalBookingCount: calculateComparison(currentTotalBookingCount, previousTotalBookingCount),
+      transportBookingCount: calculateComparison(currentTransportBookingCount, previousTransportBookingCount),
+      totalCustomers: calculateComparison(currentTotalCustomers, previousTotalCustomers),
+      totalCommission: calculateComparison(currentTotalCommission, previousTotalCommission),
+      unpaidToGiligetaway: calculateComparison(currentUnpaidToGiligetaway, previousUnpaidToGiligetaway),
+    };
+
+    // Send the metrics as the response
+    res.json({
+      status: 'success',
+      metrics,
+    });
+  } catch (error) {
+    console.error('Error fetching agent booking metrics:', error);
+    res.status(500).json({ error: 'Failed to retrieve metrics' });
+  }
+};
+
+// create get metrics by agent id
+
+module.exports = { getMetrics, getMetricsByAgentId };

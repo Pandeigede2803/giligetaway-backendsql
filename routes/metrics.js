@@ -8,6 +8,9 @@ const authenticate = require('../middleware/authenticate');
 // get the metrics
 router.get('/', authenticate,metricsController.getMetrics);
 
+// get the metrics by agent id
+router.get('/agent/:agent_id', authenticate,metricsController.getMetricsByAgentId); 
+
 
 
 module.exports = router;
