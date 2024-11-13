@@ -45,6 +45,7 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const emailRoutes = require('./routes/email');
 const paymentRoutes = require('./routes/payment');
 const agentComission = require('./routes/agentComission');
+const metrics = require('./routes/metrics');
 // Load routes
 app.use('/api/users', userRoutes);
 app.use('/api/boats', boatRoutes);
@@ -64,6 +65,7 @@ app.use('/api/booking-seat', bookingSeatAvailability);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/metrics', metrics);
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
