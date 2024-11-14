@@ -75,10 +75,12 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
       { month, year, boat_id } // Query parameters
     );
 
+    // If no schedules are found, return a 200 status with a message
     if (!schedules || schedules.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No schedules found for the given month and boat_id.",
+      return res.status(200).json({
+        success: true,
+        message: "There’s no schedule yet for the specified month and boat.",
+        data: [],
       });
     }
 
@@ -104,7 +106,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
           date: date,
           schedule_id: schedule.id,
           subschedule_id: null,
-          total_passengers: totalPassengersForSchedule, // Insert total passengers
+          total_passengers: totalPassengersForSchedule,
           route: buildRouteFromSchedule2(schedule, null),
           days_of_week: schedule.days_of_week,
         });
@@ -122,7 +124,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
             date: date,
             schedule_id: subSchedule.schedule_id,
             subschedule_id: subSchedule.id,
-            total_passengers: totalPassengersForSubSchedule, // Insert total passengers
+            total_passengers: totalPassengersForSubSchedule,
             route: buildRouteFromSchedule2(schedule, subSchedule),
             days_of_week: subSchedule.days_of_week,
           });
@@ -142,7 +144,6 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     });
   }
 };
-
 // const getScheduleSubschedule = async (req, res) => {
 //   const { boat_id } = req.query;
 
