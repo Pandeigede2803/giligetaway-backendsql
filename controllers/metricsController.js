@@ -2,7 +2,8 @@
 
 const { Op,fn, col } = require("sequelize"); // Sequelize operators
 const moment = require("moment"); // Import Moment.js for date manipulation
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { sequelize, Booking,AgentCommission,
+   SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
 const getBookingMetricsBySource = async (req, res) => {
   try {
