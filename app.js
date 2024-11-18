@@ -8,7 +8,7 @@ const http = require('http');
 // Konfigurasi CORS
 const corsOptions = {
   origin: (origin, callback) => {
-    const allowedDomains = [process.env.CORS_ORIGIN_1, process.env.CORS_ORIGIN_2];
+    const allowedDomains = [process.env.CORS_ORIGIN_1, process.env.CORS_ORIGIN_2,process.env.CORS_ORIGIN_3];
     if (allowedDomains.indexOf(origin) !== -1 || !origin) {
       console.log(`CORS allowed from: ${origin}`);
       callback(null, true);
