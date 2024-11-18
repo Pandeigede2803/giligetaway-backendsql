@@ -694,10 +694,93 @@ const getAnnualyMetrics = async (req, res) => {
   };
 
 
-
+  const getBookingComparisonMetrics = async (req, res) => {
+    try {
+      // Get current week's start and end dates
+      const currentWeekStart = moment().startOf('week');
+      const currentWeekEnd = moment().endOf('week');
+      const lastWeekStart = moment().subtract(1, 'week').startOf('week');
+      const lastWeekEnd = moment().subtract(1, 'week').endOf('week');
+  
+      // Get daily counts for current week
+      const currentWeekData = await Booking.findAll({
+        where: {
+          booking_date: {
+            [Op.between]: [currentWeekStart.format('YYYY-MM-DD'), currentWeekEnd.format('YYYY-MM-DD')]
+          }
+        },
+        attributes: [
+          [sequelize.fn('DATE', sequelize.col('booking_date')), 'date'],
+          [sequelize.fn('COUNT', sequelize.literal('CASE WHEN payment_status IN (\'Paid\', \'Invoiced\') THEN 1 END')), 'paid_invoiced'],
+          [sequelize.fn('COUNT', sequelize.col('*')), 'total']
+        ],
+        group: [sequelize.fn('DATE', sequelize.col('booking_date'))],
+        raw: true
+      });
+  
+      // Get daily counts for last week
+      const lastWeekData = await Booking.findAll({
+        where: {
+          booking_date: {
+            [Op.between]: [lastWeekStart.format('YYYY-MM-DD'), lastWeekEnd.format('YYYY-MM-DD')]
+          }
+        },
+        attributes: [
+          [sequelize.fn('DATE', sequelize.col('booking_date')), 'date'],
+          [sequelize.fn('COUNT', sequelize.literal('CASE WHEN payment_status IN (\'Paid\', \'Invoiced\') THEN 1 END')), 'paid_invoiced'],
+          [sequelize.fn('COUNT', sequelize.col('*')), 'total']
+        ],
+        group: [sequelize.fn('DATE', sequelize.col('booking_date'))],
+        raw: true
+      });
+  
+      // Format data for chart
+      const formatWeekData = (weekData) => {
+        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+        return days.map((day, index) => {
+          const dayData = weekData.find(d => moment(d.date).day() === (index + 1) % 7) || { total: 0, paid_invoiced: 0 };
+          return {
+            total: parseInt(dayData.total) || 0,
+            paid_invoiced: parseInt(dayData.paid_invoiced) || 0
+          };
+        });
+      };
+  
+      const response = {
+        status: "success",
+        data: {
+          categories: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+          series: [
+            {
+              name: "Total Bookings",
+              data: formatWeekData(currentWeekData).map(d => d.total)
+            },
+            {
+              name: "Paid/Invoiced Bookings",
+              data: formatWeekData(currentWeekData).map(d => d.paid_invoiced)
+            },
+          ],
+          lastWeek: {
+            name: "Last Week",
+            total: formatWeekData(lastWeekData).map(d => d.total),
+            paid_invoiced: formatWeekData(lastWeekData).map(d => d.paid_invoiced)
+          }
+        }
+      };
+  
+      res.json(response);
+  
+    } catch (error) {
+      console.error('Error fetching booking comparison metrics:', error);
+      res.status(500).json({ 
+        status: "error", 
+        message: "Failed to retrieve booking comparison metrics" 
+      });
+    }
+  };
 
 
 
 // create get metrics by agent id
 
-module.exports = { getMetrics,getBookingMetricsBySource, getMetricsByAgentId,getAnnualyMetrics,getAgentAnnualyMetrics };
+module.exports = { getMetrics,getBookingMetricsBySource,getBookingComparisonMetrics, getMetricsByAgentId,getAnnualyMetrics,getAgentAnnualyMetrics };

@@ -13,7 +13,9 @@ router.get('/annualy', authenticate,metricsController.getAnnualyMetrics);
 router.get('/agent/:agent_id', authenticate,metricsController.getMetricsByAgentId); 
 router.get('/agent/annualy/:agent_id', authenticate,metricsController.getAgentAnnualyMetrics);
 router.get('/booking-source', authenticate,metricsController.getBookingMetricsBySource);
+router.get('/booking-comparison', authenticate,metricsController.getBookingComparisonMetrics);  
 
 
 
 module.exports = router;
+``
