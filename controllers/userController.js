@@ -18,6 +18,8 @@ const createUser = async (req, res) => {
 const resetPasswordWithToken = async (req, res) => {
     const { token, newPassword } = req.body; // Ambil token dan password baru dari request body
 
+    console.log('Received reset password request:', { token, newPassword });
+
     try {
         // Verifikasi token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -43,9 +45,68 @@ const resetPasswordWithToken = async (req, res) => {
         user.resetPasswordExpires = null; // Hapus masa berlaku token
         await user.save();
 
+        console.log('Password reset successfully for user:', user.email);
+
         res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
         console.error('Error in resetPasswordWithToken:', error.message);
+        res.status(500).json({ message: 'Internal server error', error });
+    }
+};
+const forgotPassword = async (req, res) => {
+    console.log('Received forgot password request:', req.body);
+    const { email } = req.body;
+
+    try {
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
+            console.log('User not found:', email);
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        console.log('User found:', user);
+
+        // Generate token
+        const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        console.log('Generated reset token:', resetToken);
+
+        // Buat URL reset password
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        console.log('Reset URL:', resetUrl);
+
+        // Kirim email ke pengguna
+        const transporter = nodemailer.createTransport({
+            host: 'mail.headlessexploregilis.my.id', // Update as required
+            port: 465, // Secure port for SMTP
+            secure: true, // Use TLS
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
+            },
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Reset Password Gili Getaway',
+            html: `
+                <p>Hello ${user.name},</p>
+                <p>We received a request to reset your password. Click the link below to reset it:</p>
+                <a href="${resetUrl}">${resetUrl}</a>
+                <p>If you did not request this, please ignore this email.</p>
+                <p>Thanks,</p>
+                <p>The Gili Getaway Team</p>
+            `
+        };
+
+        console.log('Sending email with options:', mailOptions);
+        await transporter.sendMail(mailOptions);
+
+        console.log('Email sent successfully');
+
+        res.status(200).json({ message: 'Reset password link sent to email', resetUrl });
+    } catch (error) {
+        console.error('Error in forgotPassword:', error.message);
         res.status(500).json({ message: 'Internal server error', error });
     }
 };
@@ -151,70 +212,70 @@ const deleteUser = async (req, res) => {
 };
 
 // Controller Forgot Password
-const forgotPassword = async (req, res) => {
-    console.log('Received forgot password request:', req.body);
-    const { email } = req.body;
-    try {
-        const user = await User.findOne({ where: { email } });
-        if (!user) {
-            console.log('User not found:', email);
-            return res.status(404).json({ message: 'User not found' });
-        }
+// const forgotPassword = async (req, res) => {
+//     console.log('Received forgot password request:', req.body);
+//     const { email } = req.body;
+//     try {
+//         const user = await User.findOne({ where: { email } });
+//         if (!user) {
+//             console.log('User not found:', email);
+//             return res.status(404).json({ message: 'User not found' });
+//         }
 
-        console.log('User found:', user);
+//         console.log('User found:', user);
 
-        // Generate token
-        const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        console.log('Generated reset token:', resetToken);
+//         // Generate token
+//         const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+//         console.log('Generated reset token:', resetToken);
 
-        // Simpan token di database (opsional: bisa tambahkan kolom di tabel user untuk menyimpan token reset)
-        user.resetPasswordToken = resetToken; // Pastikan ada field resetPasswordToken di model
-        user.resetPasswordExpires = Date.now() + 3600000; // Token berlaku 1 jam
-        console.log('Saving reset token to user:', user);
-        await user.save();
+//         // Simpan token di database (opsional: bisa tambahkan kolom di tabel user untuk menyimpan token reset)
+//         user.resetPasswordToken = resetToken; // Pastikan ada field resetPasswordToken di model
+//         user.resetPasswordExpires = Date.now() + 3600000; // Token berlaku 1 jam
+//         console.log('Saving reset token to user:', user);
+//         await user.save();
 
-        console.log('User saved:', user);
+//         console.log('User saved:', user);
 
-        // Buat URL reset password
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-        console.log('Reset URL:', resetUrl);
+//         // Buat URL reset password
+//         const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+//         console.log('Reset URL:', resetUrl);
         
-        // Kirim email ke pengguna
-        const transporter = nodemailer.createTransport({
-            host: 'mail.headlessexploregilis.my.id', // Update as required
-            port: 465, // Secure port for SMTP
-            secure: true, // Use TLS
-            auth: {
-              user: process.env.EMAIL_USER ,
-              pass: process.env.EMAIL_PASSWORD 
-            },
-          });
+//         // Kirim email ke pengguna
+//         const transporter = nodemailer.createTransport({
+//             host: 'mail.headlessexploregilis.my.id', // Update as required
+//             port: 465, // Secure port for SMTP
+//             secure: true, // Use TLS
+//             auth: {
+//               user: process.env.EMAIL_USER ,
+//               pass: process.env.EMAIL_PASSWORD 
+//             },
+//           });
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Reset Password Gili Getaway',
-            html: `
-                <p>Hello ${user.name},</p>
-                <p>We received a request to reset your password. Click the link below to reset it:</p>
-                <a href="${resetUrl}">${resetUrl}</a>
-                <p>If you did not request this, please ignore this email.</p>
-                <p>Thanks,</p>
-                <p>The Gili Getaway Team</p>
-            `
-        };
+//         const mailOptions = {
+//             from: process.env.EMAIL_USER,
+//             to: user.email,
+//             subject: 'Reset Password Gili Getaway',
+//             html: `
+//                 <p>Hello ${user.name},</p>
+//                 <p>We received a request to reset your password. Click the link below to reset it:</p>
+//                 <a href="${resetUrl}">${resetUrl}</a>
+//                 <p>If you did not request this, please ignore this email.</p>
+//                 <p>Thanks,</p>
+//                 <p>The Gili Getaway Team</p>
+//             `
+//         };
 
-        console.log('Sending email with options:', mailOptions);
-        await transporter.sendMail(mailOptions);
+//         console.log('Sending email with options:', mailOptions);
+//         await transporter.sendMail(mailOptions);
 
-        console.log('Email sent successfully');
+//         console.log('Email sent successfully');
 
-        res.status(200).json({ message: 'Reset password link sent to email', resetUrl });
-    } catch (error) {
-        console.error('Error in forgotPassword:', error.message);
-        res.status(500).json({ message: 'Internal server error', error });
-    }
-};
+//         res.status(200).json({ message: 'Reset password link sent to email', resetUrl });
+//     } catch (error) {
+//         console.error('Error in forgotPassword:', error.message);
+//         res.status(500).json({ message: 'Internal server error', error });
+//     }
+// };
 
 module.exports = {
     createUser,
