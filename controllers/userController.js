@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
-
+const nodemailer = require('nodemailer'); // Untuk mengirim email
 const createUser = async (req, res) => {
     const { name, email, password, role } = req.body;
     console.log("Received data:", { name, email, password, role }); // Add this line for debugging
@@ -11,6 +11,42 @@ const createUser = async (req, res) => {
         res.status(201).json({ message: 'User created successfully', user });
     } catch (error) {
         res.status(400).json({ message: 'Error creating user', error });
+    }
+};
+
+// Controller Forgot Password
+const resetPasswordWithToken = async (req, res) => {
+    const { token, newPassword } = req.body; // Ambil token dan password baru dari request body
+
+    try {
+        // Verifikasi token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Cari user berdasarkan ID yang ada di token
+        const user = await User.findByPk(decoded.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Periksa token dan masa kedaluwarsanya
+        if (user.resetPasswordToken !== token || user.resetPasswordExpires < Date.now()) {
+            return res.status(400).json({ message: 'Token is invalid or has expired' });
+        }
+
+        // Hash password baru
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Perbarui password pengguna
+        user.password = hashedPassword;
+        user.resetPasswordToken = null; // Hapus token setelah digunakan
+        user.resetPasswordExpires = null; // Hapus masa berlaku token
+        await user.save();
+
+        res.status(200).json({ message: 'Password reset successfully' });
+    } catch (error) {
+        console.error('Error in resetPasswordWithToken:', error.message);
+        res.status(500).json({ message: 'Internal server error', error });
     }
 };
 
@@ -114,12 +150,68 @@ const deleteUser = async (req, res) => {
     }
 };
 
+// Controller Forgot Password
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ where: { email } });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Generate token
+        const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // Simpan token di database (opsional: bisa tambahkan kolom di tabel user untuk menyimpan token reset)
+        user.resetPasswordToken = resetToken; // Pastikan ada field resetPasswordToken di model
+        user.resetPasswordExpires = Date.now() + 3600000; // Token berlaku 1 jam
+        await user.save();
+
+        // Buat URL reset password
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        
+        // Kirim email ke pengguna
+        const transporter = nodemailer.createTransport({
+            host: 'mail.headlessexploregilis.my.id', // Update as required
+            port: 465, // Secure port for SMTP
+            secure: true, // Use TLS
+            auth: {
+              user: process.env.EMAIL_USER ,
+              pass: process.env.EMAIL_PASSWORD 
+            },
+          });
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: user.email,
+            subject: 'Reset Password Gili Getaway',
+            html: `
+                <p>Hello ${user.name},</p>
+                <p>We received a request to reset your password. Click the link below to reset it:</p>
+                <a href="${resetUrl}">${resetUrl}</a>
+                <p>If you did not request this, please ignore this email.</p>
+                <p>Thanks,</p>
+                <p>The Gili Getaway Team</p>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        res.status(200).json({ message: 'Reset password link sent to email', resetUrl });
+    } catch (error) {
+        console.error('Error in forgotPassword:', error.message);
+        res.status(500).json({ message: 'Internal server error', error });
+    }
+};
+
 module.exports = {
     createUser,
     loginUser,
     changePassword,
+    forgotPassword,
     getUsers,
     getUserById,
     updateUser,
-    deleteUser
+    deleteUser,
+    resetPasswordWithToken
 };

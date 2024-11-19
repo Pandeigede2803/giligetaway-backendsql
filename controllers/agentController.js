@@ -63,12 +63,12 @@ exports.requestPasswordResetLink = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" } // Token expires in 1 hour
     );
-
-    const resetLink = `http://localhost:3000/agent/change-password/${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL}/agent/change-password/${resetToken}`;
 
     // Send reset link via email
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      // service: "gmail",
+      host : "mail.headlessexploregilis.my.id",
       port: 465, // Gunakan port 465 untuk SSL
       secure: true, // Secure true untuk SSL
 

@@ -8,13 +8,13 @@ const authenticate = require('../middleware/authenticate');
 // router.post('/', userController.createUser);
 
 // // READ users
-// router.get('/', userController.getUsers);
+// router.get('/', userController.getUsers);`
 
 // // READ user by id
 // router.get('/:id', userController.getUserById);
 
 // // UPDATE user
-// router.put('/:id', userController.updateUser);
+router.post('/forgot-password', userController.forgotPassword);
 
 // // DELETE user
 // router.delete('/:id', userController.deleteUser);
