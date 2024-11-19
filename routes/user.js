@@ -16,6 +16,8 @@ const authenticate = require('../middleware/authenticate');
 // // UPDATE user
 router.post('/forgot-password', userController.forgotPassword);
 
+
+router.post('/reset-password', userController.resetPasswordWithToken);
 // // DELETE user
 // router.delete('/:id', userController.deleteUser);
 
