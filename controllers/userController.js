@@ -152,23 +152,32 @@ const deleteUser = async (req, res) => {
 
 // Controller Forgot Password
 const forgotPassword = async (req, res) => {
+    console.log('Received forgot password request:', req.body);
     const { email } = req.body;
     try {
         const user = await User.findOne({ where: { email } });
         if (!user) {
+            console.log('User not found:', email);
             return res.status(404).json({ message: 'User not found' });
         }
 
+        console.log('User found:', user);
+
         // Generate token
         const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        console.log('Generated reset token:', resetToken);
 
         // Simpan token di database (opsional: bisa tambahkan kolom di tabel user untuk menyimpan token reset)
         user.resetPasswordToken = resetToken; // Pastikan ada field resetPasswordToken di model
         user.resetPasswordExpires = Date.now() + 3600000; // Token berlaku 1 jam
+        console.log('Saving reset token to user:', user);
         await user.save();
+
+        console.log('User saved:', user);
 
         // Buat URL reset password
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        console.log('Reset URL:', resetUrl);
         
         // Kirim email ke pengguna
         const transporter = nodemailer.createTransport({
@@ -195,7 +204,10 @@ const forgotPassword = async (req, res) => {
             `
         };
 
+        console.log('Sending email with options:', mailOptions);
         await transporter.sendMail(mailOptions);
+
+        console.log('Email sent successfully');
 
         res.status(200).json({ message: 'Reset password link sent to email', resetUrl });
     } catch (error) {
