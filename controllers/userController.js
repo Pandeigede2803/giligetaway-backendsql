@@ -16,24 +16,19 @@ const createUser = async (req, res) => {
 
 // Controller Forgot Password
 const resetPasswordWithToken = async (req, res) => {
-    const { token, newPassword } = req.body; // Ambil token dan password baru dari request body
+    const { token, newPassword } = req.body;
 
     console.log('Received reset password request:', { token, newPassword });
 
     try {
         // Verifikasi token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Token decoded:', decoded);
 
         // Cari user berdasarkan ID yang ada di token
         const user = await User.findByPk(decoded.id);
-
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Periksa token dan masa kedaluwarsanya
-        if (user.resetPasswordToken !== token || user.resetPasswordExpires < Date.now()) {
-            return res.status(400).json({ message: 'Token is invalid or has expired' });
         }
 
         // Hash password baru
@@ -41,8 +36,6 @@ const resetPasswordWithToken = async (req, res) => {
 
         // Perbarui password pengguna
         user.password = hashedPassword;
-        user.resetPasswordToken = null; // Hapus token setelah digunakan
-        user.resetPasswordExpires = null; // Hapus masa berlaku token
         await user.save();
 
         console.log('Password reset successfully for user:', user.email);
@@ -50,9 +43,13 @@ const resetPasswordWithToken = async (req, res) => {
         res.status(200).json({ message: 'Password reset successfully' });
     } catch (error) {
         console.error('Error in resetPasswordWithToken:', error.message);
+        if (error.name === 'TokenExpiredError') {
+            return res.status(400).json({ message: 'Token has expired' });
+        }
         res.status(500).json({ message: 'Internal server error', error });
     }
 };
+
 const forgotPassword = async (req, res) => {
     console.log('Received forgot password request:', req.body);
     const { email } = req.body;
