@@ -90,12 +90,12 @@ const updateAgentCommission = async (
         }
       }
   
-      // Step 4: Add transport commission if transports exist
+      // •	Komisi transportasi akan dikurangi dari komisi akhir:
       if (transports && transports.length > 0) {
-        console.log(`Transport commission exists, adding transport commission for agent_id ${agent_id}`);
-        commissionAmount += parseFloat(commission_transport); // Add the transport commission
-        console.log(`Total commission after adding transport commission: ${commissionAmount}`);
-      }
+        console.log(`Transport commission exists, reducing transport commission for agent_id ${agent_id}`);
+        commissionAmount -= parseFloat(commission_transport); // Reduce the transport commission
+        console.log(`Total commission after reducing transport commission: ${commissionAmount}`);
+    }
   
       // Step 5: Insert the commission into the AgentCommission table
       console.log(`Inserting commission of ${commissionAmount} for agent_id ${agent_id} into AgentCommission table`);
