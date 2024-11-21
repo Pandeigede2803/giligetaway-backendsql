@@ -22,7 +22,7 @@ router.post('/reset-password', userController.resetPasswordWithToken);
 // router.delete('/:id', userController.deleteUser);
 
 // Authentication routes
-router.post('/register', userController.createUser); // Or use the same route as above
+router.post('/register',authenticate, userController.createUser); // Or use the same route as above
 router.post('/login', userController.loginUser);
 router.post('/change-password', authenticate, userController.changePassword);
 

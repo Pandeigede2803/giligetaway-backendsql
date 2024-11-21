@@ -15,6 +15,7 @@ router.get('/coun-by-date', authenticate, passengerController.getPassengerCountB
 
 // READ passengers count by date
 router.get('/count-by-month', authenticate, passengerController.getPassengerCountByMonth);
+router.get('/count-by-schedule', authenticate, passengerController.getPassengerCountBySchedule);
 
 // READ passengers by schedule and subschedule
 router.get('/by', authenticate, passengerController.getPassengersByScheduleAndSubSchedule);

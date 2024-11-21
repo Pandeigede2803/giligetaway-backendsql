@@ -28,6 +28,110 @@ const isDayAvailable = (date, daysOfWeek) => {
 };
 
 
+// for availabity seat transit
+
+const getPassengerCountBySchedule = async (req, res) => {
+  const { month, year, schedule_id } = req.query;
+
+  if (!month || !year) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide month and year in the query parameters.',
+    });
+  }
+
+  try {
+    const daysInMonth = getDaysInMonth(month, year);
+    const startDate = `${year}-${month.padStart(2, '0')}-01`;
+    const endDate = `${year}-${month.padStart(2, '0')}-${daysInMonth.length}`;
+
+    const seatAvailabilities = await SeatAvailability.findAll({
+      attributes: ['id', 'date', 'schedule_id', 'subschedule_id'],
+      where: {
+        date: {
+          [Op.between]: [startDate, endDate],
+        },
+        ...(schedule_id && { schedule_id }), // Filter by schedule_id only if provided
+      },
+      include: getSeatAvailabilityIncludes(),
+    });
+
+    const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
+      acc[sa.date] = acc[sa.date] || [];
+      acc[sa.date].push(sa);
+      return acc;
+    }, {});
+
+    const finalResults = [];
+    for (const date of daysInMonth) {
+      const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
+
+      // Fetch schedules and sub-schedules for the date
+      const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+
+      schedules
+        .filter((schedule) => !schedule_id || schedule.id === parseInt(schedule_id)) // Ensure relevance to the queried schedule_id
+        .forEach((schedule) => {
+          const mainAvailability = seatAvailabilityForDate.find(
+            (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
+          );
+
+          const totalPassengers = mainAvailability
+            ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
+            : 0;
+
+          const route = buildRouteFromSchedule(schedule, null);
+
+          // Filter subschedules relevant to this schedule_id
+          const relevantSubSchedules = subSchedules.filter(
+            (subSchedule) => subSchedule.schedule_id === schedule.id
+          );
+
+          const subschedules = relevantSubSchedules.map((subSchedule) => {
+            const subAvailability = seatAvailabilityForDate.find(
+              (sa) =>
+                sa.schedule_id === schedule.id && sa.subschedule_id === subSchedule.id
+            );
+
+            return {
+              seatavailability_id: subAvailability ? subAvailability.id : null,
+              date,
+              schedule_id: schedule.id,
+              subschedule_id: subSchedule.id,
+              total_passengers: subAvailability
+                ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
+                : 0,
+              route: buildRouteFromSchedule(schedule, subSchedule),
+            };
+          });
+
+          finalResults.push({
+            seatavailability_id: mainAvailability ? mainAvailability.id : null,
+            date,
+            schedule_id: schedule.id,
+            subschedule_id: null,
+            total_passengers: totalPassengers,
+            route,
+            subschedules,
+          });
+        });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: finalResults,
+    });
+  } catch (error) {
+    console.error('Error fetching passenger count by schedule:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve passenger count for the specified month.',
+    });
+  }
+};
+
+
+
 const getPassengerCountByMonth = async (req, res) => {
   const { month, year, boat_id } = req.query;
 
@@ -83,6 +187,8 @@ const getPassengerCountByMonth = async (req, res) => {
             route: route,
           };
         } else {
+
+
           // If no seat availability, fetch schedules and subschedules
           const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
           const filteredSchedules = schedules.filter(schedule => schedule.boat_id == boat_id);
@@ -292,6 +398,7 @@ module.exports = {
     getPassengerCountByDate,
     getPassengerCountByMonth,
     getPassengersByScheduleAndSubSchedule,
+    getPassengerCountBySchedule,
     getPassengers,
     getPassengerById,
     updatePassenger,
