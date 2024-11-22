@@ -15,8 +15,163 @@ const {
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { uploadImageToImageKit } = require("../middleware/uploadImage");;
 
+
+exports.createAgent = async (req, res) => {
+  console.log("req body:", req.body);
+  const transaction = await sequelize.transaction();
+
+  try {
+    console.log("Data received for creating agent:", req.body);
+
+    // Generate random password
+    const randomPassword = generateRandomPassword(10);
+    console.log("Generated random password:", randomPassword);
+
+    // Hash the password before storing it
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+    console.log("Hashed password:", hashedPassword);
+
+    let imageUrl = null;
+
+    if (req.file) {
+      // Upload image and get the URL
+      imageUrl = req.file.url;
+      console.log("Uploaded image URL:", imageUrl);
+    }
+
+    // Create the agent with the hashed password and optional image URL
+    const agentData = {
+      ...req.body,
+      password: hashedPassword, // Store hashed password
+      image_url: imageUrl,
+    };
+    console.log("Agent data to be created:", agentData);
+
+    const agent = await Agent.create(agentData, { transaction });
+    if (!agent) {
+      throw new Error("Failed to create agent");
+    }
+    console.log("Agent created with ID:", agent.id);
+
+    // Commit the transaction
+    await transaction.commit();
+
+    // Return the agent and the random password
+    console.log("Returning agent and random password");
+    res.status(201).json({
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        email: agent.email,
+        phone: agent.phone,
+        commission_rate: agent.commission_rate,
+        commission_long: agent.commission_long,
+        commission_short: agent.commission_short,
+        commission_long_transport: agent.commission_long_transport,
+        commission_short_transport: agent.commission_short_transport,
+        address: agent.address,
+        image_url: agent.image_url,
+        created_at: agent.created_at,
+        updated_at: agent.updated_at,
+      },
+      randomPassword: randomPassword, // Return the plain random password for admin use
+    });
+  } catch (error) {
+    // Rollback the transaction in case of error
+    await transaction.rollback();
+
+    console.log("Error creating agent:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+// exports.createAgent = async (req, res) => {
+//   console.log("req body:", req.body);
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     console.log("Data received for creating agent:", req.body);
+
+//     // Generate random password
+//     const randomPassword = generateRandomPassword(10);
+//     console.log("Generated random password:", randomPassword);
+
+//     let imageUrl = null;
+
+//     if (req.file) {
+//       // Upload image and get the URL
+//       imageUrl = req.file.url;
+//       console.log("Uploaded image URL:", imageUrl);
+//     }
+
+//     // Create the agent with the generated password and optional image URL
+//     const agentData = {
+//       ...req.body,
+//       password: randomPassword,
+//       image_url: imageUrl,
+//     };
+//     console.log("Agent data to be created:", agentData);
+
+//     const agent = await Agent.create(agentData, { transaction });
+//     if (!agent) {
+//       throw new Error("Failed to create agent");
+//     }
+//     console.log("Agent created with ID:", agent.id);
+
+//     // Create corresponding AgentMetrics entry
+//     // const agentMetrics = await AgentMetrics.create(
+//     //   {
+//     //     agent_id: agent.id,
+//     //     total_revenue: 0.0,
+//     //     total_customers: 0,
+//     //     total_bookings: 0,
+//     //     gross_revenue: 0.0,
+//     //     net_profit: 0.0,
+//     //     gross_pending_payment: 0.0,
+//     //     net_pending_profit: 0.0,
+//     //     unpaid_payment: 0.0,
+//     //     pending_payment: 0.0,
+//     //     outstanding: 0.0,
+//     //     payout: 0.0,
+//     //   },
+//     //   { transaction }
+//     // );
+//     // if (!agentMetrics) {
+//     //   throw new Error("Failed to create agent metrics");
+//     // }
+//     // console.log("AgentMetrics created with agent_id:", agentMetrics.agent_id);
+
+//     // Commit the transaction
+//     await transaction.commit();
+
+//     // Return the agent and the random password
+//     console.log("Returning agent and random password");
+//     res.status(201).json({
+//       agent: {
+//         id: agent.id,
+//         name: agent.name,
+//         email: agent.email,
+//         phone: agent.phone,
+//         commission_rate: agent.commission_rate,
+//         commission_long: agent.commission_long,
+//         commission_short: agent.commission_short,
+//         commission_long_transport: agent.commission_long_transport,
+//         commission_short_transport: agent.commission_short_transport,
+//         address: agent.address,
+//         image_url: agent.image_url,
+//         created_at: agent.created_at,
+//         updated_at: agent.updated_at,
+//       },
+//       randomPassword: randomPassword,
+//     });
+//   } catch (error) {
+//     // Rollback the transaction in case of error
+//     await transaction.rollback();
+
+//     console.log("Error creating agent:", error.message);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 exports.loginAgent = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -211,93 +366,7 @@ const generateRandomPassword = (length) => {
   return password;
 };
 
-exports.createAgent = async (req, res) => {
-  console.log("req body:", req.body);
-  const transaction = await sequelize.transaction();
 
-  try {
-    console.log("Data received for creating agent:", req.body);
-
-    // Generate random password
-    const randomPassword = generateRandomPassword(10);
-    console.log("Generated random password:", randomPassword);
-
-    let imageUrl = null;
-
-    if (req.file) {
-      // Upload image and get the URL
-      imageUrl = req.file.url;
-      console.log("Uploaded image URL:", imageUrl);
-    }
-
-    // Create the agent with the generated password and optional image URL
-    const agentData = {
-      ...req.body,
-      password: randomPassword,
-      image_url: imageUrl,
-    };
-    console.log("Agent data to be created:", agentData);
-
-    const agent = await Agent.create(agentData, { transaction });
-    if (!agent) {
-      throw new Error("Failed to create agent");
-    }
-    console.log("Agent created with ID:", agent.id);
-
-    // Create corresponding AgentMetrics entry
-    const agentMetrics = await AgentMetrics.create(
-      {
-        agent_id: agent.id,
-        total_revenue: 0.0,
-        total_customers: 0,
-        total_bookings: 0,
-        gross_revenue: 0.0,
-        net_profit: 0.0,
-        gross_pending_payment: 0.0,
-        net_pending_profit: 0.0,
-        unpaid_payment: 0.0,
-        pending_payment: 0.0,
-        outstanding: 0.0,
-        payout: 0.0,
-      },
-      { transaction }
-    );
-    if (!agentMetrics) {
-      throw new Error("Failed to create agent metrics");
-    }
-    console.log("AgentMetrics created with agent_id:", agentMetrics.agent_id);
-
-    // Commit the transaction
-    await transaction.commit();
-
-    // Return the agent and the random password
-    console.log("Returning agent and random password");
-    res.status(201).json({
-      agent: {
-        id: agent.id,
-        name: agent.name,
-        email: agent.email,
-        phone: agent.phone,
-        commission_rate: agent.commission_rate,
-        commission_long: agent.commission_long,
-        commission_short: agent.commission_short,
-        commission_long_transport: agent.commission_long_transport,
-        commission_short_transport: agent.commission_short_transport,
-        address: agent.address,
-        image_url: agent.image_url,
-        created_at: agent.created_at,
-        updated_at: agent.updated_at,
-      },
-      randomPassword: randomPassword,
-    });
-  } catch (error) {
-    // Rollback the transaction in case of error
-    await transaction.rollback();
-
-    console.log("Error creating agent:", error.message);
-    res.status(500).json({ message: error.message });
-  }
-};
 // Get all agents
 
 exports.getAllAgents = async (req, res) => {
