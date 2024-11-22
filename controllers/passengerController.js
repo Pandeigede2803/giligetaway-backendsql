@@ -234,6 +234,7 @@ const getPassengerCountBySchedule = async (req, res) => {
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
+            capacity: schedule.dataValues.Boat?.capacity || 0,
             // i need route here too ,
             total_passengers: totalPassengers,
             departure_time: schedule.dataValues.departure_time, // Add departure_time
