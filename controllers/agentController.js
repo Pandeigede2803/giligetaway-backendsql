@@ -51,9 +51,11 @@ exports.loginAgent = async (req, res) => {
 
 exports.requestPasswordResetLink = async (req, res) => {
   const { email } = req.body;
+  console.log("Password reset request received for email:", email);
   try {
     const agent = await Agent.findOne({ where: { email } });
     if (!agent) {
+      console.log("Agent not found for email:", email);
       return res.status(404).json({ message: "Agent not found" });
     }
 
@@ -63,30 +65,27 @@ exports.requestPasswordResetLink = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" } // Token expires in 1 hour
     );
+    console.log("Generated reset token for agent ID:", agent.id);
+
     const resetLink = `${process.env.FRONTEND_URL}/agent/change-password/${resetToken}`;
+    console.log("Password reset link generated:", resetLink);
 
     // Send reset link via email
     const transporter = nodemailer.createTransport({
-      // service: "gmail",
-      host : "mail.headlessexploregilis.my.id",
-      port: 465, // Gunakan port 465 untuk SSL
-      secure: true, // Secure true untuk SSL
-
+      host: 'mail.headlessexploregilis.my.id',  // SMTP Server
+      port: 465,  // Gunakan port 465 untuk SSL
+      secure: true, // true karena kita menggunakan SSL
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+         user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD,
       },
-      connectionTimeout: 10000, // Timeout 10 detik
-      greetingTimeout: 10000,
-      socketTimeout: 10000
     });
-
     const mailOptions = {
-      from: process.env.EMAIL_USERNAME,
+      from: process.env.EMAIL_USER,
       to: agent.email,
       subject: "Password Reset Request",
       text: `Please click on the following link to reset your password: ${resetLink}`,
-      html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">${resetLink}</a></p>`,
+      html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">reset your password</a></p>`,
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
@@ -94,7 +93,8 @@ exports.requestPasswordResetLink = async (req, res) => {
         console.log("Error sending email:", error);
         return res.status(500).json({ message: "Error sending reset link" });
       } else {
-        console.log("Email sent:", info.response);
+        console.log("Email sent successfully to:", agent.email);
+        console.log("SMTP response:", info.response);
         res.status(200).json({ message: "Reset link sent to your email." });
       }
     });

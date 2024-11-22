@@ -34,6 +34,7 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                 {
                     model: Boat,
                     as: 'Boat', // Include the Boat model
+                    attributes: ['capacity']
                    
                 }
             ]
@@ -46,6 +47,18 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                 validity_end: { [Op.gte]: date }
             },
             include: [
+                {
+                    model: Schedule,
+                    as: 'Schedule',
+                    include: [
+                        {
+                            model: Boat,
+                            as: 'Boat',
+                            attributes: ['capacity']
+                        }
+                    ]
+
+                },
                 {
                     model: Destination,
                     as: 'DestinationFrom',
