@@ -32,19 +32,15 @@ exports.createAgent = async (req, res) => {
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
     console.log("Hashed password:", hashedPassword);
 
-    let imageUrl = null;
+    // Set image URL
+    let imageUrl = req.file ? req.file.url : 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558';
+    console.log("Image URL to be used:", imageUrl);
 
-    if (req.file) {
-      // Upload image and get the URL
-      imageUrl = req.file.url;
-      console.log("Uploaded image URL:", imageUrl);
-    }
-
-    // Create the agent with the hashed password and optional image URL
+    // Create the agent with the hashed password and image URL
     const agentData = {
       ...req.body,
       password: hashedPassword, // Store hashed password
-      image_url: imageUrl,
+      image_url: imageUrl, // Use uploaded image or default image
     };
     console.log("Agent data to be created:", agentData);
 
