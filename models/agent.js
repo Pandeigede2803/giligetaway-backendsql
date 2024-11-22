@@ -65,7 +65,8 @@ const Agent = sequelize.define('Agent', {
     },
     image_url: {
         type: DataTypes.STRING,
-        allowNull: true
+        allowNull: true,
+        defaultValue: 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558'
     },
     created_at: {
         type: DataTypes.DATE,
