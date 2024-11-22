@@ -74,9 +74,17 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
     ].filter(Boolean);
     const transitTo = subSchedule.dataValues.TransitTo?.dataValues.Destination?.dataValues.name || 'Unknown';
     const destinationToSchedule = subSchedule.dataValues.DestinationTo?.dataValues.name || 'Unknown';
+  // Construct route: Filter out "Unknown" segments and join with " - "
+  route = [
+    destinationFromSchedule,
+    transitFrom,
+    ...transits,
+    transitTo,
+    destinationToSchedule,
+  ].filter((segment) => segment !== 'Unknown').join(' - ');
 
-    // Gabungkan rute berdasarkan SubSchedule
-    route = `${destinationFromSchedule} - ${transitFrom} - ${transits.join(' - ')} - ${transitTo} - ${destinationToSchedule}`;
+
+
 
     // Logging rute yang dibentuk menggunakan SubSchedule
     console.log(`Route built (SubSchedule): From ${destinationFromSchedule} through ${transits.join(', ')} to ${destinationToSchedule}`);
