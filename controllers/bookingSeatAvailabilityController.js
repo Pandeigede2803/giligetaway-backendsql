@@ -647,7 +647,10 @@ const findRelatedPassengerBySeatAvailabilityId = async (req, res) => {
           include: [
             {
               model: Booking,
-              where: { payment_status: 'paid' }, // Only include paid bookings
+              where: { payment_status: [
+                'paid','invoiced'
+
+              ] }, // Only include paid and invoiced bookings
               attributes: ['id', 'booking_date', 'ticket_id'], // Include booking_date and ticket_id
               include: [
                 {
