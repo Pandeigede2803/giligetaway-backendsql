@@ -201,7 +201,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
-
+          
           const route = buildRouteFromSchedule(schedule, null);
 
           const relevantSubSchedules = subSchedules.filter(
@@ -214,12 +214,13 @@ const getPassengerCountBySchedule = async (req, res) => {
                 sa.schedule_id === schedule.id &&
                 sa.subschedule_id === subSchedule.id
             );
-
+      
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
               date,
               schedule_id: schedule.id,
               subschedule_id: subSchedule.id,
+              // booking_ids: subBookingId, // Add booking IDs for subschedules
               total_passengers: subAvailability
                 ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
                 : 0,
@@ -234,8 +235,10 @@ const getPassengerCountBySchedule = async (req, res) => {
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
+        
             capacity: schedule.dataValues.Boat?.capacity || 0,
-            // i need route here too ,
+            // i need booking_id
+
             total_passengers: totalPassengers,
             departure_time: schedule.dataValues.departure_time, // Add departure_time
             arrival_time: schedule.dataValues.arrival_time, // Add arrival_time

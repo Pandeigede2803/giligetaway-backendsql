@@ -5,11 +5,15 @@ const getSeatAvailabilityIncludes = () => {
       {
         model: BookingSeatAvailability,
         as: 'BookingSeatAvailabilities',
+        attributes: ['id','booking_id'],
         include: [
           {
             model: Booking,
             as: 'Booking',
-            where: { payment_status: 'paid' },
+           
+            where: { 
+              payment_status: ['paid','invoiced']
+             },
             attributes: ['total_passengers']
           }
         ]
