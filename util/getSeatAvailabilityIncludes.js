@@ -5,7 +5,7 @@ const getSeatAvailabilityIncludes = () => {
       {
         model: BookingSeatAvailability,
         as: 'BookingSeatAvailabilities',
-        attributes: ['id','booking_id'],
+        attributes: ['id','booking_id'," seat_availability_id"],
         include: [
           {
             model: Booking,
