@@ -18,4 +18,3 @@ router.get('/booking-comparison', authenticate,metricsController.getBookingCompa
 
 
 module.exports = router;
-``
