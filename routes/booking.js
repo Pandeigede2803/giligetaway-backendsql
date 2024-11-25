@@ -25,7 +25,7 @@ router.post('/multi-queue',authenticate,bookingRateLimiter,validateTrips, bookin
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
 //ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
-router.get('/pagination',authenticate, bookingController.getPaginatedBookings);
+router.get('/filtered',authenticate, bookingController.getFilteredBookings);
 
 
 // READ bookings
