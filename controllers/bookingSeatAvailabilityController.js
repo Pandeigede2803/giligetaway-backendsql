@@ -663,12 +663,13 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       // Fetch all passengers related to the seat availability
       const passengers = [];
       BookingSeatAvailabilities.forEach((bsa) => {
-        const { booking_date, ticket_id } = bsa.Booking;
+        const { booking_date, ticket_id, payment_status } = bsa.Booking;
         bsa.Booking.passengers.forEach((passenger) => {
           passengers.push({
             ...passenger.get({ plain: true }),
             booking_date,
             ticket_id,
+            payment_status,
           });
         });
       });
