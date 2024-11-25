@@ -88,49 +88,49 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     const daysInMonth = getDaysInMonth(month, year);
     const results = [];
 
-    // Iterate through each day of the month
     for (const date of daysInMonth) {
       console.log(`Processing date: ${date}`);
-
+    
       for (const schedule of schedules) {
-        // Fetch the total passengers for this schedule on the given date
-        const totalPassengersForSchedule = await getTotalPassengers(
+        // Ambil total penumpang dan seat availability ID untuk jadwal utama
+        const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
           schedule.id,
           null,
           date
         );
-
-        // Push the main schedule for each day with total_passengers
+    
+        // Tambahkan hasil jadwal utama ke results
         results.push({
-          seatavailability_id: null,
+          seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
           date: date,
           schedule_id: schedule.id,
           subschedule_id: null,
-          total_passengers: totalPassengersForSchedule,
+          total_passengers: totalPassengers,
           route: buildRouteFromSchedule2(schedule, null),
           days_of_week: schedule.days_of_week,
         });
-
-        // Iterate through each sub-schedule and fetch total passengers for it
+    
+        // Iterasi setiap sub-jadwal
         for (const subSchedule of schedule.SubSchedules) {
-          const totalPassengersForSubSchedule = await getTotalPassengers(
+          const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
             subSchedule.schedule_id,
             subSchedule.id,
             date
           );
-
+    
           results.push({
-            seatavailability_id: null,
+            seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
             date: date,
             schedule_id: subSchedule.schedule_id,
             subschedule_id: subSchedule.id,
-            total_passengers: totalPassengersForSubSchedule,
+            total_passengers: totalPassengers,
             route: buildRouteFromSchedule2(schedule, subSchedule),
             days_of_week: subSchedule.days_of_week,
           });
         }
       }
     }
+    
 
     return res.status(200).json({
       success: true,
@@ -367,21 +367,24 @@ const getScheduleSubschedule = async (req, res) => {
       if (departure && arrival) {
         const [depHours, depMinutes] = departure.split(":").map(Number);
         const [arrHours, arrMinutes] = arrival.split(":").map(Number);
-    
+
         const departureInMinutes = depHours * 60 + depMinutes;
         const arrivalInMinutes = arrHours * 60 + arrMinutes;
-    
+
         let difference = arrivalInMinutes - departureInMinutes;
-    
+
         // Handle overnight trips (e.g., departure 23:00, arrival 02:00)
         if (difference < 0) difference += 24 * 60; // Add 24 hours in minutes
-    
+
         // Convert total minutes to hours and minutes
         const hours = Math.floor(difference / 60);
         const minutes = difference % 60;
-    
+
         // Format as HH:mm (e.g., 2 hours 0 minutes becomes "02:00")
-        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+          2,
+          "0"
+        )}`;
       }
       return "N/A"; // Return "N/A" if either time is missing
     };
