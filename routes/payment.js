@@ -39,6 +39,8 @@ router.get("/doku/payment-channels", dokuController.getPaymentChannels);
 
 // Route untuk membuat pembayaran
 router.post("/doku/create-payment", dokuController.createPayment);
+// Route untuk membuat pembayaran
+router.post("/doku/create-snap-token", dokuController.createSnapToken);
 
 // Route untuk menangani notifikasi dari DOKU
 router.post("/doku-notification", dokuController.handleNotification);
