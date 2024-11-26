@@ -599,7 +599,7 @@ const getAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
+            payment_status: ["paid", "invoiced"],
           },
           attributes: [
             [sequelize.fn("DATE", sequelize.col("booking_date")), "date"],
@@ -678,7 +678,7 @@ const getAnnualyMetrics = async (req, res) => {
                     week.end.format("YYYY-MM-DD"),
                   ],
                 },
-                payment_status: ["Paid", "Invoiced"],
+                payment_status: ["paid", "invoiced"],
               },
             });
             return { week: `Week ${week.week}`, totalBookings: bookings };
@@ -697,7 +697,7 @@ const getAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
+            payment_status: ["paid", "invoiced"],
           },
           attributes: [
             [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
@@ -730,7 +730,7 @@ const getAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
+            payment_status: ["paid", "invoiced"],
           },
           attributes: [
             [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
@@ -800,11 +800,17 @@ const getAgentAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
           },
           attributes: [
             [sequelize.fn("DATE", sequelize.col("booking_date")), "date"],
-            [sequelize.fn("COUNT", sequelize.col("id")), "totalBookings"],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END`)),
+              "totalBookingsPaid",
+            ],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'invoiced' THEN 1 ELSE 0 END`)),
+              "totalBookingsInvoiced",
+            ],
           ],
           group: ["date"],
           raw: true,
@@ -815,34 +821,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         ).reverse();
         data = last7Days.map(
           (date) =>
-            data.find((d) => d.date === date) || { date, totalBookings: 0 }
-        );
-        break;
-
-      case "Week":
-        // Current month by week
-        const weeks = Array.from({ length: 5 }, (_, i) => ({
-          week: i + 1,
-          start: today.clone().startOf("month").add(i, "weeks").startOf("week"),
-          end: today.clone().startOf("month").add(i, "weeks").endOf("week"),
-        }));
-
-        data = await Promise.all(
-          weeks.map(async (week) => {
-            const bookings = await Booking.count({
-              where: {
-                agent_id: agentId,
-                booking_date: {
-                  [Op.between]: [
-                    week.start.format("YYYY-MM-DD"),
-                    week.end.format("YYYY-MM-DD"),
-                  ],
-                },
-                payment_status: ["Paid", "Invoiced"],
-              },
-            });
-            return { week: `Week ${week.week}`, totalBookings: bookings };
-          })
+            data.find((d) => d.date === date) || { date, totalBookingsPaid: 0, totalBookingsInvoiced: 0 }
         );
         break;
 
@@ -856,11 +835,17 @@ const getAgentAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
           },
           attributes: [
             [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
-            [sequelize.fn("COUNT", sequelize.col("id")), "totalBookings"],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END`)),
+              "totalBookingsPaid",
+            ],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'invoiced' THEN 1 ELSE 0 END`)),
+              "totalBookingsInvoiced",
+            ],
           ],
           group: ["month"],
           raw: true,
@@ -869,7 +854,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
         data = months.map(
           (month) =>
-            data.find((d) => d.month === month) || { month, totalBookings: 0 }
+            data.find((d) => d.month === month) || { month, totalBookingsPaid: 0, totalBookingsInvoiced: 0 }
         );
         break;
 
@@ -887,11 +872,17 @@ const getAgentAnnualyMetrics = async (req, res) => {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
-            payment_status: ["Paid", "Invoiced"],
           },
           attributes: [
             [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
-            [sequelize.fn("COUNT", sequelize.col("id")), "totalBookings"],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END`)),
+              "totalBookingsPaid",
+            ],
+            [
+              sequelize.fn("SUM", sequelize.literal(`CASE WHEN payment_status = 'invoiced' THEN 1 ELSE 0 END`)),
+              "totalBookingsInvoiced",
+            ],
           ],
           group: ["year"],
           raw: true,
@@ -903,7 +894,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         ).reverse();
         data = years.map(
           (year) =>
-            data.find((d) => d.year === year) || { year, totalBookings: 0 }
+            data.find((d) => d.year === year) || { year, totalBookingsPaid: 0, totalBookingsInvoiced: 0 }
         );
         break;
 
@@ -926,6 +917,8 @@ const getAgentAnnualyMetrics = async (req, res) => {
       .json({ status: "error", message: "Internal server error" });
   }
 };
+
+
 
 const getBookingComparisonMetrics = async (req, res) => {
   try {
