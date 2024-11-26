@@ -459,18 +459,34 @@ const getMetricsByAgentId = async (req, res) => {
     // Current metrics
     const currentBookingValue =
       (await Booking.sum("gross_total", {
-        where: { agent_id, booking_date: dateFilter },
+        where: { agent_id,payment_status: ["paid","invoiced"], booking_date: dateFilter },
       })) ?? 0;
     const currentTotalBookingCount =
       (await Booking.count({
         where: { agent_id, booking_date: dateFilter },
       })) ?? 0;
-    const currentTransportBookingCount =
-      (await TransportBooking.count({
+    // const currentTransportBooking =
+    //   (await TransportBooking.sum("transport_price", {
+    //     attributes:[],
+    //     include: [
+    //       { model: Booking, where: { agent_id, booking_date: dateFilter } },
+    //     ],
+    //   })) ?? 0;
+
+      const currentTransportBooking =
+      (await TransportBooking.sum("transport_price", {
         include: [
-          { model: Booking, where: { agent_id, booking_date: dateFilter } },
+          {
+            model: Booking,
+            as: "booking",
+            attributes: [],
+            where: {
+              booking_date: dateFilter,
+              payment_status: "paid",
+            },
+          },
         ],
-      })) ?? 0;
+      })) || 0;
     const currentTotalCustomers =
       (await Passenger.count({
         distinct: true,
@@ -503,15 +519,33 @@ const getMetricsByAgentId = async (req, res) => {
       (await Booking.count({
         where: { agent_id, booking_date: previousPeriodFilter },
       })) ?? 0;
-    const previousTransportBookingCount =
-      (await TransportBooking.count({
-        include: [
-          {
-            model: Booking,
-            where: { agent_id, booking_date: previousPeriodFilter },
+
+
+    // const previousTransportBooking =
+    //   (await TransportBooking.sum( "transport_price", {
+    //     attributes:[],
+    //     include: [
+    //       {
+    //         model: Booking,
+    //         where: { agent_id, booking_date: previousPeriodFilter },
+    //       },
+    //     ],
+    //   })) ?? 0;
+
+    const previousTransportBooking =
+    (await TransportBooking.sum("transport_price", {
+      include: [
+        {
+          model: Booking,
+          as: "booking",
+          attributes: [], // Kosongkan attributes
+          where: {
+            booking_date: previousPeriodFilter,
+            payment_status: "paid",
           },
-        ],
-      })) ?? 0;
+        },
+      ],
+    })) || 0;
     const previousTotalCustomers =
       (await Passenger.count({
         distinct: true,
@@ -545,9 +579,9 @@ const getMetricsByAgentId = async (req, res) => {
         currentTotalBookingCount,
         previousTotalBookingCount
       ),
-      transportBookingCount: calculateComparison(
-        currentTransportBookingCount,
-        previousTransportBookingCount
+      transportBooking: calculateComparison(
+        currentTransportBooking,
+        previousTransportBooking
       ),
       totalCustomers: calculateComparison(
         currentTotalCustomers,
