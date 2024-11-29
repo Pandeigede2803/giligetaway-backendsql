@@ -255,7 +255,7 @@ const getMetrics = async (req, res) => {
         {
           model: Schedule,
           as: "schedule",
-          where: { boat_id: 2 },
+          where: { boat_id: 3 },
           attributes: [],
         },
       ],
