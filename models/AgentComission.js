@@ -27,6 +27,7 @@ const AgentCommission = sequelize.define('AgentCommission', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
+    // agentComission.amount
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
