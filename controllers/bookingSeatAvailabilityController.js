@@ -648,7 +648,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         });
       }
   
-      const { Schedule, BookingSeatAvailabilities, availability } = seatAvailability;
+      const { Schedule, BookingSeatAvailabilities, availability, } = seatAvailability;
   
       // Determine seat availability status
       const seatAvailabilityStatus = Boolean(availability);
@@ -660,19 +660,23 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         route = buildRouteFromSchedule(Schedule, subSchedule);
       }
   
-      // Fetch all passengers related to the seat availability
-      const passengers = [];
-      BookingSeatAvailabilities.forEach((bsa) => {
-        const { booking_date, ticket_id, payment_status } = bsa.Booking;
-        bsa.Booking.passengers.forEach((passenger) => {
-          passengers.push({
-            ...passenger.get({ plain: true }),
-            booking_date,
-            ticket_id,
-            payment_status,
-          });
+    // Fetch all passengers related to the seat availability
+    const passengers = [];
+    BookingSeatAvailabilities.forEach((bsa) => {
+      const { booking_date, ticket_id, payment_status, ...bookingDetails } = bsa.Booking.get({
+        plain: true,
+      });
+
+      bsa.Booking.passengers.forEach((passenger) => {
+        passengers.push({
+          ...passenger.get({ plain: true }),
+          booking_date,
+          ticket_id,
+          payment_status,
+          bookingDetails, // Include all other booking details
         });
       });
+    });
   
       return res.status(200).json({
         status: 'success',

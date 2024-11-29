@@ -1,4 +1,4 @@
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat, AgentCommission } = require('../models');
 
 
 const findSeatAvailabilityWithDetails = async (id) => {
@@ -13,11 +13,39 @@ const findSeatAvailabilityWithDetails = async (id) => {
             {
               model: Booking,
               where: { payment_status: ['paid', 'invoiced'] },
-              attributes: ['id', 'booking_date', 'ticket_id','payment_status'],
+              // Include all attributes from Booking
+              attributes: { exclude: [] },
               include: [
                 {
                   model: Passenger,
                   as: 'passengers',
+                },
+                {
+                  model: AgentCommission,
+                  as: 'agentCommissions',
+                },
+                {
+                  model: TransportBooking,
+                  as: 'transportBookings',
+                  attributes: ['id', 'booking_id', 'transport_id', 'quantity', 'transport_price', 'transport_type', 'note'],
+                  include: [
+                    {
+                      model: Transport,
+                      as: 'transport',
+                 
+                    },
+                  ],
+                },
+                {
+                  model:Agent,
+                  as: 'Agent',
+                  attributes:[
+                    'id',
+                    'name',
+                    'email',
+                    'phone'
+                  ],
+              
                 },
                 {
                   model: Schedule,
