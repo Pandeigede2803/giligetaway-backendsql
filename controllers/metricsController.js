@@ -19,6 +19,8 @@ const {
   Boat,
 } = require("../models");
 
+
+// Fungsi untuk mendapatkan metrik pemesanan berdasarkan sumber
 const getBookingMetricsBySource = async (req, res) => {
   try {
     const { timeframe } = req.query;
@@ -103,7 +105,10 @@ const getBookingMetricsBySource = async (req, res) => {
   }
 };
 
+
+
 // Helper to parse and build date filter
+// month, year, day
 const buildDateFilter = (dateParams) => {
   const { month, year, day } = dateParams;
   const filter = {};
@@ -114,6 +119,8 @@ const buildDateFilter = (dateParams) => {
 
   return filter;
 };
+
+// Controller to fetch metrics
 const getMetrics = async (req, res) => {
   try {
     const { month, year, day } = req.query; // Month, year, or day filter (optional)
@@ -436,6 +443,8 @@ const calculateComparison = (current, previous) => {
     change: `${change.toFixed(2)}%`,
   };
 };
+
+// Get metrics by agent ID  
 const getMetricsByAgentId = async (req, res) => {
   const { agent_id } = req.params;
   const { month, year, day } = req.query;
@@ -461,6 +470,8 @@ const getMetricsByAgentId = async (req, res) => {
       (await Booking.sum("gross_total", {
         where: { agent_id,payment_status: ["paid","invoiced"], booking_date: dateFilter },
       })) ?? 0;
+
+
     const currentTotalBookingCount =
       (await Booking.count({
         where: { agent_id, booking_date: dateFilter },
@@ -487,6 +498,8 @@ const getMetricsByAgentId = async (req, res) => {
           },
         ],
       })) || 0;
+
+
     const currentTotalCustomers =
       (await Passenger.count({
         distinct: true,
@@ -501,6 +514,8 @@ const getMetricsByAgentId = async (req, res) => {
       (await AgentCommission.sum("amount", {
         where: { agent_id, created_at: dateFilter },
       })) ?? 0;
+
+
     const currentUnpaidToGiligetaway =
       (await Booking.sum("gross_total", {
         where: {
@@ -509,6 +524,16 @@ const getMetricsByAgentId = async (req, res) => {
           booking_date: dateFilter,
         },
       })) ?? 0;
+
+      const currentpaidToGiligetaway =
+      (await Booking.sum("gross_total", {
+        where: {
+          agent_id,
+          payment_status: "paid",
+          booking_date: dateFilter,
+        },
+      })) ?? 0;
+
 
     // Previous metrics for comparison
     const previousBookingValue =
@@ -568,6 +593,14 @@ const getMetricsByAgentId = async (req, res) => {
           booking_date: previousPeriodFilter,
         },
       })) ?? 0;
+      const previouspaidToGiligetaway =
+      (await Booking.sum("gross_total", {
+        where: {
+          agent_id,
+          payment_status: "invoiced",
+          booking_date: previousPeriodFilter,
+        },
+      })) ?? 0;
 
     // Metrics with comparison
     const metrics = {
@@ -595,6 +628,16 @@ const getMetricsByAgentId = async (req, res) => {
         currentUnpaidToGiligetaway,
         previousUnpaidToGiligetaway
       ),
+      // get paid to giligetaway
+
+      paidToGiligetaway: calculateComparison(
+        currentpaidToGiligetaway,
+        previouspaidToGiligetaway
+      ),
+      // unpaidToGiligetaway: calculateComparison(
+      //   currentUnpaidToGiligetaway,
+      //   previousUnpaidToGiligetaway
+      // ),
     };
 
     // Send the metrics as the response
