@@ -1,0 +1,38 @@
+<!-- /shared/templates/invoice.hbs -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Invoice</title>
+    <style>
+      /* Include your styles here */
+      body {
+        font-family: Arial, sans-serif;
+      }
+      /* Add more styles as needed */
+    </style>
+  </head>
+  <body>
+    <h1>Invoice for {{customerName}}</h1>
+    <p>Booking ID: {{bookingId}}</p>
+    <p>Date: {{date}}</p>
+    <!-- Add more invoice details -->
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td>{{this.name}}</td>
+          <td>{{this.price}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+    <p>Total: {{total}}</p>
+  </body>
+</html>
