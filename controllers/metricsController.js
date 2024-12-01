@@ -186,7 +186,7 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
       currentDate.clone().endOf('month').format('YYYY-MM-DD')
     ]
   };
-};
+};;
 
 // Controller to fetch metrics
 const getMetrics = async (req, res) => {
