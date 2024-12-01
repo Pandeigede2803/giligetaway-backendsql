@@ -1004,6 +1004,9 @@ const getMetricsByAgentId = async (req, res) => {
   const { agent_id } = req.params;
   const { from, to, month, year, day } = req.query;
 
+  console.log("Agent ID:", agent_id);
+  console.log("Date Filters:", { from, to, month, year, day });
+
   if (!agent_id) {
     return res
       .status(400)
@@ -1091,10 +1094,21 @@ const getMetricsByAgentId = async (req, res) => {
           where: { agent_id, booking_date: dateFilter },
         },
       })) ?? 0;
-    const currentTotalCommission =
-      (await AgentCommission.sum("amount", {
-        where: { agent_id, created_at: dateFilter },
-      })) ?? 0;
+
+      const currentTotalCommission = await AgentCommission.sum("amount", {
+        include: [{
+          model: Booking,
+          attributes: [],
+          required: true,
+          where: {
+            agent_id,
+            booking_date: dateFilter
+          }
+        }],
+        where: {
+          agent_id
+        }
+      }) ?? 0;
 
     const currentUnpaidToGiligetaway =
       (await Booking.sum("gross_total", {
@@ -1159,10 +1173,21 @@ const getMetricsByAgentId = async (req, res) => {
           where: { agent_id, booking_date: previousPeriodFilter },
         },
       })) ?? 0;
-    const previousTotalCommission =
-      (await AgentCommission.sum("amount", {
-        where: { agent_id, created_at: previousPeriodFilter },
-      })) ?? 0;
+      const previousTotalCommission = await AgentCommission.sum("amount", {
+        include: [{
+          model: Booking,
+          attributes: [],
+          required: true,
+          where: {
+            agent_id,
+            booking_date: previousPeriodFilter
+          }
+        }],
+        where: {
+          agent_id
+        }
+      }) ?? 0;
+
     const previousUnpaidToGiligetaway =
       (await Booking.sum("gross_total", {
         where: {
