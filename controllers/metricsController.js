@@ -1257,29 +1257,36 @@ const getMetricsByAgentId = async (req, res) => {
 const getAnnualyMetrics = async (req, res) => {
   try {
     const { timeframe } = req.query;
-
     const today = moment();
-    let startDate,
-      endDate,
-      data = [];
+    let startDate, endDate, data = [];
 
     switch (timeframe) {
       case "Day":
-        // Last 7 days
-        startDate = today
-          .clone()
-          .subtract(6, "days")
-          .startOf("day")
-          .format("YYYY-MM-DD");
+        startDate = today.clone().subtract(6, "days").startOf("day").format("YYYY-MM-DD");
         endDate = today.clone().endOf("day").format("YYYY-MM-DD");
 
-        // Aggregate data by day
-        data = await Booking.findAll({
+        // Get paid/invoiced bookings
+        const paidBookings = await Booking.findAll({
           where: {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
+          },
+          attributes: [
+            [sequelize.fn("DATE", sequelize.col("booking_date")), "date"],
+            [sequelize.fn("COUNT", sequelize.col("id")), "paidBookings"],
+          ],
+          group: ["date"],
+          raw: true,
+        });
+
+        // Get all bookings
+        const allBookings = await Booking.findAll({
+          where: {
+            booking_date: {
+              [Op.between]: [startDate, endDate],
+            },
           },
           attributes: [
             [sequelize.fn("DATE", sequelize.col("booking_date")), "date"],
@@ -1289,21 +1296,21 @@ const getAnnualyMetrics = async (req, res) => {
           raw: true,
         });
 
-        // Fill missing days with 0
+        // Fill missing days with 0 and combine both datasets
         const last7Days = Array.from({ length: 7 }, (_, i) =>
           today.clone().subtract(i, "days").format("YYYY-MM-DD")
         ).reverse();
-        data = last7Days.map(
-          (date) =>
-            data.find((d) => d.date === date) || { date, totalBookings: 0 }
-        );
+
+        data = last7Days.map(date => ({
+          date,
+          totalBookings: paidBookings.find(d => d.date === date)?.paidBookings || 0,
+          totalAllBookings: allBookings.find(d => d.date === date)?.totalBookings || 0
+        }));
         break;
 
       case "Week":
-        // Current month by week
-        const currentMonth = today.month() + 1; // Moment.js months are zero-indexed
+        const currentMonth = today.month() + 1;
         const currentYear = today.year();
-
         const weeks = [
           {
             week: 1,
@@ -1312,45 +1319,29 @@ const getAnnualyMetrics = async (req, res) => {
           },
           {
             week: 2,
-            start: today
-              .clone()
-              .startOf("month")
-              .add(1, "weeks")
-              .startOf("week"),
+            start: today.clone().startOf("month").add(1, "weeks").startOf("week"),
             end: today.clone().startOf("month").add(1, "weeks").endOf("week"),
           },
           {
             week: 3,
-            start: today
-              .clone()
-              .startOf("month")
-              .add(2, "weeks")
-              .startOf("week"),
+            start: today.clone().startOf("month").add(2, "weeks").startOf("week"),
             end: today.clone().startOf("month").add(2, "weeks").endOf("week"),
           },
           {
             week: 4,
-            start: today
-              .clone()
-              .startOf("month")
-              .add(3, "weeks")
-              .startOf("week"),
+            start: today.clone().startOf("month").add(3, "weeks").startOf("week"),
             end: today.clone().startOf("month").add(3, "weeks").endOf("week"),
           },
           {
             week: 5,
-            start: today
-              .clone()
-              .startOf("month")
-              .add(4, "weeks")
-              .startOf("week"),
+            start: today.clone().startOf("month").add(4, "weeks").startOf("week"),
             end: today.clone().startOf("month").add(4, "weeks").endOf("week"),
           },
         ];
 
         data = await Promise.all(
           weeks.map(async (week) => {
-            const bookings = await Booking.count({
+            const totalBookings = await Booking.count({
               where: {
                 booking_date: {
                   [Op.between]: [
@@ -1361,23 +1352,51 @@ const getAnnualyMetrics = async (req, res) => {
                 payment_status: ["paid", "invoiced"],
               },
             });
-            return { week: `Week ${week.week}`, totalBookings: bookings };
+
+            const totalAllBookings = await Booking.count({
+              where: {
+                booking_date: {
+                  [Op.between]: [
+                    week.start.format("YYYY-MM-DD"),
+                    week.end.format("YYYY-MM-DD"),
+                  ],
+                },
+              },
+            });
+
+            return {
+              week: `Week ${week.week}`,
+             totalBookings,
+              totalAllBookings
+            };
           })
         );
         break;
 
       case "Month":
-        // Current year by month
         startDate = today.clone().startOf("year").format("YYYY-MM-DD");
         endDate = today.clone().endOf("year").format("YYYY-MM-DD");
 
-        // Aggregate data by month
-        data = await Booking.findAll({
+        const paidMonthlyBookings = await Booking.findAll({
           where: {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
+          },
+          attributes: [
+            [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
+            [sequelize.fn("COUNT", sequelize.col("id")), "paidBookings"],
+          ],
+          group: ["month"],
+          raw: true,
+        });
+
+        const allMonthlyBookings = await Booking.findAll({
+          where: {
+            booking_date: {
+              [Op.between]: [startDate, endDate],
+            },
           },
           attributes: [
             [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
@@ -1387,30 +1406,38 @@ const getAnnualyMetrics = async (req, res) => {
           raw: true,
         });
 
-        // Fill missing months with 0
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
-        data = months.map(
-          (month) =>
-            data.find((d) => d.month === month) || { month, totalBookings: 0 }
-        );
+        data = months.map(month => ({
+          month,
+          totalBookings: paidMonthlyBookings.find(d => d.month === month)?.paidBookings || 0,
+          totalAllBookings: allMonthlyBookings.find(d => d.month === month)?.totalBookings || 0
+        }));
         break;
 
       case "Year":
-        // Past 4 years
-        startDate = today
-          .clone()
-          .subtract(3, "years")
-          .startOf("year")
-          .format("YYYY-MM-DD");
+        startDate = today.clone().subtract(3, "years").startOf("year").format("YYYY-MM-DD");
         endDate = today.clone().endOf("year").format("YYYY-MM-DD");
 
-        // Aggregate data by year
-        data = await Booking.findAll({
+        const paidYearlyBookings = await Booking.findAll({
           where: {
             booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
+          },
+          attributes: [
+            [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
+            [sequelize.fn("COUNT", sequelize.col("id")), "paidBookings"],
+          ],
+          group: ["year"],
+          raw: true,
+        });
+
+        const allYearlyBookings = await Booking.findAll({
+          where: {
+            booking_date: {
+              [Op.between]: [startDate, endDate],
+            },
           },
           attributes: [
             [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
@@ -1420,21 +1447,17 @@ const getAnnualyMetrics = async (req, res) => {
           raw: true,
         });
 
-        // Fill missing years with 0
-        const years = Array.from(
-          { length: 4 },
-          (_, i) => today.year() - i
-        ).reverse();
-        data = years.map(
-          (year) =>
-            data.find((d) => d.year === year) || { year, totalBookings: 0 }
-        );
+        const years = Array.from({ length: 4 }, (_, i) => today.year() - i).reverse();
+        data = years.map(year => ({
+          year,
+          totalBookings: paidYearlyBookings.find(d => d.year === year)?.paidBookings || 0,
+          totalAllBookings: allYearlyBookings.find(d => d.year === year)?.totalBookings || 0
+        }));
         break;
 
       default:
         return res.status(400).json({
-          error:
-            "Invalid timeframe provided. Use 'Day', 'Week', 'Month', or 'Year'.",
+          error: "Invalid timeframe provided. Use 'Day', 'Week', 'Month', or 'Year'.",
         });
     }
 
@@ -1445,9 +1468,7 @@ const getAnnualyMetrics = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching booking metrics:", error);
-    return res
-      .status(500)
-      .json({ status: "error", message: "Internal server error" });
+    return res.status(500).json({ status: "error", message: "Internal server error" });
   }
 };
 
