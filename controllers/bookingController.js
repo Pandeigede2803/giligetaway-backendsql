@@ -21,7 +21,7 @@ const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 // const {handleDynamicSeatAvailability} = require ("../util/handleDynamicSeatAvailability");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
-
+const releaseSeats = require('../util/releaseSeats'); // Adjust the path based on your project structure
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
@@ -1590,167 +1590,190 @@ const updateBooking = async (req, res) => {
 };
 
 const updateBookingPayment = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // Booking ID
   const { payment_method, payment_status } = req.body;
+
+  console.log(`Received request to update booking payment. Booking ID: ${id}`);
+  console.log(`Request body:`, { payment_method, payment_status });
 
   try {
     await sequelize.transaction(async (t) => {
-      const booking = await Booking.findByPk(id, { transaction: t });
-      console.log("Booking found:", booking);
+      // Find booking and include its transaction association
+      const booking = await Booking.findByPk(id, {
+        include: {
+          model: Transaction,
+          as: 'transactions', // Alias as per your association
+        },
+        transaction: t,
+      });
+
       if (!booking) {
+        console.error(`Booking with ID ${id} not found.`);
         throw new Error("Booking not found.");
       }
 
+      console.log(`Booking found:`, booking.toJSON());
+
       const currentStatus = booking.payment_status;
+      console.log(`Current payment status: ${currentStatus}`);
 
-      if (payment_status === "paid" && currentStatus !== "paid") {
-        const seatAvailabilities = await SeatAvailability.findAll({
-          where: { schedule_id: booking.schedule_id },
-          transaction: t,
-        });
+      // Case 1: Update only payment method
+      if (payment_method && !payment_status) {
+        console.log(`Updating payment method to: ${payment_method}`);
+        await booking.update({ payment_method }, { transaction: t });
+        console.log(`Payment method updated successfully.`);
+        return res.status(200).json({ message: "Payment method updated successfully", data: booking });
+      }
 
-        for (const seatAvailability of seatAvailabilities) {
-          // Check if seat availability is frozen
-          if (!seatAvailability.availability) {
-            throw new Error(
-              `The seat availability for date: ${seatAvailability.date} is frozen and cannot be booked at the moment.`
-            );
+      // Case 2: Update only payment status
+      if (payment_status && !payment_method) {
+        console.log(`Request to update payment status to: ${payment_status}`);
+
+        if (
+          (currentStatus === "invoiced" && payment_status === "paid") ||
+          (["paid", "invoiced"].includes(currentStatus) && payment_status === "refund") ||
+          (["paid", "invoiced"].includes(currentStatus) && payment_status === "cancelled")
+        ) {
+          console.log(`Valid payment status transition detected.`);
+
+          let releasedSeatIds = [];
+          if (payment_status === "refund" || payment_status === "cancelled") {
+            console.log(`Processing ${payment_status}. Releasing seats for booking ID: ${id}`);
+            releasedSeatIds = await releaseSeats(booking, t); // Capture SeatAvailability IDs
+            console.log(`Seats released successfully for booking ID: ${id}`);
           }
 
-          // Check if there are enough available seats
-          if (seatAvailability.available_seats < booking.total_passengers) {
-            throw new Error(
-              `The seat availability for date: ${seatAvailability.date} is full.`
-            );
+          // Update payment status
+          console.log(`Updating payment status to: ${payment_status}`);
+          await booking.update({ payment_status }, { transaction: t });
+          console.log(`Payment status updated successfully.`);
+
+          // Prepare response data
+          const response = { message: "Payment status updated successfully", data: booking };
+          if (payment_status === "refund" || payment_status === "cancelled") {
+            response.releasedSeats = {
+              totalPassengers: booking.total_passengers,
+              scheduleId: booking.schedule_id,
+              subscheduleId: booking.subschedule_id || null,
+              seatIds: releasedSeatIds, // Include SeatAvailability IDs
+            };
+            console.log(`Released seats details added to response:`, response.releasedSeats);
           }
 
-          await seatAvailability.update(
-            {
-              available_seats:
-                seatAvailability.available_seats - booking.total_passengers,
-            },
-            { transaction: t }
+          return res.status(200).json(response);
+        } else {
+          console.error(
+            `Invalid payment status transition: ${currentStatus} -> ${payment_status}`
+          );
+          throw new Error(
+            "Invalid payment status transition. Allowed transitions: 'invoiced' -> 'paid', 'invoiced/paid' -> 'refund', or 'invoiced/paid' -> 'cancelled'."
           );
         }
       }
 
-      await booking.update(
-        { payment_method, payment_status },
-        { transaction: t }
-      );
-
-      console.log("Booking updated:", booking);
-      res.status(200).json(booking);
+      console.error(`Invalid request: Both payment_method and payment_status provided or none.`);
+      throw new Error("You must specify either payment method or payment status, not both.");
     });
   } catch (error) {
-    console.log("Error updating booking:", error.message);
-    res.status(400).json({ error: error.message });
+    console.error(`Error updating booking payment. Booking ID: ${id}`, error.message);
+    return res.status(400).json({ error: error.message });
   }
 };
+
+
+
+
+
+
+
 const updateBookingDate = async (req, res) => {
   const { id } = req.params;
   const { booking_date } = req.body;
+  const { booking } = req.bookingDetails;
 
   try {
     await sequelize.transaction(async (t) => {
-      console.log("Finding booking...");
-      const booking = await Booking.findByPk(id, { transaction: t });
-      if (!booking) {
-        throw new Error("Booking not found.");
-      }
-      console.log("Current booking found:", booking);
+      console.log('\n=== Starting Booking Date Update Process ===');
+      
+      // Store the original booking date before any updates
+      const originalBookingDate = booking.booking_date;
+      console.log('Original booking date:', originalBookingDate);
+      console.log('New booking date:', booking_date);
 
-      const currentSeatAvailability = await SeatAvailability.findOne({
-        where: { date: booking.booking_date, schedule_id: booking.schedule_id },
-        transaction: t,
-      });
-      console.log("Current seat availability found:", currentSeatAvailability);
-
-      let newSeatAvailability = await SeatAvailability.findOne({
-        where: { date: booking_date, schedule_id: booking.schedule_id },
-        transaction: t,
-      });
-
-      if (!newSeatAvailability) {
-        console.log("New seat availability not found, creating new entry...");
-
-        const schedule = await Schedule.findByPk(booking.schedule_id, {
-          include: {
-            model: Boat,
-            as: "Boat",
-            attributes: ["capacity"],
-          },
-          transaction: t,
+      // Skip the update if dates are the same
+      if (originalBookingDate === booking_date) {
+        return res.status(400).json({
+          error: 'New booking date is the same as current booking date'
         });
-
-        if (!schedule) {
-          throw new Error(`Schedule with ID ${booking.schedule_id} not found.`);
-        }
-
-        newSeatAvailability = await SeatAvailability.create(
-          {
-            schedule_id: booking.schedule_id,
-            available_seats: schedule.Boat.capacity - booking.total_passengers,
-            total_seats: schedule.Boat.capacity,
-            date: booking_date,
-            availability: true,
-          },
-          { transaction: t }
-        );
-        console.log("New seat availability created:", newSeatAvailability);
       }
 
-      if (!newSeatAvailability.availability) {
-        throw new Error(
-          `The seat availability for date: ${booking_date} is frozen and cannot be booked at the moment.`
-        );
+      // 1. Release seats from current booking date
+      console.log('\n🔄 Releasing seats from previous date...');
+      try {
+        const releasedSeatIds = await releaseSeats(booking, t);
+        console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+      } catch (error) {
+        console.error('❌ Error releasing seats:', error);
+        throw new Error(`Failed to release seats: ${error.message}`);
       }
 
-      if (newSeatAvailability.available_seats < booking.total_passengers) {
-        throw new Error(
-          `The seat availability for date: ${booking_date} is full.`
-        );
-      }
+      // 2. Update booking date
+      console.log('\n📅 Updating booking date...');
+      await booking.update({ booking_date }, { transaction: t });
+      console.log('✅ Booking date updated successfully');
 
-      console.log("Updating seat availability...");
+      // 3. Create new seat availabilities
+      console.log('\n🔄 Creating new seat availabilities...');
+      let remainingSeatAvailabilities;
 
-      if (currentSeatAvailability) {
-        await currentSeatAvailability.update(
-          {
-            available_seats:
-              currentSeatAvailability.available_seats +
-              booking.total_passengers,
-          },
-          { transaction: t }
-        );
-        console.log(
-          "Updated current seat availability:",
-          currentSeatAvailability
+      if (booking.subschedule_id) {
+        console.log(`Processing sub-schedule booking for subschedule_id ${booking.subschedule_id}`);
+        remainingSeatAvailabilities = await handleSubScheduleBooking(
+          booking.schedule_id,
+          booking.subschedule_id,
+          booking_date,
+          booking.total_passengers,
+          null,
+          t
         );
       } else {
-        console.log(
-          "No seat availability found for the current booking date, skipping update..."
+        console.log(`Processing main schedule booking for schedule_id ${booking.schedule_id}`);
+        remainingSeatAvailabilities = await handleMainScheduleBooking(
+          booking.schedule_id,
+          booking_date,
+          booking.total_passengers,
+          t
         );
       }
 
-      await newSeatAvailability.update(
-        {
-          available_seats:
-            newSeatAvailability.available_seats - booking.total_passengers,
-        },
-        { transaction: t }
+      console.log('✅ New seat availabilities created successfully:', 
+        remainingSeatAvailabilities.map(sa => ({
+          id: sa.id,
+          schedule_id: sa.schedule_id,
+          subschedule_id: sa.subschedule_id,
+          available_seats: sa.available_seats
+        }))
       );
-      console.log("Updated new seat availability:", newSeatAvailability);
 
-      console.log("Updating booking date...");
-      await booking.update({ booking_date }, { transaction: t });
-      console.log("Booking date updated:", booking);
+      console.log('\n=== Booking Date Update Process Completed ===');
 
-      res.status(200).json(booking);
+      res.status(200).json({
+        message: 'Booking date updated successfully',
+        booking: {
+          id: booking.id,
+          new_date: booking_date,
+          previous_date: originalBookingDate,
+          affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
+        }
+      });
     });
+
   } catch (error) {
-    console.log("Error updating booking date:", error.message);
-    res.status(400).json({ error: error.message });
+    console.error('\n❌ Error in updateBookingDate:', error);
+    res.status(400).json({ 
+      error: 'Failed to update booking date',
+      details: error.message
+    });
   }
 };
 
@@ -1792,7 +1815,6 @@ const deleteBooking = async (req, res) => {
 
 module.exports = {
   createBooking,
-
   createBookingMultiple,
   getBookingContact,
   getFilteredBookings,
@@ -1809,6 +1831,16 @@ module.exports = {
   updateBookingDate,
   getBookingsByDate,
 };
+
+
+
+
+
+
+
+
+
+
 
 // const createBookingWithoutTransit = async (req, res) => {
 //     const {
