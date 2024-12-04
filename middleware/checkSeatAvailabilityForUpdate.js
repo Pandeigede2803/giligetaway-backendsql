@@ -351,8 +351,134 @@ const validateBookingDate = async (req, res, next) => {
     }
 };
 
+const validatePaymentUpdate = async (req, res, next) => {
+    const { payment_method, payment_status } = req.body;
+    const { id } = req.params;
+
+    console.log('\n=== Starting Payment Validation ===');
+    console.log('📝 Validating request:', { payment_method, payment_status });
+
+    try {
+        // Check if at least one field is provided
+        if (!payment_method && !payment_status) {
+            console.log('❌ No update parameters provided');
+            return res.status(400).json({
+                error: "Either payment_method or payment_status must be provided"
+            });
+        }
+
+        // Check if both fields are provided
+        if (payment_method && payment_status) {
+            console.log('❌ Both parameters provided');
+            return res.status(400).json({
+                error: "You must specify either payment method or payment status, not both"
+            });
+        }
+
+        // Find the booking first
+        const booking = await Booking.findByPk(id, {
+            include: [{
+                model: Transaction,
+                as: 'transactions'
+            }]
+        });
+
+        if (!booking) {
+            console.log('❌ Booking not found');
+            return res.status(404).json({
+                error: "Booking not found"
+            });
+        }
+
+        // Check if booking is already refunded or cancelled
+        const finalStates = ['refund_50', 'refund_100', 'cancelled'];
+        if (finalStates.includes(booking.payment_status)) {
+            console.log('❌ Cannot modify booking in final state:', booking.payment_status);
+            return res.status(400).json({
+                error: `Cannot modify booking that is already ${booking.payment_status}`,
+                currentStatus: booking.payment_status
+            });
+        }
+
+        // Validate payment method if provided
+        if (payment_method) {
+            const validPaymentMethods = ['credit_card', 'bank_transfer', 'cash', 'paypal'];
+            if (!validPaymentMethods.includes(payment_method)) {
+                console.log('❌ Invalid payment method:', payment_method);
+                return res.status(400).json({
+                    error: "Invalid payment method",
+                    validMethods: validPaymentMethods
+                });
+            }
+        }
+
+        // Validate payment status if provided
+        if (payment_status) {
+            const currentStatus = booking.payment_status;
+            console.log('Current payment status:', currentStatus);
+            console.log('Requested payment status:', payment_status);
+
+            // Define valid status transitions
+            const validTransitions = {
+                'invoiced': ['paid'],
+                'paid': ['refund_50', 'refund_100', 'cancelled'],
+                'refund_50': [], // No further transitions allowed
+                'refund_100': [], // No further transitions allowed
+                'cancelled': []   // No further transitions allowed
+            };
+
+            // Check if current status exists in valid transitions
+            if (!validTransitions[currentStatus]) {
+                console.log('❌ Invalid current status:', currentStatus);
+                return res.status(400).json({
+                    error: "Invalid current payment status",
+                    currentStatus
+                });
+            }
+
+            // Check if requested transition is valid
+            if (!validTransitions[currentStatus].includes(payment_status)) {
+                console.log('❌ Invalid status transition');
+                return res.status(400).json({
+                    error: "Invalid payment status transition",
+                    currentStatus,
+                    attemptedStatus: payment_status,
+                    allowedTransitions: validTransitions[currentStatus]
+                });
+            }
+
+            // For refunds and cancellation, check if there are existing transactions
+            if (['refund_50', 'refund_100', 'cancelled'].includes(payment_status)) {
+                const hasTransactions = booking.transactions && booking.transactions.length > 0;
+                if (!hasTransactions) {
+                    console.log('❌ No transactions found for refund/cancellation');
+                    return res.status(400).json({
+                        error: "Cannot refund or cancel booking without existing transactions"
+                    });
+                }
+            }
+        }
+
+        // Store validated booking in request for controller use
+        req.validatedBooking = booking;
+        console.log('✅ Validation passed');
+        next();
+
+    } catch (error) {
+        console.error('❌ Error in payment validation:', error);
+        return res.status(500).json({
+            error: "Error validating payment update",
+            details: error.message
+        });
+    }
+};
+
+
+
+
 // Helper function to convert binary days of week to array of day names
 module.exports = {
     checkSeatAvailabilityForUpdate,
-    validateBookingDate
+    validateBookingDate,
+    validatePaymentUpdate
 };

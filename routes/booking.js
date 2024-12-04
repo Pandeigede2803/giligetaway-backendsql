@@ -6,7 +6,7 @@ const authenticate = require('../middleware/authenticate');
 const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limiting middleware
 const validateScheduleAndSubSchedule = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
-const { checkSeatAvailabilityForUpdate,validateBookingDate } = require('../middleware/checkSeatAvailabilityForUpdate');
+const { checkSeatAvailabilityForUpdate,validateBookingDate,validatePaymentUpdate } = require('../middleware/checkSeatAvailabilityForUpdate');
 
 // CREATE booking
 router.post('/', bookingController.createBooking);
@@ -45,7 +45,7 @@ router.get('/ticket/:ticket_id', bookingController.getBookingByTicketId);
 router.put('/:id', bookingController.updateBooking);
 
 //update booking payment
-router.put('/payment/:id',authenticate, bookingController.updateBookingPayment);
+router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.updateBookingPayment);
 
 //update booking date
 router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate, bookingController.updateBookingDate);
