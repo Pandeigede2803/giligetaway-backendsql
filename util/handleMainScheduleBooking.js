@@ -1,6 +1,6 @@
 const { sequelize, Booking, SeatAvailability, Destination, SubSchedule, Transport, Schedule, Passenger, Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 const { Op } = require('sequelize');
-
+const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 const handleMainScheduleBooking = async (schedule_id, booking_date, total_passengers, transaction) => {
     console.log("we enter the handleMainScheduleBooking function"); 
 
@@ -29,8 +29,9 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
     if (!schedule.Boat || !schedule.Boat.capacity) {
         throw new Error('Boat capacity tidak ditemukan');
     }
-    const boatCapacity = schedule.Boat.capacity;
-    console.log(`Step 2: Boat capacity found: ${boatCapacity}`);
+    const publicCapacity = calculatePublicCapacity(schedule.Boat);
+    console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
+
 
     // Step 3: Use the date without time
     const formattedDate = booking_date.split('T')[0];  // Use only the date part
@@ -55,7 +56,7 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
             schedule_id: schedule_id,
             transit_id: null,
             subschedule_id: null,
-            available_seats: boatCapacity,  // Initialize with boat capacity
+            available_seats: publicCapacity,  // Initialize with boat capacity
             date: formattedDate,
             availability: true
         }, { transaction });

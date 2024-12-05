@@ -34,7 +34,7 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                 {
                     model: Boat,
                     as: 'Boat', // Include the Boat model
-                    attributes: ['capacity']
+                    attributes: ['id', 'boat_name', 'capacity']
                    
                 }
             ]

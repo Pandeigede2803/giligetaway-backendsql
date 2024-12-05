@@ -16,7 +16,7 @@ const {
   Boat,
 } = require("../models");
 const { Op, fn, col } = require("sequelize"); // Import fn and col from Sequelize
-
+const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 const { sumTotalPassengers } = require("../util/sumTotalPassengers");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
@@ -149,10 +149,124 @@ const isDayAvailable = (date, daysOfWeek) => {
 //     });
 //   }
 // };
+// const getPassengerCountBySchedule = async (req, res) => {
+//   const { month, year, schedule_id } = req.query;
+
+//   if (!month || !year) {
+//     return res.status(400).json({
+//       success: false,
+//       message: "Please provide month and year in the query parameters.",
+//     });
+//   }
+
+//   try {
+//     const daysInMonth = getDaysInMonth(month, year);
+//     const startDate = `${year}-${month.padStart(2, "0")}-01`;
+//     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
+
+//     const seatAvailabilities = await SeatAvailability.findAll({
+//       attributes: ["id", "date", "schedule_id", "subschedule_id"],
+//       where: {
+//         date: {
+//           [Op.between]: [startDate, endDate],
+//         },
+//         ...(schedule_id && { schedule_id }),
+//       },
+//       include: getSeatAvailabilityIncludes(),
+//     });
+
+//     const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
+//       acc[sa.date] = acc[sa.date] || [];
+//       acc[sa.date].push(sa);
+//       return acc;
+//     }, {});
+
+//     const finalResults = [];
+//     for (const date of daysInMonth) {
+//       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
+
+//       const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(
+//         date
+//       );
+
+//       schedules
+//         .filter(
+//           (schedule) => !schedule_id || schedule.id === parseInt(schedule_id)
+//         )
+//         .forEach((schedule) => {
+//           const mainAvailability = seatAvailabilityForDate.find(
+//             (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
+//           );
+
+//           const totalPassengers = mainAvailability
+//             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
+//             : 0;
+          
+//           const route = buildRouteFromSchedule(schedule, null);
+
+//           const relevantSubSchedules = subSchedules.filter(
+//             (subSchedule) => subSchedule.schedule_id === schedule.id
+//           );
+
+//           const subschedules = relevantSubSchedules.map((subSchedule) => {
+//             const subAvailability = seatAvailabilityForDate.find(
+//               (sa) =>
+//                 sa.schedule_id === schedule.id &&
+//                 sa.subschedule_id === subSchedule.id
+//             );
+      
+//             return {
+//               seatavailability_id: subAvailability ? subAvailability.id : null,
+//               date,
+//               schedule_id: schedule.id,
+//               subschedule_id: subSchedule.id,
+//               // booking_ids: subBookingId, // Add booking IDs for subschedules
+//               total_passengers: subAvailability
+//                 ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
+//                 : 0,
+//               capacity: schedule.dataValues.Boat?.capacity || 0,
+//               route: buildRouteFromSchedule(schedule, subSchedule),
+//             };
+//           });
+
+//           finalResults.push({
+//             seatavailability_id: mainAvailability ? mainAvailability.id : null,
+//             date,
+//             schedule_id: schedule.id,
+//             subschedule_id: null,
+//             route,
+        
+//             capacity: schedule.dataValues.Boat?.capacity || 0,
+//             // i need booking_id
+
+//             total_passengers: totalPassengers,
+//             departure_time: schedule.dataValues.departure_time, // Add departure_time
+//             arrival_time: schedule.dataValues.arrival_time, // Add arrival_time
+//             journey_time: schedule.dataValues.journey_time, // Add journey_timeroute,
+//             subschedules,
+//           });
+//         });
+//     }
+
+//     return res.status(200).json({
+//       success: true,
+//       data: finalResults,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching passenger count by schedule:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to retrieve passenger count for the specified month.",
+//     });
+//   }
+// };
+
 const getPassengerCountBySchedule = async (req, res) => {
   const { month, year, schedule_id } = req.query;
+  console.log('Request Parameters:', { month, year, schedule_id });
 
   if (!month || !year) {
+    console.log('Missing required parameters');
     return res.status(400).json({
       success: false,
       message: "Please provide month and year in the query parameters.",
@@ -163,6 +277,7 @@ const getPassengerCountBySchedule = async (req, res) => {
     const daysInMonth = getDaysInMonth(month, year);
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
+    console.log('Date Range:', { startDate, endDate });
 
     const seatAvailabilities = await SeatAvailability.findAll({
       attributes: ["id", "date", "schedule_id", "subschedule_id"],
@@ -174,6 +289,7 @@ const getPassengerCountBySchedule = async (req, res) => {
       },
       include: getSeatAvailabilityIncludes(),
     });
+    console.log('Total seat availabilities found:', seatAvailabilities.length);
 
     const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
       acc[sa.date] = acc[sa.date] || [];
@@ -184,10 +300,12 @@ const getPassengerCountBySchedule = async (req, res) => {
     const finalResults = [];
     for (const date of daysInMonth) {
       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
+      console.log(`Processing date: ${date}, Found availabilities:`, seatAvailabilityForDate.length);
 
       const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(
         date
       );
+      console.log(`Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`);
 
       schedules
         .filter(
@@ -201,12 +319,23 @@ const getPassengerCountBySchedule = async (req, res) => {
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
+
+          // Calculate public capacity using utility function
+          const publicCapacity = calculatePublicCapacity(schedule.dataValues.Boat);
           
+          console.log('Schedule details:', {
+            scheduleId: schedule.id,
+            publicCapacity,
+            totalPassengers,
+            availableSeats: publicCapacity - totalPassengers
+          });
+
           const route = buildRouteFromSchedule(schedule, null);
 
           const relevantSubSchedules = subSchedules.filter(
             (subSchedule) => subSchedule.schedule_id === schedule.id
           );
+          console.log(`Found relevant subSchedules: ${relevantSubSchedules.length}`);
 
           const subschedules = relevantSubSchedules.map((subSchedule) => {
             const subAvailability = seatAvailabilityForDate.find(
@@ -214,17 +343,24 @@ const getPassengerCountBySchedule = async (req, res) => {
                 sa.schedule_id === schedule.id &&
                 sa.subschedule_id === subSchedule.id
             );
-      
+
+            const subTotalPassengers = subAvailability
+              ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
+              : 0;
+
+            console.log('SubSchedule details:', {
+              subScheduleId: subSchedule.id,
+              totalPassengers: subTotalPassengers,
+              capacity: publicCapacity
+            });
+
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
               date,
               schedule_id: schedule.id,
               subschedule_id: subSchedule.id,
-              // booking_ids: subBookingId, // Add booking IDs for subschedules
-              total_passengers: subAvailability
-                ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
-                : 0,
-              capacity: schedule.dataValues.Boat?.capacity || 0,
+              total_passengers: subTotalPassengers,
+              capacity: publicCapacity || 0,
               route: buildRouteFromSchedule(schedule, subSchedule),
             };
           });
@@ -235,19 +371,17 @@ const getPassengerCountBySchedule = async (req, res) => {
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
-        
-            capacity: schedule.dataValues.Boat?.capacity || 0,
-            // i need booking_id
-
+            capacity: publicCapacity || 0,
             total_passengers: totalPassengers,
-            departure_time: schedule.dataValues.departure_time, // Add departure_time
-            arrival_time: schedule.dataValues.arrival_time, // Add arrival_time
-            journey_time: schedule.dataValues.journey_time, // Add journey_timeroute,
+            departure_time: schedule.dataValues.departure_time,
+            arrival_time: schedule.dataValues.arrival_time,
+            journey_time: schedule.dataValues.journey_time,
             subschedules,
           });
         });
     }
 
+    console.log('Final results count:', finalResults.length);
     return res.status(200).json({
       success: true,
       data: finalResults,
@@ -260,6 +394,7 @@ const getPassengerCountBySchedule = async (req, res) => {
     });
   }
 };
+
 const getPassengerCountByMonth = async (req, res) => {
   const { month, year, boat_id } = req.query;
 

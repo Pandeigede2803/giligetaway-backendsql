@@ -1,7 +1,7 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, SubSchedule,Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 const { Op } = require('sequelize');
 
-
+const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 
 const findRelatedSubSchedulesGet = async (schedule_id, subSchedule, transaction) => {
     console.log('Schedule ID anjiung:', schedule_id);
@@ -236,10 +236,6 @@ const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) =>
     });
 };
 
-
-
-
-
 const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     // Fetch the main schedule and boat capacity
     const schedule = await Schedule.findByPk(schedule_id, {
@@ -247,14 +243,14 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         transaction
     });
 
-    // Log untuk memastikan asosiasi Schedule dan Boat
     if (!schedule || !schedule.Boat) {
         console.log('Schedule atau Boat tidak ditemukan:', schedule);
         throw new Error('Boat information is missing or invalid');
     }
 
-    const boatCapacity = schedule.Boat.capacity;
-    console.log(`Boat capacity for Schedule ID: ${schedule_id} is ${boatCapacity}`);
+    // Calculate public capacity using the utility
+    const publicCapacity = calculatePublicCapacity(schedule.Boat);
+    console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
 
     // Fetch the selected sub-schedule
     const subSchedule = await SubSchedule.findByPk(subschedule_id, {
@@ -280,7 +276,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
             where: {
                 schedule_id: schedule_id,
-                subschedule_id: null, // Main schedule does not have a specific sub-schedule ID
+                subschedule_id: null,
                 date: booking_date
             },
             transaction
@@ -291,13 +287,12 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
                 schedule_id: schedule_id,
                 subschedule_id: null,
                 transit_id: null,
-                available_seats: boatCapacity,
+                available_seats: publicCapacity, // Using public capacity instead of boat capacity
                 date: booking_date,
                 availability: true
             }, { transaction });
         }
 
-        // Validate if available seats are sufficient and avoid going below 0
         if (mainScheduleSeatAvailability.available_seats < total_passengers) {
             throw new Error('KURSI TIDAK CUKUP TERSEDIA DI MAIN SCHEDULE');
         }
@@ -309,8 +304,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         }
 
         await mainScheduleSeatAvailability.save({ transaction });
-
-        seatAvailabilities.push(mainScheduleSeatAvailability); // Collect the updated seat availability
+        seatAvailabilities.push(mainScheduleSeatAvailability);
     }
 
     // Find related sub-schedules
@@ -318,7 +312,6 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
 
     // Handle seat availability for each related sub-schedule
     for (const relatedSubSchedule of relatedSubSchedules) {
-        // Skip if it's the selected sub-schedule to avoid double decrement
         if (relatedSubSchedule.id === subschedule_id) continue;
 
         let relatedSeatAvailability = await SeatAvailability.findOne({
@@ -335,13 +328,12 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
                 schedule_id: schedule_id,
                 subschedule_id: relatedSubSchedule.id,
                 transit_id: null,
-                available_seats: boatCapacity,
+                available_seats: publicCapacity, // Using public capacity
                 date: booking_date,
                 availability: true
             }, { transaction });
         }
 
-        // Validate if available seats are sufficient and avoid going below 0
         if (relatedSeatAvailability.available_seats < total_passengers) {
             throw new Error(`KURSI TIDAK CUKUP TERSEDIA DI SubSchedule ID: ${relatedSubSchedule.id}`);
         }
@@ -353,8 +345,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         }
 
         await relatedSeatAvailability.save({ transaction });
-
-        seatAvailabilities.push(relatedSeatAvailability); // Collect the updated seat availability
+        seatAvailabilities.push(relatedSeatAvailability);
     }
 
     // Handle seat availability for the selected sub-schedule
@@ -373,13 +364,12 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
             schedule_id: schedule_id,
             subschedule_id: subschedule_id,
             transit_id: null,
-            available_seats: boatCapacity,
+            available_seats: publicCapacity, // Using public capacity
             date: booking_date,
             availability: true
         }, { transaction });
     }
 
-    // Validate if available seats are sufficient and avoid going below 0
     if (selectedSubScheduleSeatAvailability.available_seats < total_passengers) {
         throw new Error('KURSI TIDAK CUKUP TERSEDIA DI SubSchedule yang dipilih');
     }
@@ -391,17 +381,327 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
     }
 
     await selectedSubScheduleSeatAvailability.save({ transaction });
+    seatAvailabilities.push(selectedSubScheduleSeatAvailability);
 
-    seatAvailabilities.push(selectedSubScheduleSeatAvailability); // Collect the updated seat availability
-
-    return seatAvailabilities; // Return all updated SeatAvailability records
+    return seatAvailabilities;
 };
+
+
+
+
+// const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
+//     // Fetch the main schedule and boat capacity
+//     const schedule = await Schedule.findByPk(schedule_id, {
+//         include: [{ model: sequelize.models.Boat, as: 'Boat' }],
+//         transaction
+//     });
+
+//     if (!schedule || !schedule.Boat) {
+//         console.log('Schedule atau Boat tidak ditemukan:', schedule);
+//         throw new Error('Boat information is missing or invalid');
+//     }
+
+//     // Calculate public capacity using the utility
+//     const publicCapacity = calculatePublicCapacity(schedule.Boat);
+//     console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
+
+//     // Fetch the selected sub-schedule
+//     const subSchedule = await SubSchedule.findByPk(subschedule_id, {
+//         include: [
+//             { model: Transit, as: 'TransitFrom' },
+//             { model: Transit, as: 'TransitTo' },
+//             { model: Transit, as: 'Transit1' },
+//             { model: Transit, as: 'Transit2' },
+//             { model: Transit, as: 'Transit3' },
+//             { model: Transit, as: 'Transit4' }
+//         ],
+//         transaction
+//     });
+
+//     if (!subSchedule) {
+//         throw new Error('SubSchedule not found');
+//     }
+
+//     const seatAvailabilities = [];
+
+//     // Handle main schedule seat availability
+//     if (subschedule_id !== schedule_id) {
+//         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
+//             where: {
+//                 schedule_id: schedule_id,
+//                 subschedule_id: null,
+//                 date: booking_date
+//             },
+//             transaction
+//         });
+
+//         if (!mainScheduleSeatAvailability) {
+//             mainScheduleSeatAvailability = await SeatAvailability.create({
+//                 schedule_id: schedule_id,
+//                 subschedule_id: null,
+//                 transit_id: null,
+//                 available_seats: publicCapacity, // Using public capacity instead of boat capacity
+//                 date: booking_date,
+//                 availability: true
+//             }, { transaction });
+//         }
+
+//         if (mainScheduleSeatAvailability.available_seats < total_passengers) {
+//             throw new Error('KURSI TIDAK CUKUP TERSEDIA DI MAIN SCHEDULE');
+//         }
+
+//         mainScheduleSeatAvailability.available_seats -= total_passengers;
+
+//         if (mainScheduleSeatAvailability.available_seats < 0) {
+//             throw new Error('Seat availability cannot go below zero in the main schedule');
+//         }
+
+//         await mainScheduleSeatAvailability.save({ transaction });
+//         seatAvailabilities.push(mainScheduleSeatAvailability);
+//     }
+
+//     // Find related sub-schedules
+//     const relatedSubSchedules = await findRelatedSubSchedules(schedule_id, subSchedule, transaction);
+
+//     // Handle seat availability for each related sub-schedule
+//     for (const relatedSubSchedule of relatedSubSchedules) {
+//         if (relatedSubSchedule.id === subschedule_id) continue;
+
+//         let relatedSeatAvailability = await SeatAvailability.findOne({
+//             where: {
+//                 schedule_id: schedule_id,
+//                 subschedule_id: relatedSubSchedule.id,
+//                 date: booking_date
+//             },
+//             transaction
+//         });
+
+//         if (!relatedSeatAvailability) {
+//             relatedSeatAvailability = await SeatAvailability.create({
+//                 schedule_id: schedule_id,
+//                 subschedule_id: relatedSubSchedule.id,
+//                 transit_id: null,
+//                 available_seats: publicCapacity, // Using public capacity
+//                 date: booking_date,
+//                 availability: true
+//             }, { transaction });
+//         }
+
+//         if (relatedSeatAvailability.available_seats < total_passengers) {
+//             throw new Error(`KURSI TIDAK CUKUP TERSEDIA DI SubSchedule ID: ${relatedSubSchedule.id}`);
+//         }
+
+//         relatedSeatAvailability.available_seats -= total_passengers;
+
+//         if (relatedSeatAvailability.available_seats < 0) {
+//             throw new Error(`Seat availability cannot go below zero in SubSchedule ID: ${relatedSubSchedule.id}`);
+//         }
+
+//         await relatedSeatAvailability.save({ transaction });
+//         seatAvailabilities.push(relatedSeatAvailability);
+//     }
+
+//     // Handle seat availability for the selected sub-schedule
+//     let selectedSubScheduleSeatAvailability = await SeatAvailability.findOne({
+//         where: {
+//             schedule_id: schedule_id,
+//             subschedule_id: subschedule_id,
+//             transit_id: null,
+//             date: booking_date
+//         },
+//         transaction
+//     });
+
+//     if (!selectedSubScheduleSeatAvailability) {
+//         selectedSubScheduleSeatAvailability = await SeatAvailability.create({
+//             schedule_id: schedule_id,
+//             subschedule_id: subschedule_id,
+//             transit_id: null,
+//             available_seats: publicCapacity, // Using public capacity
+//             date: booking_date,
+//             availability: true
+//         }, { transaction });
+//     }
+
+//     if (selectedSubScheduleSeatAvailability.available_seats < total_passengers) {
+//         throw new Error('KURSI TIDAK CUKUP TERSEDIA DI SubSchedule yang dipilih');
+//     }
+
+//     selectedSubScheduleSeatAvailability.available_seats -= total_passengers;
+
+//     if (selectedSubScheduleSeatAvailability.available_seats < 0) {
+//         throw new Error('Seat availability cannot go below zero in the selected sub-schedule');
+//     }
+
+//     await selectedSubScheduleSeatAvailability.save({ transaction });
+//     seatAvailabilities.push(selectedSubScheduleSeatAvailability);
+
+//     return seatAvailabilities;
+// };
 
 module.exports = {
     handleSubScheduleBooking,
     findRelatedSubSchedules,
     findRelatedSubSchedulesGet
 };;
+
+// const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
+//     // Fetch the main schedule and boat capacity
+//     const schedule = await Schedule.findByPk(schedule_id, {
+//         include: [{ model: sequelize.models.Boat, as: 'Boat' }],
+//         transaction
+//     });
+
+//     // Log untuk memastikan asosiasi Schedule dan Boat
+//     if (!schedule || !schedule.Boat) {
+//         console.log('Schedule atau Boat tidak ditemukan:', schedule);
+//         throw new Error('Boat information is missing or invalid');
+//     }
+
+//     const boatCapacity = schedule.Boat.capacity;
+//     console.log(`Boat capacity for Schedule ID: ${schedule_id} is ${boatCapacity}`);
+
+//     // Fetch the selected sub-schedule
+//     const subSchedule = await SubSchedule.findByPk(subschedule_id, {
+//         include: [
+//             { model: Transit, as: 'TransitFrom' },
+//             { model: Transit, as: 'TransitTo' },
+//             { model: Transit, as: 'Transit1' },
+//             { model: Transit, as: 'Transit2' },
+//             { model: Transit, as: 'Transit3' },
+//             { model: Transit, as: 'Transit4' }
+//         ],
+//         transaction
+//     });
+
+//     if (!subSchedule) {
+//         throw new Error('SubSchedule not found');
+//     }
+
+//     const seatAvailabilities = [];
+
+//     // Handle main schedule seat availability
+//     if (subschedule_id !== schedule_id) {
+//         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
+//             where: {
+//                 schedule_id: schedule_id,
+//                 subschedule_id: null, // Main schedule does not have a specific sub-schedule ID
+//                 date: booking_date
+//             },
+//             transaction
+//         });
+
+//         if (!mainScheduleSeatAvailability) {
+//             mainScheduleSeatAvailability = await SeatAvailability.create({
+//                 schedule_id: schedule_id,
+//                 subschedule_id: null,
+//                 transit_id: null,
+//                 available_seats: boatCapacity,
+//                 date: booking_date,
+//                 availability: true
+//             }, { transaction });
+//         }
+
+//         // Validate if available seats are sufficient and avoid going below 0
+//         if (mainScheduleSeatAvailability.available_seats < total_passengers) {
+//             throw new Error('KURSI TIDAK CUKUP TERSEDIA DI MAIN SCHEDULE');
+//         }
+
+//         mainScheduleSeatAvailability.available_seats -= total_passengers;
+
+//         if (mainScheduleSeatAvailability.available_seats < 0) {
+//             throw new Error('Seat availability cannot go below zero in the main schedule');
+//         }
+
+//         await mainScheduleSeatAvailability.save({ transaction });
+
+//         seatAvailabilities.push(mainScheduleSeatAvailability); // Collect the updated seat availability
+//     }
+
+//     // Find related sub-schedules
+//     const relatedSubSchedules = await findRelatedSubSchedules(schedule_id, subSchedule, transaction);
+
+//     // Handle seat availability for each related sub-schedule
+//     for (const relatedSubSchedule of relatedSubSchedules) {
+//         // Skip if it's the selected sub-schedule to avoid double decrement
+//         if (relatedSubSchedule.id === subschedule_id) continue;
+
+//         let relatedSeatAvailability = await SeatAvailability.findOne({
+//             where: {
+//                 schedule_id: schedule_id,
+//                 subschedule_id: relatedSubSchedule.id,
+//                 date: booking_date
+//             },
+//             transaction
+//         });
+
+//         if (!relatedSeatAvailability) {
+//             relatedSeatAvailability = await SeatAvailability.create({
+//                 schedule_id: schedule_id,
+//                 subschedule_id: relatedSubSchedule.id,
+//                 transit_id: null,
+//                 available_seats: boatCapacity,
+//                 date: booking_date,
+//                 availability: true
+//             }, { transaction });
+//         }
+
+//         // Validate if available seats are sufficient and avoid going below 0
+//         if (relatedSeatAvailability.available_seats < total_passengers) {
+//             throw new Error(`KURSI TIDAK CUKUP TERSEDIA DI SubSchedule ID: ${relatedSubSchedule.id}`);
+//         }
+
+//         relatedSeatAvailability.available_seats -= total_passengers;
+
+//         if (relatedSeatAvailability.available_seats < 0) {
+//             throw new Error(`Seat availability cannot go below zero in SubSchedule ID: ${relatedSubSchedule.id}`);
+//         }
+
+//         await relatedSeatAvailability.save({ transaction });
+
+//         seatAvailabilities.push(relatedSeatAvailability); // Collect the updated seat availability
+//     }
+
+//     // Handle seat availability for the selected sub-schedule
+//     let selectedSubScheduleSeatAvailability = await SeatAvailability.findOne({
+//         where: {
+//             schedule_id: schedule_id,
+//             subschedule_id: subschedule_id,
+//             transit_id: null,
+//             date: booking_date
+//         },
+//         transaction
+//     });
+
+//     if (!selectedSubScheduleSeatAvailability) {
+//         selectedSubScheduleSeatAvailability = await SeatAvailability.create({
+//             schedule_id: schedule_id,
+//             subschedule_id: subschedule_id,
+//             transit_id: null,
+//             available_seats: boatCapacity,
+//             date: booking_date,
+//             availability: true
+//         }, { transaction });
+//     }
+
+//     // Validate if available seats are sufficient and avoid going below 0
+//     if (selectedSubScheduleSeatAvailability.available_seats < total_passengers) {
+//         throw new Error('KURSI TIDAK CUKUP TERSEDIA DI SubSchedule yang dipilih');
+//     }
+
+//     selectedSubScheduleSeatAvailability.available_seats -= total_passengers;
+
+//     if (selectedSubScheduleSeatAvailability.available_seats < 0) {
+//         throw new Error('Seat availability cannot go below zero in the selected sub-schedule');
+//     }
+
+//     await selectedSubScheduleSeatAvailability.save({ transaction });
+
+//     seatAvailabilities.push(selectedSubScheduleSeatAvailability); // Collect the updated seat availability
+
+//     return seatAvailabilities; // Return all updated SeatAvailability records
+// };
+
 
 
 // const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {

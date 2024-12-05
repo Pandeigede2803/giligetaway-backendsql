@@ -16,11 +16,15 @@ const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
+const {calculatePublicCapacity} = require("../util/getCapacityReduction");
+
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
 const { fn, col } = require("sequelize");
 const {
   getSchedulesWithSubSchedules2,
 } = require("../util/schedulepassenger/scheduleUtils");
+
+
 
 const {
   formatSchedules,
@@ -771,31 +775,46 @@ const getScheduleFormatted = async (req, res) => {
   }
 };
 
+
 const createSeatAvailability = async (schedule, subschedule, date) => {
   try {
-    // Determine the boat capacity based on schedule or subschedule
-    const boatCapacity = schedule
-      ? schedule.Boat.capacity
-      : subschedule.Schedule.Boat.capacity;
+    // Get relevant boat and calculate public capacity
+    const relevantBoat = schedule ? schedule.Boat : subschedule.Schedule.Boat;
+    const publicCapacity = calculatePublicCapacity(relevantBoat);
+
+    console.log('\n=== CREATE SEAT AVAILABILITY ===');
+    console.log('Source:', schedule ? 'Direct Schedule' : 'SubSchedule');
+    console.log('Schedule ID:', schedule ? schedule.id : subschedule.Schedule.id);
+    console.log('SubSchedule ID:', subschedule ? subschedule.id : null);
+    console.log('Date:', date);
+    console.log('Public Capacity:', publicCapacity);
 
     // Create the seat availability record
     const newSeatAvailability = await SeatAvailability.create({
-      schedule_id: schedule ? schedule.id : subschedule.Schedule.id, // Use schedule_id for both Schedule and SubSchedule
-      subschedule_id: subschedule ? subschedule.id : null, // Only pass subschedule_id if it’s a SubSchedule
-      available_seats: boatCapacity, // Defaulting to boat capacity
-      availability: true, // Setting availability to true
-      date: date, // Setting the selected date
+      schedule_id: schedule ? schedule.id : subschedule.Schedule.id,
+      subschedule_id: subschedule ? subschedule.id : null,
+      available_seats: publicCapacity, // Using calculated public capacity
+      availability: true,
+      date: date,
     });
+
+    console.log('Created Seat Availability:', {
+      id: newSeatAvailability.id,
+      available_seats: newSeatAvailability.available_seats,
+      schedule_id: newSeatAvailability.schedule_id,
+      subschedule_id: newSeatAvailability.subschedule_id,
+    });
+    console.log('=== END CREATE SEAT AVAILABILITY ===\n');
 
     return newSeatAvailability;
   } catch (error) {
-    console.error(
-      `Creating seat availability for schedule_id: ${
-        schedule ? schedule.id : subschedule ? subschedule.Schedule.id : "null"
-      }, subschedule_id: ${
-        subschedule ? subschedule.id : "null"
-      }, date: ${date}, with available seats: ${boatCapacity}`
-    );
+    console.error('\n=== ERROR CREATING SEAT AVAILABILITY ===');
+    console.error('Error Details:', {
+      schedule_id: schedule ? schedule.id : subschedule?.Schedule?.id || "null",
+      subschedule_id: subschedule ? subschedule.id : "null",
+      date: date,
+      error: error.message
+    });
     throw new Error("Failed to create seat availability");
   }
 };

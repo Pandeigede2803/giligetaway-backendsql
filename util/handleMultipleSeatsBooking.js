@@ -2,7 +2,7 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 const { Op } = require("sequelize");
 const { findRelatedSubSchedules } = require('./handleSubScheduleBooking'); // Import dari kode yang sudah Anda berikan
-
+const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) => {
     console.log('Start handling multiple seats booking');
     console.log(`Received ${trips.length} trips to handle`);
@@ -42,8 +42,8 @@ const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) 
         throw new Error('Boat information is missing or invalid');
     }
 
-    const boatCapacity = schedule.Boat.capacity;
-    console.log(`Boat capacity for Schedule ID: ${schedule_id} is ${boatCapacity}`);
+    const publicCapacity = calculatePublicCapacity(schedule.Boat);
+    console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
 
     // Fetch the selected sub-schedule
     const subSchedule = await SubSchedule.findByPk(subschedule_id, {
@@ -80,7 +80,7 @@ const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) 
                 schedule_id: schedule_id,
                 subschedule_id: null,
                 transit_id: null,
-                available_seats: boatCapacity,
+                available_seats: publicCapacity,
                 date: booking_date,
                 availability: true
             }, { transaction });
