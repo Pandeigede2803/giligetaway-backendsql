@@ -955,45 +955,8 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
 
 
 // Controller to fetch transactions with filters and pagination
-const getTransactions = async (req, res) => {
-  try {
-    const { date, month, payment_status } = req.query;
-    const filterConditions = {};
 
-    // For specific date (format: DD-MM-YYYY)
-    if (date) {
-      const [day, month, year] = date.split('-');
-      const formattedDate = `${year}-${month}-${day}`;
-      filterConditions.transaction_date = {
-        [Op.eq]: formattedDate,
-      };
-    }
 
-    // For month-year (format: MM-YYYY)
-    if (month) {
-      const [monthNum, year] = month.split('-');
-      const startDate = `${year}-${monthNum}-01`;
-      const endDate = `${year}-${monthNum}-31`;
-      filterConditions.transaction_date = {
-        [Op.between]: [startDate, endDate],
-      };
-    }
-
-    // For payment status
-    if (payment_status) {
-      filterConditions.status = payment_status;
-    }
-
-    const transactions = await Transaction.findAll({
-      where: filterConditions,
-      order: [["transaction_date", "DESC"]],
-    });
-
-    res.status(200).json(transactions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
 
 module.exports = {
   updateTransactionStatusHandler,
