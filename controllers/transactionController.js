@@ -957,56 +957,44 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
 // Controller to fetch transactions with filters and pagination
 const getTransactions = async (req, res) => {
   try {
-    const { date, month, year, payment_status } = req.query;
-
-    // Initialize filter conditions as an empty object
+    const { date, month, payment_status } = req.query;
     const filterConditions = {};
 
-    // Check if there are any filters applied
-    const hasFilters = date || month || year || payment_status;
-
-    // Filtering by date
+    // For specific date (format: DD-MM-YYYY)
     if (date) {
+      const [day, month, year] = date.split('-');
+      const formattedDate = `${year}-${month}-${day}`;
       filterConditions.transaction_date = {
-        [Op.eq]: date, // Filter by specific date
+        [Op.eq]: formattedDate,
       };
     }
 
-    // Filtering by month and year
-    if (month && year) {
+    // For month-year (format: MM-YYYY)
+    if (month) {
+      const [monthNum, year] = month.split('-');
+      const startDate = `${year}-${monthNum}-01`;
+      const endDate = `${year}-${monthNum}-31`;
       filterConditions.transaction_date = {
-        [Op.gte]: new Date(`${year}-${month}-01`), // Start of the month
-        [Op.lte]: new Date(`${year}-${month}-31`), // End of the month
+        [Op.between]: [startDate, endDate],
       };
     }
 
-    // Filtering by year only
-    if (year && !month) {
-      filterConditions.transaction_date = {
-        [Op.gte]: new Date(`${year}-01-01`), // Start of the year
-        [Op.lte]: new Date(`${year}-12-31`), // End of the year
-      };
-    }
-
-    // Filtering by payment_status (paid, pending, failed)
+    // For payment status
     if (payment_status) {
-      filterConditions.status = {
-        [Op.eq]: payment_status, // Only include transactions with the specified status
-      };
+      filterConditions.status = payment_status;
     }
 
-    // Query the database with filters
     const transactions = await Transaction.findAll({
-      where: hasFilters ? filterConditions : {}, // If no filters, fetch all transactions
-      order: [["transaction_date", "DESC"]], // Order by transaction date descending
+      where: filterConditions,
+      order: [["transaction_date", "DESC"]],
     });
 
-    // Return the transactions
     res.status(200).json(transactions);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
+
 module.exports = {
   updateTransactionStatusHandler,
   updateMultiAgentTransactionStatus,
