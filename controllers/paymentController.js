@@ -261,7 +261,8 @@ const generateMidtransLink = async (req, res) => {
       };
 
       // Midtrans API URL
-      const url = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+      // const url = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+      const url = process.env.MIDTRANS_API_BASE_URL;
 
       // Fetch server key from environment variable
       const serverKey = process.env.MIDTRANS_SERVER_KEY;

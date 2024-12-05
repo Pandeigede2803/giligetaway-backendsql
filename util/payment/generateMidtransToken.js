@@ -1,9 +1,17 @@
 const midtransClient = require('midtrans-client');
 
 // Initialize Snap MidTrans Client
+const isProduction = process.env.IS_PRODUCTION === 'false';
+
+// Use the corresponding server key based on the environment
+const serverKey = isProduction
+  ? process.env.MIDTRANS_PROD_SERVER_KEY // Production server key
+  : process.env.MIDTRANS_DEV_SERVER_KEY; // Development server key
+
+// Initialize Snap instance
 const snap = new midtransClient.Snap({
-  isProduction: false, // Set to true when using in production
-  serverKey: process.env.MIDTRANS_SERVER_KEY, // Make sure to set this in your environment variables
+  isProduction: isProduction, // Manually set
+  serverKey: serverKey, // Corresponding server key
 });
 
 /**

@@ -5,7 +5,7 @@ const base64 = require('base-64');
 const fetch = require('node-fetch');
 // Midtrans configuration
 const midtransConfig = {
-  apiBaseUrl: 'https://api.sandbox.midtrans.com/v1/payment-links',
+  apiBaseUrl: process.env.MIDTRANS_API_BASE_URL || 'https://api.sandbox.midtrans.com/v1/payment-links',
   serverKey: process.env.MIDTRANS_SERVER_KEY,
 };
 
