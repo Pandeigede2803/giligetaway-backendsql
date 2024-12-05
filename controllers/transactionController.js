@@ -954,26 +954,39 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
 
 
 
-// Controller to fetch transactions with filters and pagination
 const getTransactions = async (req, res) => {
+  console.log('\n=== GET TRANSACTIONS REQUEST STARTED ===');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Request Query Parameters:', req.query);
+
   try {
     const { date, month, payment_status } = req.query;
     const filterConditions = {};
 
+    console.log('\nProcessing Filter Conditions:');
+
     // For specific date (format: DD-MM-YYYY)
     if (date) {
-      const [day, month, year] = date.split('-');
-      const formattedDate = `${year}-${month}-${day}`;
+      console.log('\n→ Date Filter:');
+      console.log('Input date:', date);
+
+      const [day, monthValue, year] = date.split('-');
+      const formattedDate = new Date(`${year}-${monthValue}-${day}`);
+      console.log('Formatted date:', formattedDate);
+
       filterConditions.transaction_date = {
         [Op.eq]: formattedDate,
       };
-    }
+    } else if (month) {
+      // For month-year (format: MM-YYYY)
+      console.log('\n→ Month Filter:');
+      console.log('Input month:', month);
 
-    // For month-year (format: MM-YYYY)
-    if (month) {
       const [monthNum, year] = month.split('-');
-      const startDate = `${year}-${monthNum}-01`;
-      const endDate = `${year}-${monthNum}-31`;
+      const startDate = new Date(`${year}-${monthNum}-01`);
+      const endDate = new Date(`${year}-${monthNum}-31`);
+      console.log('Date range:', { startDate, endDate });
+
       filterConditions.transaction_date = {
         [Op.between]: [startDate, endDate],
       };
@@ -981,20 +994,43 @@ const getTransactions = async (req, res) => {
 
     // For payment status
     if (payment_status) {
+      console.log('\n→ Payment Status Filter:');
+      console.log('Status:', payment_status);
       filterConditions.status = payment_status;
     }
 
+    console.log('\nFinal Filter Conditions:', JSON.stringify(filterConditions, null, 2));
+
+    console.log('\nExecuting Database Query...');
     const transactions = await Transaction.findAll({
       where: filterConditions,
       order: [["transaction_date", "DESC"]],
     });
 
+    console.log('\nQuery Results:');
+    console.log('Total records found:', transactions.length);
+    if (transactions.length > 0) {
+      console.log('First record:', JSON.stringify(transactions[0], null, 2));
+      console.log('Last record:', JSON.stringify(transactions[transactions.length - 1], null, 2));
+    } else {
+      console.log('No records found.');
+    }
+
+    console.log('\nSending Response: 200 OK');
     res.status(200).json(transactions);
+
   } catch (error) {
+    console.error('\n!!! ERROR IN GET TRANSACTIONS !!!');
+    console.error('Error Message:', error.message);
+    console.error('Error Stack:', error.stack);
+    console.error('Error Type:', error.constructor.name);
+
+    console.log('\nSending Response: 500 Internal Server Error');
     res.status(500).json({ error: error.message });
+  } finally {
+    console.log('\n=== GET TRANSACTIONS REQUEST COMPLETED ===\n');
   }
 };
-
 module.exports = {
   updateTransactionStatusHandler,
   updateMultiAgentTransactionStatus,
