@@ -951,9 +951,6 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
 };
 
 
-
-
-
 const getTransactions = async (req, res) => {
   console.log('\n=== GET TRANSACTIONS REQUEST STARTED ===');
   console.log('Timestamp:', new Date().toISOString());
@@ -972,8 +969,16 @@ const getTransactions = async (req, res) => {
 
       const [day, monthValue, year] = date.split('-');
       const formattedDate = new Date(`${year}-${monthValue}-${day}`);
-      console.log('Formatted date:', formattedDate);
+      
+      if (isNaN(formattedDate.getTime())) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid date format. Please use DD-MM-YYYY format.',
+          data: null
+        });
+      }
 
+      console.log('Formatted date:', formattedDate);
       filterConditions.transaction_date = {
         [Op.eq]: formattedDate,
       };
@@ -985,8 +990,16 @@ const getTransactions = async (req, res) => {
       const [monthNum, year] = month.split('-');
       const startDate = new Date(`${year}-${monthNum}-01`);
       const endDate = new Date(`${year}-${monthNum}-31`);
-      console.log('Date range:', { startDate, endDate });
 
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid month format. Please use MM-YYYY format.',
+          data: null
+        });
+      }
+
+      console.log('Date range:', { startDate, endDate });
       filterConditions.transaction_date = {
         [Op.between]: [startDate, endDate],
       };
@@ -996,6 +1009,17 @@ const getTransactions = async (req, res) => {
     if (payment_status) {
       console.log('\n→ Payment Status Filter:');
       console.log('Status:', payment_status);
+      
+      // Validate payment status (assuming valid statuses are: 'pending', 'completed', 'failed')
+      const validStatuses = ['pending', 'completed', 'failed'];
+      if (!validStatuses.includes(payment_status.toLowerCase())) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid payment status. Valid values are: pending, completed, failed',
+          data: null
+        });
+      }
+      
       filterConditions.status = payment_status;
     }
 
@@ -1009,15 +1033,26 @@ const getTransactions = async (req, res) => {
 
     console.log('\nQuery Results:');
     console.log('Total records found:', transactions.length);
+    
     if (transactions.length > 0) {
       console.log('First record:', JSON.stringify(transactions[0], null, 2));
       console.log('Last record:', JSON.stringify(transactions[transactions.length - 1], null, 2));
+      
+      return res.status(200).json({
+        status: 'success',
+        message: 'Transactions retrieved successfully',
+        data: transactions,
+        count: transactions.length
+      });
     } else {
       console.log('No records found.');
+      return res.status(404).json({
+        status: 'success',
+        message: 'No transactions found',
+        data: [],
+        count: 0
+      });
     }
-
-    console.log('\nSending Response: 200 OK');
-    res.status(200).json(transactions);
 
   } catch (error) {
     console.error('\n!!! ERROR IN GET TRANSACTIONS !!!');
@@ -1026,11 +1061,18 @@ const getTransactions = async (req, res) => {
     console.error('Error Type:', error.constructor.name);
 
     console.log('\nSending Response: 500 Internal Server Error');
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal server error',
+      error: error.message,
+      data: null
+    });
   } finally {
     console.log('\n=== GET TRANSACTIONS REQUEST COMPLETED ===\n');
   }
 };
+
+
 module.exports = {
   updateTransactionStatusHandler,
   updateMultiAgentTransactionStatus,
