@@ -60,7 +60,7 @@ const validateBookingCreation = async (req, res, next) => {
       "ticket_total",
       "ticket_id",
       "adult_passengers",
-      "child_passengers",
+      // "child_passengers",
     ];
 
     const missingFields = requiredFields.filter((field) => !req.body[field]);
@@ -271,7 +271,7 @@ const validateMultipleBookingCreation = async (req, res, next) => {
       'contact_phone',
       'contact_email',
       'adult_passengers',
-      'child_passengers'
+      // 'child_passengers'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field]);
