@@ -94,16 +94,34 @@ const validateBookingCreation = async (req, res, next) => {
     }
 
     // Validate booking date
-    console.log("📅 Validating booking date...",booking_date);
+    console.log("📅 Validating booking date...");
 
     const bookingDateObj = new Date(booking_date);
+    
+    // Pastikan tanggal valid
+    if (isNaN(bookingDateObj.getTime())) {
+      return res.status(400).json({
+        error: "Invalid booking date",
+        message: "Date format should be a valid date string, e.g., 'Dec 6, 2024'",
+        example: "Dec 6, 2024",
+      });
+    }
+    
+    // Reset waktu untuk validasi tanggal saja
     const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Set waktu hari ini ke 00:00:00
+    bookingDateObj.setHours(0, 0, 0, 0); // Set waktu tanggal booking ke 00:00:00
+    
+    // Validasi tidak boleh di masa lalu
     if (bookingDateObj < currentDate) {
       return res.status(400).json({
         error: "Invalid booking date",
         message: "Booking date cannot be in the past",
       });
     }
+    
+    console.log("✅ Booking date is valid:", booking_date);
+    
 
     // Validate passenger counts (excluding infants)
     console.log("👥 Validating passenger counts...");
@@ -292,7 +310,7 @@ const validateMultipleBookingCreation = async (req, res, next) => {
     adult_passengers,
     child_passengers,
     infant_passengers,
-    transaction_type,
+    // transaction_type,
     currency,
   } = req.body;
 
@@ -465,16 +483,16 @@ const validateMultipleBookingCreation = async (req, res, next) => {
     }
 
     // Validate transaction type if provided
-    if (transaction_type) {
-      console.log("🔄 Validating transaction type...");
-      const validTransactionTypes = ["booking", "payment", "refund"];
-      if (!validTransactionTypes.includes(transaction_type)) {
-        return res.status(400).json({
-          error: "Invalid transaction type",
-          validTypes: validTransactionTypes,
-        });
-      }
-    }
+    // if (transaction_type) {
+    //   console.log("🔄 Validating transaction type...");
+    //   const validTransactionTypes = ["booking", "payment", "refund"];
+    //   if (!validTransactionTypes.includes(transaction_type)) {
+    //     return res.status(400).json({
+    //       error: "Invalid transaction type",
+    //       validTypes: validTransactionTypes,
+    //     });
+    //   }
+    // }
 
     // Validate numeric values
     console.log("🔢 Validating numeric values...");
