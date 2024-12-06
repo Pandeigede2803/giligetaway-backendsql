@@ -94,7 +94,8 @@ const validateBookingCreation = async (req, res, next) => {
     }
 
     // Validate booking date
-    console.log("📅 Validating booking date...");
+    console.log("📅 Validating booking date...",booking_date);
+
     const bookingDateObj = new Date(booking_date);
     const currentDate = new Date();
     if (bookingDateObj < currentDate) {
