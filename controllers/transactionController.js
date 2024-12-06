@@ -1011,7 +1011,7 @@ const getTransactions = async (req, res) => {
       console.log('Status:', payment_status);
       
       // Validate payment status (assuming valid statuses are: 'pending', 'completed', 'failed')
-      const validStatuses = ['pending', 'completed', 'failed'];
+      const validStatuses = ['pending', 'paid', 'failed','invoiced'];
       if (!validStatuses.includes(payment_status.toLowerCase())) {
         return res.status(400).json({
           status: 'error',
