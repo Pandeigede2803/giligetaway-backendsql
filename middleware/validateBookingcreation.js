@@ -248,35 +248,7 @@ const validateBookingCreation = async (req, res, next) => {
     }
 
     // Schedule and subschedule validation...
-    if (schedule_id) {
-      console.log("🔍 Validating schedule...");
-      const schedule = await Schedule.findByPk(schedule_id);
-      if (!schedule) {
-        return res.status(400).json({
-          error: "Schedule not found",
-        });
-      }
-      if (!schedule.available) {
-        return res.status(400).json({
-          error: "Selected schedule is currently unavailable",
-        });
-      }
-    }
 
-    if (subschedule_id) {
-      console.log("🔍 Validating subschedule...");
-      const subschedule = await SubSchedule.findByPk(subschedule_id);
-      if (!subschedule) {
-        return res.status(400).json({
-          error: "SubSchedule not found",
-        });
-      }
-      if (!subschedule.available) {
-        return res.status(400).json({
-          error: "Selected subschedule is currently unavailable",
-        });
-      }
-    }
 
     console.log("✅ All validations passed");
     next();
