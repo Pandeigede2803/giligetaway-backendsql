@@ -74,16 +74,16 @@ const validateBookingCreation = async (req, res, next) => {
 
     // Validate ticket_id format (gg-ow-XXXXXX)
     console.log("🎫 Validating ticket ID format...");
-    const ticketRegex = /^gg-ow-\d{6}$/;
+    const ticketRegex = /^GG-(OW|RT)-\d{6}$/;
     if (!ticketRegex.test(ticket_id)) {
+      console.log("❌ Invalid ticket ID format:", ticket_id);
       return res.status(400).json({
         error: "Invalid ticket ID format",
         message:
-          "Ticket ID should follow format: gg-ow-XXXXXX (where X is a number)",
-        example: "gg-ow-121212",
+          "Ticket ID should follow format: GG-OW-XXXXXX or GG-RT-XXXXXX (where X is a number)",
+        example: "GG-OW-123456 or GG-RT-654321",
       });
     }
-
     const existingTicket = await Booking.findOne({ where: { ticket_id } });
     if (existingTicket) {
       console.log("❌ Duplicate ticket ID:", ticket_id);
