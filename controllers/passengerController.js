@@ -291,31 +291,31 @@ const getPassengerCountBySchedule = async (req, res) => {
 
   try {
     // Fetch days of week for the given schedule_id from the Schedule table
-    // const schedule = await Schedule.findOne({
-    //   where: { id: schedule_id },
-    //   attributes: ['days_of_week']
-    // });
+    const schedule = await Schedule.findOne({
+      where: { id: schedule_id },
+      attributes: ['days_of_week']
+    });
 
-    // // Decode days_of_week bitmap to array
-    // const decodeDaysOfWeekBitmap = (bitmap) => {
-    //   console.log(`Decoding days_of_week bitmap: ${bitmap}`);
-    //   const daysOfWeek = [];
-    //   for (let i = 0; i < 7; i++) {
-    //     if ((bitmap & (1 << i)) !== 0) {
-    //       daysOfWeek.push(i); // Add day (0=Sunday, ..., 6=Saturday) if bit is active
-    //     console.log(`📅 Day ${i} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}) is available.`);
-    //     }
-    //   }
-    //   return daysOfWeek;
-    // };
+    // Decode days_of_week bitmap to array
+    const decodeDaysOfWeekBitmap = (bitmap) => {
+      console.log(`Decoding days_of_week bitmap: ${bitmap}`);
+      const daysOfWeek = [];
+      for (let i = 0; i < 7; i++) {
+        if ((bitmap & (1 << i)) !== 0) {
+          daysOfWeek.push(i); // Add day (0=Sunday, ..., 6=Saturday) if bit is active
+        console.log(`📅Day ${i} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}) is available.`);
+        }
+      }
+      return daysOfWeek;
+    };
 
-    // const scheduleDaysOfWeek = schedule
-    // ? decodeDaysOfWeekBitmap(schedule.days_of_week)
-    // : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
+    const scheduleDaysOfWeek = schedule
+    ? decodeDaysOfWeekBitmap(schedule.days_of_week)
+    : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
 
 
 
-    const daysInMonth = getDaysInMonth(month, year, );
+    const daysInMonth = getDaysInMonthWithDaysOfWeek(month, year, scheduleDaysOfWeek);
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
     console.log('====Date Range:=====', { startDate, endDate });
