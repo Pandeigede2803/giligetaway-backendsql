@@ -18,8 +18,8 @@ const validateMidtransPaymentMethod = (req, res, next) => {
   const validatePayPalPaymentMethod = (req, res, next) => {
     const { payment_method } = req.body.booking;
   
-    // Check if payment_method is 'paypal'
-    if (payment_method !== 'paypal') {
+    // Check if payment_method is 'paypal' or 'Paypal'
+    if (payment_method !== 'paypal' && payment_method !== 'Paypal') {
       return res.status(400).json({
         success: false,
         message: 'Invalid payment method for PayPal. It must be "paypal".',
