@@ -33,58 +33,96 @@ const handleWebhook = async (req, res) => {
 
     console.log(`Received PayPal webhook event: ${event.event_type}`);
 
-    if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
-      const captureDetails = event.resource;
+    let message;
+    let statusUpdate;
 
-      // Extract important details
-      const transactionId = captureDetails?.id || 'N/A';
-      const status = captureDetails?.status || 'N/A';
-      const grossAmount = captureDetails?.seller_receivable_breakdown?.gross_amount?.value || 'N/A';
-      const currency = captureDetails?.seller_receivable_breakdown?.gross_amount?.currency_code || 'N/A';
-      const paypalFee = captureDetails?.seller_receivable_breakdown?.paypal_fee?.value || 'N/A';
-      const netAmount = captureDetails?.seller_receivable_breakdown?.net_amount?.value || 'N/A';
-      const orderId = captureDetails?.supplementary_data?.related_ids?.order_id || 'N/A';
-      const invoiceId = captureDetails?.invoice_id || 'N/A';
+    switch (event.event_type) {
+      case 'PAYMENT.CAPTURE.COMPLETED':
+        const captureDetails = event.resource;
 
-      console.log('Payment successfully captured!');
-      console.log(`Transaction ID: ${transactionId}`);
-      console.log(`Status: ${status}`);
-      console.log(`Gross Amount: ${grossAmount} ${currency}`);
-      console.log(`PayPal Fee: ${paypalFee}`);
-      console.log(`Net Amount: ${netAmount}`);
-      console.log(`Order ID: ${orderId}`);
-      console.log(`Invoice ID: ${invoiceId}`);
+        // Extract important details
+        const transactionId = captureDetails?.id || 'N/A';
+        const status = captureDetails?.status || 'N/A';
+        const grossAmount = captureDetails?.seller_receivable_breakdown?.gross_amount?.value || 'N/A';
+        const currency = captureDetails?.seller_receivable_breakdown?.gross_amount?.currency_code || 'N/A';
+        const paypalFee = captureDetails?.seller_receivable_breakdown?.paypal_fee?.value || 'N/A';
+        const netAmount = captureDetails?.seller_receivable_breakdown?.net_amount?.value || 'N/A';
+        const orderId = captureDetails?.supplementary_data?.related_ids?.order_id || 'N/A';
 
-      // Perform post-payment processing (e.g., update database, notify customer)
-      // await updateOrderStatus(orderId, 'PAID', transactionId);
-      // await sendPaymentConfirmationEmail(orderId, transactionId, grossAmount, currency);
+        message = `Payment successfully captured! Transaction ID: ${transactionId}`;
+        statusUpdate = 'PAID';
 
-      res.status(200).send('PAYMENT.CAPTURE.COMPLETED processed successfully');
-    } else if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
-      const orderDetails = event.resource;
+        console.log(message);
+        console.log(`Status: ${status}`);
+        console.log(`Gross Amount: ${grossAmount} ${currency}`);
+        console.log(`PayPal Fee: ${paypalFee}`);
+        console.log(`Net Amount: ${netAmount}`);
+        console.log(`Order ID: ${orderId}`);
 
-      // Extract relevant details for order approval
-      const orderId = orderDetails?.id || 'N/A';
-      const buyerEmail = orderDetails?.payer?.email_address || 'N/A';
-      const buyerName = `${orderDetails?.payer?.name?.given_name || ''} ${orderDetails?.payer?.name?.surname || ''}`;
-      const totalAmount = orderDetails?.purchase_units[0]?.amount?.value || 'N/A';
-      const currency = orderDetails?.purchase_units[0]?.amount?.currency_code || 'N/A';
+        // Broadcast the event to WebSocket clients
+        broadcast({
+          orderId,
+          transactionStatus: 'completed',
+          transactionId,
+          grossAmount,
+          netAmount,
+          currency,
+          statusUpdate,
+          message,
+        });
 
-      console.log('Order approved!');
-      console.log(`Order ID: ${orderId}`);
-      console.log(`Buyer Name: ${buyerName}`);
-      console.log(`Buyer Email: ${buyerEmail}`);
-      console.log(`Total Amount: ${totalAmount} ${currency}`);
+        break;
 
-      // Perform actions like reserving inventory or notifying the user
-      // await reserveInventory(orderId);
-      // await notifyUserOrderApproval(orderId, buyerEmail);
+      case 'CHECKOUT.ORDER.APPROVED':
+        const orderDetails = event.resource;
 
-      res.status(200).send('CHECKOUT.ORDER.APPROVED processed successfully');
-    } else {
-      console.log('Unhandled webhook event:', event.event_type);
-      res.status(200).send('Event ignored');
+        const approvedOrderId = orderDetails?.id || 'N/A';
+        const buyerEmail = orderDetails?.payer?.email_address || 'N/A';
+        const totalAmount = orderDetails?.purchase_units[0]?.amount?.value || 'N/A';
+        const approvedCurrency = orderDetails?.purchase_units[0]?.amount?.currency_code || 'N/A';
+
+        message = `Order approved! Order ID: ${approvedOrderId}`;
+        statusUpdate = 'PENDING';
+
+        console.log(message);
+        console.log(`Buyer Email: ${buyerEmail}`);
+        console.log(`Total Amount: ${totalAmount} ${approvedCurrency}`);
+
+        // Broadcast the event to WebSocket clients
+        broadcast({
+          orderId: approvedOrderId,
+          transactionStatus: 'approved',
+          transactionId: null,
+          grossAmount: totalAmount,
+          currency: approvedCurrency,
+          statusUpdate,
+          message,
+        });
+
+        break;
+
+      default:
+        message = `Unhandled webhook event: ${event.event_type}`;
+        statusUpdate = 'UNKNOWN';
+
+        console.log(message);
+
+        // Broadcast the unhandled event to WebSocket clients
+        broadcast({
+          orderId: null,
+          transactionStatus: 'unknown',
+          transactionId: null,
+          grossAmount: null,
+          currency: null,
+          statusUpdate,
+          message,
+        });
+
+        break;
     }
+
+    // Send a success response to PayPal
+    res.status(200).send(`${event.event_type} processed successfully`);
   } catch (error) {
     console.error('Error processing webhook:', error.message);
     res.status(500).send('Internal Server Error');
