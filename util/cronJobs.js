@@ -27,7 +27,7 @@ const releaseSeats = async (booking, transaction) => {
             await releaseMainScheduleSeats(schedule_id, booking_date, total_passengers, transaction);
         }
 
-        console.log(`Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}`);
+        console.log(`🎉Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}🎉`);
     } catch (error) {
         console.error(`Gagal melepaskan kursi untuk Booking ID: ${booking.id}`, error);
         throw error;
@@ -38,7 +38,7 @@ const releaseSeats = async (booking, transaction) => {
  * Mencari pemesanan yang telah melewati waktu kedaluwarsa dan melepaskan kursi yang sudah dipesan
  */
 const handleExpiredBookings = async () => {
-    console.log('Checking for expired bookings...');
+    console.log('	✅========Checking for expired bookings...====	✅');
     try {
         const expiredBookings = await Booking.findAll({
             where: {

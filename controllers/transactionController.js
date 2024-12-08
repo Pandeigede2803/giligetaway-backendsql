@@ -729,9 +729,9 @@ const updateTransactionStatusHandler = async (req, res) => {
   if (exchange_rate && typeof exchange_rate !== "number") {
     return res.status(400).json({ error: "exchange_rate must be a number" });
   }
-  if (amount && typeof amount !== "number") {
-    return res.status(400).json({ error: "amount must be a number" });
-  }
+  // if (amount && typeof amount !== "number") {
+  //   return res.status(400).json({ error: "amount must be a number" });
+  // }
 
   const transaction = await sequelize.transaction();
   try {

@@ -126,7 +126,7 @@ const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) 
 
         await mainScheduleSeatAvailability.save({ transaction });
 
-        seatAvailabilities.push(mainScheduleSeatAvailability); // Collect the updated seat availability
+        seatAvailabilities.push(mainScheduleSeatAvailability);; // Collect the updated seat availability
     }
 
     // Find related sub-schedules

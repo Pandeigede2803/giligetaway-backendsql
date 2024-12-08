@@ -261,6 +261,22 @@ const isDayAvailable = (date, daysOfWeek) => {
 //   }
 // };
 
+const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
+  console.log(`📅 Filtering days in month ${month}-${year} for days of week:`, daysOfWeek);
+  const daysInMonth = getDaysInMonth(month, year); // Existing utility function
+  console.log(`📅 All days in month ${month}-${year}:`, daysInMonth);
+
+  const filteredDays = daysInMonth.filter((date) => {
+    const dayOfWeek = new Date(date).getDay(); // Get day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
+    const isMatch = daysOfWeek.includes(dayOfWeek);
+    console.log(`📅 Date: ${date}, Day of Week: ${dayOfWeek}, Match: ${isMatch}`);
+    return isMatch;
+  });
+
+  console.log(`📅 Filtered days in month ${month}-${year}:`, filteredDays);
+  return filteredDays;
+};
+
 const getPassengerCountBySchedule = async (req, res) => {
   const { month, year, schedule_id } = req.query;
   console.log('Request Parameters:', { month, year, schedule_id });
@@ -274,10 +290,35 @@ const getPassengerCountBySchedule = async (req, res) => {
   }
 
   try {
-    const daysInMonth = getDaysInMonth(month, year);
+    // Fetch days of week for the given schedule_id from the Schedule table
+    // const schedule = await Schedule.findOne({
+    //   where: { id: schedule_id },
+    //   attributes: ['days_of_week']
+    // });
+
+    // // Decode days_of_week bitmap to array
+    // const decodeDaysOfWeekBitmap = (bitmap) => {
+    //   console.log(`Decoding days_of_week bitmap: ${bitmap}`);
+    //   const daysOfWeek = [];
+    //   for (let i = 0; i < 7; i++) {
+    //     if ((bitmap & (1 << i)) !== 0) {
+    //       daysOfWeek.push(i); // Add day (0=Sunday, ..., 6=Saturday) if bit is active
+    //     console.log(`📅 Day ${i} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}) is available.`);
+    //     }
+    //   }
+    //   return daysOfWeek;
+    // };
+
+    // const scheduleDaysOfWeek = schedule
+    // ? decodeDaysOfWeekBitmap(schedule.days_of_week)
+    // : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
+
+
+
+    const daysInMonth = getDaysInMonth(month, year, );
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
-    console.log('Date Range:', { startDate, endDate });
+    console.log('====Date Range:=====', { startDate, endDate });
 
     const seatAvailabilities = await SeatAvailability.findAll({
       attributes: ["id", "date", "schedule_id", "subschedule_id"],
