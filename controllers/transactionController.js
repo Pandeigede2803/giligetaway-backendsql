@@ -356,16 +356,17 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
 
     console.log("Step 2: Preparing data to update transactions...");
     const updateData = {
-      status: status,
-      failure_reason: failure_reason || null,
-      refund_reason: refund_reason || null,
-      payment_method: payment_method,
-      payment_gateway: payment_gateway,
-      amount: amount,
-      amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
-      exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
-      currency: currency,
+      ...(typeof status !== "undefined" && { status }),
+      ...(typeof failure_reason !== "undefined" && { failure_reason: failure_reason || null }),
+      ...(typeof refund_reason !== "undefined" && { refund_reason: refund_reason || null }),
+      ...(typeof payment_method !== "undefined" && { payment_method }),
+      ...(typeof payment_gateway !== "undefined" && { payment_gateway }),
+      ...(typeof amount !== "undefined" && { amount }),
+      ...(typeof amount_in_usd !== "undefined" && { amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0 }),
+      ...(typeof exchange_rate !== "undefined" && { exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0 }),
+      ...(typeof currency !== "undefined" && { currency }),
     };
+    
 
     console.log("Updating transactions with data:", updateData);
 
@@ -755,15 +756,15 @@ const updateTransactionStatusHandler = async (req, res) => {
 
     // Persiapkan data yang akan diupdate
     const updateData = {
-      status: status || "pending",
-      failure_reason: failure_reason || null,
-      refund_reason: refund_reason || null,
-      payment_method: payment_method || null,
-      payment_gateway: payment_gateway || null,
-      amount: amount || null,
-      amount_in_usd: amount_in_usd || 0,
-      exchange_rate: exchange_rate || 0,
-      currency: currency || null,
+      ...(typeof status !== "undefined" && { status }),
+      ...(typeof failure_reason !== "undefined" && { failure_reason }),
+      ...(typeof refund_reason !== "undefined" && { refund_reason }),
+      ...(typeof payment_method !== "undefined" && { payment_method }),
+      ...(typeof payment_gateway !== "undefined" && { payment_gateway }),
+      ...(typeof amount !== "undefined" && { amount }),
+      ...(typeof amount_in_usd !== "undefined" && { amount_in_usd }),
+      ...(typeof exchange_rate !== "undefined" && { exchange_rate }),
+      ...(typeof currency !== "undefined" && { currency }),
     };
 
     console.log("Step 2: Data to update transaction:", updateData);
