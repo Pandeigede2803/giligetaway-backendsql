@@ -2,7 +2,7 @@ const {
   generateMidtransToken,
   generateMidtransTokenMulti,
 } = require("../util/payment/generateMidtransToken");
-const { createPayPalOrder, capturePayment } = require("../util/payment/paypal");
+const { createPayPalOrder, capturePayment,createPayPalOrderMulti } = require("../util/payment/paypal");
 const {
   generateMidtransPaymentLink,
   generateMidtransPaymentLinkMulti,
@@ -11,6 +11,7 @@ const base64 = require('base-64');
 const fetch = require('node-fetch');
 // controllers/paymentController.js
 const { broadcast } = require('../config/websocket'); // Mengimpor broadcast dari websocket.js
+const { create } = require("handlebars");
 
 // Controller to Generate Midtrans Payment Link
 
@@ -24,6 +25,74 @@ function formatDateToMidtrans(date) {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0700`;
 }
+
+// Handle PayPal Webhook Events
+const handleWebhook = async (req, res) => {
+  try {
+    const event = req.body;
+
+    console.log(`Received PayPal webhook event: ${event.event_type}`);
+
+    if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
+      const captureDetails = event.resource;
+
+      // Extract important details
+      const transactionId = captureDetails?.id || 'N/A';
+      const status = captureDetails?.status || 'N/A';
+      const grossAmount = captureDetails?.seller_receivable_breakdown?.gross_amount?.value || 'N/A';
+      const currency = captureDetails?.seller_receivable_breakdown?.gross_amount?.currency_code || 'N/A';
+      const paypalFee = captureDetails?.seller_receivable_breakdown?.paypal_fee?.value || 'N/A';
+      const netAmount = captureDetails?.seller_receivable_breakdown?.net_amount?.value || 'N/A';
+      const orderId = captureDetails?.supplementary_data?.related_ids?.order_id || 'N/A';
+      const invoiceId = captureDetails?.invoice_id || 'N/A';
+
+      console.log('Payment successfully captured!');
+      console.log(`Transaction ID: ${transactionId}`);
+      console.log(`Status: ${status}`);
+      console.log(`Gross Amount: ${grossAmount} ${currency}`);
+      console.log(`PayPal Fee: ${paypalFee}`);
+      console.log(`Net Amount: ${netAmount}`);
+      console.log(`Order ID: ${orderId}`);
+      console.log(`Invoice ID: ${invoiceId}`);
+
+      // Perform post-payment processing (e.g., update database, notify customer)
+      // await updateOrderStatus(orderId, 'PAID', transactionId);
+      // await sendPaymentConfirmationEmail(orderId, transactionId, grossAmount, currency);
+
+      res.status(200).send('PAYMENT.CAPTURE.COMPLETED processed successfully');
+    } else if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
+      const orderDetails = event.resource;
+
+      // Extract relevant details for order approval
+      const orderId = orderDetails?.id || 'N/A';
+      const buyerEmail = orderDetails?.payer?.email_address || 'N/A';
+      const buyerName = `${orderDetails?.payer?.name?.given_name || ''} ${orderDetails?.payer?.name?.surname || ''}`;
+      const totalAmount = orderDetails?.purchase_units[0]?.amount?.value || 'N/A';
+      const currency = orderDetails?.purchase_units[0]?.amount?.currency_code || 'N/A';
+
+      console.log('Order approved!');
+      console.log(`Order ID: ${orderId}`);
+      console.log(`Buyer Name: ${buyerName}`);
+      console.log(`Buyer Email: ${buyerEmail}`);
+      console.log(`Total Amount: ${totalAmount} ${currency}`);
+
+      // Perform actions like reserving inventory or notifying the user
+      // await reserveInventory(orderId);
+      // await notifyUserOrderApproval(orderId, buyerEmail);
+
+      res.status(200).send('CHECKOUT.ORDER.APPROVED processed successfully');
+    } else {
+      console.log('Unhandled webhook event:', event.event_type);
+      res.status(200).send('Event ignored');
+    }
+  } catch (error) {
+    console.error('Error processing webhook:', error.message);
+    res.status(500).send('Internal Server Error');
+  }
+};
+
+
+
 
 
 const handleMidtransNotification = async (req, res) => {
@@ -368,57 +437,133 @@ const createMidtransTransactionMulti = async (req, res) => {
 };
 
 // PayPal Payment Order Controller
+// const createPayPalTransaction = async (req, res) => {
+//   try {
+//     console.log("1. Received booking details:", req.body.booking);
+
+//     const bookingDetails = req.body.booking;
+
+//     // Ensure gross_total is present
+//     if (!bookingDetails.gross_total) {
+//       throw new Error("Missing gross_total in booking details");
+//     }
+
+//     console.log("2. Calculating PayPal order items...");
+
+//     // Prepare detailed PayPal order items
+//     const items = [
+//       {
+//         name: `Booking for ${bookingDetails.total_passengers} Passengers`, // Description of the booking
+//         description: `Adult: ${bookingDetails.adult_passengers}, Child: ${bookingDetails.child_passengers}, Infant: ${bookingDetails.infant_passengers}`, // Additional breakdown of passengers
+//         quantity: 1, // Treat the booking as one unit (a single booking)
+//         unit_amount: {
+//           currency_code: "USD", // PayPal requires the currency
+//           value: bookingDetails.gross_total.toFixed(2), // Ensure the total is formatted as a string
+//         },
+//       },
+//     ];
+
+//     console.log("3. Preparing PayPal order details...");
+
+//     // Prepare PayPal order details
+//     const orderDetails = {
+//       amount: bookingDetails.gross_total.toFixed(2), // Ensure it's formatted as a string
+//       currency: "USD", // or any other currency you prefer
+//       items, // Add the detailed items array
+//       returnUrl: `${process.env.BASE_URL}/success`,
+//       cancelUrl: `${process.env.BASE_URL}/cancel-order`,
+//     };
+
+//     console.log("4. Creating PayPal order...");
+
+//     // Create PayPal order and get approval link
+//     const { id, approvalLink } = await createPayPalOrder(orderDetails);
+
+//     console.log("5. Sending PayPal order ID and approval link to frontend...");
+
+//     // Send PayPal order ID and approval link to the frontend
+//     res.status(200).json({
+//       success: true,
+//       message: "PayPal order created successfully",
+//       payment_method: "paypal",
+//       order_id: id,
+//       approval_link: approvalLink,
+//     });
+//   } catch (error) {
+//     console.error("Error creating PayPal order:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to create PayPal order",
+//       error: error.message,
+//     });
+//   }
+// };
+
 const createPayPalTransaction = async (req, res) => {
   try {
     console.log("1. Received booking details:", req.body.booking);
 
     const bookingDetails = req.body.booking;
+    const transports = req.body.transports || []; // Transportasi mungkin kosong
 
-    // Ensure gross_total is present
-    if (!bookingDetails.gross_total) {
-      throw new Error("Missing gross_total in booking details");
+    // Pastikan gross_total_in_usd tersedia
+    if (!bookingDetails.gross_total_in_usd) {
+      throw new Error("Missing gross_total_in_usd in booking details");
     }
 
-    console.log("2. Calculating PayPal order items...");
+    console.log("2. Determining transport type...");
 
-    // Prepare detailed PayPal order items
+    // Tentukan transport type berdasarkan data di req.body.transports
+    let transportDescription = "";
+    if (transports.length > 0) {
+      const transportTypes = transports.map((t) => t.transport_type).join(" & ");
+      transportDescription = ` + Transport (${transportTypes})`;
+    }
+
+    // Gabungkan semua komponen menjadi satu item
+    const itemName = `Ticket${transportDescription}`; // Nama dinamis
+
+    console.log("3. Preparing single PayPal order item...", itemName);
+
     const items = [
       {
-        name: `Booking for ${bookingDetails.total_passengers} Passengers`, // Description of the booking
-        description: `Adult: ${bookingDetails.adult_passengers}, Child: ${bookingDetails.child_passengers}, Infant: ${bookingDetails.infant_passengers}`, // Additional breakdown of passengers
-        quantity: 1, // Treat the booking as one unit (a single booking)
+        name: itemName, // Nama item yang digabung
+        description: `Booking for ${bookingDetails.total_passengers} Passenger(s)`, // Deskripsi ringkas
+        quantity: 1, // Tetapkan jumlah item menjadi 1
         unit_amount: {
-          currency_code: "USD", // PayPal requires the currency
-          value: bookingDetails.gross_total.toFixed(2), // Ensure the total is formatted as a string
+          currency_code: "USD", // Mata uang
+          value: bookingDetails.gross_total_in_usd.toFixed(2), // Total keseluruhan dalam USD
         },
       },
     ];
 
-    console.log("3. Preparing PayPal order details...");
+    console.log("4. Preparing PayPal order details...");
 
-    // Prepare PayPal order details
+    // Siapkan detail pesanan untuk PayPal
     const orderDetails = {
-      amount: bookingDetails.gross_total.toFixed(2), // Ensure it's formatted as a string
-      currency: "USD", // or any other currency you prefer
-      items, // Add the detailed items array
-      returnUrl: `${process.env.BASE_URL}/complete-order`,
+      amount: bookingDetails.gross_total_in_usd.toFixed(2), // Total keseluruhan
+      currency: "USD", // Mata uang
+      items, // Hanya satu item yang dikirim
+      returnUrl: `${process.env.BASE_URL}/success`,
       cancelUrl: `${process.env.BASE_URL}/cancel-order`,
     };
 
-    console.log("4. Creating PayPal order...");
+    console.log("5. Creating PayPal order...");
 
-    // Create PayPal order and get approval link
+    // Panggil fungsi untuk membuat order PayPal
     const { id, approvalLink } = await createPayPalOrder(orderDetails);
 
-    console.log("5. Sending PayPal order ID and approval link to frontend...");
+    console.log("6. Sending PayPal order ID and approval link to frontend...");
 
-    // Send PayPal order ID and approval link to the frontend
+    // Kirim order ID dan approval link ke frontend
     res.status(200).json({
       success: true,
       message: "PayPal order created successfully",
       payment_method: "paypal",
       order_id: id,
       approval_link: approvalLink,
+      // add amount
+      amount: bookingDetails.gross_total_in_usd.toFixed(2),
     });
   } catch (error) {
     console.error("Error creating PayPal order:", error);
@@ -429,6 +574,8 @@ const createPayPalTransaction = async (req, res) => {
     });
   }
 };
+
+
 // Handle PayPal return (controller function)
 const handlePayPalReturn = async (req, res) => {
   console.log("1. Handling PayPal return...");
@@ -490,6 +637,105 @@ const createMidtransTransactionLink = async (req, res) => {
   }
 };
 
+const createPayPalMultiple = async (req, res) => {
+  try {
+    console.log("1. Received multiple booking details:", req.body.bookings);
+
+    const bookings = req.body.bookings || [];
+    const transports = req.body.transports || [];
+
+    if (bookings.length === 0) {
+      throw new Error("No bookings provided");
+    }
+
+    console.log("2. Preparing items for PayPal order...");
+
+    // Prepare items for each booking
+    const items = bookings.map((booking, index) => {
+      const transportDescriptions = transports.map((t) => t.transport_type).join(" & ") || "No transport";
+      const grossTotalUSD = parseFloat(booking.gross_total_in_usd).toFixed(2); // Ensure valid format
+      if (isNaN(grossTotalUSD) || grossTotalUSD <= 0) {
+        throw new Error(`Invalid gross_total_in_usd for booking ID ${booking.id}`);
+      }
+      return {
+        name: `Booking ${index + 1}: Ticket + Transport (${transportDescriptions})`,
+        description: `Booking ID: ${booking.id} - ${booking.total_passengers} Passenger(s)`,
+        quantity: 1,
+        unit_amount: {
+          currency_code: "USD",
+          value: grossTotalUSD,
+        },
+      };
+    });
+
+    console.log("Items prepared:", items);
+
+    // Calculate total amount in USD
+    const totalAmountInUSD = items.reduce((sum, item) => sum + parseFloat(item.unit_amount.value), 0).toFixed(2);
+
+    if (isNaN(totalAmountInUSD) || totalAmountInUSD <= 0) {
+      throw new Error("Total amount in USD is invalid or zero.");
+    }
+
+    console.log("3. Total Amount in USD:", totalAmountInUSD);
+
+    console.log("4. Preparing PayPal order details...");
+
+    // Prepare PayPal order details
+    const orderDetails = {
+      purchase_units: [
+        {
+          reference_id: "multiple_bookings",
+          amount: {
+            currency_code: "USD",
+            value: totalAmountInUSD,
+            breakdown: {
+              item_total: {
+                currency_code: "USD",
+                value: totalAmountInUSD,
+              },
+            },
+          },
+          items,
+        },
+      ],
+      application_context: {
+        return_url: `${process.env.BASE_URL}/success`,
+        cancel_url: `${process.env.BASE_URL}/cancel-order`,
+      },
+    };
+
+    console.log("PayPal Order Details:", JSON.stringify(orderDetails, null, 2));
+
+    console.log("5. Creating PayPal order...");
+
+    // Call your function to create a PayPal order
+    const { id, approvalLink } = await createPayPalOrderMulti(orderDetails);
+
+    console.log("6. Sending PayPal order ID and approval link to frontend...");
+
+    // Send response with PayPal order ID and approval link
+    res.status(200).json({
+      success: true,
+      message: "PayPal order created successfully for multiple bookings",
+      payment_method: "paypal",
+      order_id: id,
+      approval_link: approvalLink,
+    //  create amount
+      amount: totalAmountInUSD
+    });
+  } catch (error) {
+    console.error("Error creating PayPal order for multiple bookings:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create PayPal order for multiple bookings",
+      error: error.message,
+    });
+  }
+};
+
+
+
 
 const createMidtransMulti = async (req, res) => {
   try {
@@ -531,6 +777,10 @@ module.exports = {
   handlePayPalReturn,
   createMidtransTransactionMulti,
   generateMidtransLink,
-  createMidtransMulti,generateSingleMidtransLink,handleMidtransNotification
+  createMidtransMulti,
+  generateSingleMidtransLink,
+  handleMidtransNotification,
+  handleWebhook,
+  createPayPalMultiple
 
 };

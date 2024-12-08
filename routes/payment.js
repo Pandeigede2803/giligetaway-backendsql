@@ -9,13 +9,15 @@ const paymentController = require('../controllers/paymentController');
 const { validateMidtransPaymentMethod, validatePayPalPaymentMethod,
     validateMidtransPaymentMethodMulti, validatePayPalPaymentMethodMulti
  } = require('../middleware/paymentValidation');
-const {handleMidtransNotification} = require('../controllers/paymentController');
+const {handleMidtransNotification,handleWebhook} = require('../controllers/paymentController');
 // Route to create a MidTrans transaction
 router.post('/midtrans/create-transaction',validateMidtransPaymentMethod, paymentController.createMidtransTransaction);
 router.post('/midtrans/create-transaction-multi',validateMidtransPaymentMethodMulti, paymentController.createMidtransTransactionMulti);
 
 // Route to create a PayPal order
 router.post('/paypal/create-order',validatePayPalPaymentMethod, paymentController.createPayPalTransaction);
+
+router.post('/paypal/create-order-multi',validatePayPalPaymentMethodMulti ,paymentController.createPayPalMultiple);
 
 // Route to create a PayPal order
 router.post('/paypal/capture-order', paymentController.handlePayPalReturn);
@@ -30,6 +32,9 @@ router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentC
 
 // Rute untuk menerima notifikasi dari Midtrans
 router.post('/midtrans-notification', handleMidtransNotification);
+// Rute untuk menerima notifikasi dari Midtrans
+router.post('/paypal/webhook', handleWebhook);
+
 
 
 
@@ -50,4 +55,3 @@ router.post("/doku-notification", dokuController.handleNotification);
 module.exports = router;
 
 
-module.exports = router;
