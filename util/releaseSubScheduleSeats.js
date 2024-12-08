@@ -54,7 +54,7 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
 
     try {
         // Fetch Schedule and associated Boat
-        console.log(`Fetching Schedule with ID: ${schedule_id}`);
+        console.log(`✅ =====Fetching Schedule with ID=====: ${schedule_id}`);
         const schedule = await Schedule.findByPk(schedule_id, {
             include: [{ model: sequelize.models.Boat, as: 'Boat' }],
             transaction,
@@ -72,7 +72,7 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
         const subSchedule = await SubSchedule.findByPk(subschedule_id, { transaction });
 
         if (!subSchedule) {
-            throw new Error('SubSchedule not found');
+            throw new Error('❌SubSchedule not found');
         }
 
         // Fetch related SubSchedules
@@ -275,23 +275,23 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
 const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     try {
         // Ambil SubSchedule yang relevan berdasarkan ID
-        console.log(`Fetching SubSchedule with ID: ${subschedule_id}`);
+        console.log(`✅ Fetching SubSchedule with ID: ${subschedule_id}`);
         const subSchedule = await SubSchedule.findByPk(subschedule_id, { transaction });
 
         // Jika SubSchedule tidak ditemukan, lemparkan error
         if (!subSchedule) {
-            throw new Error('SubSchedule tidak ditemukan');
+            throw new Error('✅ SubSchedule tidak ditemukan');
         }
 
         // Cari SubSchedule yang terkait menggunakan fungsi findRelatedSubSchedules
-        console.log(`Fetching related SubSchedules for Schedule ID: ${schedule_id}`);
+        console.log(`✅ Fetching related SubSchedules for Schedule ID: ${schedule_id}`);
         const relatedSubSchedules = await findRelatedSubSchedules(schedule_id, subSchedule, transaction);
         const updatedSubSchedules = new Set(); // Set untuk melacak sub-schedule yang sudah diperbarui
 
         // Loop melalui SubSchedule terkait untuk mengembalikan kursi
         for (const relatedSubSchedule of relatedSubSchedules) {
             if (updatedSubSchedules.has(relatedSubSchedule.id) || relatedSubSchedule.id === subschedule_id) {
-                console.log(`Skipping already updated or selected SubSchedule with ID: ${relatedSubSchedule.id}`);
+                console.log(`✅ Skipping already updated or selected SubSchedule with ID: ${relatedSubSchedule.id}`);
                 continue; // Hindari update dua kali atau jika sudah diperbarui
             }
 
@@ -307,11 +307,11 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
             });
 
             if (!relatedSeatAvailability) {
-                throw new Error(`Seat availability tidak ditemukan untuk SubSchedule ID: ${relatedSubSchedule.id}`);
+                throw new Error(`✅ Seat availability tidak ditemukan untuk SubSchedule ID: ${relatedSubSchedule.id}`);
             }
 
             // Tambahkan kembali kursi yang telah dipesan
-            console.log(`Returning ${total_passengers} seats to related SubSchedule ID: ${relatedSubSchedule.id}`);
+            console.log(`✅ Returning ${total_passengers} seats to related SubSchedule ID: ${relatedSubSchedule.id}`);
             relatedSeatAvailability.available_seats += total_passengers;
             await relatedSeatAvailability.save({ transaction }); // Simpan perubahan ke database
 
@@ -321,7 +321,7 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
 
         // Tangani SubSchedule yang dipilih secara spesifik jika belum diperbarui di loop sebelumnya
         if (!updatedSubSchedules.has(subschedule_id)) {
-            console.log(`Fetching SeatAvailability for selected SubSchedule ID: ${subschedule_id}`);
+            console.log(`✅ Fetching SeatAvailability for selected SubSchedule ID: ${subschedule_id}`);
             let selectedSubScheduleSeatAvailability = await SeatAvailability.findOne({
                 where: {
                     schedule_id: schedule_id,
@@ -332,23 +332,23 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
             });
 
             if (!selectedSubScheduleSeatAvailability) {
-                throw new Error('Seat availability tidak ditemukan untuk SubSchedule yang dipilih');
+                throw new Error('❌ Seat availability tidak ditemukan untuk SubSchedule yang dipilih');
             }
 
             // Tambahkan kembali kursi yang telah dipesan untuk SubSchedule yang dipilih
-            console.log(`Returning ${total_passengers} seats to selected SubSchedule ID: ${subschedule_id}`);
+            console.log(`✅ Returning ${total_passengers} seats to selected SubSchedule ID: ${subschedule_id}`);
             selectedSubScheduleSeatAvailability.available_seats += total_passengers;
             await selectedSubScheduleSeatAvailability.save({ transaction });
 
             updatedSubSchedules.add(subschedule_id);
         }
 
-        console.log(`Berhasil mengembalikan ${total_passengers} kursi untuk SubSchedule ID: ${subschedule_id}`);
+        console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk SubSchedule ID: ${subschedule_id}`);
 
         // ===================== Tambahkan Logika untuk Main Schedule ===================== //
 
         // Cari SeatAvailability untuk Main Schedule (subschedule_id = null)
-        console.log(`Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
+        console.log(`✅ Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
             where: {
                 schedule_id: schedule_id,
@@ -363,18 +363,18 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
         }
 
         // Tambahkan kembali kursi yang telah dipesan untuk Main Schedule
-        console.log(`Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
+        console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
         mainScheduleSeatAvailability.available_seats += total_passengers;
         await mainScheduleSeatAvailability.save({ transaction }); // Simpan perubahan ke database
 
-        console.log(`Berhasil mengembalikan ${total_passengers} kursi untuk Main Schedule ID: ${schedule_id}.`);
+        console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk Main Schedule ID: ${schedule_id}.`);
 
         // ============================================================================= //
 
         return updatedSubSchedules; // Kembalikan Set yang berisi SubSchedule yang telah diperbarui
     } catch (error) {
         // Log error dan lemparkan kembali jika terjadi masalah
-        console.error(`Gagal melepaskan kursi untuk SubSchedule ID: ${subschedule_id}`, error);
+        console.error(`❌Gagal melepaskan kursi untuk SubSchedule ID: ${subschedule_id}`, error);
         throw error;
     }
 };

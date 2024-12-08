@@ -472,6 +472,106 @@ const createBookingMultiple = async (req, res) => {
 
 // Proses bookingQueueMultiple
 
+// bookingQueueMultiple.process(async (job, done) => {
+//   const {
+//     trips, // Array of { schedule_id, subschedule_id, booking_date }
+//     total_passengers,
+//     passengers,
+//     transports,
+//     transit_details,
+//     booking_id,
+//     agent_id,
+//     gross_total,
+//     payment_status,
+//   } = job.data;
+
+//   console.log("Transport details:", transports);
+//   console.log("Passenger details:", passengers);
+//   console.log("Trips details:", trips);
+
+//   // Mulai transaksi
+//   const transaction = await sequelize.transaction();
+//   try {
+//     console.log(
+//       `Processing booking with ID: ${booking_id} for multiple trips...`
+//     );
+
+//     // Step 1: Handle Seat Availability untuk multiple trips (seat availability only processed here)
+//     const seatAvailabilities = await handleMultipleSeatsBooking(
+//       trips,
+//       total_passengers,
+//       transaction
+//     );
+
+//     console.log("Seat availability updated successfully.");
+
+//     // Step 2: Add passengers using the addPassengers utility
+//     if (passengers && passengers.length > 0) {
+//       await addPassengers(passengers, booking_id, transaction); // Use the correct transaction variable
+//       console.log(
+//         `Passengers added successfully for booking ID: ${booking_id}`
+//       );
+//     }
+
+//     // Step 3: Add transport bookings using the addTransportBookings utility
+//     if (transports && transports.length > 0) {
+//       await addTransportBookings(
+//         transports,
+//         booking_id,
+//         total_passengers,
+//         transaction
+//       ); // Use the correct transaction variable
+//       console.log(
+//         `Transport bookings added successfully for booking ID: ${booking_id}`
+//       );
+//     }
+
+//     // Step 4: Tambahkan seat availability ke table BookingSeatAvailability
+//     const bookingSeatAvailabilityData = seatAvailabilities.map(
+//       (seatAvailability) => ({
+//         booking_id: booking_id,
+//         seat_availability_id: seatAvailability.id,
+//       })
+//     );
+
+//     if (bookingSeatAvailabilityData.length > 0) {
+//       const result = await BookingSeatAvailability.bulkCreate(
+//         bookingSeatAvailabilityData,
+//         { transaction }
+//       );
+//       console.log(
+//         ` BookingSeatAvailability records added successfully. Total records created: ${result.length}`
+//       );
+
+//       // Log the seat_availability_id for each created BookingSeatAvailability record
+//       const seatAvailabilityIds = result.map(
+//         (record) => record.seat_availability_id
+//       );
+//       console.log(
+//         "Created BookingSeatAvailability entries with seat_availability_id values:",
+//         seatAvailabilityIds
+//       );
+//     } else {
+//       console.log("No seat availability data found to add.");
+//     }
+
+//     // Commit the transaction jika semua langkah berhasil
+//     await transaction.commit();
+//     console.log(
+//       `Booking queue processed successfully for booking ${booking_id}`
+//     );
+//     done(); // Menandakan job selesai
+//   } catch (error) {
+//     // Rollback jika terjadi kesalahan
+//     await transaction.rollback();
+//     console.error(
+//       `Error processing booking queue for booking ${booking_id}:`,
+//       error.message
+//     );
+//     done(error); // Menandakan job gagal
+//   }
+// });
+
 bookingQueueMultiple.process(async (job, done) => {
   const {
     trips, // Array of { schedule_id, subschedule_id, booking_date }
@@ -485,15 +585,15 @@ bookingQueueMultiple.process(async (job, done) => {
     payment_status,
   } = job.data;
 
-  console.log("Transport details:", transports);
-  console.log("Passenger details:", passengers);
-  console.log("Trips details:", trips);
+  console.log("🚐 Transport details:", transports);
+  console.log("🧳 Passenger details:", passengers);
+  console.log("🗺️ Trips details:", trips);
 
   // Mulai transaksi
-  const transaction = await sequelize.transaction();
+  const transaction = await sequelize.transaction();;
   try {
     console.log(
-      `Processing booking with ID: ${booking_id} for multiple trips...`
+      `⚙️ Processing booking with ID: ${booking_id} for multiple trips...`
     );
 
     // Step 1: Handle Seat Availability untuk multiple trips (seat availability only processed here)
@@ -503,13 +603,13 @@ bookingQueueMultiple.process(async (job, done) => {
       transaction
     );
 
-    console.log("Seat availability updated successfully.");
+    console.log("✅ Seat availability updated successfully.");
 
     // Step 2: Add passengers using the addPassengers utility
     if (passengers && passengers.length > 0) {
       await addPassengers(passengers, booking_id, transaction); // Use the correct transaction variable
       console.log(
-        `Passengers added successfully for booking ID: ${booking_id}`
+        `✅ Passengers added successfully for booking ID: ${booking_id}`
       );
     }
 
@@ -522,7 +622,7 @@ bookingQueueMultiple.process(async (job, done) => {
         transaction
       ); // Use the correct transaction variable
       console.log(
-        `Transport bookings added successfully for booking ID: ${booking_id}`
+        `✅ Transport bookings added successfully for booking ID: ${booking_id}`
       );
     }
 
@@ -540,7 +640,7 @@ bookingQueueMultiple.process(async (job, done) => {
         { transaction }
       );
       console.log(
-        `BookingSeatAvailability records added successfully. Total records created: ${result.length}`
+        `✅ BookingSeatAvailability records added successfully. Total records created: ${result.length}`
       );
 
       // Log the seat_availability_id for each created BookingSeatAvailability record
@@ -548,24 +648,24 @@ bookingQueueMultiple.process(async (job, done) => {
         (record) => record.seat_availability_id
       );
       console.log(
-        "Created BookingSeatAvailability entries with seat_availability_id values:",
+        "🪑 Created BookingSeatAvailability entries with seat_availability_id values:",
         seatAvailabilityIds
       );
     } else {
-      console.log("No seat availability data found to add.");
+      console.log("⚠️ No seat availability data found to add.");
     }
 
     // Commit the transaction jika semua langkah berhasil
     await transaction.commit();
     console.log(
-      `Booking queue processed successfully for booking ${booking_id}`
+      `🎉 Booking queue processed successfully for booking ${booking_id}`
     );
     done(); // Menandakan job selesai
   } catch (error) {
     // Rollback jika terjadi kesalahan
     await transaction.rollback();
     console.error(
-      `Error processing booking queue for booking ${booking_id}:`,
+      `❌ Error processing booking queue for booking ${booking_id}:`,
       error.message
     );
     done(error); // Menandakan job gagal

@@ -20,7 +20,7 @@ const fetchAndValidateSeatAvailability = async (
     total_passengers,
     transaction
 ) => {
-    console.log(`Fetching SeatAvailability for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
+    console.log(`🗺️Fetching SeatAvailability for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     const seatAvailability = await SeatAvailability.findOne({
         where: {
             schedule_id,
@@ -31,12 +31,12 @@ const fetchAndValidateSeatAvailability = async (
     });
 
     if (!seatAvailability) {
-        throw new Error(`Seat availability not found for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
+        throw new Error(`🗺️Seat availability not found for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     }
 
     // Validate boat capacity
     if (seatAvailability.available_seats + total_passengers > boatCapacity) {
-        throw new Error(`Returning seats exceeds boat capacity for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
+        throw new Error(`✅Returning seats exceeds boat capacity for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     }
 
     return seatAvailability;
@@ -50,7 +50,7 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
         const formattedDate = booking_date.split('T')[0];
 
         // Fetch Schedule and associated Boat
-        console.log(`Fetching Schedule with ID: ${schedule_id}`);
+        console.log(`✅Fetching Schedule with ID: ${schedule_id}`);
         const schedule = await Schedule.findByPk(schedule_id, {
             include: [{ model: sequelize.models.Boat, as: 'Boat' }],
             transaction,
@@ -64,7 +64,7 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
         console.log(`Boat capacity for Schedule ID: ${schedule_id} is ${boatCapacity}`);
 
         // Fetch and validate Main Schedule SeatAvailability
-        console.log(`Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
+        console.log(`✅Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
         const mainScheduleSeatAvailability = await fetchAndValidateSeatAvailability(
             schedule_id,
             null, // Main Schedule has no subschedule_id
@@ -90,7 +90,7 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
 
         // Process each related SubSchedule
         for (const subSchedule of relatedSubSchedules) {
-            console.log(`Processing SubSchedule ID: ${subSchedule.id}`);
+            console.log(`✅Processing SubSchedule ID: ${subSchedule.id}`);
             const subScheduleSeatAvailability = await fetchAndValidateSeatAvailability(
                 schedule_id,
                 subSchedule.id,
@@ -105,12 +105,12 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
             await subScheduleSeatAvailability.save({ transaction });
             releasedSeatIds.push(subScheduleSeatAvailability.id);
 
-            console.log(`Successfully returned ${total_passengers} seats for SubSchedule ID: ${subSchedule.id}.`);
+            console.log(`✅Successfully returned ${total_passengers} seats for SubSchedule ID: ${subSchedule.id}.`);
         }
 
         return releasedSeatIds; // Return all updated SeatAvailability IDs
     } catch (error) {
-        console.error(`Failed to release seats for Main Schedule ID: ${schedule_id}`, error);
+        console.error(`❌Failed to release seats for Main Schedule ID: ${schedule_id}`, error);
         throw error;
     }
 };

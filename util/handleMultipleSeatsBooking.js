@@ -3,32 +3,59 @@ const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,Sub
 const { Op } = require("sequelize");
 const { findRelatedSubSchedules } = require('./handleSubScheduleBooking'); // Import dari kode yang sudah Anda berikan
 const { calculatePublicCapacity } = require('../util/getCapacityReduction');
+// const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) => {
+//     console.log('Start handling multiple seats booking');
+//     console.log(`Received ${trips.length} trips to handle`);
+//     console.log("Total Passengers:", total_passengers);
+//     console.log("Transaction:", transaction);
+//     console.log("trips:", trips);
+  
+//     let allSeatAvailabilities = [];
+  
+//     // Loop melalui setiap trip dalam array
+//     for (const trip of trips) {
+//       const { schedule_id, subschedule_id, booking_date } = trip;
+//       console.log(`Handling trip: schedule_id=${schedule_id}, subschedule_id=${subschedule_id}, booking_date=${booking_date}`);
+  
+//       // Panggil utility handleSeatAvailability untuk setiap trip
+//       const seatAvailabilities = await handleSeatAvailability(schedule_id, subschedule_id, booking_date, total_passengers, transaction);
+  
+//       // Gabungkan semua hasil seat availability dari setiap trip
+//       allSeatAvailabilities = [...allSeatAvailabilities, ...seatAvailabilities];
+//       console.log(`Updated seat availabilities: ${allSeatAvailabilities.length}`);
+//     }
+  
+//     console.log('Finished handling multiple seats booking');
+//     return allSeatAvailabilities; // Kembalikan semua hasil seat availability yang diperbarui
+//   };
+  
 const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) => {
-    console.log('Start handling multiple seats booking');
-    console.log(`Received ${trips.length} trips to handle`);
-    console.log("Total Passengers:", total_passengers);
-    console.log("Transaction:", transaction);
-    console.log("trips:", trips);
+    console.log('🚀 START HANDLING MULTIPLE SEATS BOOKING');
+    console.log(`🛤️ RECEIVED ${trips.length} TRIPS TO HANDLE`);
+    console.log("👥 TOTAL PASSENGERS:", total_passengers);
+    console.log("💳 TRANSACTION:", transaction);
+    console.log("🗺️ TRIPS:", trips);
   
     let allSeatAvailabilities = [];
   
     // Loop melalui setiap trip dalam array
     for (const trip of trips) {
       const { schedule_id, subschedule_id, booking_date } = trip;
-      console.log(`Handling trip: schedule_id=${schedule_id}, subschedule_id=${subschedule_id}, booking_date=${booking_date}`);
+      console.log(`✈️ HANDLING TRIP: SCHEDULE_ID=${schedule_id}, SUBSCHEDULE_ID=${subschedule_id}, BOOKING_DATE=${booking_date}`);
   
       // Panggil utility handleSeatAvailability untuk setiap trip
       const seatAvailabilities = await handleSeatAvailability(schedule_id, subschedule_id, booking_date, total_passengers, transaction);
   
       // Gabungkan semua hasil seat availability dari setiap trip
       allSeatAvailabilities = [...allSeatAvailabilities, ...seatAvailabilities];
-      console.log(`Updated seat availabilities: ${allSeatAvailabilities.length}`);
+      console.log(`🪑 UPDATED SEAT AVAILABILITIES: ${allSeatAvailabilities.length}`);
     }
   
-    console.log('Finished handling multiple seats booking');
+    console.log('✅ FINISHED HANDLING MULTIPLE SEATS BOOKING');
     return allSeatAvailabilities; // Kembalikan semua hasil seat availability yang diperbarui
-  };
-  
+};
+
+
   const handleSeatAvailability = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     // Fetch the main schedule and boat capacity
     const schedule = await Schedule.findByPk(schedule_id, {
@@ -124,10 +151,10 @@ const handleMultipleSeatsBooking = async (trips, total_passengers, transaction) 
                 schedule_id: schedule_id,
                 subschedule_id: relatedSubSchedule.id,
                 transit_id: null,
-                available_seats: boatCapacity,
+                available_seats: publicCapacity,
                 date: booking_date,
                 availability: true
-            }, { transaction });
+            }, { transaction });;
         }
 
         // Validate if available seats are sufficient and avoid going below 0
