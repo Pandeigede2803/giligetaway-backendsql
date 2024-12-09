@@ -1,26 +1,69 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const {getAllSeatAvailabilityScheduleAndSubSchedule, checkAvailableSeats,updateSeatAvailability, checkAllAvailableSeats,getFilteredSeatAvailabilityById, checkAllAvailableSeatsBookingCount } = require('../controllers/seatAvailabilityController'); // Adjust the path as needed
-const authenticate = require('../middleware/authenticate');
+const {
+  getAllSeatAvailabilityScheduleAndSubSchedule,
+  checkAvailableSeats,
+  updateSeatAvailability,
+  checkAllAvailableSeats,
+  getFilteredSeatAvailabilityById,
+  checkAllAvailableSeatsBookingCount,
+  boostSeatAvailability,
+} = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
+const authenticate = require("../middleware/authenticate");
 // Route to check available seats for a specific schedule and date
-router.get('/check-available',authenticate, checkAvailableSeats);
+const { body } = require("express-validator");
+// module.exports = boostSeatMiddleware;
+// const 
+const boostSeatMiddleware = require("../middleware/boostSeatMiddleware");
+
+
+
+
+router.get("/check-available", authenticate, checkAvailableSeats);
 
 // Route to check all available seats for a specific schedule and date
-router.get('/check-all',authenticate, checkAllAvailableSeats);
+router.get("/check-all", authenticate, checkAllAvailableSeats);
 
 // updateseatavailability
 
-router.put('/update-seat/:id',authenticate, updateSeatAvailability);
+router.put("/update-seat/:id", authenticate, updateSeatAvailability);
 
-router.get('/related-seat/:id',authenticate,getFilteredSeatAvailabilityById );
-
-
+router.get("/related-seat/:id", authenticate, getFilteredSeatAvailabilityById);
 
 // Route to check all available seats for a specific schedule and date
-router.get('/check-all/booking-count',authenticate, checkAllAvailableSeatsBookingCount);
+router.get(
+  "/check-all/booking-count",
+  authenticate,
+  checkAllAvailableSeatsBookingCount
+);
 
 // updateseatavailability
 
-router.get("/get-all-seat-availability-schedule-and-subschedule",authenticate,getAllSeatAvailabilityScheduleAndSubSchedule );
+router.get(
+  "/get-all-seat-availability-schedule-and-subschedule",
+  authenticate,
+  getAllSeatAvailabilityScheduleAndSubSchedule
+);
+
+router.post(
+    "/boost-seat-availability",
+    authenticate,
+    [
+      body("schedule_id")
+        .optional()
+        .isInt()
+        .withMessage("Schedule ID must be an integer"),
+      body("subschedule_id")
+        .optional()
+        .isInt()
+        .withMessage("Subschedule ID must be an integer"),
+      body("date")
+        .notEmpty()
+        .isISO8601()
+        .withMessage("Date must be a valid ISO 8601 date"),
+    ],
+    boostSeatMiddleware,
+    boostSeatAvailability
+  );
 
 module.exports = router;
