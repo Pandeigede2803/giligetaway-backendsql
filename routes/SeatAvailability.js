@@ -15,6 +15,8 @@ const { body } = require("express-validator");
 // module.exports = boostSeatMiddleware;
 // const 
 const boostSeatMiddleware = require("../middleware/boostSeatMiddleware");
+const { checkMaximumCapacity,validateSeatAvailabilityDate } = require("../middleware/checkSeatAvailabilityForUpdate");
+
 
 
 
@@ -48,6 +50,8 @@ router.get(
 router.post(
     "/boost-seat-availability",
     authenticate,
+    checkMaximumCapacity,
+    validateSeatAvailabilityDate,
     [
       body("schedule_id")
         .optional()

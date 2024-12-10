@@ -202,6 +202,84 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
 };
 
 
+
+
+const checkMaximumCapacity = async (req, res, next) => {
+  try {
+    const { seat_availability_id, schedule_id, qty } = req.body;
+
+    // If `seat_availability_id` is not provided, bypass this middleware
+    if (!seat_availability_id) {
+      console.log("🛑 Bypassing maximum capacity check as seat_availability_id is not provided.");
+      return next();
+    }
+
+    console.log(`🔍 Checking maximum capacity for Seat Availability ID: ${seat_availability_id}`);
+
+    // Validate the required parameters
+    if (!qty) {
+      return res.status(400).json({
+        success: false,
+        message: "qty is required.",
+      });
+    }
+
+    // Fetch the seat availability by ID
+    const seatAvailability = await SeatAvailability.findByPk(seat_availability_id);
+
+    if (!seatAvailability) {
+      return res.status(404).json({
+        success: false,
+        message: `Seat availability not found for ID: ${seat_availability_id}`,
+      });
+    }
+
+    console.log(`✅ Seat availability found. ID: ${seatAvailability.id}, Current Seats: ${seatAvailability.available_seats}`);
+
+    // Fetch the schedule and boat capacity
+    const schedule = await Schedule.findOne({
+      where: { id: seatAvailability.schedule_id },
+      include: {
+        model: Boat,
+        as: "Boat",
+        attributes: ["capacity"],
+      },
+    });
+
+    if (!schedule || !schedule.Boat) {
+      return res.status(404).json({
+        success: false,
+        message: `Schedule or boat not found for Seat Availability ID: ${seat_availability_id}`,
+      });
+    }
+
+    const boatCapacity = schedule.Boat.capacity;
+    console.log(`🚤 Boat capacity: ${boatCapacity}, Current Available Seats: ${seatAvailability.available_seats}`);
+
+    // Check if adding qty exceeds boat capacity
+    if (seatAvailability.available_seats >= boatCapacity) {
+      return res.status(400).json({
+        success: false,
+        message: "The capacity is already at the maximum limit.",
+      });
+    }
+
+    // Proceed to next middleware or controller
+    next();
+  } catch (error) {
+    console.error("❌ Error checking maximum capacity:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while checking seat availability.",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+
 const getAvailableDays = (daysOfWeek) => {
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -473,12 +551,92 @@ const validatePaymentUpdate = async (req, res, next) => {
     }
 };
 
-
+const validateSeatAvailabilityDate = async (req, res, next) => {
+    try {
+      const { seat_availability_id, schedule_id, date } = req.body;
+  
+      // Skip validation if `seat_availability_id` is provided
+      if (seat_availability_id) {
+        console.log(
+          `🛑 Skipping date validation as Seat Availability ID (${seat_availability_id}) is provided.`
+        );
+        return next();
+      }
+  
+      // Validate required parameters
+      if (!schedule_id || !date) {
+        return res.status(400).json({
+          success: false,
+          message: "Schedule ID and Date are required.",
+        });
+      }
+  
+      console.log(`🔍 Validating date for Schedule ID: ${schedule_id}, Date: ${date}`);
+  
+      // Fetch the schedule
+      const schedule = await Schedule.findOne({
+        where: { id: schedule_id },
+        attributes: ["days_of_week", "validity_start", "validity_end"],
+      });
+  
+      if (!schedule) {
+        return res.status(404).json({
+          success: false,
+          message: `Schedule not found for ID: ${schedule_id}`,
+        });
+      }
+  
+      const { days_of_week,validity_start, validity_end } = schedule;
+      console.log(
+        `📅 Schedule Details - Days of Week: ${days_of_week}, Availability: ${validity_start} to ${validity_end}`
+      );
+  
+      // Check if the date falls within the availability period
+      const providedDate = moment(date, "YYYY-MM-DD", true);
+      const startDate = moment(validity_start, "YYYY-MM-DD");
+      const endDate = moment(validity_end, "YYYY-MM-DD");
+  
+      if (!providedDate.isValid()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid date format. Please use YYYY-MM-DD.",
+        });
+      }
+  
+      if (providedDate.isBefore(startDate) || providedDate.isAfter(endDate)) {
+        return res.status(400).json({
+          success: false,
+          message: `The provided date is outside the schedule availability period (${validity_start} to ${validity_end}).`,
+        });
+      }
+  
+      // Check if the day matches the days_of_week
+      const dayOfWeek = providedDate.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      if ((days_of_week & (1 << dayOfWeek)) === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `The provided date (${date}) does not match the allowed days of the week for this schedule.`,
+        });
+      }
+  
+      console.log("✅ Date validation passed. Proceeding to the next middleware.");
+      next();
+    } catch (error) {
+      console.error("❌ Error in validateSeatAvailabilityDate middleware:", error);
+      return res.status(500).json({
+        success: false,
+        message: "An error occurred while validating the date.",
+        error: error.message,
+      });
+    }
+  };
+  
+  
 
 
 // Helper function to convert binary days of week to array of day names
 module.exports = {
     checkSeatAvailabilityForUpdate,
     validateBookingDate,
-    validatePaymentUpdate
+    validatePaymentUpdate,checkMaximumCapacity,validateSeatAvailabilityDate
 };

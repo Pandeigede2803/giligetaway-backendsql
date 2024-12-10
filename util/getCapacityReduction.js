@@ -3,18 +3,18 @@
 const getBoatCapacityReduction = () => {
   // Load environment variables for boat capacity reductions
   return {
-    1: parseInt(process.env.BOAT_1_CAPACITY_REDUCTION || 6),
-    2: parseInt(process.env.BOAT_2_CAPACITY_REDUCTION || 4),
-    3: parseInt(process.env.BOAT_3_CAPACITY_REDUCTION || 2)
+    1: parseInt(process.env.BOAT_1_CAPACITY_REDUCTION ),
+    2: parseInt(process.env.BOAT_2_CAPACITY_REDUCTION ),
+    3: parseInt(process.env.BOAT_3_CAPACITY_REDUCTION)
   };
 };
 
 const calculatePublicCapacity = (boat) => {
   const BOAT_CAPACITY_REDUCTION = getBoatCapacityReduction();
-  
+  console.log("===boat===:", boat);
   // Get boat details with proper null checking
-  const boatId = boat?.id || 0;
-  const actualCapacity = boat?.capacity || 0;
+  const boatId = boat?.id ;
+  const actualCapacity = boat?.capacity ;
   
   console.log('\n=== CAPACITY CALCULATION PROCESS ===');
   console.log('Boat ID:', boatId);
