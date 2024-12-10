@@ -211,6 +211,13 @@ const validateBookingCreation = async (req, res, next) => {
         "cash",
         "paypal",
         "midtrans",
+        "Midtrans",
+        "invoiced",
+        "invoice",
+        "cash_bali",
+        "cash_gili_trawangan",
+        "cash_gili_gede",
+
       ];
       if (!validPaymentMethods.includes(payment_method)) {
         return res.status(400).json({
@@ -219,6 +226,14 @@ const validateBookingCreation = async (req, res, next) => {
         });
       }
     }
+
+    // <option value="Select Payment">Select Payment</option>
+    // <option value="Midtrans">Visa / Bank Transfer /Credit Card (Midtrans)</option>
+    // <option value="Paypal">Paypal</option>
+    // <option value="Cash Bali">Cash Bali</option>
+    // <option value="Cash Gili Trawangan">Cash Gili Trawangan</option>
+    // <option value="Cash Gili Gede">Cash Gili Gede</option>
+    // <option value="Invoice">Invoice (Paid next month)</option>
 
     // Validate email format
     console.log("📧 Validating email format...");
