@@ -149,6 +149,8 @@ const isDayAvailable = (date, daysOfWeek) => {
 //     });
 //   }
 // };
+
+
 // const getPassengerCountBySchedule = async (req, res) => {
 //   const { month, year, schedule_id } = req.query;
 
@@ -278,9 +280,11 @@ const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
 };
 
 const getPassengerCountBySchedule = async (req, res) => {
+  // extract query
   const { month, year, schedule_id } = req.query;
   console.log('Request Parameters:', { month, year, schedule_id });
 
+  // validation
   if (!month || !year) {
     console.log('Missing required parameters');
     return res.status(400).json({
@@ -293,35 +297,32 @@ const getPassengerCountBySchedule = async (req, res) => {
     // Fetch days of week for the given schedule_id from the Schedule table
     const schedule = await Schedule.findOne({
       where: { id: schedule_id },
-      attributes: ['days_of_week']
+      attributes: ['days_of_week'],
     });
 
-    // Decode days_of_week bitmap to array
     const decodeDaysOfWeekBitmap = (bitmap) => {
-      console.log(`Decoding days_of_week bitmap: ${bitmap}`);
       const daysOfWeek = [];
       for (let i = 0; i < 7; i++) {
         if ((bitmap & (1 << i)) !== 0) {
           daysOfWeek.push(i); // Add day (0=Sunday, ..., 6=Saturday) if bit is active
-        console.log(`📅Day ${i} (${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][i]}) is available.`);
         }
       }
       return daysOfWeek;
     };
 
     const scheduleDaysOfWeek = schedule
-    ? decodeDaysOfWeekBitmap(schedule.days_of_week)
-    : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
-
-
+      ? decodeDaysOfWeekBitmap(schedule.days_of_week)
+      : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
 
     const daysInMonth = getDaysInMonthWithDaysOfWeek(month, year, scheduleDaysOfWeek);
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
-    console.log('====Date Range:=====', { startDate, endDate });
+    console.log('Date Range:', { startDate, endDate });
 
+
+    // Fetch seat availabilities within the date range and for the specified schedule_id
     const seatAvailabilities = await SeatAvailability.findAll({
-      attributes: ["id", "date", "schedule_id", "subschedule_id"],
+      attributes: ["id", "date", "schedule_id", "available_seats", "subschedule_id"],
       where: {
         date: {
           [Op.between]: [startDate, endDate],
@@ -330,53 +331,65 @@ const getPassengerCountBySchedule = async (req, res) => {
       },
       include: getSeatAvailabilityIncludes(),
     });
+
     console.log('Total seat availabilities found:', seatAvailabilities.length);
 
+   
+    // Group seat availabilities by date for quick lookup
+    
     const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
       acc[sa.date] = acc[sa.date] || [];
       acc[sa.date].push(sa);
       return acc;
     }, {});
 
+     // Prepare the final results array
     const finalResults = [];
     for (const date of daysInMonth) {
       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
       console.log(`Processing date: ${date}, Found availabilities:`, seatAvailabilityForDate.length);
 
-      const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(
-        date
-      );
-      console.log(`Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`);
+      // Fetch related schedules and subschedules for the given date
 
+      const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
+      console.log(`Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`);
+// process each schedules
       schedules
         .filter(
           (schedule) => !schedule_id || schedule.id === parseInt(schedule_id)
         )
+        // find main seat availabilites for the schedules
         .forEach((schedule) => {
           const mainAvailability = seatAvailabilityForDate.find(
             (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
           );
 
+
+ // Determine capacity from availability or use boat capacity as default
+          
+          const capacity = mainAvailability
+            ? mainAvailability.available_seats // Use available_seats if SeatAvailability exists
+            : calculatePublicCapacity(schedule.dataValues.Boat); // Default to Boat capacity
+
+          console.log('Schedule details:', {
+            scheduleId: schedule.id,
+            capacity,
+            availableSeats: mainAvailability ? mainAvailability.available_seats : 'Not Found',
+          });
+           // Calculate the total number of passengers from booking seat availabilities
+          
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
+            const remainingSeats = capacity - totalPassengers;
 
-          // Calculate public capacity using utility function
-          const publicCapacity = calculatePublicCapacity(schedule.dataValues.Boat);
-          
-          console.log('Schedule details:', {
-            scheduleId: schedule.id,
-            publicCapacity,
-            totalPassengers,
-            availableSeats: publicCapacity - totalPassengers
-          });
-
+            // build route
           const route = buildRouteFromSchedule(schedule, null);
 
           const relevantSubSchedules = subSchedules.filter(
             (subSchedule) => subSchedule.schedule_id === schedule.id
           );
-          console.log(`Found relevant subSchedules: ${relevantSubSchedules.length}`);
+           // Filter subschedules related to the current schedule
 
           const subschedules = relevantSubSchedules.map((subSchedule) => {
             const subAvailability = seatAvailabilityForDate.find(
@@ -384,16 +397,17 @@ const getPassengerCountBySchedule = async (req, res) => {
                 sa.schedule_id === schedule.id &&
                 sa.subschedule_id === subSchedule.id
             );
+            // Process each subschedule
+
+            const subCapacity = subAvailability
+              ? subAvailability.available_seats
+              : calculatePublicCapacity(schedule.dataValues.Boat); // Default capacity
 
             const subTotalPassengers = subAvailability
               ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
               : 0;
-
-            console.log('SubSchedule details:', {
-              subScheduleId: subSchedule.id,
-              totalPassengers: subTotalPassengers,
-              capacity: publicCapacity
-            });
+              // Calculate the total number of passengers
+              const subRemainingSeats = subCapacity - subTotalPassengers;
 
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
@@ -401,18 +415,20 @@ const getPassengerCountBySchedule = async (req, res) => {
               schedule_id: schedule.id,
               subschedule_id: subSchedule.id,
               total_passengers: subTotalPassengers,
-              capacity: publicCapacity || 0,
+              capacity: subCapacity || 0,
+              remainingSeats: subRemainingSeats,
               route: buildRouteFromSchedule(schedule, subSchedule),
             };
           });
-
+             // Add the processed schedule data to the final results
           finalResults.push({
             seatavailability_id: mainAvailability ? mainAvailability.id : null,
             date,
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
-            capacity: publicCapacity || 0,
+            capacity,
+            remainingSeats,
             total_passengers: totalPassengers,
             departure_time: schedule.dataValues.departure_time,
             arrival_time: schedule.dataValues.arrival_time,
@@ -423,6 +439,7 @@ const getPassengerCountBySchedule = async (req, res) => {
     }
 
     console.log('Final results count:', finalResults.length);
+    // Send the final results in the response
     return res.status(200).json({
       success: true,
       data: finalResults,

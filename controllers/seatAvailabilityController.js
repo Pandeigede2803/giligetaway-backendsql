@@ -14,88 +14,55 @@ const { validationResult } = require('express-validator');
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
 const { Op } = require('sequelize'); // Import Sequelize operators
-
+const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability } = require('../util/seatAvailabilityUtils');
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
 
 
-const boostSeatAvailability = async (req, res) => {
-  const { id, schedule_id, subschedule_id, date } = req.body;
-
-  // Validate input
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+const handleSeatAvailability = async (req, res) => {
+  const { seat_availability_id, schedule_id, date, toggle, qty } = req.body;
 
   try {
-    // Fetch the seat availability
-    let seatAvailability;
-    if (id) {
-      seatAvailability = await SeatAvailability.findByPk(id);
-    }
-
-    if (!seatAvailability && (schedule_id || subschedule_id)) {
-      seatAvailability = await SeatAvailability.findOne({
-        where: {
-          schedule_id: schedule_id || null,
-          subschedule_id: subschedule_id || null,
-          date,
-        },
-      });
-    }
-
-    // Fetch the Boat capacity using the main schedule_id
-    const schedule = await Schedule.findOne({
-      where: { id: schedule_id },
-      include: { model: Boat, as: 'Boat', attributes: ['capacity'] },
-    });
-
-    if (!schedule || !schedule.Boat) {
-      return res.status(404).json({
-        status: 'fail',
-        message: `Boat capacity not found for schedule ID ${schedule_id}.`,
-      });
-    }
-
-    const boatCapacity = schedule.Boat.capacity;
-
-    if (seatAvailability) {
-      // Update existing seat availability to match boat capacity
-      seatAvailability.available_seats = boatCapacity;
-      await seatAvailability.save();
+    if (seat_availability_id) {
+      // Scenario 1: Boost existing seat availability
+      console.log('🛠 Scenario 1: Boost existing seat availability');
+      const seatAvailability = await boostSeatAvailability({ id: seat_availability_id, toggle, qty });
       return res.status(200).json({
-        status: 'success',
-        message: 'Seat availability updated successfully',
+        success: true,
+        message: 'Seat availability updated successfully.',
         seat_availability: seatAvailability,
       });
-    } else {
-      // Create a new seat availability record
-      const newSeatAvailability = await SeatAvailability.create({
+    } else if (schedule_id && date) {
+      // Scenario 2: Create new seat availability
+      console.log('🛠 Scenario 2: Create new seat availability');
+      const { mainSeatAvailability, subscheduleSeatAvailabilities } = await createSeatAvailability({
         schedule_id,
-        subschedule_id: subschedule_id || null,
         date,
-        available_seats: boatCapacity,
-        availability: true, // Assuming availability is true for new records
+        qty,
       });
-
       return res.status(201).json({
-        status: 'success',
-        message: 'New seat availability created successfully',
-        seat_availability: newSeatAvailability,
+        success: true,
+        message: 'Seat availabilities created successfully.',
+        mainSeatAvailability,
+        subscheduleSeatAvailabilities,
       });
     }
+
+    // Invalid request
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid request: Provide either seat_availability_id or schedule_id and date.',
+    });
   } catch (error) {
-    console.error('Error updating seat availability:', error.message);
+    console.error('Error handling seat availability:', error.message);
     return res.status(500).json({
-      status: 'error',
-      message: 'An error occurred while updating seat availability',
+      success: false,
+      message: 'An error occurred while processing seat availability.',
       error: error.message,
     });
   }
 };
-
 const getFilteredSeatAvailabilityById = async (req, res) => {
   const { id } = req.params; // `id` here is the seat_availability_id
 
@@ -516,5 +483,5 @@ module.exports = {
   updateSeatAvailability,
   getAllSeatAvailabilityScheduleAndSubSchedule,
   getFilteredSeatAvailabilityById,
-  boostSeatAvailability
+ handleSeatAvailability
 };

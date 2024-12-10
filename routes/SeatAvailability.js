@@ -7,7 +7,7 @@ const {
   checkAllAvailableSeats,
   getFilteredSeatAvailabilityById,
   checkAllAvailableSeatsBookingCount,
-  boostSeatAvailability,
+  handleSeatAvailability
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 const authenticate = require("../middleware/authenticate");
 // Route to check available seats for a specific schedule and date
@@ -62,8 +62,8 @@ router.post(
         .isISO8601()
         .withMessage("Date must be a valid ISO 8601 date"),
     ],
-    boostSeatMiddleware,
-    boostSeatAvailability
+    // boostSeatMiddleware,
+   handleSeatAvailability
   );
 
 module.exports = router;
