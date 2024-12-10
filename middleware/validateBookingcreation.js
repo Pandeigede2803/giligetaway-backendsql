@@ -217,6 +217,7 @@ const validateBookingCreation = async (req, res, next) => {
         "cash_bali",
         "cash_gili_trawangan",
         "cash_gili_gede",
+    
 
       ];
       if (!validPaymentMethods.includes(payment_method)) {

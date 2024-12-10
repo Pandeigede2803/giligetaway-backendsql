@@ -10,8 +10,8 @@ const serverKey = isProduction
 
 // Initialize Snap instance
 const snap = new midtransClient.Snap({
-  isProduction: isProduction, // Manually set
-  serverKey: serverKey, // Corresponding server key
+  isProduction: false, // Set to true when using in production
+  serverKey: process.env.MIDTRANS_SERVER_KEY, // Make sure to set this in your environment variables
 });
 
 /**
