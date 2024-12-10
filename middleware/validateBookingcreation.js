@@ -210,6 +210,7 @@ const validateBookingCreation = async (req, res, next) => {
         "bank_transfer",
         "cash",
         "paypal",
+        "midtrans",
       ];
       if (!validPaymentMethods.includes(payment_method)) {
         return res.status(400).json({

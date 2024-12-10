@@ -63,6 +63,8 @@ const handleSeatAvailability = async (req, res) => {
     });
   }
 };
+
+
 const getFilteredSeatAvailabilityById = async (req, res) => {
   const { id } = req.params; // `id` here is the seat_availability_id
 
