@@ -362,6 +362,13 @@ const validateMultipleBookingCreation = async (req, res, next) => {
         "bank_transfer",
         "cash",
         "paypal",
+        "midtrans",
+        "Midtrans",
+        "invoiced",
+        "invoice",
+        "cash_bali",
+        "cash_gili_trawangan",
+        "cash_gili_gede",
       ];
       if (!validPaymentMethods.includes(payment_method)) {
         return res.status(400).json({
