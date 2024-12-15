@@ -50,5 +50,5 @@ BookingSeatAvailability.associate = models => {
         as: 'Booking'
       });
     };
+
 module.exports = BookingSeatAvailability;
-``

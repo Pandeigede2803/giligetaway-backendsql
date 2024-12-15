@@ -20,6 +20,7 @@ const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 const { sumTotalPassengers } = require("../util/sumTotalPassengers");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
+const {fetchSeatAvailability,createSeatAvailability} = require('../util/seatAvailabilityUtils');
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
 // Fix date utility function
@@ -746,8 +747,172 @@ const getPassengerCountByDate = async (req, res) => {
   }
 };
 
-// Controller to fetch total passengers by schedule/subschedule and month
-// Controller to fetch total passengers by schedule/subschedule and month with full date
+
+
+// const getPassengersSeatNumber = async (req, res) => {
+//   const { date, schedule_id, sub_schedule_id } = req.query;
+
+//   try {
+//       // Query to get passengers, bookings, seat availability, and boat capacity
+//       const passengers = await Passenger.findAll({
+//           include: [
+//               {
+//                   model: Booking,
+//                   as: 'booking', // Alias sesuai asosiasi di Passenger.js
+//                   required: true,
+//                   where: {
+//                       payment_status: ['paid', 'invoiced'], // Filter status pembayaran
+//                   },
+//                   include: [
+//                       {
+//                           model: SeatAvailability,
+//                           as: 'seatAvailabilities', // Alias sesuai asosiasi di Booking.js
+//                           required: true,
+//                           include: [
+//                               {
+//                                   model: Schedule,
+//                                   as: 'Schedule', // Assuming SeatAvailability is associated with Schedule
+//                                   required: true,
+//                                   include: [
+//                                       {
+//                                           model: Boat,
+//                                           as: 'Boat', // Assuming Schedule is associated with Boat
+//                                           required: true,
+//                                       },
+//                                   ],
+//                                   where: {
+//                                       ...(schedule_id && { id: schedule_id }), // Tambahkan jika schedule_id diberikan
+//                                   },
+//                               },
+//                           ],
+//                           where: {
+//                               date, // Filter tanggal
+//                               ...(sub_schedule_id && { subschedule_id: sub_schedule_id }), // Tambahkan jika sub_schedule_id diberikan
+//                           },
+//                       },
+//                   ],
+//               },
+//           ],
+//       });
+
+//       // Extract boat capacity from the query result
+//       const boatCapacity =
+//           passengers[0]?.booking?.seatAvailabilities[0]?.Schedule?.Boat?.capacity || 0;
+
+//       if (boatCapacity === 0) {
+//           return res.status(404).json({ error: 'Boat capacity not found for the given schedule.' });
+//       }
+
+//       // Prepare seat information
+//       const bookedSeats = [];
+//       const availableSeats = [];
+
+//       // Collect booked seats from passengers
+//       passengers.forEach(passenger => {
+//           if (passenger.seat_number) {
+//               bookedSeats.push(passenger.seat_number);
+//           }
+//       });
+
+//       // Calculate available seats
+//       for (let i = 1; i <= boatCapacity; i++) {
+//           const seatNumber = `A${i}`;
+//           if (!bookedSeats.includes(seatNumber)) {
+//               availableSeats.push(seatNumber);
+//           }
+//       }
+
+//       // Custom response
+//       const response = {
+//           status: 'success',
+//           message: 'Seat information retrieved successfully.',
+//           alreadyBooked: bookedSeats,
+//           availableSeats,
+//           availableSeatCount: boatCapacity - bookedSeats.length,
+//           bookedSeatCount: bookedSeats.length,
+//       };
+
+//       res.json(response);
+//   } catch (error) {
+//       console.error(error);
+//       res.status(500).json({ error: 'Terjadi kesalahan server.' });
+//   }
+// };
+
+
+const getPassengersSeatNumber = async (req, res) => {
+  const { date, schedule_id, sub_schedule_id } = req.query;
+
+  try {
+      // Check SeatAvailability for skenario 1
+      let seatAvailability = await fetchSeatAvailability({ date, schedule_id, sub_schedule_id });
+
+      // If no SeatAvailability found, handle skenario 2
+      if (!seatAvailability) {
+          console.log("🚨 SeatAvailability not found, creating new...");
+          const result = await createSeatAvailability({
+              schedule_id,
+              date,
+              qty: 0, // Use default quantity
+          });
+          seatAvailability = result.mainSeatAvailability; // Use created seat availability
+      }
+
+      // Query Passengers with updated SeatAvailability data
+      const passengers = await Passenger.findAll({
+          include: [
+              {
+                  model: Booking,
+                  as: 'booking',
+                  required: true,
+                  where: {
+                      payment_status: ['paid', 'invoiced'],
+                  },
+                  include: [
+                      {
+                          model: SeatAvailability,
+                          as: 'seatAvailabilities',
+                          required: true,
+                          where: {
+                              date,
+                              schedule_id,
+                              ...(sub_schedule_id && { subschedule_id: sub_schedule_id }),
+                          },
+                      },
+                  ],
+              },
+          ],
+      });
+
+      // Prepare response data
+      const bookedSeats = passengers.map(p => p.seat_number).filter(Boolean);
+      const totalSeats = seatAvailability.available_seats || 0;
+      const availableSeats = [];
+
+      for (let i = 1; i <= totalSeats; i++) {
+          const seatNumber = `A${i}`;
+          if (!bookedSeats.includes(seatNumber)) {
+              availableSeats.push(seatNumber);
+          }
+      }
+
+      // Custom response
+      const response = {
+          status: 'success',
+          message: 'Seat information retrieved successfully.',
+          alreadyBooked: bookedSeats,
+          availableSeats,
+          availableSeatCount: totalSeats - bookedSeats.length,
+          bookedSeatCount: bookedSeats.length,
+      };
+
+      res.json(response);
+  } catch (error) {
+      console.error("❌ Error fetching passengers or creating seats:", error.message);
+      res.status(500).json({ error: 'Failed to process seat information.' });
+  }
+};
+
 
 module.exports = {
   createPassenger,
@@ -759,6 +924,7 @@ module.exports = {
   getPassengerById,
   updatePassenger,
   deletePassenger,
+  getPassengersSeatNumber
 };
 
 // const getPassengerCountByMonth = async (req, res) => {

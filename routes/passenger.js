@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const passengerController = require('../controllers/passengerController');
 const authenticate = require('../middleware/authenticate');
+const {validatePassengerCriteria,validateDaysOfWeekForDate} = require('../middleware/passengerValidation'); // Import middleware
+
+
 
 
 // CREATE passenger
@@ -12,6 +15,8 @@ router.get('/', authenticate, passengerController.getPassengers);
 
 // READ passengers count by date
 router.get('/coun-by-date', authenticate, passengerController.getPassengerCountByDate);
+// READ passengers count by date
+router.get('/seat-number', authenticate,validatePassengerCriteria,validateDaysOfWeekForDate, passengerController.getPassengersSeatNumber);
 
 // READ passengers count by date
 router.get('/count-by-month', authenticate, passengerController.getPassengerCountByMonth);

@@ -91,12 +91,15 @@ const validateMidtransPaymentMethod = (req, res, next) => {
   
 
 
+
+
   
   
   module.exports = {
     validateMidtransPaymentMethod,
     validatePayPalPaymentMethod,
     validateMidtransPaymentMethodMulti,
-    validatePayPalPaymentMethodMulti
+    validatePayPalPaymentMethodMulti,
+
   };
   

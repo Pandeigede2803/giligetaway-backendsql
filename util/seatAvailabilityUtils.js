@@ -391,8 +391,30 @@ const adjustSeatAvailability = async ({
   return seatAvailability;
 };
 
+const fetchSeatAvailability = async ({ date, schedule_id, sub_schedule_id }) => {
+  try {
+      // Query to fetch SeatAvailability
+      const seatAvailability = await SeatAvailability.findOne({
+          where: {
+              date,
+              schedule_id,
+              ...(sub_schedule_id && { subschedule_id: sub_schedule_id }),
+          },
+      });
+
+      return seatAvailability;
+  } catch (error) {
+      console.error("❌ Error fetching seat availability:", error.message);
+      throw new Error("Failed to fetch seat availability.");
+  }
+};
+
+
+
+
 module.exports = {
   createSeatAvailability,
+  fetchSeatAvailability,
   boostSeatAvailability,
   adjustSeatAvailability,
   checkSeatAvailability,

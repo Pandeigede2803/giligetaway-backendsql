@@ -552,6 +552,7 @@ const validatePaymentUpdate = async (req, res, next) => {
 };
 
 const validateSeatAvailabilityDate = async (req, res, next) => {
+    console.log('🔍 Validating date for Seat Availability...');
     try {
       const { seat_availability_id, schedule_id, date } = req.body;
   
@@ -630,6 +631,7 @@ const validateSeatAvailabilityDate = async (req, res, next) => {
       });
     }
   };
+  
   
   
 

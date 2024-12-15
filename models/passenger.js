@@ -30,6 +30,14 @@ const Passenger = sequelize.define('Passenger', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    seat_number: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    note: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
