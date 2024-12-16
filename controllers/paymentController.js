@@ -184,235 +184,494 @@ const handleMidtransNotification = async (req, res) => {
     res.status(500).json({ message: 'Terjadi kesalahan saat memproses notifikasi', error: error.message });
   }
 };
+// const generateSingleMidtransLink = async (req, res) => {
+//   try {
+//       const { bookings, transactions, transports } = req.body;
+//       console.log("Bookings:", bookings);
+//       console.log("Transactions:", transactions);
+//       console.log("Transports:", transports);
+
+//       const serverKey = process.env.MIDTRANS_SERVER_KEY;
+//       const encodedServerKey = Buffer.from(`${serverKey}:`).toString('base64');
+//       console.log("Encoded Server Key:", encodedServerKey);
+
+//       // Calculate total gross amount and prepare item details by merging bookings and transports
+//       const itemDetails = [];
+//       let grossAmount = 0;
+
+//       // Add each booking's ticket as an item
+//       bookings.forEach((booking) => {
+//           const ticketItem = {
+//               id: booking.ticket_id,
+//               price: booking.ticket_total,
+//               quantity: booking.total_passengers,
+//               name: `Ticket for ${booking.total_passengers} Passengers`,
+//           };
+//           itemDetails.push(ticketItem);
+//           grossAmount += booking.ticket_total * booking.total_passengers;
+//           console.log("Added ticket item:", ticketItem);
+//       });
+
+//       // Add each transport as an item
+//       transports.forEach((transport) => {
+//           const transportItem = {
+//               id: `transport_${transport.transport_id}`,
+//               price: transport.transport_price,
+//               quantity: transport.quantity,
+//               name: `${transport.transport_type} - ${transport.note}`,
+//           };
+//           itemDetails.push(transportItem);
+//           grossAmount += transport.transport_price * transport.quantity;
+//           console.log("Added transport item:", transportItem);
+//       });
+
+//       console.log("Total Gross Amount:", grossAmount);
+//       console.log("Item Details:", itemDetails);
+
+//       // Use data from the first booking for customer details
+//       const primaryBooking = bookings[0];
+//       const customerDetails = {
+//           first_name: primaryBooking.contact_name.split(" ")[0],
+//           last_name: primaryBooking.contact_name.split(" ").slice(1).join(" "),
+//           email: primaryBooking.contact_email,
+//           phone: primaryBooking.contact_phone,
+//           nationality: primaryBooking.contact_nationality,
+//           passport_id: primaryBooking.contact_passport_id,
+//       };
+//       console.log("Customer Details:", customerDetails);
+
+//       // Use transaction ID from the first transaction for order_id
+//       const primaryTransaction = transactions[0];
+//       const transactionDetails = {
+//           order_id: `${primaryTransaction.transaction_id}`, // Unique order_id
+//           gross_amount: grossAmount, // Total amount based on item details
+//       };
+//       console.log("Transaction Details:", transactionDetails);
+
+//       // Format start_time
+//       const startTime = formatDateToMidtrans(new Date());
+//       console.log("Formatted Start Time:", startTime);
+
+//       // Create parameter object for Midtrans
+//       const parameter = {
+//           transaction_details: transactionDetails,
+//           customer_details: customerDetails,
+//           item_details: itemDetails,
+//           credit_card: {
+//               secure: true
+//           },
+//           expiry: {
+//               start_time: startTime,
+//               unit: "minutes",
+//               duration: 15, // Duration in minutes until the link expires
+//           }
+//       };
+//       console.log("Request Parameters:", JSON.stringify(parameter, null, 2));
+
+      
+
+//       const url = process.env.MIDTRANS_API_BASE_URL;
+//       // const serverKey = process.env.MIDTRANS_SERVER_KEY;
+//       // const encodedServerKey = Buffer.from(`${serverKey}:`).toString("base64");
+//       // Set up fetch options
+//       const options = {
+//           method: 'POST',
+//           headers: {
+//               'Accept': 'application/json',
+//               'Content-Type': 'application/json',
+//               'Authorization': `Basic ${encodedServerKey}`
+//           },
+//           body: JSON.stringify(parameter)
+//       };
+//       console.log("Fetch Options:", options);
+
+//       // Make API request to Midtrans and capture the response
+//       const midtransResponse = await fetch(url, options);
+//       const midtransData = await midtransResponse.json();
+
+//       if (midtransResponse.ok) {
+//           console.log("Midtrans Response Data:", midtransData);
+//           res.status(200).json({
+//               message: 'Midtrans payment link generated successfully',
+//               paymentUrl: midtransData.redirect_url,
+//           });
+//       } else {
+//           console.error('Midtrans API Error:', midtransData);
+//           res.status(midtransResponse.status).json({
+//               message: 'Failed to generate Midtrans payment link',
+//               error: midtransData.status_message || 'Unknown error',
+//               details: midtransData
+//           });
+//       }
+//   } catch (error) {
+//       console.error('Unexpected Error:', error);
+//       res.status(500).json({
+//           message: 'An unexpected error occurred while generating the Midtrans link',
+//           error: error.message,
+//       });
+//   }
+// };
+
+
+
+// Controller to Generate Midtrans Payment Link
+// Controller to Generate Midtrans Payment Link
+// const generateMidtransLink = async (req, res) => {
+//   try {
+//     const { booking, transaction, transports } = req.body;
+
+//     // Log input data
+//     console.log("🚀 [INPUT]: Booking Details:", booking);
+//     console.log("🛒 [INPUT]: Transaction Details:", transaction);
+//     console.log("🚐 [INPUT]: Transport Details:", transports);
+
+//     // Prepare transaction details
+//     const transactionDetails = {
+//       order_id: transaction.transaction_id,
+//       gross_amount: booking.gross_total,
+//     };
+//     console.log("📝 [PREPARE]: Transaction Details:", transactionDetails);
+
+//     // Prepare customer details
+//     const customerDetails = {
+//       first_name: booking.contact_name,
+//       email: booking.contact_email,
+//       phone: booking.contact_phone,
+//       nationality: booking.contact_nationality,
+//       passport_id: booking.contact_passport_id,
+//     };
+//     console.log("👤 [PREPARE]: Customer Details:", customerDetails);
+
+//     // Prepare item details, including transports
+//     const itemDetails = [
+//       {
+//         id: booking.ticket_id,
+//         price: booking.ticket_total,
+//         quantity: 1,
+//         name: "Ticket",
+//       },
+//       ...transports.map((transport) => ({
+//         id: transport.transport_id,
+//         price: transport.transport_price,
+//         quantity: transport.quantity,
+//         name: `${transport.transport_type} - ${transport.note}`,
+//       })),
+//     ];
+//     console.log("📦 [PREPARE]: Item Details:", itemDetails);
+
+//     // Format start_time using helper function
+//     const startTime = formatDateToMidtrans(new Date());
+//     console.log("⏱️ [PREPARE]: Start Time:", startTime);
+
+//     // Create parameter object for Midtrans
+//     const parameter = {
+//       transaction_details: transactionDetails,
+//       customer_details: customerDetails,
+//       item_details: itemDetails,
+//       credit_card: {
+//         secure: true,
+//       },
+//       expiry: {
+//         start_time: startTime,
+//         unit: "minutes",
+//         duration: 15, // Duration in minutes until the link expires
+//       },
+//     };
+//     console.log("📋 [FINAL]: Transaction Parameters:", JSON.stringify(parameter, null, 2));
+
+//     // Midtrans API URL
+//     const url = process.env.MIDTRANS_API_BASE_URL;
+//     const serverKey = process.env.MIDTRANS_SERVER_KEY;
+//     const encodedServerKey = Buffer.from(`${serverKey}:`).toString("base64");
+
+//     console.log("🔑 [AUTH]: Midtrans API URL:", url);
+//     console.log("🔑 [AUTH]: Encoded Server Key:", encodedServerKey);
+
+//     // Set up fetch options
+//     const options = {
+//       method: "POST",
+//       headers: {
+//         Accept: "application/json",
+//         "Content-Type": "application/json",
+//         Authorization: `Basic ${encodedServerKey}`,
+//       },
+//       body: JSON.stringify(parameter),
+//     };
+//     console.log("📡 [REQUEST]: Sending Request to Midtrans...");
+
+//     // Make API request to Midtrans and capture the response
+//     const midtransResponse = await fetch(url, options);
+//     const midtransData = await midtransResponse.json();
+//     console.log("====midtransData:====", midtransData);
+
+//     if (midtransResponse.ok) {
+//       console.log("✅ [SUCCESS]: Midtrans Payment Link Generated:", midtransData.payment_url);
+//       res.status(200).json({
+//         message: "Midtrans payment link generated successfully",
+//         paymentUrl: midtransData.payment_url,
+//       });
+//     } else {
+//       console.error("❌ [ERROR]: Midtrans API Error:", midtransData);
+//       res.status(midtransResponse.status).json({
+//         message: "Failed to generate Midtrans payment link",
+//         error: midtransData.status_message || "Unknown error",
+//         details: midtransData,
+//       });
+//     }
+//   } catch (error) {
+//     console.error("❗ [UNEXPECTED ERROR]:", error);
+//     res.status(500).json({
+//       message: "An unexpected error occurred while generating the Midtrans link",
+//       error: error.message,
+//     });
+//   }
+// };
+
 const generateSingleMidtransLink = async (req, res) => {
   try {
-      const { bookings, transactions, transports } = req.body;
-      console.log("Bookings:", bookings);
-      console.log("Transactions:", transactions);
-      console.log("Transports:", transports);
+    const { bookings, transactions, transports } = req.body;
+    console.log("Bookings:", bookings);
+    console.log("Transactions:", transactions);
+    console.log("Transports:", transports);
 
-      const serverKey = process.env.MIDTRANS_SERVER_KEY;
-      const encodedServerKey = Buffer.from(`${serverKey}:`).toString('base64');
-      console.log("Encoded Server Key:", encodedServerKey);
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const encodedServerKey = Buffer.from(`${serverKey}:`).toString("base64");
+    console.log("Encoded Server Key:", encodedServerKey);
 
-      // Calculate total gross amount and prepare item details by merging bookings and transports
-      const itemDetails = [];
-      let grossAmount = 0;
+    // Initialize item details and gross amount
+    const itemDetails = [];
+    let grossAmount = 0;
 
-      // Add each booking's ticket as an item
-      bookings.forEach((booking) => {
-          const ticketItem = {
-              id: booking.ticket_id,
-              price: booking.ticket_total,
-              quantity: booking.total_passengers,
-              name: `Ticket for ${booking.total_passengers} Passengers`,
-          };
-          itemDetails.push(ticketItem);
-          grossAmount += booking.ticket_total * booking.total_passengers;
-          console.log("Added ticket item:", ticketItem);
+    // Use `gross_total` directly from each booking
+    bookings.forEach((booking) => {
+      const relatedTransports = transports.filter(
+        (transport) => transport.booking_id === booking.id
+      );
+
+      // Combine ticket and transport into a single item using `gross_total`
+      const transportDescriptions = relatedTransports
+        .map((transport) => `${transport.transport_type} - ${transport.note}`)
+        .join("; ");
+
+      const combinedItemName = `Ticket for ${booking.total_passengers} Passengers` +
+        (transportDescriptions ? `; ${transportDescriptions}` : "");
+
+      const truncatedItemName =
+        combinedItemName.length > 50
+          ? `${combinedItemName.substring(0, 47)}...`
+          : combinedItemName;
+
+      const bookingItem = {
+        id: booking.ticket_id, // Unique ID for the booking
+        price: booking.gross_total, // Use gross_total directly
+        quantity: 1, // Always 1 because it's combined
+        name: truncatedItemName, // Combined name
+      };
+
+      itemDetails.push(bookingItem);
+      grossAmount += booking.gross_total; // Accumulate gross total
+      console.log("Added booking item:", bookingItem);
+    });
+
+    console.log("Total Gross Amount:", grossAmount);
+    console.log("Item Details:", itemDetails);
+
+    // Use data from the first booking for customer details
+    const primaryBooking = bookings[0];
+    const customerDetails = {
+      first_name: primaryBooking.contact_name.split(" ")[0],
+      last_name: primaryBooking.contact_name.split(" ").slice(1).join(" "),
+      email: primaryBooking.contact_email,
+      phone: primaryBooking.contact_phone,
+      nationality: primaryBooking.contact_nationality,
+      passport_id: primaryBooking.contact_passport_id,
+    };
+    console.log("Customer Details:", customerDetails);
+
+    // Use transaction ID from the first transaction for order_id
+    const primaryTransaction = transactions[0];
+    const transactionDetails = {
+      order_id: `${primaryTransaction.transaction_id}`, // Unique order_id
+      gross_amount: grossAmount, // Use total gross amount from bookings
+    };
+    console.log("Transaction Details:", transactionDetails);
+
+    // Format start_time
+    const startTime = formatDateToMidtrans(new Date());
+    console.log("Formatted Start Time:", startTime);
+
+    // Create parameter object for Midtrans
+    const parameter = {
+      transaction_details: transactionDetails,
+      customer_details: customerDetails,
+      item_details: itemDetails,
+      credit_card: {
+        secure: true,
+      },
+      expiry: {
+        start_time: startTime,
+        unit: "minutes",
+        duration: 15, // Duration in minutes until the link expires
+      },
+    };
+    console.log("Request Parameters:", JSON.stringify(parameter, null, 2));
+
+    const url = process.env.MIDTRANS_API_BASE_URL;
+
+    // Set up fetch options
+    const options = {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Basic ${encodedServerKey}`,
+      },
+      body: JSON.stringify(parameter),
+    };
+    console.log("Fetch Options:", options);
+
+    // Make API request to Midtrans and capture the response
+    const midtransResponse = await fetch(url, options);
+    const midtransData = await midtransResponse.json();
+
+    if (midtransResponse.ok) {
+      console.log("Midtrans Response Data:", midtransData);
+      res.status(200).json({
+        message: "Midtrans payment link generated successfully",
+        paymentUrl: midtransData.payment_url,
       });
-
-      // Add each transport as an item
-      transports.forEach((transport) => {
-          const transportItem = {
-              id: `transport_${transport.transport_id}`,
-              price: transport.transport_price,
-              quantity: transport.quantity,
-              name: `${transport.transport_type} - ${transport.note}`,
-          };
-          itemDetails.push(transportItem);
-          grossAmount += transport.transport_price * transport.quantity;
-          console.log("Added transport item:", transportItem);
+    } else {
+      console.error("Midtrans API Error:", midtransData);
+      res.status(midtransResponse.status).json({
+        message: "Failed to generate Midtrans payment link",
+        error: midtransData.status_message || "Unknown error",
+        details: midtransData,
       });
-
-      console.log("Total Gross Amount:", grossAmount);
-      console.log("Item Details:", itemDetails);
-
-      // Use data from the first booking for customer details
-      const primaryBooking = bookings[0];
-      const customerDetails = {
-          first_name: primaryBooking.contact_name.split(" ")[0],
-          last_name: primaryBooking.contact_name.split(" ").slice(1).join(" "),
-          email: primaryBooking.contact_email,
-          phone: primaryBooking.contact_phone,
-          nationality: primaryBooking.contact_nationality,
-          passport_id: primaryBooking.contact_passport_id,
-      };
-      console.log("Customer Details:", customerDetails);
-
-      // Use transaction ID from the first transaction for order_id
-      const primaryTransaction = transactions[0];
-      const transactionDetails = {
-          order_id: `${primaryTransaction.transaction_id}`, // Unique order_id
-          gross_amount: grossAmount, // Total amount based on item details
-      };
-      console.log("Transaction Details:", transactionDetails);
-
-      // Format start_time
-      const startTime = formatDateToMidtrans(new Date());
-      console.log("Formatted Start Time:", startTime);
-
-      // Create parameter object for Midtrans
-      const parameter = {
-          transaction_details: transactionDetails,
-          customer_details: customerDetails,
-          item_details: itemDetails,
-          credit_card: {
-              secure: true
-          },
-          expiry: {
-              start_time: startTime,
-              unit: "minutes",
-              duration: 15, // Duration in minutes until the link expires
-          }
-      };
-      console.log("Request Parameters:", JSON.stringify(parameter, null, 2));
-
-      // Midtrans API URL
-      const url = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-
-      // Set up fetch options
-      const options = {
-          method: 'POST',
-          headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization': `Basic ${encodedServerKey}`
-          },
-          body: JSON.stringify(parameter)
-      };
-      console.log("Fetch Options:", options);
-
-      // Make API request to Midtrans and capture the response
-      const midtransResponse = await fetch(url, options);
-      const midtransData = await midtransResponse.json();
-
-      if (midtransResponse.ok) {
-          console.log("Midtrans Response Data:", midtransData);
-          res.status(200).json({
-              message: 'Midtrans payment link generated successfully',
-              paymentUrl: midtransData.redirect_url,
-          });
-      } else {
-          console.error('Midtrans API Error:', midtransData);
-          res.status(midtransResponse.status).json({
-              message: 'Failed to generate Midtrans payment link',
-              error: midtransData.status_message || 'Unknown error',
-              details: midtransData
-          });
-      }
+    }
   } catch (error) {
-      console.error('Unexpected Error:', error);
-      res.status(500).json({
-          message: 'An unexpected error occurred while generating the Midtrans link',
-          error: error.message,
-      });
+    console.error("Unexpected Error:", error);
+    res.status(500).json({
+      message: "An unexpected error occurred while generating the Midtrans link",
+      error: error.message,
+    });
   }
 };
-
-
-
-// Controller to Generate Midtrans Payment Link
-// Controller to Generate Midtrans Payment Link
 const generateMidtransLink = async (req, res) => {
   try {
-      const { booking, transaction, transports } = req.body;
+    const { booking, transaction, transports } = req.body;
 
-      // Prepare transaction details
-      const transactionDetails = {
-          order_id: transaction.transaction_id,
-          gross_amount: booking.gross_total,
-      };
+    console.log("🚀 [INPUT]: Booking Details:", booking);
+    console.log("🛒 [INPUT]: Transaction Details:", transaction);
+    console.log("🚐 [INPUT]: Transport Details:", transports);
 
-      // Prepare customer details
-      const customerDetails = {
-          first_name: booking.contact_name,
-          email: booking.contact_email,
-          phone: booking.contact_phone,
-          nationality: booking.contact_nationality,
-          passport_id: booking.contact_passport_id,
-      };
+    // Prepare transaction details
+    const transactionDetails = {
+      order_id: transaction.transaction_id,
+      gross_amount: booking.gross_total, // Use pre-calculated gross_total
+    };
+    console.log("📝 [PREPARE]: Transaction Details:", transactionDetails);
 
-      // Prepare item details, including transports
-      const itemDetails = [
-          {
-              id: booking.ticket_id,
-              price: booking.ticket_total,
-              quantity: 1,
-              name: "Ticket",
-          },
-          ...transports.map((transport) => ({
-              id: transport.transport_id,
-              price: transport.transport_price,
-              quantity: transport.quantity,
-              name: `${transport.transport_type} - ${transport.note}`,
-          }))
-      ];
+    // Combine ticket and transport names
+    const transportDescriptions = transports
+      ? transports.map((transport) => `${transport.transport_type} - ${transport.note}`).join("; ")
+      : "";
+    const combinedItemName = `Ticket for ${booking.total_passengers} Passengers` + 
+      (transportDescriptions ? `; ${transportDescriptions}` : "");
 
-      // Format start_time using helper function
-      const startTime = formatDateToMidtrans(new Date());
+    // Truncate combinedItemName to 50 characters
+    const truncatedItemName = combinedItemName.length > 50 
+      ? `${combinedItemName.substring(0, 47)}...` 
+      : combinedItemName;
 
-      // Create parameter object for Midtrans
-      const parameter = {
-          transaction_details: transactionDetails,
-          customer_details: customerDetails,
-          item_details: itemDetails,
-          credit_card: {
-              secure: true
-          },
-          expiry: {
-              start_time: startTime,
-              unit: "minutes",
-              duration: 15, // Duration in minutes until the link expires
-          }
-      };
+    // Prepare item details
+    const itemDetails = [
+      {
+        id: booking.ticket_id, // Use ticket ID for item ID
+        price: booking.gross_total, // Use gross_total directly
+        quantity: 1, // Quantity is always 1 for combined item
+        name: truncatedItemName, // Combined and truncated name for ticket and transport
+      },
+    ];
+    console.log("📦 [PREPARE]: Item Details:", itemDetails);
 
-      // Midtrans API URL
-      // const url = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-      const url = process.env.MIDTRANS_API_BASE_URL;
+    // Prepare customer details
+    const customerDetails = {
+      first_name: booking.contact_name.split(" ")[0],
+      last_name: booking.contact_name.split(" ").slice(1).join(" "),
+      email: booking.contact_email,
+      phone: booking.contact_phone,
+      nationality: booking.contact_nationality,
+      passport_id: booking.contact_passport_id,
+    };
+    console.log("👤 [PREPARE]: Customer Details:", customerDetails);
 
-      // Fetch server key from environment variable
-      const serverKey = process.env.MIDTRANS_SERVER_KEY;
-      const encodedServerKey = Buffer.from(`${serverKey}:`).toString('base64');
+    // Format start_time
+    const startTime = formatDateToMidtrans(new Date());
+    console.log("⏱️ [PREPARE]: Start Time:", startTime);
 
-      // Set up fetch options
-      const options = {
-          method: 'POST',
-          headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization': `Basic ${encodedServerKey}`
-          },
-          body: JSON.stringify(parameter)
-      };
+    // Create parameter object for Midtrans
+    const parameter = {
+      transaction_details: transactionDetails,
+      customer_details: customerDetails,
+      item_details: itemDetails,
+      credit_card: {
+        secure: true,
+      },
+      expiry: {
+        start_time: startTime,
+        unit: "minutes",
+        duration: 15, // Duration in minutes until the link expires
+      },
+    };
+    console.log("📋 [FINAL]: Transaction Parameters:", JSON.stringify(parameter, null, 2));
 
-      // Make API request to Midtrans and capture the response
-      const midtransResponse = await fetch(url, options);
-      const midtransData = await midtransResponse.json();
+    // Midtrans API URL and server key
+    const url = process.env.MIDTRANS_API_BASE_URL;
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const encodedServerKey = Buffer.from(`${serverKey}:`).toString("base64");
 
-      if (midtransResponse.ok) {
-          res.status(200).json({
-              message: 'Midtrans payment link generated successfully',
-              paymentUrl: midtransData.redirect_url,
-          });
-      } else {
-          console.error('Midtrans API Error:', midtransData);
-          res.status(midtransResponse.status).json({
-              message: 'Failed to generate Midtrans payment link',
-              error: midtransData.status_message || 'Unknown error',
-              details: midtransData
-          });
-      }
-  } catch (error) {
-      console.error('Unexpected Error:', error);
-      res.status(500).json({
-          message: 'An unexpected error occurred while generating the Midtrans link',
-          error: error.message,
+    console.log("🔑 [AUTH]: Midtrans API URL:", url);
+    console.log("🔑 [AUTH]: Encoded Server Key:", encodedServerKey);
+
+    // Set up fetch options
+    const options = {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Basic ${encodedServerKey}`,
+      },
+      body: JSON.stringify(parameter),
+    };
+    console.log("📡 [REQUEST]: Sending Request to Midtrans...");
+
+    // Make API request to Midtrans and capture the response
+    const midtransResponse = await fetch(url, options);
+    const midtransData = await midtransResponse.json();
+    console.log("====midtransData:====", midtransData);
+
+    if (midtransResponse.ok) {
+      console.log("✅ [SUCCESS]: Midtrans Payment Link Generated:", midtransData.payment_url);
+      res.status(200).json({
+        message: "Midtrans payment link generated successfully",
+        paymentUrl: midtransData.payment_url,
       });
+    } else {
+      console.error("❌ [ERROR]: Midtrans API Error:", midtransData);
+      res.status(midtransResponse.status).json({
+        message: "Failed to generate Midtrans payment link",
+        error: midtransData.status_message || "Unknown error",
+        details: midtransData,
+      });
+    }
+  } catch (error) {
+    console.error("❗ [UNEXPECTED ERROR]:", error);
+    res.status(500).json({
+      message: "An unexpected error occurred while generating the Midtrans link",
+      error: error.message,
+    });
   }
 };
-
-
 
 // MidTrans Payment Token Controller
 const createMidtransTransaction = async (req, res) => {

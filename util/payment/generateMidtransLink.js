@@ -14,46 +14,39 @@ const generateUniqueOrderId = (transactionId) => `${transactionId}-${Date.now()}
 
 // Function to generate Midtrans payment link
 const generateMidtransPaymentLink = async (bookingDetails, transaction) => {
-  console.log('Generate MidTrans Payment Link:', bookingDetails);
+  console.log("Generate MidTrans Payment Link:", bookingDetails);
 
   try {
-    console.log('Midtrans Config:', midtransConfig);
+    console.log("Midtrans Config:", midtransConfig);
 
-    // Calculate ticket total
-    const ticketTotal = parseFloat(bookingDetails.ticket_total);
-    if (isNaN(ticketTotal)) {
-      throw new Error('Invalid ticket total');
+    // Validate gross_total
+    const grossTotal = parseFloat(bookingDetails.gross_total);
+    if (isNaN(grossTotal)) {
+      throw new Error("Invalid gross total");
     }
-    console.log('Ticket Total:', ticketTotal);
+    console.log("Gross Total:", grossTotal);
 
-    // Initialize item details with ticket information
+    // Combine ticket and transport into a single item
+    const combinedItemDescription = [
+      `Ticket for ${bookingDetails.total_passengers} Passengers`,
+      ...(bookingDetails.transports || []).map(
+        (transport) => `${transport.transport_type} - ${transport.note}`
+      ),
+    ]
+      .filter(Boolean) // Remove empty descriptions
+      .join("; "); // Combine descriptions with a semicolon
+
+    // Item details
     const itemDetails = [
       {
         id: bookingDetails.ticket_id,
-        price: ticketTotal,
-        quantity: bookingDetails.total_passengers,
-        name: `Ticket for ${bookingDetails.total_passengers} Passengers`,
-      }
+        price: grossTotal, // Use gross_total as the price
+        quantity: 1, // Single item for combined ticket + transport
+        name: combinedItemDescription, // Combined description
+      },
     ];
 
-    // Add each transport item from bookingDetails.transports
-    if (bookingDetails.transports && Array.isArray(bookingDetails.transports)) {
-      bookingDetails.transports.forEach((transport) => {
-        itemDetails.push({
-          id: `transport_${transport.transport_id}`,
-          price: transport.transport_price,
-          quantity: transport.quantity,
-          name: `${transport.transport_type} - ${transport.note}`,
-        });
-      });
-    }
-
-    // Calculate gross amount
-    const grossAmount = itemDetails.reduce((total, item) => total + item.price * item.quantity, 0);
-    if (!Number.isInteger(grossAmount)) {
-      throw new Error('Gross amount must be an integer');
-    }
-    console.log('Gross Amount:', grossAmount);
+    console.log("Combined Item Details:", itemDetails);
 
     // Customer details
     const customerDetails = {
@@ -65,41 +58,41 @@ const generateMidtransPaymentLink = async (bookingDetails, transaction) => {
 
     // Generate unique order ID using the transaction ID
     const orderId = generateUniqueOrderId(transaction.transaction_id);
-    console.log('Generated Unique Order ID:', orderId);
+    console.log("Generated Unique Order ID:", orderId);
 
     // Transaction parameters
     const parameter = {
       transaction_details: {
         order_id: orderId,
-        gross_amount: grossAmount,
+        gross_amount: grossTotal, // Use gross_total directly
       },
       item_details: itemDetails,
       customer_details: customerDetails,
     };
 
-    console.log('Transaction Parameters:', JSON.stringify(parameter, null, 2));
+    console.log("Transaction Parameters:", JSON.stringify(parameter, null, 2));
 
     // Headers with basic authentication
     const headers = {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Basic ${Buffer.from(`${midtransConfig.serverKey}:`).toString('base64')}`,
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Basic ${Buffer.from(`${midtransConfig.serverKey}:`).toString("base64")}`,
     };
 
-    console.log('Authorization Header:', headers.Authorization);
+    console.log("Authorization Header:", headers.Authorization);
 
     // Request to Midtrans to create the payment link
     const response = await axios.post(midtransConfig.apiBaseUrl, parameter, { headers });
-    const paymentUrl = response.data.payment_url;
+    const paymentUrl = response.data.redirect_url;
     console.log(`Generated MidTrans Payment Link: ${paymentUrl}`);
 
     return paymentUrl;
   } catch (error) {
-    console.error('Error generating MidTrans payment link:', error);
+    console.error("Error generating MidTrans payment link:", error);
     if (error.response) {
-      console.error('Midtrans Response Error:', error.response.data);
+      console.error("Midtrans Response Error:", error.response.data);
     }
-    throw new Error('Failed to generate MidTrans payment link');
+    throw new Error("Failed to generate MidTrans payment link");
   }
 };
 
