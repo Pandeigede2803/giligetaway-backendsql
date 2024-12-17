@@ -20,7 +20,7 @@ const {
         try {
             const { month, year, agent_id } = req.query;
 
-            console.log("Received query parameters:", { month, year, agent_id });
+            console.log("Received query parameters:", { month, year, agent_id });;;;;;
 
             // Build dynamic query conditions
             const whereConditions = {};
