@@ -596,8 +596,8 @@ const generateMidtransLink = async (req, res) => {
 
     // Prepare customer details
     const customerDetails = {
-      first_name: booking.contact_name.split(" ")[0],
-      last_name: booking.contact_name.split(" ").slice(1).join(" "),
+      first_name: booking.contact_name,
+      last_name: booking.contact_name,
       email: booking.contact_email,
       phone: booking.contact_phone,
       nationality: booking.contact_nationality,
