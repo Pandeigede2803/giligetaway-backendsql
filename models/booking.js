@@ -113,6 +113,10 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.STRING,
         allowNull: false
     },
+    bank_fee: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

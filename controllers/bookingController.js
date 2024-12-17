@@ -302,6 +302,7 @@ const createBookingMultiple = async (req, res) => {
     transit_details,
     transaction_type,
     currency,
+    bank_fee,
     gross_total_in_usd,
     exchange_rate,
   } = req.body;
@@ -376,7 +377,7 @@ const createBookingMultiple = async (req, res) => {
           {
             total_passengers,
             agent_id,
-            gross_total: totalAmount,
+            gross_total: gross_total,
             gross_total_in_usd,
             exchange_rate,
             ticket_total: parseFloat(ticket_total),
@@ -392,6 +393,7 @@ const createBookingMultiple = async (req, res) => {
             booking_source,
             adult_passengers,
             child_passengers,
+            bank_fee,
             infant_passengers,
             booking_date: trip.booking_date, // Use booking_date from trip
             ticket_id: trip.ticket_id, // Ticket ID for this specific trip
@@ -412,7 +414,7 @@ const createBookingMultiple = async (req, res) => {
             transaction_id: `TRANS-${Date.now()}`,
             payment_method,
             payment_gateway: null, // Optional, set to null for now
-            amount: totalAmount,
+            amount: gross_total,
             currency,
             transaction_type,
             booking_id: booking.id,
@@ -695,6 +697,7 @@ const createBookingWithTransitQueue = async (req, res) => {
     child_passengers,
     infant_passengers,
     ticket_id,
+    bank_fee,
     transit_details,
     transaction_type,
     currency,
@@ -747,7 +750,8 @@ const createBookingWithTransitQueue = async (req, res) => {
           total_passengers,
           booking_date,
           agent_id,
-          gross_total: totalAmount,
+          bank_fee,
+          gross_total: gross_total,
           gross_total_in_usd,
           exchange_rate,
           ticket_total: parseFloat(ticket_total),
@@ -777,7 +781,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           transaction_id: `TRANS-${Date.now()}`,
           payment_method,
           payment_gateway: null,
-          amount: totalAmount,
+          amount: gross_total,
           currency,
           transaction_type,
           booking_id: booking.id,
