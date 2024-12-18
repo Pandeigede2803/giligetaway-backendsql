@@ -246,6 +246,119 @@ const getMetrics = async (req, res) => {
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
 
+
+    const bookingNetValueBoat1 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 1 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: dateFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
+    });
+    const previousNetValueBoat1 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 1 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: previousPeriodFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
+    });
+
+
+    const bookingNetValueBoat2 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 2 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: dateFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
+    });
+    const previousNetValueBoat2 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 2 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: previousPeriodFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
+    });
+
+    const bookingNetValueBoat3 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 3 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: dateFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
+    });
+    const previousNetValueBoat3 = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          where: { boat_id: 3 },
+          attributes: [],
+        },
+      ],
+      where: {
+        booking_date: previousPeriodFilter,
+        payment_status: ['paid', 'invoiced'],
+      },
+      group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
+    });
+
     const previousBookingValueBoat1 = await Booking.findOne({
       attributes: [
         [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
@@ -335,9 +448,13 @@ const getMetrics = async (req, res) => {
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
+
+
+
     const currentValue = Number(
       bookingValueBoat1?.dataValues?.bookingValue || 0
     );
+
     const previousValue = Number(
       previousBookingValueBoat1?.dataValues?.bookingValue || 0
     );
@@ -345,6 +462,50 @@ const getMetrics = async (req, res) => {
       previousValue !== 0
         ? ((currentValue - previousValue) / previousValue) * 100
         : 0;
+
+        // net value booking 1
+    const currentNetValue1 = Number(
+      bookingNetValueBoat1?.dataValues?.bookingValue || 0
+    );
+
+    const previousNetValue1 = Number(
+      previousNetValueBoat1?.dataValues?.bookingValue || 0
+    );
+ 
+    const bookingNetValueBoat1Change = previousNetValue1 !== 0
+      ? ((currentNetValue1 - previousNetValue1) / previousNetValue1) * 100
+      : 0;
+
+              // net value booking 1
+    const currentNetValue2 = Number(
+      bookingNetValueBoat2?.dataValues?.bookingValue || 0
+    );
+
+    const previousNetValue2 = Number(
+      previousNetValueBoat2?.dataValues?.bookingValue || 0
+    );
+    const bookingNetValueBoat2Change =
+      previousValue !== 0
+        ? ((currentNetValue2 - previousNetValue2) / previousNetValue2) * 100
+        : 0;
+
+              // net value booking 1
+    console.log("Calculating net value change for Boat 3...");
+    const currentNetValue3 = Number(
+      bookingNetValueBoat3?.dataValues?.bookingValue || 0
+    );
+
+    const previousNetValue3 = Number(
+      previousNetValueBoat3?.dataValues?.bookingValue || 0
+    );
+
+    const bookingNetValueBoat3Change =
+      previousNetValue3 !== 0
+        ? ((currentNetValue3 - previousNetValue3) / previousNetValue3) * 100
+        : 0;
+
+    console.log(`Net value change for Boat 3: ${bookingNetValueBoat3Change.toFixed(2)}%`);
+    
 
     // boat 2
 
@@ -929,6 +1090,25 @@ const getMetrics = async (req, res) => {
           value: currentValue, // This will now be a direct number: 24320000
           status: currentValue >= previousValue ? "increase" : "decrease",
           change: `${bookingValueBoat1Change.toFixed(2)}%`,
+        },
+
+        bookingNetValueBoat1: {
+          value:currentNetValue1,
+          status: currentNetValue1 >= previousNetValue1 ? "increase" : "decrease",
+          change: `${bookingNetValueBoat1Change.toFixed(2)}%`,
+        },
+
+        // add bookingNetValueboat2 and 3
+        bookingNetValueBoat2: {
+          value:currentNetValue2,
+          status: currentNetValue2 >= previousNetValue2 ? "increase" : "decrease",
+          change: `${bookingNetValueBoat2Change.toFixed(2)}%`,
+        },
+
+        bookingNetValueBoat3: {
+          value:currentNetValue3,
+          status: currentNetValue3 >= previousNetValue3 ? "increase" : "decrease",
+          change: `${bookingNetValueBoat3Change.toFixed(2)}%`,
         },
 
         //  create booking value boat 2 and 3

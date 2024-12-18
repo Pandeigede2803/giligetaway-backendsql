@@ -17,6 +17,8 @@ const {
   Boat,
 } = require("../models");
 
+
+
 const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
