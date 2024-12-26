@@ -50,7 +50,7 @@ router.get(
 router.post(
     "/boost-seat-availability",
     authenticate,
-    checkMaximumCapacity,
+    // checkMaximumCapacity,
     validateSeatAvailabilityDate,
     [
       body("schedule_id")
