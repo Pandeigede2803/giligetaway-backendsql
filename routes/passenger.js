@@ -16,7 +16,7 @@ router.get('/', authenticate, passengerController.getPassengers);
 // READ passengers count by date
 router.get('/coun-by-date', authenticate, passengerController.getPassengerCountByDate);
 // READ passengers count by date
-router.get('/seat-number', authenticate,validatePassengerCriteria,validateDaysOfWeekForDate, passengerController.getPassengersSeatNumber);
+router.get('/seat-number', authenticate,validatePassengerCriteria, passengerController.getPassengersSeatNumber);
 
 // READ passengers count by date
 router.get('/count-by-month', authenticate, passengerController.getPassengerCountByMonth);

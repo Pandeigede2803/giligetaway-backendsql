@@ -16,11 +16,14 @@ const {
   Boat,
 } = require("../models");
 const { Op, fn, col } = require("sequelize"); // Import fn and col from Sequelize
-const { calculatePublicCapacity } = require('../util/getCapacityReduction');
+const { calculatePublicCapacity } = require("../util/getCapacityReduction");
 const { sumTotalPassengers } = require("../util/sumTotalPassengers");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
-const {fetchSeatAvailability,createSeatAvailability} = require('../util/seatAvailabilityUtils');
+const {
+  fetchSeatAvailability,
+  createSeatAvailability,
+} = require("../util/seatAvailabilityUtils");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
 // Fix date utility function
@@ -151,7 +154,6 @@ const isDayAvailable = (date, daysOfWeek) => {
 //   }
 // };
 
-
 // const getPassengerCountBySchedule = async (req, res) => {
 //   const { month, year, schedule_id } = req.query;
 
@@ -204,7 +206,7 @@ const isDayAvailable = (date, daysOfWeek) => {
 //           const totalPassengers = mainAvailability
 //             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
 //             : 0;
-          
+
 //           const route = buildRouteFromSchedule(schedule, null);
 
 //           const relevantSubSchedules = subSchedules.filter(
@@ -217,7 +219,7 @@ const isDayAvailable = (date, daysOfWeek) => {
 //                 sa.schedule_id === schedule.id &&
 //                 sa.subschedule_id === subSchedule.id
 //             );
-      
+
 //             return {
 //               seatavailability_id: subAvailability ? subAvailability.id : null,
 //               date,
@@ -238,7 +240,7 @@ const isDayAvailable = (date, daysOfWeek) => {
 //             schedule_id: schedule.id,
 //             subschedule_id: null,
 //             route,
-        
+
 //             capacity: schedule.dataValues.Boat?.capacity || 0,
 //             // i need booking_id
 
@@ -265,14 +267,19 @@ const isDayAvailable = (date, daysOfWeek) => {
 // };
 
 const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
-  console.log(`📅 Filtering days in month ${month}-${year} for days of week:`, daysOfWeek);
+  console.log(
+    `📅 Filtering days in month ${month}-${year} for days of week:`,
+    daysOfWeek
+  );
   const daysInMonth = getDaysInMonth(month, year); // Existing utility function
   console.log(`📅 All days in month ${month}-${year}:`, daysInMonth);
 
   const filteredDays = daysInMonth.filter((date) => {
     const dayOfWeek = new Date(date).getDay(); // Get day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
     const isMatch = daysOfWeek.includes(dayOfWeek);
-    console.log(`📅 Date: ${date}, Day of Week: ${dayOfWeek}, Match: ${isMatch}`);
+    console.log(
+      `📅 Date: ${date}, Day of Week: ${dayOfWeek}, Match: ${isMatch}`
+    );
     return isMatch;
   });
 
@@ -283,11 +290,11 @@ const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
 const getPassengerCountBySchedule = async (req, res) => {
   // extract query
   const { month, year, schedule_id } = req.query;
-  console.log('Request Parameters:', { month, year, schedule_id });
+  console.log("Request Parameters:", { month, year, schedule_id });
 
   // validation
   if (!month || !year) {
-    console.log('Missing required parameters');
+    console.log("Missing required parameters");
     return res.status(400).json({
       success: false,
       message: "Please provide month and year in the query parameters.",
@@ -298,7 +305,7 @@ const getPassengerCountBySchedule = async (req, res) => {
     // Fetch days of week for the given schedule_id from the Schedule table
     const schedule = await Schedule.findOne({
       where: { id: schedule_id },
-      attributes: ['days_of_week'],
+      attributes: ["days_of_week"],
     });
 
     const decodeDaysOfWeekBitmap = (bitmap) => {
@@ -315,15 +322,24 @@ const getPassengerCountBySchedule = async (req, res) => {
       ? decodeDaysOfWeekBitmap(schedule.days_of_week)
       : [0, 1, 2, 3, 4, 5, 6]; // Default to all days if not found
 
-    const daysInMonth = getDaysInMonthWithDaysOfWeek(month, year, scheduleDaysOfWeek);
+    const daysInMonth = getDaysInMonthWithDaysOfWeek(
+      month,
+      year,
+      scheduleDaysOfWeek
+    );
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
-    console.log('Date Range:', { startDate, endDate });
-
+    console.log("Date Range:", { startDate, endDate });
 
     // Fetch seat availabilities within the date range and for the specified schedule_id
     const seatAvailabilities = await SeatAvailability.findAll({
-      attributes: ["id", "date", "schedule_id", "available_seats", "subschedule_id"],
+      attributes: [
+        "id",
+        "date",
+        "schedule_id",
+        "available_seats",
+        "subschedule_id",
+      ],
       where: {
         date: {
           [Op.between]: [startDate, endDate],
@@ -333,28 +349,34 @@ const getPassengerCountBySchedule = async (req, res) => {
       include: getSeatAvailabilityIncludes(),
     });
 
-    console.log('Total seat availabilities found:', seatAvailabilities.length);
+    console.log("Total seat availabilities found:", seatAvailabilities.length);
 
-   
     // Group seat availabilities by date for quick lookup
-    
+
     const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
       acc[sa.date] = acc[sa.date] || [];
       acc[sa.date].push(sa);
       return acc;
     }, {});
 
-     // Prepare the final results array
+    // Prepare the final results array
     const finalResults = [];
     for (const date of daysInMonth) {
       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
-      console.log(`Processing date: ${date}, Found availabilities:`, seatAvailabilityForDate.length);
+      console.log(
+        `Processing date: ${date}, Found availabilities:`,
+        seatAvailabilityForDate.length
+      );
 
       // Fetch related schedules and subschedules for the given date
 
-      const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date);
-      console.log(`Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`);
-// process each schedules
+      const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(
+        date
+      );
+      console.log(
+        `Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`
+      );
+      // process each schedules
       schedules
         .filter(
           (schedule) => !schedule_id || schedule.id === parseInt(schedule_id)
@@ -365,32 +387,33 @@ const getPassengerCountBySchedule = async (req, res) => {
             (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
           );
 
+          // Determine capacity from availability or use boat capacity as default
 
- // Determine capacity from availability or use boat capacity as default
-          
           const capacity = mainAvailability
             ? mainAvailability.available_seats // Use available_seats if SeatAvailability exists
             : calculatePublicCapacity(schedule.dataValues.Boat); // Default to Boat capacity
 
-          console.log('Schedule details:', {
+          console.log("Schedule details:", {
             scheduleId: schedule.id,
             capacity,
-            availableSeats: mainAvailability ? mainAvailability.available_seats : 'Not Found',
+            availableSeats: mainAvailability
+              ? mainAvailability.available_seats
+              : "Not Found",
           });
-           // Calculate the total number of passengers from booking seat availabilities
-          
+          // Calculate the total number of passengers from booking seat availabilities
+
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
-            const remainingSeats = capacity - totalPassengers;
+          const remainingSeats = capacity - totalPassengers;
 
-            // build route
+          // build route
           const route = buildRouteFromSchedule(schedule, null);
 
           const relevantSubSchedules = subSchedules.filter(
             (subSchedule) => subSchedule.schedule_id === schedule.id
           );
-           // Filter subschedules related to the current schedule
+          // Filter subschedules related to the current schedule
 
           const subschedules = relevantSubSchedules.map((subSchedule) => {
             const subAvailability = seatAvailabilityForDate.find(
@@ -407,8 +430,8 @@ const getPassengerCountBySchedule = async (req, res) => {
             const subTotalPassengers = subAvailability
               ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
               : 0;
-              // Calculate the total number of passengers
-              const subRemainingSeats = subCapacity - subTotalPassengers;
+            // Calculate the total number of passengers
+            const subRemainingSeats = subCapacity - subTotalPassengers;
 
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
@@ -421,7 +444,7 @@ const getPassengerCountBySchedule = async (req, res) => {
               route: buildRouteFromSchedule(schedule, subSchedule),
             };
           });
-             // Add the processed schedule data to the final results
+          // Add the processed schedule data to the final results
           finalResults.push({
             seatavailability_id: mainAvailability ? mainAvailability.id : null,
             date,
@@ -439,7 +462,7 @@ const getPassengerCountBySchedule = async (req, res) => {
         });
     }
 
-    console.log('Final results count:', finalResults.length);
+    console.log("Final results count:", finalResults.length);
     // Send the final results in the response
     return res.status(200).json({
       success: true,
@@ -747,8 +770,6 @@ const getPassengerCountByDate = async (req, res) => {
   }
 };
 
-
-
 // const getPassengersSeatNumber = async (req, res) => {
 //   const { date, schedule_id, sub_schedule_id } = req.query;
 
@@ -839,80 +860,122 @@ const getPassengerCountByDate = async (req, res) => {
 //   }
 // };
 
-
 const getPassengersSeatNumber = async (req, res) => {
   const { date, schedule_id, sub_schedule_id } = req.query;
 
   try {
-      // Check SeatAvailability for skenario 1
-      let seatAvailability = await fetchSeatAvailability({ date, schedule_id, sub_schedule_id });
+    // Check SeatAvailability for skenario 1
+    let seatAvailability = await fetchSeatAvailability({
+      date,
+      schedule_id,
+      sub_schedule_id,
+    });
 
-      // If no SeatAvailability found, handle skenario 2
-      if (!seatAvailability) {
-          console.log("🚨 SeatAvailability not found, creating new...");
-          const result = await createSeatAvailability({
-              schedule_id,
-              date,
-              qty: 0, // Use default quantity
-          });
-          seatAvailability = result.mainSeatAvailability; // Use created seat availability
-      }
-
-      // Query Passengers with updated SeatAvailability data
-      const passengers = await Passenger.findAll({
-          include: [
-              {
-                  model: Booking,
-                  as: 'booking',
-                  required: true,
-                  where: {
-                      payment_status: ['paid', 'invoiced'],
-                  },
-                  include: [
-                      {
-                          model: SeatAvailability,
-                          as: 'seatAvailabilities',
-                          required: true,
-                          where: {
-                              date,
-                              schedule_id,
-                              ...(sub_schedule_id && { subschedule_id: sub_schedule_id }),
-                          },
-                      },
-                  ],
-              },
-          ],
+    // If no SeatAvailability found, handle skenario 2
+    if (!seatAvailability) {
+      console.log("🚨 SeatAvailability not found, creating new...");
+      const result = await createSeatAvailability({
+        schedule_id,
+        date,
+        qty: 0, // Use default quantity
       });
+      seatAvailability = result.mainSeatAvailability; // Use created seat availability
+    }
 
-      // Prepare response data
-      const bookedSeats = passengers.map(p => p.seat_number).filter(Boolean);
-      const totalSeats = seatAvailability.available_seats || 0;
-      const availableSeats = [];
+    // Query Passengers with updated SeatAvailability data
+    const passengers = await Passenger.findAll({
+      include: [
+        {
+          model: Booking,
+          as: "booking",
+          required: true,
+          where: {
+            payment_status: ["paid", "invoiced"],
+          },
 
-      for (let i = 1; i <= totalSeats; i++) {
-          const seatNumber = `A${i}`;
-          if (!bookedSeats.includes(seatNumber)) {
-              availableSeats.push(seatNumber);
-          }
+          include: [
+            {
+              model: SeatAvailability,
+              as: "seatAvailabilities",
+              required: true,
+              where: {
+                date,
+                schedule_id,
+                ...(sub_schedule_id && { subschedule_id: sub_schedule_id }),
+              },
+            },
+
+            // {
+            //     model: Schedule,
+            //     as: 'schedule',
+            //     required: true,
+            //     include: [
+            //         {
+            //             model: Boat,
+            //             as: 'Boat',
+            //             required: true,
+            //         },
+            //     ],
+            //     where: {
+            //         ...(schedule_id && { id: schedule_id }),
+            //     },
+
+            // }
+          ],
+        },
+      ],
+    });
+
+    // query boat information from req query schedule-id
+    console.log(`Fetching boat with ID: ${schedule_id}`);
+    const schedule = await Schedule.findByPk(schedule_id, {
+      attributes: ["id"],
+      include: [
+        {
+          model: Boat,
+          as: "Boat",
+          required: true,
+        },
+      ],
+    });
+
+
+
+
+    // Prepare response data
+    const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
+    const totalSeats = seatAvailability.available_seats || 0;
+    console.log("===totalseat===", totalSeats);
+    const availableSeats = [];
+
+    for (let i = 1; i <= totalSeats; i++) {
+      const seatNumber = `A${i}`;
+      if (!bookedSeats.includes(seatNumber)) {
+        availableSeats.push(seatNumber);
       }
+    }
 
-      // Custom response
-      const response = {
-          status: 'success',
-          message: 'Seat information retrieved successfully.',
-          alreadyBooked: bookedSeats,
-          availableSeats,
-          availableSeatCount: totalSeats - bookedSeats.length,
-          bookedSeatCount: bookedSeats.length,
-      };
+    // Custom response
+    const response = {
+      status: "success",
+      message: "Seat information retrieved successfully.",
+      alreadyBooked: bookedSeats,
+      availableSeats,
+      boatDetails: schedule.Boat,
+      availableSeatCount: totalSeats - bookedSeats.length,
+      bookedSeatCount: bookedSeats.length,
+      seatAvailability:seatAvailability,
+    };
 
-      res.json(response);
+    res.json(response);
   } catch (error) {
-      console.error("❌ Error fetching passengers or creating seats:", error.message);
-      res.status(500).json({ error: 'Failed to process seat information.' });
+    console.error(
+      "❌ Error fetching passengers or creating seats:",
+      error.message
+    );
+    res.status(500).json({ error: "Failed to process seat information." });
   }
 };
-
 
 module.exports = {
   createPassenger,
@@ -924,7 +987,7 @@ module.exports = {
   getPassengerById,
   updatePassenger,
   deletePassenger,
-  getPassengersSeatNumber
+  getPassengersSeatNumber,
 };
 
 // const getPassengerCountByMonth = async (req, res) => {
