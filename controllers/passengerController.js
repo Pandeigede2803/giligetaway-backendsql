@@ -946,21 +946,21 @@ const getPassengersSeatNumber = async (req, res) => {
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
     const totalSeats = seatAvailability.available_seats || 0;
     console.log("===totalseat===", totalSeats);
-    const availableSeats = [];
+    // const availableSeats = [];
 
-    for (let i = 1; i <= totalSeats; i++) {
-      const seatNumber = `A${i}`;
-      if (!bookedSeats.includes(seatNumber)) {
-        availableSeats.push(seatNumber);
-      }
-    }
+    // for (let i = 1; i <= totalSeats; i++) {
+    //   const seatNumber = `A${i}`;
+    //   if (!bookedSeats.includes(seatNumber)) {
+    //     availableSeats.push(seatNumber);
+    //   }
+    // }
 
     // Custom response
     const response = {
       status: "success",
       message: "Seat information retrieved successfully.",
       alreadyBooked: bookedSeats,
-      availableSeats,
+      totalSeats: totalSeats,
       boatDetails: schedule.Boat,
       availableSeatCount: totalSeats - bookedSeats.length,
       bookedSeatCount: bookedSeats.length,
