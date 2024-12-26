@@ -139,6 +139,139 @@ const createSeatAvailability = async ({ schedule_id, date, qty }) => {
   }
 };
 
+
+const createSeatAvailabilityMax = async ({ schedule_id, date }) => {
+  try {
+    console.log(
+      `🔍 Starting creation for Schedule ID: ${schedule_id}, Date: ${date}`
+    );
+
+    // Fetch the main schedule and its boat capacity
+    const schedule = await Schedule.findOne({
+      where: { id: schedule_id },
+      include: [
+        {
+          model: Boat,
+          as: "Boat",
+          attributes: ["id", "capacity"],
+        },
+        {
+          model: SubSchedule,
+          as: "SubSchedules",
+        },
+      ],
+    });
+
+    if (!schedule || !schedule.Boat) {
+      throw new Error("Schedule or boat not found.");
+    }
+
+    console.log(`🚤 Boat capacity: ${schedule.Boat.capacity}`);
+
+    const boatCapacity = schedule.Boat.capacity;
+
+    // Create or update SeatAvailability for the main schedule
+    let mainSeatAvailability;
+    const mainSeat = await SeatAvailability.findOne({
+      where: {
+        schedule_id,
+        date,
+      },
+    });
+
+    if (mainSeat) {
+      console.log(
+        `✅ Main seat availability exists. Updating ID: ${mainSeat.id}`
+      );
+      mainSeat.available_seats = boatCapacity;
+      mainSeat.boost = true; // Set boost to TRUE
+      await mainSeat.save();
+      mainSeatAvailability = {
+        id: mainSeat.id,
+        available_seats: mainSeat.available_seats,
+        boost: mainSeat.boost, // Include boost field
+        date: mainSeat.date,
+      };
+    } else {
+      console.log(`🚨 Main seat availability does not exist. Creating new.`);
+      const newMainSeatAvailability = await SeatAvailability.create({
+        schedule_id,
+        date,
+        available_seats: boatCapacity,
+        availability: true,
+        boost: true, // Set boost to TRUE
+      });
+      console.log(
+        `✅ Main seat availability created with ID: ${newMainSeatAvailability.id}`
+      );
+      mainSeatAvailability = {
+        id: newMainSeatAvailability.id,
+        available_seats: newMainSeatAvailability.available_seats,
+        boost: newMainSeatAvailability.boost, // Include boost field
+        date: newMainSeatAvailability.date,
+      };
+    }
+
+    // Process subschedules
+    const subscheduleSeatAvailabilities = [];
+    for (const subschedule of schedule.SubSchedules) {
+      console.log(`🔄 Processing SubSchedule ID: ${subschedule.id}`);
+      const subSeatAvailability = await SeatAvailability.findOne({
+        where: {
+          schedule_id,
+          subschedule_id: subschedule.id,
+          date,
+        },
+      });
+
+      if (subSeatAvailability) {
+        console.log(
+          `✅ SubSchedule seat availability exists. Updating ID: ${subSeatAvailability.id}`
+        );
+        subSeatAvailability.available_seats = boatCapacity;
+        subSeatAvailability.boost = true; // Set boost to TRUE
+        await subSeatAvailability.save();
+        subscheduleSeatAvailabilities.push({
+          id: subSeatAvailability.id,
+          available_seats: subSeatAvailability.available_seats,
+          boost: subSeatAvailability.boost, // Include boost field
+          date: subSeatAvailability.date,
+        });
+      } else {
+        console.log(
+          `🚨 SubSchedule seat availability does not exist. Creating new.`
+        );
+        const newSubSeatAvailability = await SeatAvailability.create({
+          schedule_id,
+          subschedule_id: subschedule.id,
+          date,
+          available_seats: boatCapacity,
+          availability: true,
+          boost: true, // Set boost to TRUE
+        });
+        console.log(
+          `✅ SubSchedule seat availability created with ID: ${newSubSeatAvailability.id}`
+        );
+        subscheduleSeatAvailabilities.push({
+          id: newSubSeatAvailability.id,
+          available_seats: newSubSeatAvailability.available_seats,
+          boost: newSubSeatAvailability.boost, // Include boost field
+          date: newSubSeatAvailability.date,
+        });
+      }
+    }
+
+    console.log("✅ All seat availabilities processed successfully.");
+    return {
+      mainSeatAvailability,
+      subscheduleSeatAvailabilities,
+    };
+  } catch (error) {
+    console.error("❌ Failed to create seat availabilities:", error.message);
+    throw new Error("Failed to create seat availabilities: " + error.message);
+  }
+};
+
 // Check SeatAvailability based on schedule_id, passengers_total, and date
 const checkSeatAvailability = async (schedule_id, passengers_total, date) => {
   const seatAvailability = await SeatAvailability.findOne({
@@ -153,14 +286,12 @@ const checkSeatAvailability = async (schedule_id, passengers_total, date) => {
   return seatAvailability;
 };
 
-const boostSeatAvailability = async ({ id, qty }) => {
-  // Logging the initial parameters
+const boostSeatAvailability = async ({ id, boost }) => {
   console.log(`🔍 Fetching seat availability record for ID: ${id || "N/A"}`);
 
-  // Check if the seat availability ID is provided
-  if (!id) {
-    console.error("❌ Seat availability ID is required.");
-    throw new Error("Seat availability ID is required.");
+  if (!id || boost !== true) {
+    console.error("❌ Seat availability ID and boost flag are required.");
+    throw new Error("Invalid input: ID and boost=true are required.");
   }
 
   // Fetch the main seat availability by ID
@@ -169,20 +300,17 @@ const boostSeatAvailability = async ({ id, qty }) => {
     console.error(`❌ Seat availability not found for ID: ${id}`);
     throw new Error(`Seat availability not found for ID: ${id}`);
   }
-  console.log(
-    `✅ Main seat availability found. ID: ${mainSeatAvailability.id}`
-  );
+  console.log(`✅ Main seat availability found. ID: ${mainSeatAvailability.id}`);
 
   // Fetch the main schedule and associated subschedules
   const schedule = await Schedule.findOne({
     where: { id: mainSeatAvailability.schedule_id },
     include: [
-      { model: SubSchedule, as: "SubSchedules" }, // Fetch associated subschedules
-      { model: Boat, as: "Boat", attributes: ["capacity"] }, // Fetch boat capacity
+      { model: SubSchedule, as: "SubSchedules" },
+      { model: Boat, as: "Boat", attributes: ["capacity"] },
     ],
   });
 
-  // Check if the schedule and boat are valid
   if (!schedule || !schedule.Boat) {
     console.error(
       `❌ Boat capacity not found for Schedule ID: ${mainSeatAvailability.schedule_id}`
@@ -192,82 +320,54 @@ const boostSeatAvailability = async ({ id, qty }) => {
     );
   }
 
-  // Extract boat capacity and calculate public capacity
   const boatCapacity = schedule.Boat.capacity;
-  const publicCapacity = calculatePublicCapacity(schedule.Boat);
   const seatAvailabilityDate = mainSeatAvailability.date;
-  console.log(
-    `🚤 Boat Info: Capacity: ${boatCapacity}, Public Capacity: ${publicCapacity}, Seat Availability Date: ${seatAvailabilityDate}`
-  );
+  console.log(`🚤 Boosting to Boat Capacity: ${boatCapacity}`);
 
-  // Calculate new available seats for the main schedule
-  console.log(
-    `🔧 Adding ${qty} to current available seats: ${mainSeatAvailability.available_seats}`
-  );
-  const newAvailableSeats =
-    mainSeatAvailability.available_seats + qty <= boatCapacity
-      ? mainSeatAvailability.available_seats + qty
-      : boatCapacity; // Ensure new seats do not exceed boat capacity
-
-  // Update and save the main seat availability
-  mainSeatAvailability.available_seats = newAvailableSeats;
+  // Update the main schedule's seat availability
+  mainSeatAvailability.available_seats = boatCapacity;
+  mainSeatAvailability.boost = true; // Set boost to TRUE
   await mainSeatAvailability.save();
   console.log(
-    `✅ Main schedule seat availability updated. ID: ${mainSeatAvailability.id}, New Seats: ${mainSeatAvailability.available_seats}`
+    `✅ Main schedule boosted. ID: ${mainSeatAvailability.id}, New Seats: ${mainSeatAvailability.available_seats}, Boost: ${mainSeatAvailability.boost}`
   );
 
-  // Process associated subschedules
-  console.log("🔍 Processing SubSchedules...");
+  // Update or create seat availability for associated subschedules
   const subschedules = [];
   for (const subschedule of schedule.SubSchedules) {
-    console.log(
-      `🔄 Checking SubSchedule ID: ${subschedule.id} for Seat Availability`
-    );
-
-    // Fetch existing seat availability for the subschedule
+    console.log(`🔄 Processing SubSchedule ID: ${subschedule.id}`);
     const subSeatAvailability = await SeatAvailability.findOne({
       where: {
         schedule_id: schedule.id,
         subschedule_id: subschedule.id,
-        date: seatAvailabilityDate, // Match the date of the main seat availability
+        date: seatAvailabilityDate,
       },
     });
 
     if (subSeatAvailability) {
       // Update existing subschedule seat availability
-      console.log(
-        `✅ SubSchedule seat availability found. ID: ${subSeatAvailability.id}`
-      );
-      const newSubSeats =
-        subSeatAvailability.available_seats + qty <= boatCapacity
-          ? subSeatAvailability.available_seats + qty
-          : boatCapacity; // Ensure it does not exceed boat capacity
-
-      subSeatAvailability.available_seats = newSubSeats;
+      subSeatAvailability.available_seats = boatCapacity;
+      subSeatAvailability.boost = true; // Set boost to TRUE
       await subSeatAvailability.save();
       console.log(
-        `✅ SubSchedule seat availability updated. ID: ${subSeatAvailability.id}, New Seats: ${subSeatAvailability.available_seats}`
+        `✅ SubSchedule boosted. ID: ${subSeatAvailability.id}, New Seats: ${subSeatAvailability.available_seats}, Boost: ${subSeatAvailability.boost}`
       );
 
       subschedules.push({
         id: subSeatAvailability.id,
-        available_seats: subSeatAvailability.available_seats, // Include updated seats
+        available_seats: subSeatAvailability.available_seats,
+        boost: subSeatAvailability.boost, // Include boost field in the result
         date: subSeatAvailability.date,
       });
     } else {
-      // Create new seat availability for the subschedule
-      console.log(
-        `🚨 No seat availability found for SubSchedule ID: ${subschedule.id}. Creating new.`
-      );
+      // Create new subschedule seat availability
       const newSubSeatAvailability = await SeatAvailability.create({
         schedule_id: schedule.id,
         subschedule_id: subschedule.id,
         date: seatAvailabilityDate,
-        available_seats:
-          publicCapacity + qty <= boatCapacity
-            ? publicCapacity + qty
-            : boatCapacity, // Ensure it does not exceed boat capacity
+        available_seats: boatCapacity,
         availability: true,
+        boost: true, // Set boost to TRUE
       });
       console.log(
         `✅ New SubSchedule seat availability created. ID: ${newSubSeatAvailability.id}`
@@ -276,17 +376,18 @@ const boostSeatAvailability = async ({ id, qty }) => {
       subschedules.push({
         id: newSubSeatAvailability.id,
         available_seats: newSubSeatAvailability.available_seats,
+        boost: newSubSeatAvailability.boost, // Include boost field in the result
         date: newSubSeatAvailability.date,
       });
     }
   }
 
-  // Log completion and return results
-  console.log(`✅ All seat availabilities processed successfully.`);
+  console.log(`✅ Boost completed successfully.`);
   return {
     main_schedule: {
       id: mainSeatAvailability.id,
-      available_seats: mainSeatAvailability.available_seats, // Include updated seats
+      available_seats: mainSeatAvailability.available_seats,
+      boost: mainSeatAvailability.boost, // Include boost field in the result
       date: mainSeatAvailability.date,
     },
     subschedules,
@@ -414,8 +515,10 @@ const fetchSeatAvailability = async ({ date, schedule_id, sub_schedule_id }) => 
 
 module.exports = {
   createSeatAvailability,
+  createSeatAvailabilityMax,
   fetchSeatAvailability,
   boostSeatAvailability,
   adjustSeatAvailability,
   checkSeatAvailability,
+
 };

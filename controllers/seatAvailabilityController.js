@@ -14,32 +14,31 @@ const { validationResult } = require('express-validator');
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
 const { Op } = require('sequelize'); // Import Sequelize operators
-const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability } = require('../util/seatAvailabilityUtils');
+const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
 
 
 const handleSeatAvailability = async (req, res) => {
-  const { seat_availability_id, schedule_id, date, toggle, qty } = req.body;
+  const { seat_availability_id, schedule_id, date, boost } = req.body;
 
   try {
-    if (seat_availability_id) {
-      // Scenario 1: Boost existing seat availability
-      console.log('🛠 Scenario 1: Boost existing seat availability');
-      const seatAvailability = await boostSeatAvailability({ id: seat_availability_id, toggle, qty });
+    if (seat_availability_id && boost === true) {
+      // Scenario 1: Boost existing seat availability to the maximum capacity
+      console.log('🛠 Scenario 1: Boost existing seat availability to maximum');
+      const seatAvailability = await boostSeatAvailability({ id: seat_availability_id, boost });
       return res.status(200).json({
         success: true,
-        message: 'Seat availability updated successfully.',
+        message: 'Seat availability boosted to maximum successfully.',
         seat_availability: seatAvailability,
       });
     } else if (schedule_id && date) {
       // Scenario 2: Create new seat availability
       console.log('🛠 Scenario 2: Create new seat availability');
-      const { mainSeatAvailability, subscheduleSeatAvailabilities } = await createSeatAvailability({
+      const { mainSeatAvailability, subscheduleSeatAvailabilities } = await createSeatAvailabilityMax({
         schedule_id,
         date,
-        qty,
       });
       return res.status(201).json({
         success: true,
@@ -52,7 +51,7 @@ const handleSeatAvailability = async (req, res) => {
     // Invalid request
     return res.status(400).json({
       success: false,
-      message: 'Invalid request: Provide either seat_availability_id or schedule_id and date.',
+      message: 'Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.',
     });
   } catch (error) {
     console.error('Error handling seat availability:', error.message);
@@ -63,7 +62,6 @@ const handleSeatAvailability = async (req, res) => {
     });
   }
 };
-
 
 const getFilteredSeatAvailabilityById = async (req, res) => {
   const { id } = req.params; // `id` here is the seat_availability_id

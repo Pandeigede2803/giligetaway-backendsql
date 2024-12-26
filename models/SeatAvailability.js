@@ -49,6 +49,11 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         allowNull: false,
         field: 'date'
     },
+    boost: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        field: 'boost'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
