@@ -339,6 +339,8 @@ const getPassengerCountBySchedule = async (req, res) => {
         "schedule_id",
         "available_seats",
         "subschedule_id",
+        "boost",
+        "availability"
       ],
       where: {
         date: {
@@ -436,14 +438,17 @@ const getPassengerCountBySchedule = async (req, res) => {
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
               date,
+              availability: subAvailability?.availability || false,
               schedule_id: schedule.id,
               subschedule_id: subSchedule.id,
+              boost: subAvailability?.boost || false,
               total_passengers: subTotalPassengers,
               capacity: subCapacity || 0,
               remainingSeats: subRemainingSeats,
               route: buildRouteFromSchedule(schedule, subSchedule),
             };
           });
+
           // Add the processed schedule data to the final results
           finalResults.push({
             seatavailability_id: mainAvailability ? mainAvailability.id : null,
@@ -451,6 +456,8 @@ const getPassengerCountBySchedule = async (req, res) => {
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
+            availability: mainAvailability?.availability || false,
+            boost: mainAvailability?.boost || false,
             capacity,
             remainingSeats,
             total_passengers: totalPassengers,
