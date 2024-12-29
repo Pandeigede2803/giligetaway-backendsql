@@ -26,6 +26,7 @@ const {
 } = require("../util/seatAvailabilityUtils");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
+const { processBookedSeats } = require('../util/seatUtils');
 // Fix date utility function
 const getDaysInMonth = (month, year) => {
   const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
@@ -911,23 +912,6 @@ const getPassengersSeatNumber = async (req, res) => {
                 ...(sub_schedule_id && { subschedule_id: sub_schedule_id }),
               },
             },
-
-            // {
-            //     model: Schedule,
-            //     as: 'schedule',
-            //     required: true,
-            //     include: [
-            //         {
-            //             model: Boat,
-            //             as: 'Boat',
-            //             required: true,
-            //         },
-            //     ],
-            //     where: {
-            //         ...(schedule_id && { id: schedule_id }),
-            //     },
-
-            // }
           ],
         },
       ],
@@ -951,22 +935,24 @@ const getPassengersSeatNumber = async (req, res) => {
 
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
+    // Filter and add push some booked seats
+    // Create utils IF the Seat number with A1&A2 is throw = R1&R2 too
+    // Create utils IF the Seat number with X1,X2,X3&X4 is Exist trhow R1 R2 R3,R4
+    const processedBookedSeats = processBookedSeats(
+      new Set(bookedSeats),
+      seatAvailability.boost
+    );
+
+    
+
     const totalSeats = seatAvailability.available_seats || 0;
     console.log("===totalseat===", totalSeats);
-    // const availableSeats = [];
-
-    // for (let i = 1; i <= totalSeats; i++) {
-    //   const seatNumber = `A${i}`;
-    //   if (!bookedSeats.includes(seatNumber)) {
-    //     availableSeats.push(seatNumber);
-    //   }
-    // }
-
+    
     // Custom response
     const response = {
       status: "success",
       message: "Seat information retrieved successfully.",
-      alreadyBooked: bookedSeats,
+      alreadyBooked: processedBookedSeats,
       totalSeats: totalSeats,
       boatDetails: schedule.Boat,
       availableSeatCount: totalSeats - bookedSeats.length,
