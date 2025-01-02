@@ -5,7 +5,14 @@ const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
 const { initWebSocketServer } = require('./config/websocket'); // Import fungsi WebSocket
 const http = require('http');
-// Konfigurasi CORS
+const dotenv = require('dotenv');
+const path = require('path');
+// Muat file .env
+dotenv.config();
+
+console.log('NODE_ENV:', process.env.NODE_ENV);;
+
+
 const corsOptions = {
   origin: (origin, callback) => {
     const allowedDomains = [

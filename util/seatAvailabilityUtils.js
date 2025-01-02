@@ -72,6 +72,8 @@ const createSeatAvailability = async ({ schedule_id, date, qty }) => {
         date,
         available_seats: availableSeats,
         availability: true,
+        boost:false
+
       });
       console.log(
         `✅ Main seat availability created with ID: ${newMainSeatAvailability.id}`
@@ -116,6 +118,8 @@ const createSeatAvailability = async ({ schedule_id, date, qty }) => {
           date,
           available_seats: availableSeats,
           availability: true,
+          boost:false
+
         });
         console.log(
           `✅ SubSchedule seat availability created with ID: ${newSubSeatAvailability.id}`

@@ -796,6 +796,9 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
       available_seats: publicCapacity, // Using calculated public capacity
       availability: true,
       date: date,
+      boost:false
+
+      
     });
 
     console.log('Created Seat Availability:', {
@@ -803,6 +806,7 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
       available_seats: newSeatAvailability.available_seats,
       schedule_id: newSeatAvailability.schedule_id,
       subschedule_id: newSeatAvailability.subschedule_id,
+      
     });
     console.log('=== END CREATE SEAT AVAILABILITY ===\n');
 
@@ -1090,6 +1094,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           date: selectedDate,
           availability: true,
           available_seats: { [Op.gte]: passengers_total },
+          
         },
       });
 
