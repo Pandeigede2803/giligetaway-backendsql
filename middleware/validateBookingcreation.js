@@ -1,6 +1,7 @@
 const {
   sequelize,
   Booking,
+
   SeatAvailability,
   Destination,
   Transport,
@@ -23,44 +24,22 @@ const validateBookingCreation = async (req, res, next) => {
 
   const {
     schedule_id,
-    subschedule_id,
+    passengers,
+    ticket_id,
     total_passengers,
     booking_date,
-    passengers,
-    agent_id,
-    gross_total,
-    ticket_total,
-    payment_status,
-    transports,
-    contact_name,
-    contact_phone,
-    contact_email,
-    payment_method,
     adult_passengers,
     child_passengers,
-    infant_passengers,
-    ticket_id,
-    currency,
   } = req.body;
 
   try {
-    // Required fields validation
     console.log("📝 Checking required fields...");
     const requiredFields = [
       "schedule_id",
       "total_passengers",
       "booking_date",
-      "ticket_total",
-      "contact_name",
-      "contact_phone",
-      "contact_email",
-      "payment_status",
-      "passengers",
-      "gross_total",
-      "ticket_total",
       "ticket_id",
       "adult_passengers",
-      // "child_passengers",
     ];
 
     const missingFields = requiredFields.filter((field) => !req.body[field]);
@@ -72,58 +51,6 @@ const validateBookingCreation = async (req, res, next) => {
       });
     }
 
-    // Validate ticket_id format (gg-ow-XXXXXX)
-    console.log("🎫 Validating ticket ID format...");
-    const ticketRegex = /^GG-(OW|RT)-\d{6}$/;
-    if (!ticketRegex.test(ticket_id)) {
-      console.log("❌ Invalid ticket ID format:", ticket_id);
-      return res.status(400).json({
-        error: "Invalid ticket ID format",
-        message:
-          "Ticket ID should follow format: GG-OW-XXXXXX or GG-RT-XXXXXX (where X is a number)",
-        example: "GG-OW-123456 or GG-RT-654321",
-      });
-    }
-    const existingTicket = await Booking.findOne({ where: { ticket_id } });
-    if (existingTicket) {
-      console.log("❌ Duplicate ticket ID:", ticket_id);
-      return res.status(400).json({
-        error: "Ticket ID already exists",
-        message: `The ticket ID '${ticket_id}' is already in use`,
-      });
-    }
-
-    // Validate booking date
-    console.log("📅 Validating booking date...");
-
-    const bookingDateObj = new Date(booking_date);
-    
-    // Pastikan tanggal valid
-    if (isNaN(bookingDateObj.getTime())) {
-      return res.status(400).json({
-        error: "Invalid booking date",
-        message: "Date format should be a valid date string, e.g., 'Dec 6, 2024'",
-        example: "Dec 6, 2024",
-      });
-    }
-    
-    // Reset waktu untuk validasi tanggal saja
-    const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0); // Set waktu hari ini ke 00:00:00
-    bookingDateObj.setHours(0, 0, 0, 0); // Set waktu tanggal booking ke 00:00:00
-    
-    // Validasi tidak boleh di masa lalu
-    if (bookingDateObj < currentDate) {
-      return res.status(400).json({
-        error: "Invalid booking date",
-        message: "Booking date cannot be in the past",
-      });
-    }
-    
-    console.log("✅ Booking date is valid:", booking_date);
-    
-
-    // Validate passenger counts (excluding infants)
     console.log("👥 Validating passenger counts...");
     const calculatedTotal = adult_passengers + child_passengers;
     if (calculatedTotal !== total_passengers) {
@@ -136,13 +63,11 @@ const validateBookingCreation = async (req, res, next) => {
           calculated: calculatedTotal,
           adult_passengers,
           child_passengers,
-          infant_passengers: infant_passengers || 0,
         },
       });
     }
-    // Validate passenger data structure and required fields
-    console.log("🧳 Validating passengers data...");
 
+    console.log("🧳 Validating passengers data...");
     if (!Array.isArray(passengers)) {
       return res.status(400).json({
         error: "Invalid passengers data",
@@ -150,123 +75,46 @@ const validateBookingCreation = async (req, res, next) => {
       });
     }
 
-    const validPassengerTypes = ["adult", "child", "infant"];
-
     for (let i = 0; i < passengers.length; i++) {
-      const p = passengers[i];
+      const passenger = passengers[i];
 
-      // Cek field wajib: name, passenger_type, nationality, dan passport_id
-      if (!p.name || !p.passenger_type || !p.nationality || !p.passport_id) {
+      // Validate required passenger fields
+      if (!passenger.name || !passenger.passenger_type || !passenger.nationality || !passenger.passport_id) {
         return res.status(400).json({
           error: "Invalid passenger data",
           message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
-          passenger: p,
+          passenger,
         });
       }
 
-      // Validasi passenger_type harus salah satu dari 'adult', 'child', atau 'infant'
-      if (!validPassengerTypes.includes(p.passenger_type)) {
-        return res.status(400).json({
-          error: "Invalid passenger type",
-          message: `Passenger at index ${i} has invalid passenger_type '${
-            p.passenger_type
-          }'. Valid values are ${validPassengerTypes.join(", ")}`,
-          passenger: p,
+      // Validate seat number if provided
+      if (passenger.seat_number) {
+        console.log(`🔍 Validating seat number for passenger at index ${i}: ${passenger.seat_number}`);
+
+        const occupiedSeat = await Booking.findOne({
+          where: { schedule_id },
+          include: [
+            {
+              model: Passenger,
+              as: "passengers",
+              where: { seat_number: passenger.seat_number },
+            },
+          ],
         });
-      }
 
-      // Jika diperlukan, tambahkan validasi lainnya, misalnya format passport_id atau nationality.
-    }
+        if (occupiedSeat) {
+          return res.status(400).json({
+            error: "Seat number unavailable",
+            message: `Seat number ${passenger.seat_number} is already occupied.`,
+            passenger,
+          });
+        }
 
-    // Jika semua penumpang valid, lanjut ke middleware berikutnya
-
-    // Other validations remain the same...
-    // Validate payment status
-    console.log("💰 Validating payment status...");
-    const validPaymentStatuses = ["pending", "paid", "invoiced"];
-    if (!validPaymentStatuses.includes(payment_status)) {
-      return res.status(400).json({
-        error: "Invalid payment status",
-        validStatuses: validPaymentStatuses,
-      });
-    }
-
-    if (agent_id) {
-      console.log("👤 Validating agent...");
-      const agent = await Agent.findByPk(agent_id);
-      if (!agent) {
-        return res.status(400).json({
-          error: "Invalid agent_id",
-          message: "Agent not found",
-        });
+        console.log(`✅ Seat number ${passenger.seat_number} is available.`);
       }
     }
 
-    // Validate payment method if provided
-    if (payment_method) {
-      console.log("💳 Validating payment method...");
-      const validPaymentMethods = [
-        "credit_card",
-        "bank_transfer",
-        "cash",
-        "paypal",
-        "midtrans",
-        "Midtrans",
-        "invoiced",
-        "invoice",
-        "cash_bali",
-        "cash_gili_trawangan",
-        "cash_gili_gede",
-    
-
-      ];
-      if (!validPaymentMethods.includes(payment_method)) {
-        return res.status(400).json({
-          error: "Invalid payment method",
-          validMethods: validPaymentMethods,
-        });
-      }
-    }
-
-    // <option value="Select Payment">Select Payment</option>
-    // <option value="Midtrans">Visa / Bank Transfer /Credit Card (Midtrans)</option>
-    // <option value="Paypal">Paypal</option>
-    // <option value="Cash Bali">Cash Bali</option>
-    // <option value="Cash Gili Trawangan">Cash Gili Trawangan</option>
-    // <option value="Cash Gili Gede">Cash Gili Gede</option>
-    // <option value="Invoice">Invoice (Paid next month)</option>
-
-    // Validate email format
-    console.log("📧 Validating email format...");
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(contact_email)) {
-      return res.status(400).json({
-        error: "Invalid email format",
-      });
-    }
-
-    // Validate phone number format (made more flexible)
-    console.log("📱 Validating phone number...");
-    const phoneRegex = /^[+]?[\d\s-]{8,}$/;
-    if (!phoneRegex.test(contact_phone)) {
-      return res.status(400).json({
-        error: "Invalid phone number format",
-        message:
-          "Phone number should contain at least 8 digits and may include +, spaces, or hyphens",
-      });
-    }
-
-    // If currency provided, validate it
-    if (currency && !["IDR", "USD"].includes(currency)) {
-      return res.status(400).json({
-        error: "Invalid currency",
-        validCurrencies: ["IDR", "USD"],
-      });
-    }
-
-    // Schedule and subschedule validation...
-
-
+    // If all validations pass
     console.log("✅ All validations passed");
     next();
   } catch (error) {
@@ -274,6 +122,139 @@ const validateBookingCreation = async (req, res, next) => {
     return res.status(500).json({
       error: "Validation error",
       details: error.message,
+    });
+  }
+};
+
+const validateRoundTripBookingPost = async (req, res, next) => {
+  console.log("\n=== Starting Round Trip Booking Post Validation ===");
+
+  try {
+    const { departure, return: returnBooking } = req.body;
+    console.log("📝 Validating round trip booking...");
+
+    // First, check if the main objects exist
+    if (!departure || !returnBooking) {
+      return res.status(400).json({
+        status: "error",
+        message: "Both departure and return booking details are required"
+      });
+    }
+
+    // Check if departure and return are objects
+    if (typeof departure !== "object" || typeof returnBooking !== "object") {
+      return res.status(400).json({
+        status: "error",
+        message: "Departure and return must be objects containing booking details"
+      });
+    }
+
+    // Function to validate schedule ID
+    const validateSchedule = async (scheduleId, type) => {
+      const schedule = await Schedule.findOne({ where: { id: scheduleId } });
+      if (!schedule) {
+        throw {
+          status: "error",
+          message: `Invalid schedule_id in ${type} booking. Schedule ID '${scheduleId}' does not exist.`
+        };
+      }
+    };
+
+    // Function to validate passenger seat availability
+    const validatePassengerSeats = async (passengers, scheduleId, type) => {
+      console.log(`🔍 Validating seat availability for ${type} passengers...`);
+    
+      for (const passenger of passengers) {
+        if (!passenger.seat_number) {
+          console.log(`ℹ️ No seat_number specified for passenger ${passenger.name}, skipping validation.`);
+          continue; // Skip validation for passengers without a seat_number
+        }
+    
+        // Check if the seat is already occupied
+        const occupiedSeat = await Booking.findOne({
+          where: { schedule_id: scheduleId },
+          include: [
+            {
+              model: Passenger,
+              as: "passengers",
+              where: { seat_number: passenger.seat_number }, // Apply the condition here
+            },
+          ],
+        });
+    
+        if (occupiedSeat) {
+          throw {
+            status: "error",
+            message: `Seat number ${passenger.seat_number} is already occupied in ${type} booking.`,
+          };
+        }
+    
+        console.log(`✅ Seat number ${passenger.seat_number} is available.`);
+      }
+    };
+    // Validate Booking Object (Shared for Departure and Return)
+    const validateBooking = async (booking, type) => {
+      console.log(`📝 Validating ${type} booking...`);
+
+      // Required fields for booking
+      const requiredFields = [
+        "schedule_id",
+        "subschedule_id",
+        "total_passengers",
+        "booking_date",
+        "agent_id",
+        "gross_total",
+        "ticket_total",
+        "payment_status",
+        "contact_name",
+        "contact_phone",
+        "contact_email",
+        "adult_passengers",
+        "child_passengers",
+        "infant_passengers",
+        "payment_method",
+        "booking_source",
+        "ticket_id",
+        "bank_fee",
+        "currency",
+        "gross_total_in_usd",
+        "exchange_rate"
+      ];
+
+      // Check for missing fields
+      const missingFields = requiredFields.filter((field) => {
+        const value = booking[field];
+        return value === undefined || value === null || value === "";
+      });
+
+      if (missingFields.length > 0) {
+        throw {
+          status: "error",
+          message: `Missing required fields in ${type} booking: ${missingFields.join(", ")}`
+        };
+      }
+
+      // Validate schedule ID exists
+      await validateSchedule(booking.schedule_id, type);
+
+      // Validate passenger seat numbers
+      if (booking.passengers && Array.isArray(booking.passengers)) {
+        await validatePassengerSeats(booking.passengers, booking.schedule_id, type);
+      }
+    };
+
+    // Validate both bookings
+    await validateBooking(departure, "departure");
+    await validateBooking(returnBooking, "return");
+
+    console.log("✅ All validations passed");
+    next();
+  } catch (error) {
+    console.error("❌ Validation error:", error);
+    return res.status(400).json({
+      status: "error",
+      message: error.message || "Validation failed",
+      details: error
     });
   }
 };
@@ -535,4 +516,5 @@ const validateMultipleBookingCreation = async (req, res, next) => {
 module.exports = {
   validateBookingCreation,
   validateMultipleBookingCreation,
+  validateRoundTripBookingPost
 };

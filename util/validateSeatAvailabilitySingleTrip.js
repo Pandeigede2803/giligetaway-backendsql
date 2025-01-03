@@ -4,7 +4,7 @@ const { Op } = require('sequelize');
 
 const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, booking_date, total_passengers) => {
   try {
-    // Step 1: Log the input data
+   console.log("---VALIDATE SEATAVAILABILITY---")
     console.log('Schedule ID:', schedule_id);
     console.log('SubSchedule ID:', subschedule_id);
     console.log('Booking Date:', booking_date);
@@ -26,7 +26,7 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
     // Step 3: Find seat availability with the constructed query
     const seatAvailability = await SeatAvailability.findOne(seatAvailabilityQuery);
 
-    console.log('Seat availability found:', seatAvailability);
+  
 
     // Step 4: Check if seat availability is found
     if (!seatAvailability) {
@@ -49,7 +49,7 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
     }
 
     // Step 6: Return seat availability details if everything is okay
-    console.log('Sufficient seats available, proceeding.');
+    console.log('Sufficient seats available, proceeding PASSS.');
     return {
       success: true,
       seatAvailability,

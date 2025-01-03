@@ -7,7 +7,7 @@ const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limitin
 const validateScheduleAndSubSchedule = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
 const { checkSeatAvailabilityForUpdate,validateBookingDate,validatePaymentUpdate } = require('../middleware/checkSeatAvailabilityForUpdate');
-const { validateBookingCreation ,validateMultipleBookingCreation} = require('../middleware/validateBookingcreation');
+const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
 
 // CREATE booking
 router.post('/', bookingController.createBooking);
@@ -21,6 +21,8 @@ router.post('/transit-queue',authenticate,validateScheduleAndSubSchedule,validat
 
 // Route for booking with transit multiple
 router.post('/multi-queue',authenticate,bookingRateLimiter, validateMultipleBookingCreation,validateTrips, bookingController.createBookingMultiple);
+// Route for booking with transit multiple
+router.post('/round-queue',authenticate,bookingRateLimiter, validateRoundTripBookingPost, bookingController.createRoundBookingWithTransitQueue);
 
 
 // Route for booking without transit
