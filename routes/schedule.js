@@ -13,7 +13,7 @@ const transitController = require('../controllers/transitController');
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
 
 // for availabilty seat table
-router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);
+router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);;
 
 
 //multiple params
