@@ -161,7 +161,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     };
 
     // Function to validate passenger seat availability
-    const validatePassengerSeats = async (passengers, scheduleId, type) => {
+    const validatePassengerSeats = async (passengers,booking_date, scheduleId, type) => {
       console.log(`🔍 Validating seat availability for ${type} passengers...`);
     
       for (const passenger of passengers) {
@@ -172,7 +172,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     
         // Check if the seat is already occupied
         const occupiedSeat = await Booking.findOne({
-          where: { schedule_id: scheduleId },
+          where: { schedule_id: scheduleId, booking_date },
           include: [
             {
               model: Passenger,
@@ -239,7 +239,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
 
       // Validate passenger seat numbers
       if (booking.passengers && Array.isArray(booking.passengers)) {
-        await validatePassengerSeats(booking.passengers, booking.schedule_id, type);
+        await validatePassengerSeats(booking.passengers, booking.schedule_id,booking.booking_date, type);
       }
     };
 

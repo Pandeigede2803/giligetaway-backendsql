@@ -647,12 +647,13 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.5] 📊 Total amount calculated:`, totalAmount);
 
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.6] 💾 Creating booking record...`);
+        const formattedDate = moment(booking_date, "MMM DD, YYYY").format("YYYY-MM-DD");
         const booking = await Booking.create(
           {
             schedule_id,
             subschedule_id,
             total_passengers,
-            booking_date,
+            booking_date: formattedDate,
             agent_id,
             gross_total,
             ticket_total,
@@ -725,14 +726,23 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
     const totalGross = departure.gross_total + returnData.gross_total;
     console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
     console.log("Total gross amount:", totalGross);
+    const bookings = [result.departure.booking, result.return.booking];
+    const transactions = [result.departure.transaction, result.return.transaction];
+    const transports = [
+      ...(departure.transports || []),
+      ...(returnData.transports || []),
+    ];
 
     res.status(201).json({
       message: "Round trip booking created successfully",
-      departure: result.departure,
-      
-      return: result.return,
+      bookings,
+      transactions,
+      transports,
+      // departure: result.departure,
+      // return: result.return,
       total_gross: totalGross,
     });
+
   } catch (error) {
     console.log("\n[Error] ❌ Error creating round trip booking:", error.message);
     res.status(400).json({ error: error.message });
