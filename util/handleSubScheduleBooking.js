@@ -121,9 +121,9 @@ if (!subSchedule || !schedule_id) {
 const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
 
     // console log semua
-    console.log('Schedule ID dari findRelatedSubSchedules:', schedule_id);
-    console.log('SubSchedule: dari findRelatedSubSchedules', subSchedule);
-    console.log('Transaction:', transaction);
+    // console.log('Schedule ID dari findRelatedSubSchedules:', schedule_id);
+    // console.log('SubSchedule: dari findRelatedSubSchedules', subSchedule);
+    // console.log('Transaction:', transaction);
     const transitIds = [
         subSchedule.transit_from_id,
         subSchedule.transit_1,

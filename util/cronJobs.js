@@ -54,6 +54,8 @@ const handleExpiredBookings = async () => {
         });
 
         for (let booking of expiredBookings) {
+            console.log(`✅ Checking booking ID ${booking.id}...`);
+
             // Logika untuk melepaskan kursi yang sudah dipesan ke available_seats
             await releaseSeats(booking);
 

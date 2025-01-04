@@ -4,7 +4,7 @@ const bookingController = require('../controllers/bookingController');
 const seatAvailabilityController = require('../controllers/seatAvailabilityController');
 const authenticate = require('../middleware/authenticate');
 const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limiting middleware
-const validateScheduleAndSubSchedule = require('../middleware/validateScheduleAndSubschedule');
+const {validateScheduleAndSubSchedule,validateScheduleAndSubScheduleForRoundTrip} = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
 const { checkSeatAvailabilityForUpdate,validateBookingDate,validatePaymentUpdate } = require('../middleware/checkSeatAvailabilityForUpdate');
 const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
@@ -22,24 +22,24 @@ router.post('/transit-queue',authenticate,validateScheduleAndSubSchedule,validat
 // Route for booking with transit multiple
 router.post('/multi-queue',authenticate,bookingRateLimiter, validateMultipleBookingCreation,validateTrips, bookingController.createBookingMultiple);
 // Route for booking with transit multiple
-router.post('/round-queue',authenticate,bookingRateLimiter, validateRoundTripBookingPost, bookingController.createRoundBookingWithTransitQueue);
+router.post('/round-queue',authenticate,bookingRateLimiter,validateScheduleAndSubScheduleForRoundTrip, validateRoundTripBookingPost, bookingController.createRoundBookingWithTransitQueue);
 
 
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
 //ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
-router.get('/filtered',authenticate, bookingController.getFilteredBookings);
+router.get('/filtered',authenticate, bookingController.getFilteredBookings);;
 
 
 // READ bookings
 router.get('/',authenticate, bookingController.getBookings);
 
 // READ bookings
-router.get('/date',authenticate, bookingController.getBookingsByDate);
+router.get('/date',authenticate, bookingController.getBookingsByDate);;
 
 // READ booking by id
-router.get('/:id', bookingController.getBookingById);
+router.get('/:id', bookingController.getBookingById);;
 
 //read booking by ticket id
 router.get('/ticket/:ticket_id', bookingController.getBookingByTicketId);
