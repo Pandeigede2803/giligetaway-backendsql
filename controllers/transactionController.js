@@ -694,6 +694,8 @@ const isValidBookingStatus = (status) => {
 
 // Your controller function here
 const updateTransactionStatusHandler = async (req, res) => {
+
+  console.log("----UPDATE TRANSACTION BEGIN----");
   const { transaction_id } = req.params;
   const {
     status,
