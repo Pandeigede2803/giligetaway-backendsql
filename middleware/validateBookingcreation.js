@@ -54,6 +54,7 @@ const validateBookingCreation = async (req, res, next) => {
     console.log("👥 Validating passenger counts...");
     const calculatedTotal = adult_passengers + child_passengers;
     if (calculatedTotal !== total_passengers) {
+      console.log("❌ Passenger count validation failed.");
       return res.status(400).json({
         error: "Invalid passenger count",
         message:
@@ -69,6 +70,7 @@ const validateBookingCreation = async (req, res, next) => {
 
     console.log("🧳 Validating passengers data...");
     if (!Array.isArray(passengers)) {
+      console.log("❌ Passengers data is not an array.");
       return res.status(400).json({
         error: "Invalid passengers data",
         message: "Passengers should be provided as an array",
@@ -78,8 +80,14 @@ const validateBookingCreation = async (req, res, next) => {
     for (let i = 0; i < passengers.length; i++) {
       const passenger = passengers[i];
 
+      console.log(`🔍 Validating passenger at index ${i}:`, passenger);
+
       // Validate required passenger fields
       if (!passenger.name || !passenger.passenger_type || !passenger.nationality || !passenger.passport_id) {
+        console.log(
+          `❌ Passenger validation failed at index ${i}: Missing required fields.`,
+          passenger
+        );
         return res.status(400).json({
           error: "Invalid passenger data",
           message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
@@ -92,7 +100,11 @@ const validateBookingCreation = async (req, res, next) => {
         console.log(`🔍 Validating seat number for passenger at index ${i}: ${passenger.seat_number}`);
 
         const occupiedSeat = await Booking.findOne({
-          where: { schedule_id },
+          where: {
+            schedule_id,
+            booking_date : booking_date,
+            payment_status: ['paid', 'invoiced'],
+          },
           include: [
             {
               model: Passenger,
@@ -103,9 +115,12 @@ const validateBookingCreation = async (req, res, next) => {
         });
 
         if (occupiedSeat) {
+          console.log(
+            `❌ Seat validation failed for seat number ${passenger.seat_number}. Seat is already occupied.  from bookingid :${occupiedSeat.id} and ticket id :${occupiedSeat.ticket_id}`
+          );
           return res.status(400).json({
             error: "Seat number unavailable",
-            message: `Seat number ${passenger.seat_number} is already occupied.`,
+            message: `Seat number ${passenger.seat_number} is already occupied. from bookingid :${occupiedSeat.id} and ticket id :${occupiedSeat.ticket_id}`,
             passenger,
           });
         }
@@ -114,8 +129,7 @@ const validateBookingCreation = async (req, res, next) => {
       }
     }
 
-    // If all validations pass
-    console.log("✅ All validations passed");
+    console.log("✅ All validations passed.");
     next();
   } catch (error) {
     console.error("❌ Error in booking validation:", error);

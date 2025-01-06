@@ -88,7 +88,8 @@ const generateMidtransToken = async (bookingDetails) => {
 
   try {
     // Mengambil `ticket_total` dari bookingDetails
-    const ticketTotal = parseFloat(bookingDetails.gross_total);
+    const ticketTotal = parseFloat(bookingDetails.gross_total
+    );
 
     // Gabungkan deskripsi tiket
     const ticketDescription = `Ticket for ${bookingDetails.total_passengers} Passengers`;
@@ -115,7 +116,7 @@ const generateMidtransToken = async (bookingDetails) => {
         )
       : 0;
 
-    const grossAmount = ticketTotal + transportTotal;
+    const grossAmount = bookingDetails.gross_total;
 
     console.log("Combined description:", combinedDescription);
     console.log("Gross amount:", grossAmount);
