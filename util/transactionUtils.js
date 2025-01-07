@@ -1,4 +1,5 @@
 // utils/transactionUtils.js
+const { Hooks } = require('sequelize/lib/hooks');
 const { Transaction } = require('../models');
 const { Op } = require('sequelize'); // Import Sequelize operators
 
@@ -67,45 +68,57 @@ const updateTransactionStatus = async (transaction_id, updateData) => {
 // Function to update the status of multiple transactions by transaction_ids
 // Function to update the status of multiple transactions by transaction_ids
 const updateMultiTransactionStatus = async (transaction_ids, updateData, transaction) => {
+  console.log("----start updateMultiTransactionStatus with transaction_ids----:", transaction_ids);
+
   try {
-    // Validate that transaction_ids is an array
-    if (!Array.isArray(transaction_ids)) {
-      throw new Error('transaction_ids should be an array');
+    console.log("Transaction IDs:", transaction_ids);
+    console.log("Update Data:", updateData);
+
+    // Fetch current transactions to check their status
+    const existingTransactions = await Transaction.findAll({
+      where: { transaction_id: { [Op.in]: transaction_ids } },
+      attributes: ["transaction_id", "status"], // Only fetch necessary fields
+      raw: true,
+      transaction,
+    });
+
+    console.log("🔍 Existing transactions found:", existingTransactions);
+
+    // Filter out transactions that are already 'paid' or 'invoiced'
+    const transactionsToUpdate = existingTransactions.filter(
+      (t) => t.status !== "paid" && t.status !== "invoiced"
+    );
+
+    if (transactionsToUpdate.length === 0) {
+      console.log("All transactions are already 'paid' or 'invoiced'. No updates needed.");
+      return 0; // No updates needed
     }
 
-    // Ensure transaction_ids array is not empty
-    if (transaction_ids.length === 0) {
-      throw new Error('transaction_ids array should not be empty');
-    }
+    // Extract transaction IDs to update
+    const transactionIdsToUpdate = transactionsToUpdate.map((t) => t.transaction_id);
 
-    // Validate that updateData is an object and contains at least one key-value pair
-    if (typeof updateData !== 'object' || Object.keys(updateData).length === 0) {
-      throw new Error('updateData should be a non-empty object');
-    }
+    console.log("Transactions to update:", transactionIdsToUpdate);
 
-    console.log('Transaction IDs:', transaction_ids);
-    console.log('Update Data:', updateData);
-
-    // Update all transactions that match the provided transaction_ids
+    // Update all transactions that need an update
     const [updatedCount] = await Transaction.update(updateData, {
-      where: { transaction_id: { [Op.in]: transaction_ids } }, // Using Sequelize 'in' operator
-      transaction
+      where: { transaction_id: { [Op.in]: transactionIdsToUpdate } },
+      transaction,
+      logging: console.log,
+      hooks: false, // Disable hooks to avoid unintended changes
     });
 
     if (updatedCount === 0) {
-      console.warn(`No transactions were updated for IDs: ${transaction_ids.join(', ')}`);
+      console.warn(`No transactions were updated for IDs: ${transactionIdsToUpdate.join(", ")}`);
     } else {
-      console.log(`All transactions with IDs ${transaction_ids.join(', ')} updated successfully.`);
+      console.log(`All transactions with IDs ${transactionIdsToUpdate.join(", ")} updated successfully.`);
     }
 
     return updatedCount; // Return the number of updated rows
   } catch (error) {
-    // Log error details
-    console.error(`Failed to update multiple transactions for IDs ${transaction_ids.join(', ')}: ${error.message}`);
+    console.error(`Failed to update multiple transactions for IDs ${transaction_ids.join(", ")}: ${error.message}`);
     throw new Error(`Failed to update multiple transactions: ${error.message}`);
   }
 };
-  
   module.exports = {
     createTransaction,
     updateTransactionStatus,

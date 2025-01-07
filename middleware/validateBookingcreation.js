@@ -216,7 +216,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
         "subschedule_id",
         "total_passengers",
         "booking_date",
-        "agent_id",
+   
         "gross_total",
         "ticket_total",
         "payment_status",
