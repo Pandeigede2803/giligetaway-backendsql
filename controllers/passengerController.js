@@ -943,6 +943,8 @@ const getPassengersSeatNumber = async (req, res) => {
       seatAvailability.boost
     );
 
+    console.log("===processedbookedseat===", processedBookedSeats);
+
     
 
     const totalSeats = seatAvailability.available_seats || 0;
