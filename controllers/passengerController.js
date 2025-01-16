@@ -391,23 +391,19 @@ const getPassengerCountBySchedule = async (req, res) => {
           );
 
           // Determine capacity from availability or use boat capacity as default
-
-          const capacity = mainAvailability
-            ? mainAvailability.available_seats // Use available_seats if SeatAvailability exists
-            : calculatePublicCapacity(schedule.dataValues.Boat); // Default to Boat capacity
-
-          console.log("Schedule details:", {
-            scheduleId: schedule.id,
-            capacity,
-            availableSeats: mainAvailability
-              ? mainAvailability.available_seats
-              : "Not Found",
-          });
           // Calculate the total number of passengers from booking seat availabilities
 
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
+
+
+
+          const capacity =
+            mainAvailability
+              ? mainAvailability.available_seats + totalPassengers // Use available_seats if SeatAvailability exists
+              : schedule.dataValues.Boat?.capacity || 0; // Default to Boat capacity, or 0 if no Boat is associated
+
           const remainingSeats = capacity - totalPassengers;
 
           // build route
@@ -425,14 +421,15 @@ const getPassengerCountBySchedule = async (req, res) => {
                 sa.subschedule_id === subSchedule.id
             );
             // Process each subschedule
+            const subTotalPassengers = subAvailability
+            ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
+            : 0;
 
             const subCapacity = subAvailability
-              ? subAvailability.available_seats
+              ? subAvailability.available_seats + subTotalPassengers
               : calculatePublicCapacity(schedule.dataValues.Boat); // Default capacity
 
-            const subTotalPassengers = subAvailability
-              ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
-              : 0;
+      
             // Calculate the total number of passengers
             const subRemainingSeats = subCapacity - subTotalPassengers;
 

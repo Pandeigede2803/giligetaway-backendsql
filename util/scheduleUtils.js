@@ -9,6 +9,7 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                 validity_start: { [Op.lte]: date },
                 validity_end: { [Op.gte]: date }
             },
+            attributes: ['id', 'validity_start', 'validity_end', 'departure_time', 'arrival_time', 'journey_time'],
             include: [
                 {
                     model: Destination,
@@ -46,6 +47,7 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                 validity_start: { [Op.lte]: date },
                 validity_end: { [Op.gte]: date }
             },
+            attributes: ['id', 'validity_start', 'validity_end',"schedule_id",],
             include: [
                 {
                     model: Schedule,
