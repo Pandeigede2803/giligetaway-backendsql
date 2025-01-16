@@ -39,7 +39,7 @@ const getScheduleAndSubScheduleByDate = async (date) => {
                    
                 }
             ]
-        });
+        });;;;;;
 
         // Query to fetch sub-schedules that are valid on the given date
         const subSchedules = await SubSchedule.findAll({
