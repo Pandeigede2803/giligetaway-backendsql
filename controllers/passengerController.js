@@ -402,7 +402,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           const capacity =
             mainAvailability
               ? mainAvailability.available_seats + totalPassengers // Use available_seats if SeatAvailability exists
-              : schedule.dataValues.Boat?.capacity || 0; // Default to Boat capacity, or 0 if no Boat is associated
+              : calculatePublicCapacity(schedule.dataValues.Boat) || 0; // Default to Boat capacity, or 0 if no Boat is associated
 
           const remainingSeats = capacity - totalPassengers;
 
