@@ -427,7 +427,7 @@ const getPassengerCountBySchedule = async (req, res) => {
 
             const subCapacity = subAvailability
               ? subAvailability.available_seats + subTotalPassengers
-              : calculatePublicCapacity(schedule.dataValues.Boat); // Default capacity
+              : calculatePublicCapacity(schedule.dataValues.Boat);; // Default capacity
 
       
             // Calculate the total number of passengers
