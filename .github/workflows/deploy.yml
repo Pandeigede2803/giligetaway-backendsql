@@ -25,4 +25,4 @@ jobs:
       # Deploy aplikasi ke VPS
       - name: Deploy to VPS
         run: |
-          ssh giligetaway@103.172.204.179 "cd ~/giligetaway-backendsql && git pull origin main && npm install && pm2 restart 0"
+          ssh giligetaway@103.172.204.179 "cd ~/giligetaway-backendsql && git pull origin main && npm install && pm2 restart 1"
