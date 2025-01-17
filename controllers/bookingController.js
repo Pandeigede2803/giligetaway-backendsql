@@ -27,6 +27,7 @@ const releaseSeats = require('../util/releaseSeats'); // Adjust the path based o
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
+const calculateDepartureAndArrivalTimes = require("../util/calculateDepartureAndArrivalTime");
 const moment = require("moment"); // Use moment.js for date formatting
 const cronJobs = require("../util/cronJobs");
 const { createTransaction } = require("../util/transactionUtils");
@@ -1637,6 +1638,8 @@ const getFilteredBookings = async (req, res) => {
             "arrival_time",
             "journey_time",
             "route_image",
+            "departure_time",
+            "check_in_time",
             "schedule_type",
             "days_of_week",
             "trip_type",
@@ -1663,7 +1666,11 @@ const getFilteredBookings = async (req, res) => {
         {
           model:SubSchedule,
           as:'subSchedule',
-          attributes: ['id'],
+          attributes: [
+            'id','destination_from_schedule_id',
+            'destination_to_schedule_id',
+            'transit_from_id','transit_to_id',
+            'transit_1','transit_2','transit_3','transit_4'],
           include: [
             {
               model: Destination,
@@ -1679,7 +1686,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'TransitFrom',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1691,7 +1698,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'TransitTo',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1703,7 +1710,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'Transit1',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1715,7 +1722,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'Transit2',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1727,7 +1734,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'Transit3',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1739,7 +1746,7 @@ const getFilteredBookings = async (req, res) => {
           {
               model: Transit,
               as: 'Transit4',
-              attributes: ['id'],
+              attributes: ['id','departure_time','arrival_time'],
               include: [
                   {
                       model: Destination,
@@ -1782,18 +1789,37 @@ const getFilteredBookings = async (req, res) => {
       console.log(
         `Booking ID: ${booking.id}, Schedule ID: ${schedule?.id}, Subschedule${subSchedule}`
       );
+ // Tentukan departure_time dan arrival_time menggunakan fungsi
+ const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+
+
 
       // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
       const route = schedule
         ? buildRouteFromSchedule(schedule, subSchedule)
         : null;
 
+        console.log("departure time dan arrivaltime:",times);
+
       // Tambahkan route ke hasil booking
       return {
         ...booking.dataValues,
         route,
+        departure_time: times.departure_time,
+        arrival_time: times.arrival_time,
       };
     });
+
+    // create function to create departure time and arrival time and push to the bookings
+    // if the subschedule null, use departure time from booking.schedule.departure time // booking.schedule.arrival time
+    // if the subschedule not null, use departure time from (if destination_from_schedule_id is exist, use departure time from schedule.departure time,
+    // if the subschedule.destination_to_schedule_id use the arrival time from schedule.arrival time
+    // if the transit_from_id is exit use the departure time from transit_from_id.Transits.departure_time
+    // if the transit_to_id is exit use the arrival time from transit_to_id.Transits.arrival_time
+    // if the transit_1 is exit use the departure time from transit1_id.Transits.departure_time
+    // if the transit_2 is exit use the arrival time from transit2_id.Transits.arrival_time
+    // if the transit_3 is exit use the departure time from transit3_id.Transits.departure_time
+    // if the transit_4 is exit use the arrival time from transit4_id.Transits.arrival_time
 
     // Respons data
     res.status(200).json({
