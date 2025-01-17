@@ -32,6 +32,8 @@ const buildRoute = (seatAvailability) => {
 
 const buildRouteFromSchedule = (schedule, subSchedule) => {
   // Log the schedule and subSchedule that are passed
+  console.log('===== jancuk Schedule: ====', schedule);
+  console.log('Jancuk SubSchedule:', subSchedule);
 
 
   let route = '';

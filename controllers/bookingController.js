@@ -44,6 +44,7 @@ const {
 const validateSeatAvailability = require("../util/validateSeatAvailability");
 const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabilitySingleTrip");
 const AgentCommission = require("../models/AgentComission");
+const { buildRouteFromSchedule } = require("../util/buildRoute");
 
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
@@ -1492,6 +1493,105 @@ const getBookings = async (req, res) => {
   }
 };
 
+// const getFilteredBookings = async (req, res) => {
+//   try {
+//     // Ambil query parameter
+//     const { monthly, ticket_id, id } = req.query;
+
+//     // Filter data
+//     let dateFilter = {};
+
+//     // Prioritaskan filter berdasarkan `id` jika tersedia
+//     if (id) {
+//       dateFilter = { id }; // Filter berdasarkan `id`
+//     } else if (ticket_id) {
+//       // Jika `ticket_id` ada, abaikan filter lainnya
+//       dateFilter = { ticket_id };
+//     } else if (monthly) {
+//       // Jika `monthly` ada, filter berdasarkan bulan
+//       const [year, month] = monthly.split("-");
+//       if (!year || !month || isNaN(year) || isNaN(month)) {
+//         return res
+//           .status(400)
+//           .json({ error: "Invalid monthly filter format. Use YYYY-MM." });
+//       }
+
+//       dateFilter = {
+//         booking_date: {
+//           [Op.gte]: new Date(year, month - 1, 1), // Awal bulan
+//           [Op.lt]: new Date(year, month, 1), // Awal bulan berikutnya
+//         },
+//       };
+//     }
+
+//     // Query semua data booking sesuai filter
+//     const bookings = await Booking.findAll({
+//       where: dateFilter,
+//       include: [
+//         {
+//           model: Schedule,
+//           as: "schedule",
+//           include: [
+//             {
+//               model: Transit,
+//               as: "Transits",
+//               include: [
+//                 {
+//                   model: Destination,
+//                   as: "Destination",
+//                 },
+//               ],
+//             },
+//             { model: Destination, as: "FromDestination" },
+//             { model: Destination, as: "ToDestination" },
+//           ],
+//         },
+//         {
+//             model:AgentCommission,
+//             as:'agentCommissions',
+
+//         },
+//         {
+//           model: SeatAvailability,
+//           as: "SeatAvailabilities",
+//           through: {
+//             model: BookingSeatAvailability,
+//             // attributes: ['id'] // Exclude attributes join table
+//           },
+//         },
+//         { model: Passenger, as: "passengers" },
+//         {
+//           model: TransportBooking,
+//           as: "transportBookings",
+//           include: [{ model: Transport, as: "transport" }],
+//         },
+//         {
+//           model: Agent,
+//           as: "Agent",
+         
+//         },
+//       ],
+//     });
+
+//     //  built route from schedule and subschedule
+// // const route =buildRouteFromSchedule=(schedule,subSchedule)=>
+   
+
+//     // Respons data
+//     res.status(200).json({
+//       bookings,
+//       totalItems: bookings.length,
+//       id, // Jika tersedia, kirim kembali ke frontend
+//       ticket_id, // Jika tersedia, kirim kembali ke frontend
+//     });
+//   } catch (error) {
+//     console.error("Error retrieving filtered bookings:", error);
+//     res
+//       .status(400)
+//       .json({ error: "An error occurred while fetching bookings." });
+//   }
+// };
+
 const getFilteredBookings = async (req, res) => {
   try {
     // Ambil query parameter
@@ -1530,32 +1630,134 @@ const getFilteredBookings = async (req, res) => {
         {
           model: Schedule,
           as: "schedule",
+          attributes: [
+            "id",
+            "boat_id",
+            "availability",
+            "arrival_time",
+            "journey_time",
+            "route_image",
+            "schedule_type",
+            "days_of_week",
+            "trip_type",
+          ],
           include: [
             {
               model: Transit,
               as: "Transits",
+              attributes: ["id"],
               include: [
                 {
                   model: Destination,
                   as: "Destination",
+                  attributes: ["id", "name"],
                 },
               ],
             },
-            { model: Destination, as: "FromDestination" },
-            { model: Destination, as: "ToDestination" },
+            // { model: Destination, 
+            //   as: "FromDestination" },
+            // { model: Destination, 
+            //   as: "ToDestination" },
           ],
         },
         {
-            model:AgentCommission,
-            as:'agentCommissions',
+          model:SubSchedule,
+          as:'subSchedule',
+          attributes: ['id'],
+          include: [
+            {
+              model: Destination,
+              as: 'DestinationFrom',
+              attributes: ['name']
+          },
+          {
+              model: Destination,
+              as: 'DestinationTo',
+
+              attributes: ['name']
+          },
+          {
+              model: Transit,
+              as: 'TransitFrom',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          },
+          {
+              model: Transit,
+              as: 'TransitTo',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          },
+          {
+              model: Transit,
+              as: 'Transit1',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          },
+          {
+              model: Transit,
+              as: 'Transit2',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          },
+          {
+              model: Transit,
+              as: 'Transit3',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          },
+          {
+              model: Transit,
+              as: 'Transit4',
+              attributes: ['id'],
+              include: [
+                  {
+                      model: Destination,
+                      as: 'Destination',
+                      attributes: ['name']
+                  }
+              ]
+          }
+          ]
 
         },
         {
           model: SeatAvailability,
           as: "SeatAvailabilities",
+          attributes: ["id"],
           through: {
             model: BookingSeatAvailability,
-            // attributes: ['id'] // Exclude attributes join table
+            attributes: ["id"],
           },
         },
         { model: Passenger, as: "passengers" },
@@ -1564,18 +1766,39 @@ const getFilteredBookings = async (req, res) => {
           as: "transportBookings",
           include: [{ model: Transport, as: "transport" }],
         },
-        {
-          model: Agent,
-          as: "Agent",
-         
-        },
+        { model: Agent, as: "Agent" },
       ],
+    });
+
+    // Log data bookings untuk debugging
+    console.log("Bookings fetched:", bookings);
+
+    // Tambahkan route ke masing-masing booking
+    const enrichedBookings = bookings.map((booking) => {
+      const schedule = booking.schedule || null;
+      const subSchedule = booking.subSchedule || null;
+
+      // Log `schedule_id` dan `subschedule_id`
+      console.log(
+        `Booking ID: ${booking.id}, Schedule ID: ${schedule?.id}, Subschedule${subSchedule}`
+      );
+
+      // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
+      const route = schedule
+        ? buildRouteFromSchedule(schedule, subSchedule)
+        : null;
+
+      // Tambahkan route ke hasil booking
+      return {
+        ...booking.dataValues,
+        route,
+      };
     });
 
     // Respons data
     res.status(200).json({
-      bookings,
-      totalItems: bookings.length,
+      bookings: enrichedBookings,
+      totalItems: enrichedBookings.length,
       id, // Jika tersedia, kirim kembali ke frontend
       ticket_id, // Jika tersedia, kirim kembali ke frontend
     });
@@ -1586,7 +1809,6 @@ const getFilteredBookings = async (req, res) => {
       .json({ error: "An error occurred while fetching bookings." });
   }
 };
-
 const getBookingByTicketId = async (req, res) => {
   try {
     const booking = await Booking.findOne({
