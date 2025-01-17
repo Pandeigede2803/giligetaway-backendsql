@@ -26,7 +26,7 @@ const {
 } = require("../util/seatAvailabilityUtils");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
-const { processBookedSeats } = require('../util/seatUtils');
+const { processBookedSeats } = require("../util/seatUtils");
 // Fix date utility function
 const getDaysInMonth = (month, year) => {
   const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
@@ -288,6 +288,24 @@ const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
   return filteredDays;
 };
 
+function getFullMonthRange(year, month) {
+  console.log(`📅 Getting full month range for ${year}-${month}`);
+  const monthNum = parseInt(month, 10);
+  console.log(`📅 Month number: ${monthNum}`);
+
+  // Dapatkan hari terakhir di bulan tersebut.
+  // new Date(year, monthNum + 1, 0) akan memberi “hari terakhir” dari 'monthNum'
+  const lastDay = new Date(year, monthNum - 1, 0).getDate();
+
+  const yearStr = String(year);
+  const monthStr = String(monthNum).padStart(2, "0");
+
+  const startDate = `${yearStr}-${monthStr}-01`;
+  const endDate = `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
+
+  return { startFullDate: startDate, endFullDate: endDate };
+}
+
 const getPassengerCountBySchedule = async (req, res) => {
   // extract query
   const { month, year, schedule_id } = req.query;
@@ -330,7 +348,11 @@ const getPassengerCountBySchedule = async (req, res) => {
     );
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
-    console.log("Date Range:", { startDate, endDate });
+
+   // Gunakan fungsi getFullMonthRange agar range query sebulan penuh
+   const { startFullDate, endFullDate } = getFullMonthRange(year, month);
+   console.log("Full Month Range:", { startFullDate, endFullDate });
+
 
     // Fetch seat availabilities within the date range and for the specified schedule_id
     const seatAvailabilities = await SeatAvailability.findAll({
@@ -341,18 +363,23 @@ const getPassengerCountBySchedule = async (req, res) => {
         "available_seats",
         "subschedule_id",
         "boost",
-        "availability"
+        "availability",
       ],
       where: {
         date: {
-          [Op.between]: [startDate, endDate],
+          [Op.between]: [startFullDate, endFullDate],
         },
         ...(schedule_id && { schedule_id }),
       },
       include: getSeatAvailabilityIncludes(),
     });
 
-    console.log("Total seat availabilities found:", seatAvailabilities.length);
+    console.log("Seat Availabilities Fetched:", seatAvailabilities.length);
+    seatAvailabilities.forEach((sa) =>
+      console.log(
+        `SeatAvailability ID: ${sa.id}, Date: ${sa.date}, Available Seats: ${sa.available_seats}`
+      )
+    );
 
     // Group seat availabilities by date for quick lookup
 
@@ -376,9 +403,7 @@ const getPassengerCountBySchedule = async (req, res) => {
       const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(
         date
       );
-      console.log(
-        `Found schedules: ${schedules.length}, subSchedules: ${subSchedules.length}`
-      );
+
       // process each schedules
       schedules
         .filter(
@@ -390,19 +415,13 @@ const getPassengerCountBySchedule = async (req, res) => {
             (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
           );
 
-          // Determine capacity from availability or use boat capacity as default
-          // Calculate the total number of passengers from booking seat availabilities
-
           const totalPassengers = mainAvailability
             ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
             : 0;
 
-
-
-          const capacity =
-            mainAvailability
-              ? mainAvailability.available_seats + totalPassengers // Use available_seats if SeatAvailability exists
-              : calculatePublicCapacity(schedule.dataValues.Boat) || 0; // Default to Boat capacity, or 0 if no Boat is associated
+          const capacity = mainAvailability
+            ? mainAvailability.available_seats + totalPassengers // Use available_seats if SeatAvailability exists
+            : calculatePublicCapacity(schedule.dataValues.Boat) || 0; // Default to Boat capacity, or 0 if no Boat is associated
 
           const remainingSeats = capacity - totalPassengers;
 
@@ -422,21 +441,20 @@ const getPassengerCountBySchedule = async (req, res) => {
             );
             // Process each subschedule
             const subTotalPassengers = subAvailability
-            ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
-            : 0;
+              ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
+              : 0;
 
             const subCapacity = subAvailability
               ? subAvailability.available_seats + subTotalPassengers
-              : calculatePublicCapacity(schedule.dataValues.Boat);; // Default capacity
+              : calculatePublicCapacity(schedule.dataValues.Boat); // Default capacity
 
-      
             // Calculate the total number of passengers
             const subRemainingSeats = subCapacity - subTotalPassengers;
 
             return {
               seatavailability_id: subAvailability ? subAvailability.id : null,
               date,
-              availability: subAvailability?.availability || false,
+              availability: subAvailability?.availability || true,
               schedule_id: schedule.id,
               subschedule_id: subSchedule.id,
               boost: subAvailability?.boost || false,
@@ -454,7 +472,7 @@ const getPassengerCountBySchedule = async (req, res) => {
             schedule_id: schedule.id,
             subschedule_id: null,
             route,
-            availability: mainAvailability?.availability || false,
+            availability: mainAvailability?.availability || true,
             boost: mainAvailability?.boost || false,
             capacity,
             remainingSeats,
@@ -467,7 +485,6 @@ const getPassengerCountBySchedule = async (req, res) => {
         });
     }
 
-    console.log("Final results count:", finalResults.length);
     // Send the final results in the response
     return res.status(200).json({
       success: true,
@@ -927,9 +944,6 @@ const getPassengersSeatNumber = async (req, res) => {
       ],
     });
 
-
-
-
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
     // Filter and add push some booked seats
@@ -942,11 +956,9 @@ const getPassengersSeatNumber = async (req, res) => {
 
     console.log("===processedbookedseat===", processedBookedSeats);
 
-    
-
     const totalSeats = seatAvailability.available_seats || 0;
     console.log("===totalseat===", totalSeats);
-    
+
     // Custom response
     const response = {
       status: "success",
@@ -956,7 +968,7 @@ const getPassengersSeatNumber = async (req, res) => {
       boatDetails: schedule.Boat,
       availableSeatCount: totalSeats - bookedSeats.length,
       bookedSeatCount: bookedSeats.length,
-      seatAvailability:seatAvailability,
+      seatAvailability: seatAvailability,
     };
 
     res.json(response);

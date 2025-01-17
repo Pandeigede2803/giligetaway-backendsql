@@ -35,16 +35,14 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
 
 
   let route = '';
-  console.log('Schedule passed to buildRouteFromSchedule:', schedule);
+
   
   // Log detail FromDestination and ToDestination dataValues
   if (schedule && schedule.dataValues.FromDestination) {
-    console.log('FromDestination dataValues:', schedule.dataValues.FromDestination.dataValues);
-  }
+ }
   
   if (schedule && schedule.dataValues.ToDestination) {
-    console.log('ToDestination dataValues:', schedule.dataValues.ToDestination.dataValues);
-  }
+ }
 
   // Penanganan Schedule Only Case
   if (schedule && !subSchedule) {
@@ -52,17 +50,10 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
     const destinationFrom = schedule.dataValues.FromDestination?.dataValues.name || 'Unknown';
     const transits = schedule.dataValues.Transits?.map(transit => transit.dataValues.Destination?.dataValues.name) || [];
     const destinationTo = schedule.dataValues.ToDestination?.dataValues.name || 'Unknown';
-    console.log('Schedule data:', schedule.dataValues);
-    console.log('FROM DESTINATION:', schedule.dataValues.FromDestination?.dataValues);
-    console.log('TO DESTINATION:', schedule.dataValues.ToDestination?.dataValues);
 
     // Gabungkan From, Transit (jika ada), dan To untuk membentuk rute
     route = `${destinationFrom} - ${transits.length > 0 ? transits.join(' - ') + ' - ' : ''}${destinationTo}`;
-    
-    // Logging rute yang dibentuk menggunakan Schedule ID saja
-    console.log(`Route built (Schedule only): From ${destinationFrom} through ${transits.join(', ')} to ${destinationTo}`);
-  
-  } else if (subSchedule) {
+ } else if (subSchedule) {
     // Penanganan SubSchedule Case
     const destinationFromSchedule = subSchedule.dataValues.DestinationFrom?.dataValues.name || 'Unknown';
     const transitFrom = subSchedule.dataValues.TransitFrom?.Destination?.dataValues.name || 'Unknown';
@@ -86,9 +77,7 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
 
 
 
-    // Logging rute yang dibentuk menggunakan SubSchedule
-    console.log(`Route built (SubSchedule): From ${destinationFromSchedule} through ${transits.join(', ')} to ${destinationToSchedule}`);
-  }
+ }
 
   return route;
 };
