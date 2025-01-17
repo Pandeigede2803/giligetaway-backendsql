@@ -309,7 +309,7 @@ function getFullMonthRange(year, month) {
 const getPassengerCountBySchedule = async (req, res) => {
   // extract query
   const { month, year, schedule_id } = req.query;
-  console.log("Request Parameters:", { month, year, schedule_id });
+
 
   // validation
   if (!month || !year) {
@@ -351,7 +351,7 @@ const getPassengerCountBySchedule = async (req, res) => {
 
    // Gunakan fungsi getFullMonthRange agar range query sebulan penuh
    const { startFullDate, endFullDate } = getFullMonthRange(year, month);
-   console.log("Full Month Range:", { startFullDate, endFullDate });
+
 
 
     // Fetch seat availabilities within the date range and for the specified schedule_id
