@@ -23,6 +23,10 @@ const Agent = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    contact_person: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     commission_rate: {
       type: DataTypes.DECIMAL(5, 2),
       allowNull: false,
