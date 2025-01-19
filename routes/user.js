@@ -7,11 +7,10 @@ const authenticate = require('../middleware/authenticate');
 // // CREATE user (register)
 // router.post('/', userController.createUser);
 
-// // READ users
-// router.get('/', userController.getUsers);`
+router.get('/',authenticate, userController.getUsers);
 
-// // READ user by id
-// router.get('/:id', userController.getUserById);
+// update user
+router.get('/:id',authenticate, userController.updateUser);
 
 // // UPDATE user
 router.post('/forgot-password', userController.forgotPassword);
@@ -19,7 +18,6 @@ router.post('/forgot-password', userController.forgotPassword);
 
 router.post('/reset-password', userController.resetPasswordWithToken);
 // // DELETE user
-// router.delete('/:id', userController.deleteUser);
 
 // Authentication routes
 router.post('/register',authenticate, userController.createUser); // Or use the same route as above
