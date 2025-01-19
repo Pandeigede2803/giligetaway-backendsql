@@ -10,7 +10,7 @@ const authenticate = require('../middleware/authenticate');
 router.get('/',authenticate, userController.getUsers);
 
 // update user
-router.get('/:id',authenticate, userController.updateUser);
+router.put('/:id',authenticate, userController.updateUser);
 
 // // UPDATE user
 router.post('/forgot-password', userController.forgotPassword);

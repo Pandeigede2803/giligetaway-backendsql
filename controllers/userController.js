@@ -181,18 +181,6 @@ const updateUser = async (req, res) => {
     const { name, email, role } = req.body; // Get the updated user data from the request body
 
     try {
-        // Check if all required fields are provided
-        if (!name || !email || !role) {
-            return res.status(400).json({
-                message: "Missing required fields",
-                errors: {
-                    name: !name ? "Name is required" : undefined,
-                    email: !email ? "Email is required" : undefined,
-                    role: !role ? "Role is required" : undefined,
-                },
-            });
-        }
-
         // Find user by ID
         const user = await User.findByPk(id);
 
@@ -204,10 +192,10 @@ const updateUser = async (req, res) => {
             });
         }
 
-        // Update user fields
-        user.name = name;
-        user.email = email;
-        user.role = role;
+        // Update user fields if a value is provided
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (role) user.role = role;
 
         // Save changes to the database
         await user.save();
