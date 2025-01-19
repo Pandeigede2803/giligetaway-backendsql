@@ -177,20 +177,59 @@ const getUserById = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-    const { id } = req.params;
-    const { name, email, role } = req.body;
+    const { id } = req.params; // Get user ID from the request parameters
+    const { name, email, role } = req.body; // Get the updated user data from the request body
+
     try {
-        const user = await User.findByPk(id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+        // Check if all required fields are provided
+        if (!name || !email || !role) {
+            return res.status(400).json({
+                message: "Missing required fields",
+                errors: {
+                    name: !name ? "Name is required" : undefined,
+                    email: !email ? "Email is required" : undefined,
+                    role: !role ? "Role is required" : undefined,
+                },
+            });
         }
+
+        // Find user by ID
+        const user = await User.findByPk(id);
+
+        // If user is not found, return a 404 response
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                details: `No user found with the ID: ${id}`,
+            });
+        }
+
+        // Update user fields
         user.name = name;
         user.email = email;
         user.role = role;
+
+        // Save changes to the database
         await user.save();
-        res.status(200).json({ message: 'User updated successfully', user });
+
+        // Return a success response
+        return res.status(200).json({
+            message: "User updated successfully",
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                updatedAt: user.updatedAt, // Include the updated timestamp
+            },
+        });
     } catch (error) {
-        res.status(400).json({ message: 'Error updating user', error });
+        // Handle potential database or server errors
+        return res.status(500).json({
+            message: "Error updating user",
+            error: error.message,
+            details: "An unexpected error occurred while updating the user. Please try again later.",
+        });
     }
 };
 
