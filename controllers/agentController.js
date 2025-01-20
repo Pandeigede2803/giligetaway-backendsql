@@ -319,11 +319,44 @@ exports.deleteAgent = async (req, res) => {
   try {
     const agentId = req.params.id;
 
-    // Delete the related AgentMetrics first
+    // Check if the agent exists
+    const agent = await Agent.findOne({
+      where: { id: agentId },
+    });
+
+    if (!agent) {
+      console.log(`Agent with ID: ${agentId} not found`);
+      await transaction.rollback();
+      return res.status(404).json({
+        success: false,
+        message: `Agent with ID ${agentId} not found`,
+      });
+    }
+
+    // Check if the agent has associated bookings
+    const associatedBookings = await Booking.findOne({
+      where: { agent_id: agentId },
+    });
+
+    if (associatedBookings) {
+      console.log(
+        `Agent with ID: ${agentId} cannot be deleted because it has associated bookings`
+      );
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Agent with ID ${agentId} cannot be deleted because it has associated bookings. Please remove the bookings first.`,
+      });
+    }
+
+    // Delete associated AgentMetrics first
     const deletedMetrics = await AgentMetrics.destroy({
       where: { agent_id: agentId },
       transaction,
     });
+    console.log(
+      `Deleted ${deletedMetrics} metrics associated with Agent ID: ${agentId}`
+    );
 
     // Delete the agent
     const deletedAgent = await Agent.destroy({
@@ -334,19 +367,36 @@ exports.deleteAgent = async (req, res) => {
     if (deletedAgent) {
       console.log(`Agent with ID: ${agentId} and its metrics deleted`);
       await transaction.commit();
-      res.status(200).json({ message: "Agent and its metrics deleted" });
+      return res.status(200).json({
+        success: true,
+        message: `Agent with ID ${agentId} and its metrics have been deleted successfully`,
+      });
     } else {
-      console.log(`Agent with ID: ${agentId} not found`);
+      console.log(`Agent with ID: ${agentId} not found for deletion`);
       await transaction.rollback();
-      res.status(404).json({ message: "Agent not found" });
+      return res.status(404).json({
+        success: false,
+        message: `Agent with ID ${agentId} not found for deletion`,
+      });
     }
   } catch (error) {
-    console.log(
-      `Error deleting agent with ID: ${req.params.id}`,
-      error.message
-    );
+    console.log(`Error deleting agent with ID: ${req.params.id}`, error.message);
+
+    // Check if the error is related to database constraints
+    if (error.name === "SequelizeForeignKeyConstraintError") {
+      await transaction.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Agent with ID ${req.params.id} cannot be deleted because it has associated bookings or other.`,
+      });
+    }
+
+    // Handle other errors
     await transaction.rollback();
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: `An error occurred while deleting the agent: ${error.message}`,
+    });
   }
 };
 
