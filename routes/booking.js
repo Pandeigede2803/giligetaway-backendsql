@@ -54,7 +54,7 @@ router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.
 router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate, bookingController.updateBookingDate);
 
 // DELETE booking
-router.delete('/:id', bookingController.deleteBooking);
+router.delete('/:id',authenticate, bookingController.deleteBooking);
 
 // Check available seats
 router.get('/check-available-seats',authenticate, seatAvailabilityController.checkAvailableSeats);

@@ -10,7 +10,6 @@ const getSeatAvailabilityIncludes = () => {
           {
             model: Booking,
             as: 'Booking',
-           
             where: { 
               payment_status: ['paid','invoiced']
              },

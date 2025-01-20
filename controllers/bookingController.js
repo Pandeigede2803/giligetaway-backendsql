@@ -1657,10 +1657,10 @@ const getFilteredBookings = async (req, res) => {
                 },
               ],
             },
-            // { model: Destination, 
-            //   as: "FromDestination" },
-            // { model: Destination, 
-            //   as: "ToDestination" },
+            { model: Destination, 
+            as: "FromDestination" },
+            { model: Destination, 
+            as: "ToDestination" },
           ],
         },
         {
@@ -2280,41 +2280,115 @@ const updateBookingDate = async (req, res) => {
   }
 };
 
+
 const deleteBooking = async (req, res) => {
-  const { id } = req.params;
-
+  const transaction = await sequelize.transaction();
   try {
-    await sequelize.transaction(async (t) => {
-      const booking = await Booking.findByPk(id, { transaction: t });
-      if (!booking) {
-        throw new Error("Booking not found.");
-      }
+    const bookingId = req.params.id;
 
-      const { schedule_id, transit_id, total_passengers } = booking;
-
-      const schedule = await Schedule.findByPk(schedule_id, { transaction: t });
-      await schedule.update(
-        { available_seats: schedule.available_seats + total_passengers },
-        { transaction: t }
-      );
-
-      const transit = await Transit.findByPk(transit_id, { transaction: t });
-      await transit.update(
-        { available_seats: transit.available_seats + total_passengers },
-        { transaction: t }
-      );
-
-      await booking.destroy({ transaction: t });
-
-      console.log("Booking deleted:", id);
+    // Step 1: Fetch the booking details based on the provided ID
+    const booking = await Booking.findOne({
+      where: { id: bookingId },
     });
 
-    res.status(204).json();
+    if (!booking) {
+      // If the booking is not found, return a 404 error
+      return res.status(404).json({
+        success: false,
+        message: `Booking with ID ${bookingId} not found.`,
+      });
+    }
+
+    // Retrieve booking details
+    const { booking_date, transport_id } = booking;
+
+    // Step 2: Check and delete related records in Passengers
+    console.log('\n🔍 Checking and deleting related Passengers...');
+    const passengers = await Passenger.findAll({
+      where: { booking_id: bookingId },
+    });
+
+    if (passengers.length > 0) {
+      const passengerIds = passengers.map((passenger) => passenger.id);
+      console.log('🔄 Deleting related Passengers records:', passengerIds);
+
+      await Passenger.destroy({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      console.log('✅ Successfully deleted related Passengers records.');
+    } else {
+      console.log('✅ No related Passengers found.');
+    }
+
+    // Step 3: Check and delete related records in BookingSeatAvailability
+    console.log('\n🔍 Checking and deleting related BookingSeatAvailability...');
+    const relatedRecords = await BookingSeatAvailability.findAll({
+      where: { booking_id: bookingId },
+    });
+
+    if (relatedRecords.length > 0) {
+      const relatedIds = relatedRecords.map((record) => record.id);
+      console.log('🔄 Deleting related BookingSeatAvailability records:', relatedIds);
+
+      await BookingSeatAvailability.destroy({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      console.log('✅ Successfully deleted related BookingSeatAvailability records.');
+    } else {
+      console.log('✅ No related records found in BookingSeatAvailability.');
+    }
+
+    // Step 4: Release seats associated with the booking
+    console.log('\n🔄 Releasing seats from current booking date...');
+    try {
+      const releasedSeatIds = await releaseSeats(booking, transaction);
+      console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+    } catch (error) {
+      console.error('❌ Error releasing seats:', error);
+      throw new Error(`Failed to release seats: ${error.message}`);
+    }
+
+    // Step 5: Delete the booking
+    console.log(`\n🔄 Deleting booking with ID: ${bookingId}`);
+    const deletedBooking = await Booking.destroy({
+      where: { id: bookingId },
+      transaction,
+    });
+
+    if (deletedBooking) {
+      // Commit transaction if deletion is successful
+      await transaction.commit();
+
+      return res.status(200).json({
+        success: true,
+        message: `Booking with ID ${bookingId} and associated records have been deleted successfully.`,
+      });
+    } else {
+      // Rollback transaction if deletion failed
+      await transaction.rollback();
+
+      return res.status(500).json({
+        success: false,
+        message: `Failed to delete booking with ID ${bookingId}.`,
+      });
+    }
   } catch (error) {
-    console.log("Error deleting booking:", error.message);
-    res.status(400).json({ error: error.message });
+    // Rollback transaction on error
+    await transaction.rollback();
+
+    console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: `An error occurred while deleting booking with ID ${req.params.id}: ${error.message}`,
+    });
   }
 };
+
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
