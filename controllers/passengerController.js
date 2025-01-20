@@ -912,7 +912,7 @@ const getPassengersSeatNumber = async (req, res) => {
           as: "booking",
           required: true,
           where: {
-            payment_status: ["paid", "invoiced"],
+            payment_status: ["paid", "invoiced","pending"],
           },
 
           include: [
