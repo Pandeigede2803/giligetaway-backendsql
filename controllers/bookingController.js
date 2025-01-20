@@ -2302,7 +2302,27 @@ const deleteBooking = async (req, res) => {
     // Retrieve booking details
     const { booking_date, transport_id } = booking;
 
-    // Step 2: Check and delete related records in Passengers
+    // Step 2: Check and delete related records in Transactions
+    console.log('\n🔍 Checking and deleting related Transactions...');
+    const transactions = await Transaction.findAll({
+      where: { booking_id: bookingId },
+    });
+
+    if (transactions.length > 0) {
+      const transactionIds = transactions.map((transaction) => transaction.id);
+      console.log('🔄 Deleting related Transactions records:', transactionIds);
+
+      await Transaction.destroy({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      console.log('✅ Successfully deleted related Transactions records.');
+    } else {
+      console.log('✅ No related Transactions found.');
+    }
+
+    // Step 3: Check and delete related records in Passengers
     console.log('\n🔍 Checking and deleting related Passengers...');
     const passengers = await Passenger.findAll({
       where: { booking_id: bookingId },
@@ -2322,7 +2342,7 @@ const deleteBooking = async (req, res) => {
       console.log('✅ No related Passengers found.');
     }
 
-    // Step 3: Check and delete related records in BookingSeatAvailability
+    // Step 4: Check and delete related records in BookingSeatAvailability
     console.log('\n🔍 Checking and deleting related BookingSeatAvailability...');
     const relatedRecords = await BookingSeatAvailability.findAll({
       where: { booking_id: bookingId },
@@ -2342,7 +2362,7 @@ const deleteBooking = async (req, res) => {
       console.log('✅ No related records found in BookingSeatAvailability.');
     }
 
-    // Step 4: Release seats associated with the booking
+    // Step 5: Release seats associated with the booking
     console.log('\n🔄 Releasing seats from current booking date...');
     try {
       const releasedSeatIds = await releaseSeats(booking, transaction);
@@ -2352,7 +2372,7 @@ const deleteBooking = async (req, res) => {
       throw new Error(`Failed to release seats: ${error.message}`);
     }
 
-    // Step 5: Delete the booking
+    // Step 6: Delete the booking
     console.log(`\n🔄 Deleting booking with ID: ${bookingId}`);
     const deletedBooking = await Booking.destroy({
       where: { id: bookingId },
