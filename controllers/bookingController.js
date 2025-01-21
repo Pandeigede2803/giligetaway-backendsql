@@ -1617,7 +1617,7 @@ const getFilteredBookings = async (req, res) => {
       }
 
       dateFilter = {
-        booking_date: {
+        created_at: {
           [Op.gte]: new Date(year, month - 1, 1), // Awal bulan
           [Op.lt]: new Date(year, month, 1), // Awal bulan berikutnya
         },
