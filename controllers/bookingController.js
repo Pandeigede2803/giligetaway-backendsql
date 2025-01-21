@@ -1220,8 +1220,16 @@ const getBookingContact = async (req, res) => {
         "contact_nationality",
         "contact_email",
       ],
+      group: ["contact_email"],
+      having: {
+        contact_email: {
+          [Op.count]: {
+            [Op.gt]: 1,
+          },
+        },
+      },
     });
-    console.log("Contact list:", JSON.stringify(bookings, null, 2));
+
     res.status(200).json(bookings.map((b) => ({ id: b.id, ...b.dataValues })));
   } catch (error) {
     console.log("Error getting contact list:", error.message);
