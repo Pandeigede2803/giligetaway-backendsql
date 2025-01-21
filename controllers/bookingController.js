@@ -16,6 +16,7 @@ const {
   BookingSeatAvailability,
   Boat,
 } = require("../models");
+const { fn, col } = require("sequelize");
 
 
 
@@ -1208,26 +1209,18 @@ bookingQueue.process(async (job, done) => {
 
 
 
-
 const getBookingContact = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
       attributes: [
-        "id",
-        "contact_name",
-        "contact_phone",
-        "contact_passport_id",
-        "contact_nationality",
-        "contact_email",
+        [fn("MAX", col("id")), "id"],
+        [fn("MAX", col("contact_name")), "contact_name"],
+        [fn("MAX", col("contact_phone")), "contact_phone"],
+        [fn("MAX", col("contact_passport_id")), "contact_passport_id"],
+        [fn("MAX", col("contact_nationality")), "contact_nationality"],
+        [fn("MAX", col("contact_email")), "contact_email"],
       ],
       group: ["contact_email"],
-      having: {
-        contact_email: {
-          [Op.count]: {
-            [Op.gt]: 1,
-          },
-        },
-      },
     });
 
     res.status(200).json(bookings.map((b) => ({ id: b.id, ...b.dataValues })));
