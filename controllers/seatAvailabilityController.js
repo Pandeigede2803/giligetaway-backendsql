@@ -19,16 +19,16 @@ const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, cre
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
 const getSeatAvailabilityByMonthYear = async (req, res) => {
-  const {  year, month } = req.query;
+  const { year, month } = req.query;
+  console.log(year, month);
 
   try {
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
- 
-        createdAt: {
+        created_at: {
           [Op.between]: [
             new Date(`${year}-${month}-01`),
-            new Date(`${year}-${month+1}-01`),
+            new Date(`${year}-${month + 1}-01`),
           ],
         },
       },
@@ -40,9 +40,9 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         'subschedule_id',
         'availability',
         'date',
-        'createdAt',
+        'created_at',
       ],
-      order: [['createdAt', 'DESC']],
+      order: [['created_at', 'DESC']],
     });
 
     return res.status(200).json({
