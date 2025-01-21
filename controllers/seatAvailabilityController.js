@@ -18,8 +18,77 @@ const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, cre
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
+const getSeatAvailabilityByMonthYear = async (req, res) => {
+  const {  year, month } = req.query;
 
+  try {
+    const seatAvailabilities = await SeatAvailability.findAll({
+      where: {
+ 
+        createdAt: {
+          [Op.between]: [
+            new Date(`${year}-${month}-01`),
+            new Date(`${year}-${month+1}-01`),
+          ],
+        },
+      },
+      attributes: [
+        'id',
+        'schedule_id',
+        'available_seats',
+        'transit_id',
+        'subschedule_id',
+        'availability',
+        'date',
+        'createdAt',
+      ],
+      order: [['createdAt', 'DESC']],
+    });
 
+    return res.status(200).json({
+      success: true,
+      message: 'Seat availability fetched by month and year',
+      seat_availabilities: seatAvailabilities,
+    });
+  } catch (error) {
+    console.log('Error:', error.message);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message,
+    });
+  }
+};
+const deleteSeatAvailabilityByIds = async (req, res) => {
+  const { ids } = req.query;
+
+  try {
+    if (Array.isArray(ids) && ids.length > 0) {
+      await SeatAvailability.destroy({
+        where: {
+          id: {
+            [Op.in]: ids,
+          },
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Seat availability with IDs ${ids.join(', ')} has been deleted`,
+      });
+    }
+
+    return res.status(400).json({
+      error: 'Bad request',
+      message: 'Ids must be an array with at least one element',
+    });
+  } catch (error) {
+    console.log('Error:', error.message);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message,
+    });
+  }
+};
 const handleSeatAvailability = async (req, res) => {
   const { seat_availability_id, schedule_id, date, boost } = req.body;
 
@@ -483,5 +552,7 @@ module.exports = {
   updateSeatAvailability,
   getAllSeatAvailabilityScheduleAndSubSchedule,
   getFilteredSeatAvailabilityById,
- handleSeatAvailability
+ handleSeatAvailability,
+ getSeatAvailabilityByMonthYear,
+ deleteSeatAvailabilityByIds
 };

@@ -37,9 +37,12 @@ const fetchAndValidateSeatAvailability = async (
         throw new Error(`Seat availability not found for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     }
 
-    console.log(`SeatAvailability ID: ${seatAvailability.id}`);
+    const maxCapacity = seatAvailability.boost
+    ? boat.capacity // Jika boost true, gunakan kapasitas kapal
+    : calculatePublicCapacity(boat); // Jika boost false, gunakan kapasitas publik
 
-    if (seatAvailability.available_seats + total_passengers > boatCapacity) {
+ 
+    if (seatAvailability.available_seats + total_passengers > maxCapacity) {
         throw new Error(`Returning seats exceeds boat capacity for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     }
 

@@ -3,6 +3,8 @@ const router = express.Router();
 const {
   getAllSeatAvailabilityScheduleAndSubSchedule,
   checkAvailableSeats,
+  getSeatAvailabilityByMonthYear,
+  deleteSeatAvailabilityByIds,
   updateSeatAvailability,
   checkAllAvailableSeats,
   getFilteredSeatAvailabilityById,
@@ -17,8 +19,8 @@ const { body } = require("express-validator");
 const boostSeatMiddleware = require("../middleware/boostSeatMiddleware");
 const { checkMaximumCapacity,validateSeatAvailabilityDate } = require("../middleware/checkSeatAvailabilityForUpdate");
 
-
-
+router.get("/get-month", authenticate, getSeatAvailabilityByMonthYear);
+router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
 
 
 router.get("/check-available", authenticate, checkAvailableSeats);
