@@ -40,6 +40,8 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         'subschedule_id',
         'availability',
         'date',
+        'updated_at',
+        'boost',
         'created_at',
       ],
       order: [['created_at', 'DESC']],
