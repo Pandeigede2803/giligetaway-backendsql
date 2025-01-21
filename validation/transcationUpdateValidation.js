@@ -102,7 +102,7 @@ const validateTransactionUpdate = (req, res, next) => {
   }
 
   // Validate status (if provided)
-  const validStatuses = ["pending", "paid", "failed",];
+  const validStatuses = ["pending","invoiced", "paid", "failed",];
   if (status && !validStatuses.includes(status)) {
     console.error(`Validation Error: Invalid status. Allowed statuses: ${validStatuses.join(", ")}`);
     return res.status(400).json({
