@@ -67,6 +67,7 @@ const transactionUpdateValidation = async (req, res, next) => {
 };
 
 
+const { body } = require("express-validator");
 const { Op } = require("sequelize");
 
 const validateTransactionUpdate = (req, res, next) => {
@@ -79,7 +80,7 @@ const validateTransactionUpdate = (req, res, next) => {
     currency,
   } = req.body;
 
-  console.log("Starting validation middleware...");
+  console.log("Starting validation middleware...", req.body);
 
   // Validate transaction_ids
   if (!transaction_ids || !Array.isArray(transaction_ids) || transaction_ids.length === 0) {
@@ -101,7 +102,7 @@ const validateTransactionUpdate = (req, res, next) => {
   }
 
   // Validate status (if provided)
-  const validStatuses = ["pending", "paid", "failed"];
+  const validStatuses = ["pending", "paid", "failed",];
   if (status && !validStatuses.includes(status)) {
     console.error(`Validation Error: Invalid status. Allowed statuses: ${validStatuses.join(", ")}`);
     return res.status(400).json({
