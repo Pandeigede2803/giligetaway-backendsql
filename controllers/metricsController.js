@@ -1670,7 +1670,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         data = await Booking.findAll({
           where: {
             agent_id: agentId,
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -1719,7 +1719,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         data = await Booking.findAll({
           where: {
             agent_id: agentId,
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -1770,7 +1770,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
         data = await Booking.findAll({
           where: {
             agent_id: agentId,
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -1844,7 +1844,7 @@ const getBookingComparisonMetrics = async (req, res) => {
     // Get daily counts for current week
     const currentWeekData = await Booking.findAll({
       where: {
-        booking_date: {
+        created_at: {
           [Op.between]: [
             currentWeekStart.format("YYYY-MM-DD"),
             currentWeekEnd.format("YYYY-MM-DD"),
@@ -1871,7 +1871,7 @@ const getBookingComparisonMetrics = async (req, res) => {
     // Get daily counts for last week
     const lastWeekData = await Booking.findAll({
       where: {
-        booking_date: {
+        created_at: {
           [Op.between]: [
             lastWeekStart.format("YYYY-MM-DD"),
             lastWeekEnd.format("YYYY-MM-DD"),
@@ -1971,7 +1971,7 @@ const getAgentStatistics = async (req, res) => {
               }
           ],
           where: {
-              booking_date: dateFilter,
+              created_at: dateFilter,
               payment_status: {
                   [Op.in]: ['invoiced', 'paid']
               },
