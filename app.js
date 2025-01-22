@@ -62,6 +62,7 @@ const paymentRoutes = require('./routes/payment');
 const agentComission = require('./routes/agentComission');
 const metrics = require('./routes/metrics');
 const csvUploadRoutes = require('./routes/csvUploadRoutes');
+const discountRoutes = require('./routes/discountRoutes');
 // Load routes
 app.use('/api/users', userRoutes);
 app.use('/api/boats', boatRoutes);
@@ -83,6 +84,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/metrics', metrics);
 app.use("/api/upload-multiple-csv-booking", csvUploadRoutes);
+app.use("api/discount", discountRoutes);
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
