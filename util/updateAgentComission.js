@@ -92,8 +92,8 @@ const updateAgentCommission = async (
   
       // •	Komisi transportasi akan dikurangi dari komisi akhir:
       if (transports && transports.length > 0) {
-        console.log(`Transport commission exists, reducing transport commission for agent_id ${agent_id}`);
-        commissionAmount -= parseFloat(commission_transport); // Reduce the transport commission
+        console.log(`Transport commission exists, reducing commission with transport commission for agent_id ${agent_id}`);
+        commissionAmount -= parseFloat(commission_transport); // Reduce with transport commission
         console.log(`Total commission after reducing transport commission: ${commissionAmount}`);
     }
   
