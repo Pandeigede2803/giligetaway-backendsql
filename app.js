@@ -84,7 +84,7 @@ app.use('/api/email', emailRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/metrics', metrics);
 app.use("/api/upload-multiple-csv-booking", csvUploadRoutes);
-app.use("api/discount", discountRoutes);
+app.use("/api/discount", discountRoutes);
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
