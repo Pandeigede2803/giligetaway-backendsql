@@ -9,6 +9,9 @@ router.post('/',authenticate, discountController.createDiscount);
 // Get all discounts
 router.get('/',authenticate, discountController.getAllDiscounts);
 
+// get discount by code
+router.get('/:code',authenticate, discountController.getDiscountByCode);
+
 // Get a discount by ID
 router.get('/:id',authenticate, discountController.getDiscountById);
 

@@ -1,4 +1,6 @@
 const Discount = require('../models/discount');
+const { fn, col } = require("sequelize");
+const { Op } = require("sequelize");
 
 // Create a new discount
 exports.createDiscount = async (req, res) => {
@@ -47,6 +49,26 @@ exports.updateDiscount = async (req, res) => {
         res.status(200).json({ success: true, data: discount });
     } catch (error) {
         console.error('Error updating discount:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+// get discount by code
+exports.getDiscountByCode = async (req, res) => {
+    try {
+        // Strict equality for case-sensitive match
+        const discount = await Discount.findOne({
+            where: { code: { [Op.eq]: req.params.code } }, // Ensures exact and strict match
+        });
+
+        if (!discount) {
+            console.log('Discount not found');
+            return res.status(404).json({ success: false, message: 'Discount not found' });
+        }
+
+        res.status(200).json({ success: true, data: discount });
+    } catch (error) {
+        console.error('Error fetching discount:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 };
