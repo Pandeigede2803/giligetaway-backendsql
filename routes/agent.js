@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const agentController = require('../controllers/agentController');
 const authenticate = require('../middleware/authenticate');
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 // const { upload,uploadImageToImageKit } = require('../middleware/upload');
 
 const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware/uploadImage');
@@ -45,6 +47,18 @@ router.post('/request-password-reset', agentController.requestPasswordResetLink)
 
 // Route to reset the password using the token
 router.post('/reset-password', agentController.resetPasswordWithToken);
+
+
+
+
+// Route POST → upload CSV
+// Format form-data, field name: "agentCsv"
+router.post(
+  "/upload-csv",
+  upload.single("agentCsv"),
+  agentController.uploadAgentCsv
+);
+
 
 
 module.exports = router;
