@@ -225,7 +225,7 @@ const getMetrics = async (req, res) => {
     // 1. Booking Value: Sum of all bookings with any status
     const bookingValue =
       (await Booking.sum("gross_total", {
-        where: { booking_date: dateFilter },
+        where: { created_at: dateFilter },
       })) || 0;
 
     const bookingValueBoat1 = await Booking.findOne({
@@ -241,7 +241,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+        created_at: dateFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -260,7 +260,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+        created_at: dateFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
@@ -278,7 +278,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+       created_at: previousPeriodFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
@@ -298,7 +298,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+        created_at: dateFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
@@ -316,7 +316,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+        created_at: previousPeriodFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
@@ -335,7 +335,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+        created_at: dateFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
@@ -353,7 +353,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+        created_at: previousPeriodFilter,
         payment_status: ['paid', 'invoiced'],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
@@ -372,7 +372,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+        created_at: previousPeriodFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
@@ -390,7 +390,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+       created_at: dateFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -408,7 +408,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+        created_at: previousPeriodFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
@@ -426,7 +426,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: dateFilter,
+        created_at: dateFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -444,7 +444,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-        booking_date: previousPeriodFilter,
+        created_at: previousPeriodFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
@@ -545,7 +545,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: dateFilter,
+            created_at: dateFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -572,7 +572,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: previousPeriodFilter,
+            created_at: previousPeriodFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -613,7 +613,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: dateFilter,
+            created_at: dateFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -640,7 +640,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: previousPeriodFilter,
+            created_at: previousPeriodFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -683,7 +683,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: dateFilter,
+            created_at: dateFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -710,7 +710,7 @@ const getMetrics = async (req, res) => {
           attributes: [],
           required: true,
           where: {
-            booking_date: previousPeriodFilter,
+            created_at: previousPeriodFilter,
             payment_status: ["invoiced", "paid"],
           },
           include: [
@@ -744,13 +744,13 @@ const getMetrics = async (req, res) => {
     // 2. Payment Received: Sum of bookings with 'paid' status
     const paymentReceived =
       (await Booking.sum("gross_total", {
-        where: { booking_date: dateFilter, payment_status: "paid" },
+        where: { created_at: dateFilter, payment_status: "paid" },
       })) || 0;
 
     // 3. Total Refund: Sum of bookings with 'refund' status
     const totalRefund =
       (await Booking.sum("gross_total", {
-        where: { booking_date: dateFilter, payment_status: "refund" },
+        where: { created_at: dateFilter, payment_status: "refund" },
       })) || 0;
 
     // 4. Total Agents: Count of all agents
@@ -761,14 +761,14 @@ const getMetrics = async (req, res) => {
       attributes: [
         [sequelize.fn("AVG", sequelize.col("gross_total")), "avgGrossTotal"],
       ],
-      where: { booking_date: dateFilter },
+      where: { created_at: dateFilter },
     }).then((result) => result?.dataValues.avgGrossTotal || 0);
 
     // 6. Agent Booking Invoiced
     const agentBookingInvoiced =
       (await Booking.sum("gross_total", {
         where: {
-          booking_date: dateFilter,
+          created_at: dateFilter,
           payment_status: "invoiced",
           agent_id: { [Op.ne]: null },
         },
@@ -778,7 +778,7 @@ const getMetrics = async (req, res) => {
     const agentPaymentReceived =
       (await Booking.sum("gross_total", {
         where: {
-          booking_date: dateFilter,
+          created_at: dateFilter,
           payment_status: "paid",
           agent_id: { [Op.ne]: null },
         },
@@ -790,7 +790,7 @@ const getMetrics = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { payment_status: "paid", booking_date: dateFilter },
+          where: { payment_status: "paid", created_at: dateFilter },
         },
       })) || 0;
     const transportBookingTotal =
@@ -801,7 +801,7 @@ const getMetrics = async (req, res) => {
             as: "booking",
             attributes: [],
             where: {
-              booking_date: dateFilter,
+              created_at: dateFilter,
               payment_status: "paid",
             },
           },
@@ -811,7 +811,7 @@ const getMetrics = async (req, res) => {
     // 9. Total Booking Count
     const totalBookingCount =
       (await Booking.count({
-        where: { booking_date: dateFilter },
+        where: { created_at: dateFilter },
       })) || 0;
 
     // 10. Total Customers
@@ -820,7 +820,7 @@ const getMetrics = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { booking_date: dateFilter },
+          where: { created_at: dateFilter },
         },
       })) || 0;
 
@@ -831,35 +831,26 @@ const getMetrics = async (req, res) => {
       attributes: [
         [sequelize.fn("AVG", sequelize.col("gross_total")), "avgGrossTotal"],
       ],
-      where: { booking_date: previousPeriodFilter },
+      where: { created_at: previousPeriodFilter },
     }).then((result) => result?.dataValues.avgGrossTotal || 0);
 
     // Previous agent invoiced total
     const previousAgentBookingInvoiced =
       (await Booking.sum("gross_total", {
         where: {
-          booking_date: previousPeriodFilter,
+          created_at: previousPeriodFilter,
           payment_status: "invoiced",
           // Exclude null agent_id
           agent_id: { [Op.not]: null },
         },
       })) || 0;
 
-    // const scheduleWithBookings = await Schedule.findOne({
-    //   where: { boat_id: 1 },
-    //   include: [
-    //     {
-    //       model: Booking,
-    //       as: "Bookings",
-    //     },
-    //   ],
-    // });
-
+  
     // Previous agent paid total
     const previousAgentPaymentReceived =
       (await Booking.sum("gross_total", {
         where: {
-          booking_date: previousPeriodFilter,
+          created_at: previousPeriodFilter,
           payment_status: "paid",
           agent_id: { [Op.ne]: null },
         },
@@ -870,7 +861,7 @@ const getMetrics = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { payment_status: "paid", booking_date: previousPeriodFilter },
+          where: { payment_status: "paid", created_at: previousPeriodFilter },
         },
       })) || 0;
 
@@ -882,7 +873,7 @@ const getMetrics = async (req, res) => {
             as: "booking",
             attributes: [], // Kosongkan attributes
             where: {
-              booking_date: previousPeriodFilter,
+              created_at: previousPeriodFilter,
               payment_status: "paid",
             },
           },
@@ -890,7 +881,7 @@ const getMetrics = async (req, res) => {
       })) || 0;
     const previousTotalBookingCount =
       (await Booking.count({
-        where: { booking_date: previousPeriodFilter },
+        where: { created_at: previousPeriodFilter },
       })) || 0;
 
     const previousTotalCustomers =
@@ -898,17 +889,17 @@ const getMetrics = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { booking_date: previousPeriodFilter },
+          where: { created_at: previousPeriodFilter },
         },
       })) || 0;
 
     const previousBookingValue =
       (await Booking.sum("gross_total", {
-        where: { booking_date: previousPeriodFilter },
+        where: { created_at: previousPeriodFilter },
       })) || 0;
     const previousPaymentReceived =
       (await Booking.sum("gross_total", {
-        where: { booking_date: previousPeriodFilter, payment_status: "paid" },
+        where: { created_at: previousPeriodFilter, payment_status: "paid" },
       })) || 0;
     const previousTotalRefund =
       (await Booking.sum("gross_total", {
@@ -1233,13 +1224,13 @@ const getMetricsByAgentId = async (req, res) => {
         where: {
           agent_id,
           payment_status: ["paid", "invoiced"],
-          booking_date: dateFilter,
+          created_at: dateFilter,
         },
       })) ?? 0;
 
     const currentTotalBookingCount =
       (await Booking.count({
-        where: { agent_id, booking_date: dateFilter },
+        where: { agent_id, created_at: dateFilter },
       })) ?? 0;
     // const currentTransportBooking =
     //   (await TransportBooking.sum("transport_price", {
@@ -1257,7 +1248,7 @@ const getMetricsByAgentId = async (req, res) => {
             as: "booking",
             attributes: [],
             where: {
-              booking_date: dateFilter,
+              created_at: dateFilter,
               payment_status: "paid",
             },
           },
@@ -1271,7 +1262,7 @@ const getMetricsByAgentId = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { agent_id, booking_date: dateFilter },
+          where: { agent_id, created_at: dateFilter },
         },
       })) ?? 0;
 
@@ -1282,7 +1273,7 @@ const getMetricsByAgentId = async (req, res) => {
           required: true,
           where: {
             agent_id,
-            booking_date: dateFilter
+            created_at: dateFilter
           }
         }],
         where: {
@@ -1295,7 +1286,7 @@ const getMetricsByAgentId = async (req, res) => {
         where: {
           agent_id,
           payment_status: "invoiced",
-          booking_date: dateFilter,
+         created_at: dateFilter,
         },
       })) ?? 0;
 
@@ -1304,18 +1295,18 @@ const getMetricsByAgentId = async (req, res) => {
         where: {
           agent_id,
           payment_status: "paid",
-          booking_date: dateFilter,
+          created_at: dateFilter,
         },
       })) ?? 0;
 
     // Previous metrics for comparison
     const previousBookingValue =
       (await Booking.sum("gross_total", {
-        where: { agent_id, booking_date: previousPeriodFilter },
+        where: { agent_id, created_at: previousPeriodFilter },
       })) ?? 0;
     const previousTotalBookingCount =
       (await Booking.count({
-        where: { agent_id, booking_date: previousPeriodFilter },
+        where: { agent_id, created_at: previousPeriodFilter },
       })) ?? 0;
 
     // const previousTransportBooking =
@@ -1337,7 +1328,7 @@ const getMetricsByAgentId = async (req, res) => {
             as: "booking",
             attributes: [], // Kosongkan attributes
             where: {
-              booking_date: previousPeriodFilter,
+              created_at: previousPeriodFilter,
               payment_status: "paid",
             },
           },
@@ -1350,7 +1341,7 @@ const getMetricsByAgentId = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { agent_id, booking_date: previousPeriodFilter },
+          where: { agent_id, created_at: previousPeriodFilter },
         },
       })) ?? 0;
       const previousTotalCommission = await AgentCommission.sum("amount", {
@@ -1360,7 +1351,7 @@ const getMetricsByAgentId = async (req, res) => {
           required: true,
           where: {
             agent_id,
-            booking_date: previousPeriodFilter
+            created_at: previousPeriodFilter
           }
         }],
         where: {
@@ -1373,7 +1364,7 @@ const getMetricsByAgentId = async (req, res) => {
         where: {
           agent_id,
           payment_status: "invoiced",
-          booking_date: previousPeriodFilter,
+          created_at: previousPeriodFilter,
         },
       })) ?? 0;
     const previouspaidToGiligetaway =
@@ -1381,7 +1372,7 @@ const getMetricsByAgentId = async (req, res) => {
         where: {
           agent_id,
           payment_status: "invoiced",
-          booking_date: previousPeriodFilter,
+          created_at: previousPeriodFilter,
         },
       })) ?? 0;
 
@@ -1448,7 +1439,7 @@ const getAnnualyMetrics = async (req, res) => {
         // Get paid/invoiced bookings
         const paidBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -1464,7 +1455,7 @@ const getAnnualyMetrics = async (req, res) => {
         // Get all bookings
         const allBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -1523,7 +1514,7 @@ const getAnnualyMetrics = async (req, res) => {
           weeks.map(async (week) => {
             const totalBookings = await Booking.count({
               where: {
-                booking_date: {
+                created_at: {
                   [Op.between]: [
                     week.start.format("YYYY-MM-DD"),
                     week.end.format("YYYY-MM-DD"),
@@ -1535,7 +1526,7 @@ const getAnnualyMetrics = async (req, res) => {
 
             const totalAllBookings = await Booking.count({
               where: {
-                booking_date: {
+                created_at: {
                   [Op.between]: [
                     week.start.format("YYYY-MM-DD"),
                     week.end.format("YYYY-MM-DD"),
@@ -1559,7 +1550,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const paidMonthlyBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -1574,7 +1565,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const allMonthlyBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -1600,7 +1591,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const paidYearlyBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -1615,7 +1606,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const allYearlyBookings = await Booking.findAll({
           where: {
-            booking_date: {
+            created_at: {
               [Op.between]: [startDate, endDate],
             },
           },
