@@ -71,7 +71,7 @@ const getBookingMetricsBySource = async (req, res) => {
     // Query metrics grouped by `booking_source`
     const metrics = await Booking.findAll({
       where: {
-        booking_date: {
+        created_at: {
           [Op.between]: [startDate, endDate],
         },
         payment_status: ["Paid", "Invoiced"],
