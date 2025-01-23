@@ -20,42 +20,50 @@ const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, cre
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
 const getSeatAvailabilityByMonthYear = async (req, res) => {
   const { year, month } = req.query;
-  console.log(year, month);
+  console.log("Query Params:", { year, month });
 
   try {
+    // Ensure month is zero-padded for consistency
+    const formattedMonth = month.padStart(2, "0");
+
+    // Calculate start and end of the month
+    const startOfMonth = new Date(`${year}-${formattedMonth}-01`);
+    const endOfMonth = new Date(`${year}-${formattedMonth}-01`);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1); // Move to next month
+
+    console.log("Start Date:", startOfMonth, "End Date:", endOfMonth);
+
+    // Query the database
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
         created_at: {
-          [Op.between]: [
-            new Date(`${year}-${month}-01`),
-            new Date(`${year}-${month + 1}-01`),
-          ],
+          [Op.between]: [startOfMonth, endOfMonth],
         },
       },
       attributes: [
-        'id',
-        'schedule_id',
-        'available_seats',
-        'transit_id',
-        'subschedule_id',
-        'availability',
-        'date',
-        'updated_at',
-        'boost',
-        'created_at',
+        "id",
+        "schedule_id",
+        "available_seats",
+        "transit_id",
+        "subschedule_id",
+        "availability",
+        "date",
+        "updated_at",
+        "boost",
+        "created_at",
       ],
-      order: [['created_at', 'DESC']],
+      order: [["created_at", "DESC"]],
     });
 
     return res.status(200).json({
       success: true,
-      message: 'Seat availability fetched by month and year',
+      message: "Seat availability fetched by month and year",
       seat_availabilities: seatAvailabilities,
     });
   } catch (error) {
-    console.log('Error:', error.message);
+    console.error("Error fetching seat availability:", error.message);
     return res.status(500).json({
-      error: 'Internal server error',
+      error: "Internal server error",
       message: error.message,
     });
   }
