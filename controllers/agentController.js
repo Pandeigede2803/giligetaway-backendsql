@@ -616,51 +616,145 @@ function parseCsvFile(filePath) {
 
 /**
  * Controller to handle CSV upload for agents
- */
-exports.uploadAgentCsv = async (req, res) => {
-  const filePath = req.file?.path; // Lokasi file dari multer
+//  */
+// exports.uploadAgentCsv = async (req, res) => {
+//   const filePath = req.file?.path; // Lokasi file dari multer
 
+//   try {
+//     // 1. Validasi apakah file ada
+//     if (!req.file) {
+//       return res
+//         .status(400)
+//         .json({ success: false, error: "No CSV file uploaded" });
+//     }
+
+//     // 2. Parse CSV menggunakan fungsi helper
+//     const agentsData = await parseCsvFile(filePath);
+
+//     // 3. Insert data ke database
+//     let insertedCount = 0;
+//     const skippedRows = []; // Untuk mencatat baris yang dilewati karena error atau tidak valid
+
+//     for (let i = 0; i < agentsData.length; i++) {
+//       const row = agentsData[i];
+
+//       // Validasi data
+//       if (!row.name || !row.email) {
+//         skippedRows.push({ row: i + 1, reason: "Missing name or email" });
+//         continue;
+//       }
+
+//       // Cek apakah name sudah ada
+//       const existingAgent = await Agent.findOne({ where: { name: row.name } });
+//       if (existingAgent) {
+//         skippedRows.push({
+//           row: i + 1,
+//           reason: `Name "${row.name}" already exists`,
+//         });
+//         continue;
+//       }
+
+//       // Hash password default jika tidak disediakan
+//       const passwordToHash =
+//         row.password?.trim() || "DefaultPassword123";
+//       const hashedPassword = await bcrypt.hash(passwordToHash, 10);
+
+//       try {
+//         // Insert ke database
+//         await Agent.create({
+//           name: row.name,
+//           contact_person: row.contact_person,
+//           email: row.email,
+//           password: hashedPassword,
+//           phone: row.phone,
+//           commission_rate: row.commission_rate || 0,
+//           commission_long: row.commission_long || 0,
+//           commission_mid: row.commission_mid || 0,
+//           commission_short: row.commission_short || 0,
+//           commission_transport: row.commission_transport || 0,
+//         });
+//         insertedCount++;
+//       } catch (err) {
+//         skippedRows.push({ row: i + 1, reason: err.message });
+//       }
+//     }
+
+//     // 4. Hapus file setelah selesai
+//     await fs.unlink(filePath);
+
+//     // 5. Kirimkan response
+//     return res.json({
+//       success: true,
+//       message: `CSV uploaded. Inserted ${insertedCount} Agents.`,
+//       skippedRows, // Rincian baris yang dilewati
+//     });
+//   } catch (error) {
+//     console.error("Error uploading agent CSV:", error.message);
+
+//     // Hapus file jika terjadi error
+//     if (filePath) {
+//       await fs.unlink(filePath).catch((err) =>
+//         console.error("Error deleting file:", err.message)
+//       );
+//     }
+
+//     return res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+exports.uploadAgentCsv = async (req, res) => {
   try {
-    // 1. Validasi apakah file ada
+    // 1. Check if a file was uploaded
     if (!req.file) {
       return res
         .status(400)
         .json({ success: false, error: "No CSV file uploaded" });
     }
 
-    // 2. Parse CSV menggunakan fungsi helper
+    const filePath = req.file.path;
+
+    // 2. Parse the CSV file
     const agentsData = await parseCsvFile(filePath);
 
-    // 3. Insert data ke database
+    // 3. Insert data into the database
     let insertedCount = 0;
-    const skippedRows = []; // Untuk mencatat baris yang dilewati karena error atau tidak valid
+    const validationErrors = []; // Track rows with validation errors
 
     for (let i = 0; i < agentsData.length; i++) {
       const row = agentsData[i];
 
-      // Validasi data
+      // Validate required fields
       if (!row.name || !row.email) {
-        skippedRows.push({ row: i + 1, reason: "Missing name or email" });
+        console.error(`Skipping row ${i + 1}: Missing name or email.`);
+        validationErrors.push({ row: i + 1, data: row, reason: "Missing name or email" });
         continue;
       }
 
-      // Cek apakah name sudah ada
+      // Check if the name already exists in the database
       const existingAgent = await Agent.findOne({ where: { name: row.name } });
       if (existingAgent) {
-        skippedRows.push({
+        console.error(
+          `Skipping row ${i + 1}: Name "${row.name}" already exists.`
+        );
+        validationErrors.push({
           row: i + 1,
+          data: row,
           reason: `Name "${row.name}" already exists`,
         });
         continue;
       }
 
-      // Hash password default jika tidak disediakan
+      // Default password if not provided
       const passwordToHash =
-        row.password?.trim() || "DefaultPassword123";
+        row.password && row.password.trim() !== ""
+          ? row.password
+          : "DefaultPassword123";
+
+      // Hash the password
       const hashedPassword = await bcrypt.hash(passwordToHash, 10);
 
       try {
-        // Insert ke database
+        // Create a new record in the Agent table
         await Agent.create({
           name: row.name,
           contact_person: row.contact_person,
@@ -668,36 +762,27 @@ exports.uploadAgentCsv = async (req, res) => {
           password: hashedPassword,
           phone: row.phone,
           commission_rate: row.commission_rate || 0,
-          commission_long: row.commission_long || 0,
-          commission_mid: row.commission_mid || 0,
-          commission_short: row.commission_short || 0,
+          commission_long: row.commission_long || 150000,
+          commission_mid: row.commission_mid || 150000,
+          commission_short: row.commission_short || 100000,
           commission_transport: row.commission_transport || 0,
+          commission_intermediate: row.commission_intermediate || 100000,
         });
         insertedCount++;
       } catch (err) {
-        skippedRows.push({ row: i + 1, reason: err.message });
+        console.error(`Error inserting row ${i + 1}:`, err.message);
+        validationErrors.push({ row: i + 1, data: row, reason: err.message });
       }
     }
 
-    // 4. Hapus file setelah selesai
-    await fs.unlink(filePath);
-
-    // 5. Kirimkan response
+    // 4. Return a response
     return res.json({
       success: true,
       message: `CSV uploaded. Inserted ${insertedCount} Agents.`,
-      skippedRows, // Rincian baris yang dilewati
+      validationErrors, // Include details of validation errors
     });
   } catch (error) {
     console.error("Error uploading agent CSV:", error.message);
-
-    // Hapus file jika terjadi error
-    if (filePath) {
-      await fs.unlink(filePath).catch((err) =>
-        console.error("Error deleting file:", err.message)
-      );
-    }
-
     return res.status(500).json({ success: false, error: error.message });
   }
 };
