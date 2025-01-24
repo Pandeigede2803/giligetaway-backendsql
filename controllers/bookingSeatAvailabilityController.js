@@ -20,7 +20,7 @@ const findSeatAvailabilityById = async (req, res) => {
                   include: [
                       {
                           model: Booking,
-                          where: { payment_status: 'paid' },  // Filter only paid bookings
+                          where: { payment_status: ['paid',"invoiced"] },  // Filter only paid bookings
                           include: [
                               {
                                   model: Passenger,

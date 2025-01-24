@@ -1665,6 +1665,11 @@ const getFilteredBookings = async (req, res) => {
           ],
         },
         {
+          model: AgentCommission,
+          as: 'agentCommissions',
+        },
+
+        {
           model:SubSchedule,
           as:'subSchedule',
           attributes: [
@@ -2100,8 +2105,8 @@ const updateBookingPayment = async (req, res) => {
 
       // Handle refund cases
       if (payment_status === 'refund_50' || payment_status === 'refund_100') {
-        console.log('\n💰 Processing Refund Request:');
-        console.log(`- Refund Type: ${payment_status}`);
+        // console.log('\n💰 Processing Refund Request:');
+        // console.log(`- Refund Type: ${payment_status}`);
         
         // Calculate refund amounts
         const refundPercentage = payment_status === 'refund_50' ? 0.5 : 1;
