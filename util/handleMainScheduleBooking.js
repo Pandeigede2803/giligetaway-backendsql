@@ -4,9 +4,10 @@ const { calculatePublicCapacity } = require('../util/getCapacityReduction');
 const handleMainScheduleBooking = async (schedule_id, booking_date, total_passengers, transaction) => {
     console.log("we enter the handleMainScheduleBooking function"); 
 
-    // Step 1: Fetch the schedule and ensure Boat is available
-    console.log(`Step 1: Fetching Schedule with ID: ${schedule_id}`);
+    // // Step 1: Fetch the schedule and ensure Boat is available
+    // console.log(`Step 1: Fetching Schedule with ID: ${schedule_id}`);
     const schedule = await Schedule.findByPk(schedule_id, {
+        where: { availability: true },
         include: [
             {
                 model: Boat,
@@ -14,7 +15,8 @@ const handleMainScheduleBooking = async (schedule_id, booking_date, total_passen
             },
             {
                 model: SubSchedule,
-                as: 'SubSchedules' // Ensure this matches the alias used in the relationship
+                as: 'SubSchedules',
+                where: { availability: true } // Ensure this matches the alias used in the relationship
             }
         ],
         transaction

@@ -120,10 +120,7 @@ if (!subSchedule || !schedule_id) {
 //UNTUK SEMENTARA INI BERHASIL
 const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
 
-    // console log semua
-    // console.log('Schedule ID dari findRelatedSubSchedules:', schedule_id);
-    // console.log('SubSchedule: dari findRelatedSubSchedules', subSchedule);
-    // console.log('Transaction:', transaction);
+   
     const transitIds = [
         subSchedule.transit_from_id,
         subSchedule.transit_1,
@@ -192,7 +189,7 @@ const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) =>
         transaction
     });
 
-    console.log(`[handleSubScheduleBooking] Sub-schedule yang terkait adalah: ${relatedSubSchedules.length} buah`);
+    console.log(`[handleSubScheduleBooking] Sub-schedule yang terkait adalah: ${relatedSubSchedules.length} buah yaitu:`, relatedSubSchedules);
 
     // Implementasi Pengecualian Berdasarkan Skenario yang Diberikan
     return relatedSubSchedules.filter(relatedSubSchedule => {
@@ -244,7 +241,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
     });
 
     if (!schedule || !schedule.Boat) {
-        console.log('Schedule atau Boat tidak ditemukan:', schedule);
+      
         throw new Error('Boat information is missing or invalid');
     }
 
@@ -253,7 +250,11 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
     console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
 
     // Fetch the selected sub-schedule
-    const subSchedule = await SubSchedule.findByPk(subschedule_id, {
+    const subSchedule = await SubSchedule.findOne({
+        where: {
+            id: subschedule_id,
+            availability: true
+        },
         include: [
             { model: Transit, as: 'TransitFrom' },
             { model: Transit, as: 'TransitTo' },

@@ -7,7 +7,7 @@ const {transactionUpdateValidation,validateTransactionUpdate,transactionIdsValid
 const calculateAgentCommissionMiddleware = require('../middleware/calculateAgentComissionMiddleware');
 
 
-router.put('/:transaction_id/status',authenticate, updateTransactionStatusHandler);
+router.put('/:transaction_id/status',authenticate,transactionUpdateValidation, updateTransactionStatusHandler);
 
 router.put('/:transaction_id/agent-status',authenticate,transactionUpdateValidation, updateAgentTransactionStatusHandler);
 // Route untuk memperbarui beberapa transaksi sekaligus berdasarkan array transaction_ids

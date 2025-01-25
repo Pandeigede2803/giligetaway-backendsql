@@ -20,6 +20,9 @@ const fetchAndValidateSeatAvailability = async (
     total_passengers,
     transaction
 ) => {
+
+
+    console.log(`✅ RELEASE MAIN SCHEDULE MULAI: ${schedule_id}`);
     console.log(`🗺️Fetching SeatAvailability for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     const seatAvailability = await SeatAvailability.findOne({
         where: {

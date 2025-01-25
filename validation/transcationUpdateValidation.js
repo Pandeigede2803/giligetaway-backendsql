@@ -59,6 +59,13 @@ const transactionUpdateValidation = async (req, res, next) => {
       });
     }
 
+    // Cannot validate if the transaction is already "paid" or "invoiced"
+    // if (status === 'paid' || status === 'invoiced') {
+    //   return res.status(400).json({
+    //     error: `Cannot change status to ${status} for transaction with ID ${transaction_id}`,
+    //   });
+    // }
+
     next();  // Proceed to the next middleware or controller if validations pass
   } catch (error) {
     console.error("Error during transaction status validation:", error);

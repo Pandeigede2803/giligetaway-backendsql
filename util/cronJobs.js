@@ -18,6 +18,8 @@ const releaseSubScheduleSeats = require('../util/releaseSubScheduleSeats');
 const releaseSeats = async (booking, transaction) => {
     const { schedule_id, subschedule_id, total_passengers, booking_date } = booking;
 
+    console.log(`✅ MEMULAI RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
+
     try {
         if (subschedule_id) {
             // Jika SubSchedule ada, kembalikan kursi untuk SubSchedule
@@ -54,7 +56,7 @@ const handleExpiredBookings = async () => {
         });
 
         for (let booking of expiredBookings) {
-            console.log(`✅ Checking booking ID ${booking.id}...`);
+            
 
             // Logika untuk melepaskan kursi yang sudah dipesan ke available_seats
             await releaseSeats(booking);

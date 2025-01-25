@@ -277,7 +277,7 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
 // };
 const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     try {
-        // Ambil SubSchedule yang relevan berdasarkan ID
+        console.log(`✅ RELEASE SUB SCHEDULE MULAI: ${subschedule_id}`);
         console.log(`✅ Fetching SubSchedule with ID: ${subschedule_id}`);
         const subSchedule = await SubSchedule.findByPk(subschedule_id, { transaction });
 
@@ -308,6 +308,8 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
                 },
                 transaction
             });
+
+            console.log("relatedSeatAvailability:", relatedSeatAvailability);
 
             if (!relatedSeatAvailability) {
                 throw new Error(`✅ Seat availability tidak ditemukan untuk SubSchedule ID: ${relatedSubSchedule.id}`);
@@ -381,6 +383,7 @@ const releaseSubScheduleSeatsSuccess = async (schedule_id, subschedule_id, booki
         throw error;
     }
 };
+
 
 module.exports = releaseSubScheduleSeats;
 

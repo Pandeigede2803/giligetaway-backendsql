@@ -20,6 +20,22 @@ const updateAgentCommission = async (
 ) => {
   try {
     console.log("Step 1: Get the trip type based on schedule or subschedule");
+
+    // / Validasi: Apakah komisi sudah ada?
+    const existingCommission = await AgentCommission.findOne({
+      where: { booking_id },
+      transaction,
+    });
+
+    if (existingCommission) {
+      console.log(`Commission for booking_id ${booking_id} already exists. Skipping.`);
+      return {
+        success: false,
+        commission: existingCommission.amount,
+      };
+    }
+
+
     console.log("gross_total CUK:", gross_total);
 
     // Step 1: Get the trip type based on schedule or subschedule
