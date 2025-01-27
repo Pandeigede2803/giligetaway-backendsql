@@ -36,7 +36,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
     // Query the database
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
-        created_at: {
+        date: {
           [Op.between]: [startOfMonth, endOfMonth],
         },
       },
