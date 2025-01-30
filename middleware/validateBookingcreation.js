@@ -83,7 +83,7 @@ const validateBookingCreation = async (req, res, next) => {
       console.log(`🔍 Validating passenger at index ${i}:`, passenger);
 
       // Validate required passenger fields
-      if (!passenger.name || !passenger.passenger_type || !passenger.nationality || !passenger.passport_id) {
+      if (!passenger.name || !passenger.passenger_type || !passenger.nationality ) {
         console.log(
           `❌ Passenger validation failed at index ${i}: Missing required fields.`,
           passenger

@@ -70,7 +70,7 @@ const validateScheduleAndSubScheduleForRoundTrip = async (req, res, next) => {
           id: departure.subschedule_id,
           schedule_id: departure.schedule_id, // Ensures subschedule belongs to the specified schedule
         },
-      });
+      });;
 
       if (!departureSubSchedule) {
         console.log(`Validation failed: departure subschedule_id ${departure.subschedule_id} does not match or belong to departure schedule_id ${departure.schedule_id}.`);
