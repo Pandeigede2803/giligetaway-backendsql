@@ -17,44 +17,76 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 
+
+// Configure Nodemailer
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST, // SMTP Server (e.g., smtp.gmail.com)
+  port: 465, // Use port 465 for SSL
+  secure: true, // Use SSL
+  auth: {
+    user: process.env.EMAIL_USER, // Your email
+    pass: process.env.EMAIL_PASSWORD, // Your email password or app password
+  },
+});
+
 exports.createAgent = async (req, res) => {
-  console.log("req body:", req.body);
+  console.log("📩 Creating new agent:", req.body);
   const transaction = await sequelize.transaction();
 
   try {
-    console.log("Data received for creating agent:", req.body);
-
-    // Generate random password
+    // Generate a random password
     const randomPassword = generateRandomPassword(10);
-    console.log("Generated random password:", randomPassword);
+    console.log("🔑 Generated Password:", randomPassword);
 
     // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
-    console.log("Hashed password:", hashedPassword);
+    console.log("🔐 Hashed Password:", hashedPassword);
 
     // Set image URL
     let imageUrl = req.file ? req.file.url : 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558';
-    console.log("Image URL to be used:", imageUrl);
+    console.log("🖼️ Image URL:", imageUrl);
 
-    // Create the agent with the hashed password and image URL
+    // Create agent data
     const agentData = {
       ...req.body,
       password: hashedPassword, // Store hashed password
       image_url: imageUrl, // Use uploaded image or default image
     };
-    console.log("Agent data to be created:", agentData);
+    console.log("📝 Agent Data:", agentData);
 
+    // Save agent in the database
     const agent = await Agent.create(agentData, { transaction });
     if (!agent) {
-      throw new Error("Failed to create agent");
+      throw new Error("❌ Failed to create agent");
     }
-    console.log("Agent created with ID:", agent.id);
+    console.log("✅ Agent Created: ID =", agent.id);
 
     // Commit the transaction
     await transaction.commit();
 
-    // Return the agent and the random password
-    console.log("Returning agent and random password");
+    // ✅ Send Email with Login Credentials
+    const mailOptions = {
+      from: `Gili Getaway <${process.env.EMAIL_USER}>`,
+      to: agent.email,
+      subject: 'Your Gili Getaway Agent Account Details',
+      html: `
+        <h2>Welcome to Gili Getaway!</h2>
+        <p>Dear ${agent.name},</p>
+        <p>Your agent account has been successfully created. Below are your login details:</p>
+        <ul>
+          <li><strong>Email:</strong> ${agent.email}</li>
+          <li><strong>Temporary Password:</strong> ${randomPassword}</li>
+        </ul>
+        <p>🔒 Please log in and change your password immediately for security purposes.</p>
+        <p>Login here: <a href="https://giligetaway-widget.my.id/agent">Gili Getaway Agent Login</a></p>
+        <p>Best regards,<br>Gili Getaway Team</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent successfully to:", agent.email);
+
+    // Return agent details (without password for security)
     res.status(201).json({
       agent: {
         id: agent.id,
@@ -71,13 +103,13 @@ exports.createAgent = async (req, res) => {
         created_at: agent.created_at,
         updated_at: agent.updated_at,
       },
-      randomPassword: randomPassword, // Return the plain random password for admin use
+      message: "Agent created successfully. Credentials sent via email.",
     });
   } catch (error) {
     // Rollback the transaction in case of error
     await transaction.rollback();
+    console.error("❌ Error creating agent:", error.message);
 
-    console.log("Error creating agent:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
@@ -223,7 +255,8 @@ exports.requestPasswordResetLink = async (req, res) => {
 
     // Send reset link via email
     const transporter = nodemailer.createTransport({
-      host: 'mail.headlessexploregilis.my.id',  // SMTP Server
+      // host: 'mail.headlessexploregilis.my.id',  // SMTP Server
+      host:process.env.EMAIL_HOST,
       port: 465,  // Gunakan port 465 untuk SSL
       secure: true, // true karena kita menggunakan SSL
       auth: {

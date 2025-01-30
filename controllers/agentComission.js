@@ -18,31 +18,48 @@ const {
     // Fetch commissions with optional filters: month, year, agent_id
     async getCommissions(req, res) {
         try {
-            const { month, year, agent_id } = req.query;
+            // const { month, year, agent_id } = req.query;
 
-            console.log("Received query parameters:", { month, year, agent_id });;;;;;
+            // console.log("Received query parameters:", { month, year, agent_id });;;;;;
 
+            const agentId = req.query.agent_id ? parseInt(req.query.agent_id, 10) : null;
+            const year = req.query.year ? parseInt(req.query.year, 10) : null;
+            const month = req.query.month ? parseInt(req.query.month, 10) : null;
+            
             // Build dynamic query conditions
             const whereConditions = {};
-            if (agent_id) whereConditions.agent_id = agent_id;
             
+            // Ensure `agent_id` is included as an integer
+            if (agentId) whereConditions.agent_id = agentId;
+            
+            // Ensure `created_at` filter is correctly applied
             if (year) {
                 whereConditions.created_at = {};
+            
                 if (month) {
-                    const startOfMonth = new Date(year, month - 1, 1);
-                    const endOfMonth = new Date(year, month, 0);
+                    // ✅ Fix: Use UTC to prevent timezone mismatches
+                    const startOfMonth = new Date(Date.UTC(year, month - 1, 1));
+                    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+            
                     whereConditions.created_at[Op.gte] = startOfMonth;
                     whereConditions.created_at[Op.lte] = endOfMonth;
-                    console.log("Added month range to conditions:", startOfMonth, "-", endOfMonth);
+            
+                    console.log("✅ Added month range to conditions:", startOfMonth.toISOString(), "-", endOfMonth.toISOString());
                 } else {
-                    const startOfYear = new Date(year, 0, 1);
-                    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+                    // ✅ Fix: Ensure entire year is covered correctly
+                    const startOfYear = new Date(Date.UTC(year, 0, 1));
+                    const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+            
                     whereConditions.created_at[Op.gte] = startOfYear;
                     whereConditions.created_at[Op.lte] = endOfYear;
-                    console.log("Added year range to conditions:", startOfYear, "-", endOfYear);
+            
+                    console.log("✅ Added year range to conditions:", startOfYear.toISOString(), "-", endOfYear.toISOString());
                 }
             }
-
+            
+            // ✅ Log the final query conditions for debugging
+            console.log("📝 Final query conditions:", JSON.stringify(whereConditions, null, 2));
+            
             console.log("Final query conditions:", whereConditions);
 
             // Query with detailed associations
@@ -205,7 +222,7 @@ const {
         try {
             const { month, year, agent_id } = req.query;
 
-            console.log("Received query parameters:", { month, year, agent_id });;;;;;
+            console.log("===Received query parameters:====", { month, year, agent_id });;;;;;
 
             // Build dynamic query conditions
             const whereConditions = {};

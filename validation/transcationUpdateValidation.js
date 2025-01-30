@@ -157,6 +157,8 @@ const transactionIdsValidation = (req, res, next) => {
     amount,
     currency, } = req.body;
 
+    console.log("Starting transactionIdsValidation middleware...,body", req.body);
+
   // {
   //   transactionIds: [
   //     'TRANS-1736182367222', 'TRANS-1736182367521'
@@ -169,6 +171,26 @@ const transactionIdsValidation = (req, res, next) => {
   //   }
   // }
 
+    // Ensure status field exists
+    if (!status) {
+      console.error("Validation Error: status field must exist");
+      return res.status(400).json({
+        success: false,
+        error: "status field must exist",
+      });
+    }
+    // Ensure payment_method field exists
+    if (!payment_method) {
+      console.error("Validation Error: payment_method field must exist");
+      return res.status(400).json({
+        success: false,
+        error: "payment_method field must exist",
+      });
+    }
+    console.log("Payment method:", payment_method);
+
+
+
   try {
     // Validate that transaction_ids is an array
     console.log("Validating transaction_ids...");
@@ -180,7 +202,7 @@ const transactionIdsValidation = (req, res, next) => {
     if (transaction_ids.length === 0) {
       throw new Error("transaction_ids array should not be empty");
     }
-console.log("transaction_ids array is valid");
+
     // Validate that updateData is an object and contains at least one key-value pair
   
     // If all validations pass, proceed to the next middleware or handler

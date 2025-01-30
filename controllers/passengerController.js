@@ -310,7 +310,6 @@ const getPassengerCountBySchedule = async (req, res) => {
   // extract query
   const { month, year, schedule_id } = req.query;
 
-
   // validation
   if (!month || !year) {
     console.log("Missing required parameters");
@@ -349,10 +348,8 @@ const getPassengerCountBySchedule = async (req, res) => {
     const startDate = `${year}-${month.padStart(2, "0")}-01`;
     const endDate = `${year}-${month.padStart(2, "0")}-${daysInMonth.length}`;
 
-   // Gunakan fungsi getFullMonthRange agar range query sebulan penuh
-   const { startFullDate, endFullDate } = getFullMonthRange(year, month);
-
-
+    // Gunakan fungsi getFullMonthRange agar range query sebulan penuh
+    const { startFullDate, endFullDate } = getFullMonthRange(year, month);
 
     // Fetch seat availabilities within the date range and for the specified schedule_id
     const seatAvailabilities = await SeatAvailability.findAll({
@@ -912,7 +909,7 @@ const getPassengersSeatNumber = async (req, res) => {
           as: "booking",
           required: true,
           where: {
-            payment_status: ["paid", "invoiced","pending"],
+            payment_status: ["paid", "invoiced", "pending"],
           },
 
           include: [
@@ -944,6 +941,9 @@ const getPassengersSeatNumber = async (req, res) => {
       ],
     });
 
+    // Extract boat details
+    const boatData = schedule?.Boat || null; // Ensure Boat data exists
+
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
     // Filter and add push some booked seats
@@ -951,7 +951,8 @@ const getPassengersSeatNumber = async (req, res) => {
     // Create utils IF the Seat number with X1,X2,X3&X4 is Exist trhow R1 R2 R3,R4
     const processedBookedSeats = processBookedSeats(
       new Set(bookedSeats),
-      seatAvailability.boost
+      seatAvailability.boost,
+      boatData
     );
 
     console.log("===processedbookedseat===", processedBookedSeats);

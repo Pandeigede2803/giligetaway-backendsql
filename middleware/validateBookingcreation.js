@@ -213,7 +213,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
       // Required fields for booking
       const requiredFields = [
         "schedule_id",
-        "subschedule_id",
         "total_passengers",
         "booking_date",
    
@@ -272,6 +271,16 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     });
   }
 };
+
+
+
+
+
+
+
+
+
+
 
 const validateMultipleBookingCreation = async (req, res, next) => {
   console.log("\n=== Starting Multiple Booking Validation ===");

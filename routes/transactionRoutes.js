@@ -12,7 +12,7 @@ router.put('/:transaction_id/status',authenticate,transactionUpdateValidation, u
 router.put('/:transaction_id/agent-status',authenticate,transactionUpdateValidation, updateAgentTransactionStatusHandler);
 // Route untuk memperbarui beberapa transaksi sekaligus berdasarkan array transaction_ids
 router.put('/multi-status', authenticate,transactionIdsValidation,validateTransactionUpdate, updateMultiTransactionStatusHandler);
-router.put('/multi-status-agent', authenticate, updateMultiAgentTransactionStatus);
+router.put('/multi-status-agent', authenticate,transactionIdsValidation, updateMultiAgentTransactionStatus);
 
 
 router.get('/',authenticate,getTransactions );
