@@ -835,7 +835,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             schedule_id,
             subschedule_id,
             total_passengers,
-            booking_date: formattedDate,
+            booking_date,
             agent_id,
             gross_total,
             ticket_total,
