@@ -55,6 +55,7 @@ exports.updateDiscount = async (req, res) => {
 
 // get discount by code
 exports.getDiscountByCode = async (req, res) => {
+    console.log('Request params:', req.params);
     try {
         // Strict equality for case-sensitive match
         const discount = await Discount.findOne({
@@ -71,7 +72,8 @@ exports.getDiscountByCode = async (req, res) => {
         console.error('Error fetching discount:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
-};
+        
+    }
 
 // Delete a discount
 exports.deleteDiscount = async (req, res) => {

@@ -809,7 +809,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           subschedule_id,
           booking_date,
           total_passengers
-        );
+        );;
 
         if (!seatAvailability.success) {
           console.log(`[Step 3.${type === "departure" ? 1 : 2}.3.1] ⚠️ Seat validation failed:`, seatAvailability.message);
@@ -829,7 +829,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.5] 📊 Total amount calculated:`, totalAmount);
 
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.6] 💾 Creating booking record...`);
-        const formattedDate = moment(booking_date, "MMM DD, YYYY").format("YYYY-MM-DD");
+      
         const booking = await Booking.create(
           {
             schedule_id,

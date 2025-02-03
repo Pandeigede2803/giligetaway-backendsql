@@ -25,10 +25,10 @@ const corsOptions = {
 
       ;
     if (allowedDomains.indexOf(origin) !== -1 || !origin) {
-      console.log(`CORS allowed from: ${origin}`);
+
       callback(null, true);
     } else {
-      console.log(`CORS blocked from: ${origin}`);
+
       callback(new Error('Not allowed by CORS'));
     }
   },

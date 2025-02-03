@@ -11,7 +11,7 @@ const imagekit = new ImageKit({
   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
 });
 
-console.log('Initialized ImageKit', imagekit);
+
 
 // Configure Multer to handle file uploads
 const storage = multer.memoryStorage();
