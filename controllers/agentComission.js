@@ -18,10 +18,10 @@ const {
     // Fetch commissions with optional filters: month, year, agent_id
     async getCommissions(req, res) {
         try {
-            // const { month, year, agent_id } = req.query;
+      
 
-            // console.log("Received query parameters:", { month, year, agent_id });;;;;;
-
+            console.log("Received query parameters:", req.query);
+            
             const agentId = req.query.agent_id ? parseInt(req.query.agent_id, 10) : null;
             const year = req.query.year ? parseInt(req.query.year, 10) : null;
             const month = req.query.month ? parseInt(req.query.month, 10) : null;
