@@ -19,8 +19,7 @@ const calculatePublicCapacity = (boat) => {
   
   // Calculate public capacity with safe fallback
   const capacityReduction = BOAT_CAPACITY_REDUCTION[boatId] || 0;
-  console.log('Capacity Reduction for Boat', boatId + ':', capacityReduction);
-  
+
   const publicCapacity = Math.max(0, actualCapacity - capacityReduction);
  
 
