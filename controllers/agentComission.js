@@ -56,7 +56,7 @@ const {
                     console.log("✅ Added year range to conditions:", startOfYear.toISOString(), "-", endOfYear.toISOString());
                 }
             }
-            
+            3
             // ✅ Log the final query conditions for debugging
             console.log("📝 Final query conditions:", JSON.stringify(whereConditions, null, 2));
             

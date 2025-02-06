@@ -1230,7 +1230,11 @@ const getMetricsByAgentId = async (req, res) => {
 
     const currentTotalBookingCount =
       (await Booking.count({
-        where: { agent_id, created_at: dateFilter },
+        where: {
+          agent_id,
+          created_at: dateFilter,
+          payment_status: ["paid", "invoiced"],
+        },
       })) ?? 0;
     // const currentTransportBooking =
     //   (await TransportBooking.sum("transport_price", {
@@ -1249,7 +1253,7 @@ const getMetricsByAgentId = async (req, res) => {
             attributes: [],
             where: {
               created_at: dateFilter,
-              payment_status: "paid",
+              payment_status: ["paid", "invoiced"],
             },
           },
         ],
@@ -1262,7 +1266,9 @@ const getMetricsByAgentId = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { agent_id, created_at: dateFilter },
+          where: { agent_id, 
+            payment_status: ["paid", "invoiced"],
+            created_at: dateFilter },
         },
       })) ?? 0;
 
@@ -1273,7 +1279,8 @@ const getMetricsByAgentId = async (req, res) => {
           required: true,
           where: {
             agent_id,
-            created_at: dateFilter
+            created_at: dateFilter,
+            payment_status: ["paid", "invoiced"]
           }
         }],
         where: {
@@ -1306,7 +1313,9 @@ const getMetricsByAgentId = async (req, res) => {
       })) ?? 0;
     const previousTotalBookingCount =
       (await Booking.count({
-        where: { agent_id, created_at: previousPeriodFilter },
+        where: { agent_id,
+          payment_status: ["paid", "invoiced"],
+           created_at: previousPeriodFilter },
       })) ?? 0;
 
     // const previousTransportBooking =
@@ -1329,7 +1338,7 @@ const getMetricsByAgentId = async (req, res) => {
             attributes: [], // Kosongkan attributes
             where: {
               created_at: previousPeriodFilter,
-              payment_status: "paid",
+              payment_status: ["paid", "invoiced"],
             },
           },
         ],

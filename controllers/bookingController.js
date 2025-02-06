@@ -978,10 +978,49 @@ bookingRoundQueue.process(async (job, done) => {
       );
     }
 
+    console.log(
+      `Remaining Seat Availabilities for ${type} booking:`,
+      remainingSeatAvailabilities
+    );
+
+
+        // Step 5: Add Remaining Seat Availabilities
+        if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+          const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
+            (sa) => ({
+              booking_id,
+              seat_availability_id: sa.id,
+            })
+          );
+    
+          console.log(
+            "Data to Insert into BookingSeatAvailability:",
+            bookingSeatAvailabilityData
+          );
+    
+          const result = await BookingSeatAvailability.bulkCreate(
+            bookingSeatAvailabilityData,
+            { transaction }
+          );
+    
+          console.log(
+            `Successfully created ${result.length} BookingSeatAvailability records.`
+          );
+          console.log(
+            "Created BookingSeatAvailability entries with seat_availability_id values:",
+            result.map((record) => record.seat_availability_id)
+          );
+        } else {
+          console.log("No seat availabilities found.");
+        }
+
     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
 
     // Step 3: Add Passengers
-    console.log(`Adding passengers for booking_id ${booking_id}`);
+    console.log(`Adding passengers for ${type}  booking_id ${booking_id}
+      `);
+
+      console.log("✅ DATA PASSENGER IS", passengers);
     await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings
@@ -993,35 +1032,7 @@ bookingRoundQueue.process(async (job, done) => {
       transaction
     );
 
-    // Step 5: Add Remaining Seat Availabilities
-    if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-      const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
-        (sa) => ({
-          booking_id,
-          seat_availability_id: sa.id,
-        })
-      );
 
-      console.log(
-        "Data to Insert into BookingSeatAvailability:",
-        bookingSeatAvailabilityData
-      );
-
-      const result = await BookingSeatAvailability.bulkCreate(
-        bookingSeatAvailabilityData,
-        { transaction }
-      );
-
-      console.log(
-        `Successfully created ${result.length} BookingSeatAvailability records.`
-      );
-      console.log(
-        "Created BookingSeatAvailability entries with seat_availability_id values:",
-        result.map((record) => record.seat_availability_id)
-      );
-    } else {
-      console.log("No seat availabilities found.");
-    }
 
     await transaction.commit(); // Commit the transaction if successful
     console.log(`Booking queue success for booking ${booking_id}`);
@@ -1194,6 +1205,123 @@ const createBookingWithTransitQueue = async (req, res) => {
   }
 };
 
+// bookingQueue.process(async (job, done) => {
+//   const {
+//     schedule_id,
+//     subschedule_id,
+//     booking_date,
+//     total_passengers,
+//     passengers,
+//     transports,
+//     transit_details,
+//     booking_id,
+//     agent_id,
+//     gross_total,
+//     payment_status,
+//   } = job.data;
+
+//   console.log("---START OF JOB---",);
+
+//   const transaction = await sequelize.transaction();
+//   try {
+//     // Step 2: Handle Seat Availability
+//     let remainingSeatAvailabilities;
+//     if (subschedule_id) {
+//       console.log(
+//         `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleSubScheduleBooking(
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers,
+//         transit_details,
+//         transaction
+//       );
+//     } else {
+//       console.log(
+//         `Processing main schedule booking for schedule_id ${schedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleMainScheduleBooking(
+//         schedule_id,
+//         booking_date,
+//         total_passengers,
+//         transaction
+//       );
+//     }
+
+//     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+
+//     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+//       const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
+//         (sa) => ({
+//           booking_id,
+//           seat_availability_id: sa.id,
+//         })
+//       );
+
+//       console.log(
+//         "=======Data to Insert into BookingSeatAvailability:=======",
+//         bookingSeatAvailabilityData
+//       );
+
+//       console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+
+//       // Step 6: Add remaining Seat Availabilities to BookingSeatAvailability
+//       const result = await BookingSeatAvailability.bulkCreate(
+//         bookingSeatAvailabilityData,
+//         { transaction }
+//       );
+
+//       // Log the count of created BookingSeatAvailability records and their seat_availability_ids
+//       console.log(
+//         `Successfully created ${result.length} BookingSeatAvailability records.`
+//       );
+//       console.log(
+//         "Created BookingSeatAvailability entries with seat_availability_id values:",
+//         result.map((record) => record.seat_availability_id)
+//       );
+//     } else {
+//       console.log("No seat availabilities found.");
+//     }
+
+
+    
+
+//     // Step 3: Add Passengers
+//     console.log(`Adding passengers for booking_id ${booking_id}`);
+//     await addPassengers(passengers, booking_id, transaction,);
+
+//     // Step 4: Add Transport Bookings
+//     console.log(`Adding transport bookings for booking_id ${booking_id}`);
+//     await addTransportBookings(
+//       transports,
+//       booking_id,
+//       total_passengers,
+//       transaction
+//     );
+
+//     // Step 5: Update Agent Metrics (only if payment is complete)
+//     // if (agent_id && payment_status === 'paid') {
+//     //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
+//     //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
+//     // }
+
+//     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+//     console.log("Booking ID:", booking_id);
+
+//     // Step 6: Add remaining Seat Availabilities
+ 
+//     await transaction.commit(); // Commit the transaction if successful
+//     console.log(`Booking queue success for booking ${booking_id}`);
+//     done(); // Mark the job as done
+//   } catch (error) {
+//     await transaction.rollback(); // Rollback transaction if any error occurs
+//     console.error("Error processing booking queue:", error.message);
+//     done(error); // Mark the job as failed
+//   }
+// });
+
 bookingQueue.process(async (job, done) => {
   const {
     schedule_id,
@@ -1209,16 +1337,14 @@ bookingQueue.process(async (job, done) => {
     payment_status,
   } = job.data;
 
-  console.log("---START OF JOB---",);
+  console.log("---START OF JOB---");
 
   const transaction = await sequelize.transaction();
   try {
     // Step 2: Handle Seat Availability
     let remainingSeatAvailabilities;
     if (subschedule_id) {
-      console.log(
-        `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
-      );
+      console.log(`Processing sub-schedule booking for subschedule_id ${subschedule_id}`);
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
         subschedule_id,
@@ -1228,9 +1354,7 @@ bookingQueue.process(async (job, done) => {
         transaction
       );
     } else {
-      console.log(
-        `Processing main schedule booking for schedule_id ${schedule_id}`
-      );
+      console.log(`Processing main schedule booking for schedule_id ${schedule_id}`);
       remainingSeatAvailabilities = await handleMainScheduleBooking(
         schedule_id,
         booking_date,
@@ -1239,32 +1363,12 @@ bookingQueue.process(async (job, done) => {
       );
     }
 
-    console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-
-    // Step 3: Add Passengers
-    console.log(`Adding passengers for booking_id ${booking_id}`);
-    await addPassengers(passengers, booking_id, transaction,);
-
-    // Step 4: Add Transport Bookings
-    console.log(`Adding transport bookings for booking_id ${booking_id}`);
-    await addTransportBookings(
-      transports,
-      booking_id,
-      total_passengers,
-      transaction
-    );
-
-    // Step 5: Update Agent Metrics (only if payment is complete)
-    // if (agent_id && payment_status === 'paid') {
-    //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
-    //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
-    // }
-
-    console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-    console.log("Booking ID:", booking_id);
-
-    // Step 6: Add remaining Seat Availabilities
+    console.log("THIS ISRemaining Seat Availabilities:", remainingSeatAvailabilities);
+// ======================
+    // Step 2: Buat Record Pivot BookingSeatAvailability
+    // ======================
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+      // Siapkan data pivot
       const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
         (sa) => ({
           booking_id,
@@ -1273,17 +1377,17 @@ bookingQueue.process(async (job, done) => {
       );
 
       console.log(
-        "Data to Insert into BookingSeatAvailability:",
+        "=======Data to Insert into BookingSeatAvailability:=======",
         bookingSeatAvailabilityData
       );
 
-      // Step 6: Add remaining Seat Availabilities to BookingSeatAvailability
+      // Eksekusi bulkCreate
       const result = await BookingSeatAvailability.bulkCreate(
         bookingSeatAvailabilityData,
         { transaction }
       );
 
-      // Log the count of created BookingSeatAvailability records and their seat_availability_ids
+      // Log hasil
       console.log(
         `Successfully created ${result.length} BookingSeatAvailability records.`
       );
@@ -1295,6 +1399,28 @@ bookingQueue.process(async (job, done) => {
       console.log("No seat availabilities found.");
     }
 
+    // Step 3: Add Passengers
+    console.log(`Adding passengers for booking_id ${booking_id}`);
+    await addPassengers(passengers, booking_id, transaction);
+
+    // Step 4: Add Transport Bookings
+    console.log(`Adding transport bookings for booking_id ${booking_id}`);
+    await addTransportBookings(
+      transports,
+      booking_id,
+      total_passengers,
+      transaction
+    );
+
+    // Step 5: Update Agent Metrics (if needed)
+    // if (agent_id && payment_status === 'paid') {
+    //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
+    //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
+    // }
+
+    console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+    console.log("Booking ID:", booking_id);
+
     await transaction.commit(); // Commit the transaction if successful
     console.log(`Booking queue success for booking ${booking_id}`);
     done(); // Mark the job as done
@@ -1304,7 +1430,6 @@ bookingQueue.process(async (job, done) => {
     done(error); // Mark the job as failed
   }
 });
-
 
 
 

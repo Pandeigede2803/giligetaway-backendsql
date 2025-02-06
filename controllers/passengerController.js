@@ -881,6 +881,7 @@ const getPassengerCountByDate = async (req, res) => {
 
 const getPassengersSeatNumber = async (req, res) => {
   const { date, schedule_id, sub_schedule_id } = req.query;
+  console.log("Query Params:", { date, schedule_id, sub_schedule_id });
 
   try {
     // Check SeatAvailability for skenario 1
@@ -889,6 +890,10 @@ const getPassengersSeatNumber = async (req, res) => {
       schedule_id,
       sub_schedule_id,
     });
+    console.log(
+      `SeatAvailability found for ${date}, Schedule ID: ${schedule_id}, SubSchedule ID: ${sub_schedule_id}:`,
+      JSON.stringify(seatAvailability, null, 2)
+    );
 
     // If no SeatAvailability found, handle skenario 2
     if (!seatAvailability) {
@@ -909,7 +914,7 @@ const getPassengersSeatNumber = async (req, res) => {
           as: "booking",
           required: true,
           where: {
-            payment_status: ["paid", "invoiced", "pending"],
+            payment_status: ["paid", "invoiced","pending"],
           },
 
           include: [
@@ -926,7 +931,10 @@ const getPassengersSeatNumber = async (req, res) => {
           ],
         },
       ],
+
     });
+
+   
 
     // query boat information from req query schedule-id
     console.log(`Fetching boat with ID: ${schedule_id}`);
@@ -946,6 +954,7 @@ const getPassengersSeatNumber = async (req, res) => {
 
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
+    console.log("===bookedseat===", bookedSeats);
     // Filter and add push some booked seats
     // Create utils IF the Seat number with A1&A2 is throw = R1&R2 too
     // Create utils IF the Seat number with X1,X2,X3&X4 is Exist trhow R1 R2 R3,R4
