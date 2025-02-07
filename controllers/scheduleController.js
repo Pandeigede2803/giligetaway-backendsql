@@ -23,6 +23,9 @@ const { fn, col } = require("sequelize");
 const {
   getSchedulesWithSubSchedules2,
 } = require("../util/schedulepassenger/scheduleUtils");
+// getAllSchedulesWithSubSchedules.js (Controller)
+
+
 
 
 
@@ -57,97 +60,97 @@ const getDaysInMonth = (month, year) => {
   });
 };
 
-const getAllSchedulesWithSubSchedules = async (req, res) => {
-  const { month, year, boat_id } = req.query;
+// const getAllSchedulesWithSubSchedules = async (req, res) => {
+//   const { month, year, boat_id } = req.query;
 
-  if (!month || !year || !boat_id) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "Please provide month, year, and boat_id in the query parameters.",
-    });
-  }
+//   if (!month || !year || !boat_id) {
+//     return res.status(400).json({
+//       success: false,
+//       message:
+//         "Please provide month, year, and boat_id in the query parameters.",
+//     });
+//   }
 
-  try {
-    // Use the utility function to fetch schedules with sub-schedules
-    const schedules = await getSchedulesWithSubSchedules2(
-      Schedule, // Your Schedule model
-      SubSchedule, // Your SubSchedule model
-      Destination, // Your Destination model
-      Transit, // Your Transit model
-      Boat, // Your Boat model
-      { month, year, boat_id } // Query parameters
-    );
+//   try {
+//     // Use the utility function to fetch schedules with sub-schedules
+//     const schedules = await getSchedulesWithSubSchedules2(
+//       Schedule, // Your Schedule model
+//       SubSchedule, // Your SubSchedule model
+//       Destination, // Your Destination model
+//       Transit, // Your Transit model
+//       Boat, // Your Boat model
+//       { month, year, boat_id } // Query parameters
+//     );
 
-    // If no schedules are found, return a 200 status with a message
-    if (!schedules || schedules.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "There’s no schedule yet for the specified month and boat.",
-        data: [],
-      });
-    }
+//     // If no schedules are found, return a 200 status with a message
+//     if (!schedules || schedules.length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         message: "There’s no schedule yet for the specified month and boat.",
+//         data: [],
+//       });
+//     }
 
-    // Use getDaysInMonth to generate all days in the requested month
-    const daysInMonth = getDaysInMonth(month, year);
-    const results = [];
+//     // Use getDaysInMonth to generate all days in the requested month
+//     const daysInMonth = getDaysInMonth(month, year);
+//     const results = [];
 
-    for (const date of daysInMonth) {
-      console.log(`Processing date: ${date}`);
+//     for (const date of daysInMonth) {
+//       console.log(`Processing date: ${date}`);
     
-      for (const schedule of schedules) {
-        // Ambil total penumpang dan seat availability ID untuk jadwal utama
-        const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
-          schedule.id,
-          null,
-          date
-        );
+//       for (const schedule of schedules) {
+//         // Ambil total penumpang dan seat availability ID untuk jadwal utama
+//         const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
+//           schedule.id,
+//           null,
+//           date
+//         );
     
-        // Tambahkan hasil jadwal utama ke results
-        results.push({
-          seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
-          date: date,
-          schedule_id: schedule.id,
-          subschedule_id: null,
-          total_passengers: totalPassengers,
-          route: buildRouteFromSchedule2(schedule, null),
-          days_of_week: schedule.days_of_week,
-        });
+//         // Tambahkan hasil jadwal utama ke results
+//         results.push({
+//           seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
+//           date: date,
+//           schedule_id: schedule.id,
+//           subschedule_id: null,
+//           total_passengers: totalPassengers,
+//           route: buildRouteFromSchedule2(schedule, null),
+//           days_of_week: schedule.days_of_week,
+//         });
     
-        // Iterasi setiap sub-jadwal
-        for (const subSchedule of schedule.SubSchedules) {
-          const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
-            subSchedule.schedule_id,
-            subSchedule.id,
-            date
-          );
+//         // Iterasi setiap sub-jadwal
+//         for (const subSchedule of schedule.SubSchedules) {
+//           const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
+//             subSchedule.schedule_id,
+//             subSchedule.id,
+//             date
+//           );
     
-          results.push({
-            seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
-            date: date,
-            schedule_id: subSchedule.schedule_id,
-            subschedule_id: subSchedule.id,
-            total_passengers: totalPassengers,
-            route: buildRouteFromSchedule2(schedule, subSchedule),
-            days_of_week: subSchedule.days_of_week,
-          });
-        }
-      }
-    }
+//           results.push({
+//             seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
+//             date: date,
+//             schedule_id: subSchedule.schedule_id,
+//             subschedule_id: subSchedule.id,
+//             total_passengers: totalPassengers,
+//             route: buildRouteFromSchedule2(schedule, subSchedule),
+//             days_of_week: subSchedule.days_of_week,
+//           });
+//         }
+//       }
+//     }
     
 
-    return res.status(200).json({
-      success: true,
-      data: results,
-    });
-  } catch (error) {
-    console.error("Error fetching schedules with sub-schedules:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch schedules for the specified month and boat.",
-    });
-  }
-};
+//     return res.status(200).json({
+//       success: true,
+//       data: results,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching schedules with sub-schedules:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch schedules for the specified month and boat.",
+//     });
+//   }
+// };
 // const getScheduleSubschedule = async (req, res) => {
 //   const { boat_id } = req.query;
 
@@ -283,6 +286,111 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
 //     });
 //   }
 // };
+
+
+const getAllSchedulesWithSubSchedules = async (req, res) => {
+  const { month, year, boat_id } = req.query;
+
+  if (!month || !year || !boat_id) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide month, year, and boat_id in the query parameters.",
+    });
+  }
+
+  try {
+    // Dynamic import untuk p-limit
+    const { default: pLimit } = await import("p-limit");
+
+    // Ambil schedules beserta sub-schedules untuk bulan dan boat tertentu
+    const schedules = await getSchedulesWithSubSchedules2(
+      Schedule,      // Model Schedule
+      SubSchedule,   // Model SubSchedule
+      Destination,   // Model Destination
+      Transit,       // Model Transit
+      Boat,          // Model Boat
+      { month, year, boat_id }  // Parameter objek
+    );
+
+    // Jika tidak ditemukan schedule, kembalikan pesan yang sesuai
+    if (!schedules || schedules.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "There’s no schedule yet for the specified month and boat.",
+        data: [],
+      });
+    }
+
+    // Ambil semua tanggal dalam bulan tersebut, misalnya ['2025-02-01', ..., '2025-02-28']
+    const daysInMonth = getDaysInMonth(month, year);
+
+    // Gunakan p-limit untuk membatasi jumlah promise yang berjalan bersamaan (misalnya, maksimum 10)
+    const limit = pLimit(10);
+    const tasks = [];
+
+    // Iterasi setiap tanggal
+    for (const date of daysInMonth) {
+      console.log(`Processing date: ${date}`);
+
+      // Iterasi setiap schedule
+      for (const schedule of schedules) {
+        // Buat promise untuk schedule utama (tanpa sub-schedule)
+        tasks.push(
+          limit(() =>
+            getTotalPassengers(schedule.id, null, date).then(
+              ({ totalPassengers, seatAvailabilityIds }) => ({
+                seatavailability_id:
+                  seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null,
+                date,
+                schedule_id: schedule.id,
+                subschedule_id: null,
+                total_passengers: totalPassengers,
+                route: buildRouteFromSchedule2(schedule, null),
+                days_of_week: schedule.days_of_week,
+              })
+            )
+          )
+        );
+
+        // Jika schedule memiliki sub-schedules, proses masing-masing sub-schedule
+        if (schedule.SubSchedules && schedule.SubSchedules.length > 0) {
+          for (const subSchedule of schedule.SubSchedules) {
+            tasks.push(
+              limit(() =>
+                getTotalPassengers(subSchedule.schedule_id, subSchedule.id, date).then(
+                  ({ totalPassengers, seatAvailabilityIds }) => ({
+                    seatavailability_id:
+                      seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null,
+                    date,
+                    schedule_id: subSchedule.schedule_id,
+                    subschedule_id: subSchedule.id,
+                    total_passengers: totalPassengers,
+                    route: buildRouteFromSchedule2(schedule, subSchedule),
+                    days_of_week: subSchedule.days_of_week,
+                  })
+                )
+              )
+            );
+          }
+        }
+      }
+    }
+
+    // Eksekusi semua promise secara paralel dengan batas concurrency
+    const results = await Promise.all(tasks);
+
+    return res.status(200).json({
+      success: true,
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error fetching schedules with sub-schedules:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch schedules for the specified month and boat.",
+    });
+  }
+};
 
 const getScheduleSubschedule = async (req, res) => {
   const { boat_id } = req.query;
