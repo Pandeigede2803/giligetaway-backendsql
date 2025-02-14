@@ -51,22 +51,25 @@ const validateBookingCreation = async (req, res, next) => {
       });
     }
 
-    console.log("👥 Validating passenger counts...");
-    const calculatedTotal = adult_passengers + child_passengers;
-    if (calculatedTotal !== total_passengers) {
-      console.log("❌ Passenger count validation failed.");
-      return res.status(400).json({
-        error: "Invalid passenger count",
-        message:
-          "Sum of adult and child passengers must equal total passengers (infants are not counted)",
-        provided: {
-          total_passengers,
-          calculated: calculatedTotal,
-          adult_passengers,
-          child_passengers,
-        },
-      });
-    }
+    // console.log("👥 Validating passenger counts...");
+    // const calculatedTotal = adult_passengers + child_passengers;
+    // if (calculatedTotal !== total_passengers) {
+    //   console.log("❌ Passenger count validation failed.");
+    //   console.log("total passenger is ", total_passengers)
+    //   console.log("adult passenger is ", adult_passengers)
+    //   console.log("child passenger is ", child_passengers)
+    //   return res.status(400).json({
+    //     error: "Invalid passenger count",
+    //     message:
+    //       "Sum of adult and child passengers must equal total passengers (infants are not counted)",
+    //     provided: {
+    //       total_passengers,
+    //       calculated: calculatedTotal,
+    //       adult_passengers,
+    //       child_passengers,
+    //     },
+    //   });
+    // }
 
     console.log("🧳 Validating passengers data...");
     if (!Array.isArray(passengers)) {

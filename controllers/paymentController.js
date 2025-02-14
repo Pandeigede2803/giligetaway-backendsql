@@ -23,7 +23,7 @@ function formatDateToMidtrans(date) {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0700`;
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} +0700`;;
 }
 
 // Handle PayPal Webhook Events
@@ -560,9 +560,7 @@ const generateMidtransLink = async (req, res) => {
   try {
     const { booking, transaction, transports } = req.body;
 
-    console.log("🚀 [INPUT]: Booking Details:", booking);
-    console.log("🛒 [INPUT]: Transaction Details:", transaction);
-    console.log("🚐 [INPUT]: Transport Details:", transports);
+  
 
     // Prepare transaction details
     const transactionDetails = {

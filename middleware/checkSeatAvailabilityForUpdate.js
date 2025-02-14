@@ -201,6 +201,207 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
     }
 };
 
+const checkSeatAvailabilityForUpdate2 = async (req, res, next) => {
+    const { booking_id } = req.params;
+    const { booking_date } = req.body;
+
+    const id = booking_id;
+
+    console.log('\n=== Starting Seat Availability Check ===');
+    console.log(`📋 Booking ID: ${id}`);
+    console.log(`📅 Requested Date: ${booking_date}`);
+
+    try {
+        // Input validation
+        if (!booking_date) {
+            console.log('❌ Error: Booking date is missing');
+            return res.status(400).json({
+                error: 'Booking date is required'
+            });
+        }
+
+        // Find booking with relations
+        console.log('\n🔍 Finding booking details...');
+        const booking = await Booking.findByPk(id, {
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                    include: [{
+                        model: Boat,
+                        as: 'Boat',
+                        attributes: ['capacity']
+                    }]
+                },
+                {
+                    model: SubSchedule,
+                    as: 'subSchedule'
+                }
+            ]
+        });
+
+        if (!booking) {
+            console.log('❌ Error: Booking not found');
+            return res.status(404).json({
+                error: 'Booking not found'
+            });
+        }
+
+        console.log('\n📊 Booking Details:');
+        console.log(`- Schedule ID: ${booking.schedule_id}`);
+        console.log(`- SubSchedule ID: ${booking.subschedule_id || 'None'}`);
+        console.log(`- Total Passengers: ${booking.total_passengers}`);
+        console.log(`- Boat Capacity: ${booking.schedule.Boat.capacity}`);
+
+        // Schedule availability check
+        console.log('\n🔍 Checking schedule availability...');
+        if (!booking.schedule.availability) {
+            console.log('❌ Main schedule is unavailable');
+            return res.status(400).json({
+                error: 'The main schedule is currently unavailable'
+            });
+        }
+        console.log('✅ Main schedule is available');
+
+        const availabilityChecks = [];
+
+        if (!booking.subschedule_id) {
+            console.log('\n🔍 Checking main schedule seat availability...');
+            const mainScheduleSeatAvailability = await SeatAvailability.findOne({
+                where: {
+                    schedule_id: booking.schedule_id,
+                    subschedule_id: null,
+                    date: booking_date
+                }
+            });
+
+            if (mainScheduleSeatAvailability) {
+                console.log(`- Current available seats: ${mainScheduleSeatAvailability.available_seats}`);
+                console.log(`- Required seats: ${booking.total_passengers}`);
+                
+                availabilityChecks.push({
+                    type: 'Main Schedule',
+                    id: booking.schedule_id,
+                    available: mainScheduleSeatAvailability.availability,
+                    availableSeats: mainScheduleSeatAvailability.available_seats,
+                    needed: booking.total_passengers,
+                    sufficient: mainScheduleSeatAvailability.available_seats >= booking.total_passengers
+                });
+            } else {
+                console.log('- No existing seat availability record, will create new');
+                availabilityChecks.push({
+                    type: 'Main Schedule',
+                    id: booking.schedule_id,
+                    available: true,
+                    availableSeats: booking.schedule.Boat.capacity,
+                    needed: booking.total_passengers,
+                    sufficient: true
+                });
+            }
+        } else {
+            console.log('\n🔍 Checking sub-schedule and related schedules...');
+            if (!booking.subSchedule.availability) {
+                console.log('❌ Selected sub-schedule is unavailable');
+                return res.status(400).json({
+                    error: 'The selected sub-schedule is currently unavailable'
+                });
+            }
+            console.log('✅ Selected sub-schedule is available');
+
+            // Find related sub-schedules
+            console.log('\n🔄 Finding related sub-schedules...');
+            const relatedSubSchedules = await findRelatedSubSchedules(
+                booking.schedule_id,
+                booking.subSchedule
+            );
+            console.log(`Found ${relatedSubSchedules.length} related sub-schedules`);
+
+            // Check each related sub-schedule
+            for (const subSchedule of relatedSubSchedules) {
+                console.log(`\n📊 Checking sub-schedule ID: ${subSchedule.id}`);
+                const seatAvailability = await SeatAvailability.findOne({
+                    where: {
+                        schedule_id: booking.schedule_id,
+                        subschedule_id: subSchedule.id,
+                        date: booking_date
+                    }
+                });
+
+                if (seatAvailability) {
+                    console.log(`- Current available seats: ${seatAvailability.available_seats}`);
+                    console.log(`- Required seats: ${booking.total_passengers}`);
+                    
+                    availabilityChecks.push({
+                        type: 'Sub Schedule',
+                        id: subSchedule.id,
+                        available: seatAvailability.availability,
+                        availableSeats: seatAvailability.available_seats,
+                        needed: booking.total_passengers,
+                        sufficient: seatAvailability.available_seats >= booking.total_passengers
+                    });
+                } else {
+                    console.log('- No existing seat availability record, will create new');
+                    availabilityChecks.push({
+                        type: 'Sub Schedule',
+                        id: subSchedule.id,
+                        available: true,
+                        availableSeats: booking.schedule.Boat.capacity,
+                        needed: booking.total_passengers,
+                        sufficient: true
+                    });
+                }
+            }
+        }
+
+        // Print final availability summary
+        console.log('\n📊 Seat Availability Summary:');
+        availabilityChecks.forEach(check => {
+            console.log(`\n${check.type} (ID: ${check.id}):`);
+            console.log(`- Available: ${check.available ? 'Yes' : 'No'}`);
+            console.log(`- Available Seats: ${check.availableSeats}`);
+            console.log(`- Needed Seats: ${check.needed}`);
+            console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);
+        });
+
+        // Check if any availability check failed
+        const failed = availabilityChecks.find(check => !check.available || !check.sufficient);
+        if (failed) {
+            console.log('\n❌ Seat availability check failed:');
+            console.log(`- Failed at: ${failed.type} (ID: ${failed.id})`);
+            console.log(`- Available seats: ${failed.availableSeats}`);
+            console.log(`- Needed seats: ${failed.needed}`);
+            
+            return res.status(400).json({
+                error: `Not enough seats available in ${failed.type.toLowerCase()} ${failed.id}`,
+                availableSeats: failed.availableSeats,
+                neededSeats: failed.needed
+            });
+        }
+
+        console.log('\n✅ All seat availability checks passed');
+        
+        // Store booking details
+        req.bookingDetails = {
+            booking,
+            availabilityChecks,
+            boatCapacity: booking.schedule.Boat.capacity,
+            totalPassengers: booking.total_passengers,
+            scheduleId: booking.schedule_id,
+            subscheduleId: booking.subschedule_id
+        };
+
+        console.log('\n=== Seat Availability Check Completed ===\n');
+        next();
+
+    } catch (error) {
+        console.error('\n❌ Error in seat availability middleware:', error);
+        return res.status(500).json({
+            error: 'Internal server error while checking seat availability',
+            details: error.message
+        });
+    }
+};
+
 
 
 
@@ -296,7 +497,7 @@ const validateBookingDate = async (req, res, next) => {
     const { booking_date } = req.body;
 
     try {
-        console.log('\n=== Starting Date Validation ===');
+        console.log('\n=== Starting Date Validation === for',id);
         
         // Basic validation
         if (!booking_date) {
@@ -428,6 +629,279 @@ const validateBookingDate = async (req, res, next) => {
         });
     }
 };
+
+const validateBookingDate2 = async (req, res, next) => {
+    const { booking_id } = req.params;
+    const { booking_date } = req.body;
+
+    const id = booking_id;
+
+    try {
+        console.log('\n=== Starting Date Validation === for',id);
+        
+        // Basic validation
+        if (!booking_date) {
+            console.log('❌ Booking date is missing');
+            return res.status(400).json({
+                error: 'Booking date is required'
+            });
+        }
+
+        // Format validation
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(booking_date)) {
+            console.log('❌ Invalid date format');
+            return res.status(400).json({
+                error: 'Invalid date format. Please use YYYY-MM-DD'
+            });
+        }
+
+        // Get booking details with schedule information
+        const booking = await Booking.findByPk(id, {
+            include: [
+                {
+                    model: Schedule,
+                    as: 'schedule',
+                },
+                {
+                    model: SubSchedule,
+                    as: 'subSchedule'
+                }
+            ]
+        });
+
+        if (!booking) {
+            console.log('❌ Booking not found');
+            return res.status(404).json({
+                error: 'Booking not found'
+            });
+        }
+
+        const newBookingDate = moment(booking_date);
+        const dayOfWeek = newBookingDate.day(); // 0 = Sunday, 1 = Monday, etc.
+
+        // Validate schedule validity period
+        const scheduleValidityStart = moment(booking.schedule.validity_start);
+        const scheduleValidityEnd = moment(booking.schedule.validity_end);
+
+        console.log('\n📅 Checking schedule validity period...');
+        console.log(`Validity Start: ${scheduleValidityStart.format('YYYY-MM-DD')}`);
+        console.log(`Validity End: ${scheduleValidityEnd.format('YYYY-MM-DD')}`);
+        console.log(`New Booking Date: ${newBookingDate.format('YYYY-MM-DD')}`);
+
+        if (newBookingDate.isBefore(scheduleValidityStart) || newBookingDate.isAfter(scheduleValidityEnd)) {
+            console.log('❌ Date outside schedule validity period');
+            return res.status(400).json({
+                error: 'Selected date is outside the schedule validity period',
+                validityStart: scheduleValidityStart.format('YYYY-MM-DD'),
+                validityEnd: scheduleValidityEnd.format('YYYY-MM-DD')
+            });
+        }
+
+        // Check days of week for schedule
+        const scheduleDaysOfWeek = booking.schedule.days_of_week;
+        const isDayAllowed = (scheduleDaysOfWeek & (1 << dayOfWeek)) !== 0;
+
+        console.log('\n📅 Checking schedule days of week...');
+        console.log(`Day of Week: ${dayOfWeek}`);
+        console.log(`Schedule Days: ${scheduleDaysOfWeek}`);
+        console.log(`Day Allowed: ${isDayAllowed}`);
+
+        if (!isDayAllowed) {
+            return res.status(400).json({
+                error: 'Selected day is not available for this schedule',
+                selectedDay: moment.weekdays(dayOfWeek),
+                availableDays: getAvailableDays(scheduleDaysOfWeek)
+            });
+        }
+
+        // Additional validation for subschedule if exists
+        if (booking.subschedule_id) {
+            console.log('\n📅 Checking subschedule validity...');
+            
+            const subSchedule = booking.subSchedule;
+            if (!subSchedule) {
+                return res.status(404).json({
+                    error: 'SubSchedule not found'
+                });
+            }
+
+            // Check subschedule validity period if different from main schedule
+            if (subSchedule.validity_start || subSchedule.validity_end) {
+                const subScheduleValidityStart = subSchedule.validity_start ? 
+                    moment(subSchedule.validity_start) : scheduleValidityStart;
+                const subScheduleValidityEnd = subSchedule.validity_end ? 
+                    moment(subSchedule.validity_end) : scheduleValidityEnd;
+
+                if (newBookingDate.isBefore(subScheduleValidityStart) || 
+                    newBookingDate.isAfter(subScheduleValidityEnd)) {
+                    return res.status(400).json({
+                        error: 'Selected date is outside the subschedule validity period',
+                        validityStart: subScheduleValidityStart.format('YYYY-MM-DD'),
+                        validityEnd: subScheduleValidityEnd.format('YYYY-MM-DD')
+                    });
+                }
+            }
+
+            // Check subschedule days of week if different from main schedule
+            if (subSchedule.days_of_week !== null) {
+                const subScheduleDaysOfWeek = subSchedule.days_of_week;
+                const isSubScheduleDayAllowed = (subScheduleDaysOfWeek & (1 << dayOfWeek)) !== 0;
+
+                if (!isSubScheduleDayAllowed) {
+                    return res.status(400).json({
+                        error: 'Selected day is not available for this subschedule',
+                        selectedDay: moment.weekdays(dayOfWeek),
+                        availableDays: getAvailableDays(subScheduleDaysOfWeek)
+                    });
+                }
+            }
+        }
+
+        console.log('✅ Date validation passed');
+        next();
+
+    } catch (error) {
+        console.error('❌ Error in date validation:', error);
+        return res.status(500).json({
+            error: 'Error validating booking date',
+            details: error.message
+        });
+    }
+};
+
+// middlewares/checkBookingDateUpdate.js
+
+/**
+ * Middleware untuk memeriksa apakah update booking_date
+ * melebihi 10 hari dari created_at di tabel Booking.
+ * 
+ * Asumsi:
+ * - booking_id diambil dari req.params.booking_id
+ * - newBookingDate diambil dari req.body.booking_date
+ */
+const checkBookingDateUpdate = async (req, res, next) => {
+    try {
+      const bookingId = req.params.booking_id; 
+      const newBookingDate = req.body.booking_date; // masih kita cek keberadaannya
+
+      console.log('\n=== Starting checkBookingDateUpdate middleware ===');
+  
+      // Validasi awal
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: "booking_id is required in URL params"
+        });
+      }
+      if (!newBookingDate) {
+        return res.status(400).json({
+          success: false,
+          message: "booking_date is required in request body"
+        });
+      }
+  
+      // Ambil data booking
+      const booking = await Booking.findByPk(bookingId);
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: `Booking with id ${bookingId} not found`
+        });
+      }
+  
+      // Hitung selisih antara waktu sekarang dan created_at
+      const createdAt = booking.created_at; 
+      const now = new Date();
+      const diffMs = now - createdAt;  // (ms)
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+      // Cek apakah lebih dari 10 hari
+      if (diffDays > 10) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot update booking_date. More than 10 days have passed since the booking was created. (~${diffDays.toFixed(1)} days)`
+        });
+      }
+  
+      // Jika masih <= 10 hari, silakan lanjut ke controller
+      next();
+  
+    } catch (err) {
+      console.error('Error in checkBookingDateUpdate middleware:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: err.message
+      });
+    }
+  };
+
+  const checkBookingDateUpdate2 = async (req, res, next) => {
+    try {
+      const bookingId = req.params.booking_id; 
+  
+      console.log('\n=== Starting checkBookingDateUpdate2 middleware ===');
+  
+      // Validasi booking_id
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: "booking_id is required in URL params"
+        });
+      }
+  
+      // Ambil data booking berdasarkan ID
+      const booking = await Booking.findByPk(bookingId);
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: `Booking with id ${bookingId} not found`
+        });
+      }
+  
+      // Validasi status pembayaran sebelum membatalkan
+      if (booking.payment_status === "paid") {
+        return res.status(400).json({
+          success: false,
+          message: "Your booking is already paid. Please contact our staff to process a refund. email: 0IgUc@example.com"
+        });
+      } else if (booking.payment_status !== "invoiced") {
+        return res.status(400).json({
+          success: false,
+          message: "Booking can only be canceled if the payment status is 'invoiced'."
+        });
+      }
+  
+      // Hitung selisih antara waktu sekarang dan created_at
+      const createdAt = new Date(booking.created_at); 
+      const now = new Date();
+      const diffMs = now - createdAt;  // (ms)
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+      // Cek apakah lebih dari 10 hari sejak dibuat
+      if (diffDays > 10) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot proceed. More than 10 days have passed since the booking was created. (~${diffDays.toFixed(1)} days)`
+        });
+      }
+  
+      // Jika semua validasi lolos, lanjutkan ke controller berikutnya
+      next();
+  
+    } catch (err) {
+      console.error('Error in checkBookingDateUpdate2 middleware:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: err.message
+      });
+    }
+  };
+  
+  
+
 
 const validatePaymentUpdate = async (req, res, next) => {
     const { payment_method, payment_status } = req.body;
@@ -633,12 +1107,69 @@ const validateSeatAvailabilityDate = async (req, res, next) => {
   };
   
   
+  const checkAgentPassword = async (req, res, next) => {
+    try {
+      const { agent_id, password } = req.body;
+  
+      // 1. Pastikan agent_id dan password disertakan
+      if (!agent_id) {
+        return res.status(400).json({
+          success: false,
+          message: "agent_id is required"
+        });
+      }
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: "password is required"
+        });
+      }
+  
+      // 2. Cari agent di database
+      const agent = await Agent.findByPk(agent_id);
+      if (!agent) {
+        return res.status(404).json({
+          success: false,
+          message: `Agent with id ${agent_id} not found`
+        });
+      }
+  
+      // 3. Validasi password
+      //    Asumsikan agent.password di DB adalah hash bcrypt.
+      const isMatch = await bcrypt.compare(password, agent.password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid password"
+        });
+      }
+  
+      // 4. Simpan data agent ke req agar dapat diakses controller
+      req.agent = agent;
+  
+      // 5. Lanjut ke controller
+      next();
+  
+    } catch (err) {
+      console.error('Error in checkAgentPassword middleware:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: err.message
+      });
+    }
+  };
   
 
 
 // Helper function to convert binary days of week to array of day names
 module.exports = {
     checkSeatAvailabilityForUpdate,
+    checkSeatAvailabilityForUpdate2,
     validateBookingDate,
-    validatePaymentUpdate,checkMaximumCapacity,validateSeatAvailabilityDate
+    validateBookingDate2,
+    validatePaymentUpdate,checkMaximumCapacity,validateSeatAvailabilityDate,
+    checkBookingDateUpdate,
+    checkBookingDateUpdate2,
+    checkAgentPassword
 };

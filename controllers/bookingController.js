@@ -755,7 +755,7 @@ bookingQueueMultiple.process(async (job, done) => {
 // };
 
 
-const createRoundBookingWithTransitQueue = async (req, res) => {
+const  createRoundBookingWithTransitQueue = async (req, res) => {
   console.log("\n[Step 1] 🎯 Starting round trip booking process...");
 
   const { departure, return: returnData } = req.body;
@@ -1712,10 +1712,10 @@ const getBookings = async (req, res) => {
         },
       ],
     });
-    console.log("All bookings retrieved:", bookings);
+ 
     res.status(200).json(bookings);
   } catch (error) {
-    console.log("Error retrieving bookings:", error.message);
+ 
     res.status(400).json({ error: error.message });
   }
 };
@@ -2008,18 +2008,14 @@ const getFilteredBookings = async (req, res) => {
       ],
     });
 
-    // Log data bookings untuk debugging
-    console.log("Bookings fetched:", bookings);
+ 
 
     // Tambahkan route ke masing-masing booking
     const enrichedBookings = bookings.map((booking) => {
       const schedule = booking.schedule || null;
       const subSchedule = booking.subSchedule || null;
 
-      // Log `schedule_id` dan `subschedule_id`
-      console.log(
-        `Booking ID: ${booking.id}, Schedule ID: ${schedule?.id}, Subschedule${subSchedule}`
-      );
+    
  // Tentukan departure_time dan arrival_time menggunakan fungsi
  const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
@@ -2030,7 +2026,6 @@ const getFilteredBookings = async (req, res) => {
         ? buildRouteFromSchedule(schedule, subSchedule)
         : null;
 
-        console.log("departure time dan arrivaltime:",times);
 
       // Tambahkan route ke hasil booking
       return {
@@ -2311,12 +2306,7 @@ const updateBookingPayment = async (req, res) => {
         throw new Error("Booking not found");
       }
 
-      console.log('\n📊 Current Booking State:');
-      console.log(`- Current Payment Status: ${booking.payment_status}`);
-      console.log(`- Current Gross Total: ${booking.gross_total} ${booking.currency}`);
-      console.log(`- Current Gross Total USD: ${booking.gross_total_in_usd || 'Not set'}`);
-      console.log(`- Current Payment Method: ${booking.payment_method || 'Not set'}`);
-
+ 
       // Handle payment method update only
       if (payment_method && !payment_status) {
         console.log('\n🔄 Updating payment method only...');
@@ -2510,6 +2500,114 @@ const updateBookingDate = async (req, res) => {
     });
   }
 };
+
+const updateBookingDateAgent = async (req, res) => {
+  const { booking_id } = req.params;              // Booking ID dari URL params
+  const { booking_date } = req.body;      // Booking date baru dari body
+
+  const id = booking_id;
+
+  try {
+    // Jalankan semua proses dalam transaksi
+    await sequelize.transaction(async (t) => {
+      console.log('\n=== Starting Booking Date Update Process ===');
+
+      // 1. Cari booking berdasarkan ID
+      const booking = await Booking.findByPk(id, { transaction: t });
+      if (!booking) {
+        return res.status(404).json({
+          error: 'Booking not found'
+        });
+      }
+
+      // Simpan booking date lama
+      const originalBookingDate = booking.booking_date;
+      console.log('Original booking date:', originalBookingDate);
+      console.log('New booking date:', booking_date);
+
+      // 2. Cek apakah booking_date sama
+      if (
+        originalBookingDate &&
+        booking_date &&
+        new Date(originalBookingDate).getTime() === new Date(booking_date).getTime()
+      ) {
+        return res.status(400).json({
+          error: 'New booking date is the same as current booking date'
+        });
+      }
+
+      // 3. Release seats dari booking date lama
+      console.log('\n🔄 Releasing seats from previous date...');
+      try {
+        const releasedSeatIds = await releaseSeats(booking, t);
+        console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+      } catch (error) {
+        console.error('❌ Error releasing seats:', error);
+        throw new Error(`Failed to release seats: ${error.message}`);
+      }
+
+      // 4. Update booking date
+      console.log('\n📅 Updating booking date...');
+      await booking.update({ booking_date }, { transaction: t });
+      console.log('✅ Booking date updated successfully');
+
+      // 5. Create / update seat availabilities untuk booking date baru
+      console.log('\n🔄 Creating new seat availabilities...');
+      let remainingSeatAvailabilities;
+
+      if (booking.subschedule_id) {
+        console.log(`Processing sub-schedule booking for subschedule_id ${booking.subschedule_id}`);
+        remainingSeatAvailabilities = await handleSubScheduleBooking(
+          booking.schedule_id,
+          booking.subschedule_id,
+          booking_date,
+          booking.total_passengers,
+          null,
+          t
+        );
+      } else {
+        console.log(`Processing main schedule booking for schedule_id ${booking.schedule_id}`);
+        remainingSeatAvailabilities = await handleMainScheduleBooking(
+          booking.schedule_id,
+          booking_date,
+          booking.total_passengers,
+          t
+        );
+      }
+
+      console.log(
+        '✅ New seat availabilities created successfully:',
+        remainingSeatAvailabilities.map(sa => ({
+          id: sa.id,
+          schedule_id: sa.schedule_id,
+          subschedule_id: sa.subschedule_id,
+          available_seats: sa.available_seats
+        }))
+      );
+
+      console.log('\n=== Booking Date Update Process Completed ===');
+
+      // 6. Response sukses
+      return res.status(200).json({
+        message: 'Booking date updated successfully',
+        booking: {
+          id: booking.id,
+          new_date: booking_date,
+          previous_date: originalBookingDate,
+          affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
+        }
+      });
+    }); // end of transaction
+
+  } catch (error) {
+    console.error('\n❌ Error in updateBookingDate:', error);
+    return res.status(400).json({
+      error: 'Failed to update booking date',
+      details: error.message
+    });
+  }
+};
+
 
 
 const deleteBooking = async (req, res) => {
@@ -2986,6 +3084,73 @@ const createBookingWithTransit = async (req, res) => {
   }
 };
 
+const cancelBooking = async (req, res) => {
+  const { booking_id } = req.params;
+
+  const id = booking_id;
+
+  console.log('\n=== Starting Booking Cancellation Process ===');
+  console.log('📝 Request Details:');
+  console.log(`- Booking ID: ${id}`);
+
+  try {
+    await sequelize.transaction(async (t) => {
+      // 1. Cari booking
+      console.log('\n🔍 Finding booking details...');
+      const booking = await Booking.findByPk(id, { transaction: t });
+
+      if (!booking) {
+        console.log('❌ Booking not found');
+        throw new Error("Booking not found");
+      }
+
+      // Cek apakah sudah cancelled sebelumnya (opsional)
+      if (booking.payment_status === 'cancelled') {
+        console.log('⚠️ Booking already cancelled');
+        return res.status(400).json({
+          error: "Booking is already cancelled"
+        });
+      }
+
+      // 2. Lepaskan seat yang sudah terlanjur di-reserve
+      console.log('\n🪑 Releasing seats for the booking...');
+      const releasedSeatIds = await releaseSeats(booking, t);
+      console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(', ') : 'None'}`);
+
+      // 3. Update payment_status menjadi 'cancelled'
+      //    (Opsional: set gross_total = 0, dsb. jika ada kebijakan refund total)
+      console.log('\n🔄 Updating booking to cancelled status...');
+      await booking.update(
+        {
+          payment_status: 'cancelled'
+          // gross_total: 0,        // <-- jika perlu set total = 0
+          // gross_total_in_usd: 0, // <-- jika perlu set total USD = 0
+        },
+        { transaction: t }
+      );
+      console.log('✅ Booking successfully cancelled');
+
+      // 4. Return response sukses
+      return res.status(200).json({
+        message: "Booking cancelled successfully",
+        data: {
+          booking_id: booking.id,
+          new_payment_status: booking.payment_status,
+          released_seats: releasedSeatIds
+        }
+      });
+    }); // end of transaction
+
+  } catch (error) {
+    console.error('\n❌ Error in cancelBooking:', error);
+    return res.status(400).json({
+      error: error.message || 'Failed to cancel booking',
+      details: 'Cancellation process encountered an error'
+    });
+  }
+};
+
+
 module.exports = {
   createBooking,
   createBookingMultiple,
@@ -3003,6 +3168,8 @@ module.exports = {
   updateBookingPayment,
   updateBookingDate,
   getBookingsByDate,
+  updateBookingDateAgent,
+  cancelBooking,
   createRoundBookingWithTransitQueue
 };
 

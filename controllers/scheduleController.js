@@ -1377,6 +1377,8 @@ const createScheduleWithTransit = async (req, res) => {
     await t.rollback();
     console.error("Error creating schedule with transits:", error);
     res.status(400).json({ error: error.message });
+    // Restart the server
+    process.exit(1);
   }
 };
 

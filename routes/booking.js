@@ -6,7 +6,9 @@ const authenticate = require('../middleware/authenticate');
 const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limiting middleware
 const {validateScheduleAndSubSchedule,validateScheduleAndSubScheduleForRoundTrip} = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
-const { checkSeatAvailabilityForUpdate,validateBookingDate,validatePaymentUpdate } = require('../middleware/checkSeatAvailabilityForUpdate');
+const { checkSeatAvailabilityForUpdate,checkSeatAvailabilityForUpdate2,
+    validateBookingDate,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
+    checkBookingDateUpdate2} = require('../middleware/checkSeatAvailabilityForUpdate');
 const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
 
 // CREATE booking
@@ -52,6 +54,10 @@ router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.
 
 //update booking date
 router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate, bookingController.updateBookingDate);
+
+router.put('/date-agent/:booking_id',authenticate,checkBookingDateUpdate,validateBookingDate2,checkSeatAvailabilityForUpdate2, bookingController.updateBookingDateAgent);
+
+router.put('/:booking_id/cancel',authenticate,checkBookingDateUpdate2, bookingController.cancelBooking);
 
 // DELETE booking
 router.delete('/:id',authenticate, bookingController.deleteBooking);

@@ -75,12 +75,12 @@ const validateMidtransPaymentMethod = (req, res, next) => {
       });
     }
   
-    // Loop through each booking and check if payment_method is 'midtrans'
+    // Loop through each booking and check if payment_method is 'midtrans' and status is not 'invoiced'
     for (const booking of bookings) {
-      if (booking.payment_method !== 'midtrans') {
+      if (booking.payment_method !== 'midtrans' && booking.payment_method !== 'invoiced') {
         return res.status(400).json({
           success: false,
-          message: `Invalid payment method for booking ID ${booking.id}. It must be "midtrans".`,
+          message: `Invalid payment method or status for booking ID ${booking.id}. Payment method must be "midtrans" and status must not be "invoiced".`,
         });
       }
     }
