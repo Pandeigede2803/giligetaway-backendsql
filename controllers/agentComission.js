@@ -137,10 +137,16 @@ const AgentCommissionController = {
             ...bookingWhereConditions, // ✅ Ensure this is included!
           }, // Hanya ambil booking dengan status invoiced
 
+
           include: [
             {
               model: Transaction,
               as: "transactions",
+            },
+            {
+              model:Passenger,
+              as: "passengers",
+              attributes: ["id", "name", "seat_number"],
             },
             {
               model: Schedule,
