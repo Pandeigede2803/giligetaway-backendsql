@@ -491,7 +491,7 @@ const generateSingleMidtransLink = async (req, res) => {
     // Use transaction ID from the first transaction for order_id
     const primaryTransaction = transactions[0];
     const transactionDetails = {
-      order_id: `${primaryTransaction.transaction_id}`, // Unique order_id
+      order_id: `${primaryTransaction.transaction_id}-${Math.random().toString(36).substring(2, 10)}`, // Unique order_id with random combination
       gross_amount: grossAmount, // Use total gross amount from bookings
     };
     console.log("Transaction Details:", transactionDetails);
