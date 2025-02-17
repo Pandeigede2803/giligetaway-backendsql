@@ -146,7 +146,7 @@ const AgentCommissionController = {
             {
               model:Passenger,
               as: "passengers",
-              attributes: ["id", "name", "seat_number"],
+             
             },
             {
               model: Schedule,
