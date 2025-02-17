@@ -168,12 +168,12 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "FromDestination",
-                  attributes: ["id", "name"],
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Destination,
                   as: "ToDestination",
-                  attributes: ["id", "name"],
+                  // attributes: ["id", "name"],
                 },
               ],
             },
@@ -200,12 +200,12 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "DestinationFrom",
-                  attributes: ["id", "name"],
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Destination,
                   as: "DestinationTo",
-                  attributes: ["id", "name"],
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Transit,
@@ -214,7 +214,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -224,7 +224,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -234,7 +234,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -244,7 +244,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -254,7 +254,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -264,7 +264,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    attributes: ["id", "name"],
+                    // attributes: ["id", "name"],
                   },
                 },
               ],
