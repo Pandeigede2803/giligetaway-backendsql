@@ -148,33 +148,52 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
 
   // Full date (year, month, day)
   if (numericYear && numericMonth && numericDay) {
-    const dateStr = moment(`${numericYear}-${numericMonth}-${numericDay}`).format('YYYY-MM-DD');
+    const dateStr = moment(
+      `${numericYear}-${numericMonth}-${numericDay}`
+    ).format("YYYY-MM-DD");
     return {
       [Op.and]: [
-        sequelize.where(sequelize.fn('YEAR', sequelize.col('booking_date')), numericYear),
-        sequelize.where(sequelize.fn('MONTH', sequelize.col('booking_date')), numericMonth),
-        sequelize.where(sequelize.fn('DAY', sequelize.col('booking_date')), numericDay)
-      ]
+        sequelize.where(
+          sequelize.fn("YEAR", sequelize.col("booking_date")),
+          numericYear
+        ),
+        sequelize.where(
+          sequelize.fn("MONTH", sequelize.col("booking_date")),
+          numericMonth
+        ),
+        sequelize.where(
+          sequelize.fn("DAY", sequelize.col("booking_date")),
+          numericDay
+        ),
+      ],
     };
   }
 
   // Year and month
   if (numericYear && numericMonth) {
-    const startDate = moment(`${numericYear}-${numericMonth}-01`).startOf('month').format('YYYY-MM-DD');
-    const endDate = moment(`${numericYear}-${numericMonth}-01`).endOf('month').format('YYYY-MM-DD');
-    
+    const startDate = moment(`${numericYear}-${numericMonth}-01`)
+      .startOf("month")
+      .format("YYYY-MM-DD");
+    const endDate = moment(`${numericYear}-${numericMonth}-01`)
+      .endOf("month")
+      .format("YYYY-MM-DD");
+
     return {
-      [Op.between]: [startDate, endDate]
+      [Op.between]: [startDate, endDate],
     };
   }
 
   // Only year
   if (numericYear) {
-    const startDate = moment(`${numericYear}-01-01`).startOf('year').format('YYYY-MM-DD');
-    const endDate = moment(`${numericYear}-12-31`).endOf('year').format('YYYY-MM-DD');
-    
+    const startDate = moment(`${numericYear}-01-01`)
+      .startOf("year")
+      .format("YYYY-MM-DD");
+    const endDate = moment(`${numericYear}-12-31`)
+      .endOf("year")
+      .format("YYYY-MM-DD");
+
     return {
-      [Op.between]: [startDate, endDate]
+      [Op.between]: [startDate, endDate],
     };
   }
 
@@ -182,11 +201,11 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
   const currentDate = moment();
   return {
     [Op.between]: [
-      currentDate.clone().startOf('month').format('YYYY-MM-DD'),
-      currentDate.clone().endOf('month').format('YYYY-MM-DD')
-    ]
+      currentDate.clone().startOf("month").format("YYYY-MM-DD"),
+      currentDate.clone().endOf("month").format("YYYY-MM-DD"),
+    ],
   };
-};;
+};
 
 // Controller to fetch metrics
 const getMetrics = async (req, res) => {
@@ -246,7 +265,6 @@ const getMetrics = async (req, res) => {
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
 
-
     const bookingNetValueBoat1 = await Booking.findOne({
       attributes: [
         [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingValue"],
@@ -261,7 +279,7 @@ const getMetrics = async (req, res) => {
       ],
       where: {
         created_at: dateFilter,
-        payment_status: ['paid', 'invoiced'],
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -278,12 +296,11 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-       created_at: previousPeriodFilter,
-        payment_status: ['paid', 'invoiced'],
+        created_at: previousPeriodFilter,
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
-
 
     const bookingNetValueBoat2 = await Booking.findOne({
       attributes: [
@@ -299,7 +316,7 @@ const getMetrics = async (req, res) => {
       ],
       where: {
         created_at: dateFilter,
-        payment_status: ['paid', 'invoiced'],
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -317,7 +334,7 @@ const getMetrics = async (req, res) => {
       ],
       where: {
         created_at: previousPeriodFilter,
-        payment_status: ['paid', 'invoiced'],
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
@@ -336,7 +353,7 @@ const getMetrics = async (req, res) => {
       ],
       where: {
         created_at: dateFilter,
-        payment_status: ['paid', 'invoiced'],
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -354,7 +371,7 @@ const getMetrics = async (req, res) => {
       ],
       where: {
         created_at: previousPeriodFilter,
-        payment_status: ['paid', 'invoiced'],
+        payment_status: ["paid", "invoiced"],
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
@@ -390,7 +407,7 @@ const getMetrics = async (req, res) => {
         },
       ],
       where: {
-       created_at: dateFilter,
+        created_at: dateFilter,
       },
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id since we're filtering by it
     });
@@ -449,8 +466,6 @@ const getMetrics = async (req, res) => {
       group: ["schedule.boat_id"], // Changed from schedule.id to boat_id
     });
 
-
-
     const currentValue = Number(
       bookingValueBoat1?.dataValues?.bookingValue || 0
     );
@@ -463,7 +478,7 @@ const getMetrics = async (req, res) => {
         ? ((currentValue - previousValue) / previousValue) * 100
         : 0;
 
-        // net value booking 1
+    // net value booking 1
     const currentNetValue1 = Number(
       bookingNetValueBoat1?.dataValues?.bookingValue || 0
     );
@@ -471,12 +486,13 @@ const getMetrics = async (req, res) => {
     const previousNetValue1 = Number(
       previousNetValueBoat1?.dataValues?.bookingValue || 0
     );
- 
-    const bookingNetValueBoat1Change = previousNetValue1 !== 0
-      ? ((currentNetValue1 - previousNetValue1) / previousNetValue1) * 100
-      : 0;
 
-              // net value booking 1
+    const bookingNetValueBoat1Change =
+      previousNetValue1 !== 0
+        ? ((currentNetValue1 - previousNetValue1) / previousNetValue1) * 100
+        : 0;
+
+    // net value booking 1
     const currentNetValue2 = Number(
       bookingNetValueBoat2?.dataValues?.bookingValue || 0
     );
@@ -489,7 +505,7 @@ const getMetrics = async (req, res) => {
         ? ((currentNetValue2 - previousNetValue2) / previousNetValue2) * 100
         : 0;
 
-              // net value booking 1
+    // net value booking 1
     console.log("Calculating net value change for Boat 3...");
     const currentNetValue3 = Number(
       bookingNetValueBoat3?.dataValues?.bookingValue || 0
@@ -504,8 +520,9 @@ const getMetrics = async (req, res) => {
         ? ((currentNetValue3 - previousNetValue3) / previousNetValue3) * 100
         : 0;
 
-    console.log(`Net value change for Boat 3: ${bookingNetValueBoat3Change.toFixed(2)}%`);
-    
+    console.log(
+      `Net value change for Boat 3: ${bookingNetValueBoat3Change.toFixed(2)}%`
+    );
 
     // boat 2
 
@@ -845,7 +862,6 @@ const getMetrics = async (req, res) => {
         },
       })) || 0;
 
-  
     // Previous agent paid total
     const previousAgentPaymentReceived =
       (await Booking.sum("gross_total", {
@@ -965,16 +981,22 @@ const getMetrics = async (req, res) => {
         100
       : 0;
 
-  
-
     const currentNetIncome =
       paymentReceived -
       (currentValueAgentBoat1 +
         currentValueAgentBoat2 +
         currentValueAgentBoat3);
-        console.log("previousPaymentReceived:", previousPaymentReceived);
 
-        console.log("previousValueAgentBoat3:", previousValueAgentBoat2);
+    console.log(
+      "=== CURRENT NET INCOME ===:",
+      currentValueAgentBoat1,
+      currentValueAgentBoat2,
+      currentValueAgentBoat3
+    );
+    console.log("paymentReceived:", paymentReceived);
+    console.log("==CURRENT NET INCOME==", currentNetIncome);
+
+    // console.log("previousValueAgentBoat3:", previousValueAgentBoat2);
 
     const previousNetIncome =
       previousPaymentReceived -
@@ -1084,21 +1106,24 @@ const getMetrics = async (req, res) => {
         },
 
         bookingNetValueBoat1: {
-          value:currentNetValue1,
-          status: currentNetValue1 >= previousNetValue1 ? "increase" : "decrease",
+          value: currentNetValue1,
+          status:
+            currentNetValue1 >= previousNetValue1 ? "increase" : "decrease",
           change: `${bookingNetValueBoat1Change.toFixed(2)}%`,
         },
 
         // add bookingNetValueboat2 and 3
         bookingNetValueBoat2: {
-          value:currentNetValue2,
-          status: currentNetValue2 >= previousNetValue2 ? "increase" : "decrease",
+          value: currentNetValue2,
+          status:
+            currentNetValue2 >= previousNetValue2 ? "increase" : "decrease",
           change: `${bookingNetValueBoat2Change.toFixed(2)}%`,
         },
 
         bookingNetValueBoat3: {
-          value:currentNetValue3,
-          status: currentNetValue3 >= previousNetValue3 ? "increase" : "decrease",
+          value: currentNetValue3,
+          status:
+            currentNetValue3 >= previousNetValue3 ? "increase" : "decrease",
           change: `${bookingNetValueBoat3Change.toFixed(2)}%`,
         },
 
@@ -1141,8 +1166,7 @@ const getMetrics = async (req, res) => {
           value: currentNetIncome,
           status:
             currentNetIncome >= previousNetIncome ? "increase" : "decrease",
-          change:
-            `${change.toFixed(2)}%`,
+          change: `${change.toFixed(2)}%`,
         },
       },
     });
@@ -1163,12 +1187,6 @@ const calculateComparison = (current, previous) => {
     change: `${change.toFixed(2)}%`,
   };
 };
-
-
-
-
-
-
 
 // Get metrics by agent ID
 const getMetricsByAgentId = async (req, res) => {
@@ -1266,34 +1284,39 @@ const getMetricsByAgentId = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { agent_id, 
+          where: {
+            agent_id,
             payment_status: ["paid", "invoiced"],
-            created_at: dateFilter },
+            created_at: dateFilter,
+          },
         },
       })) ?? 0;
 
-      const currentTotalCommission = await AgentCommission.sum("amount", {
-        include: [{
-          model: Booking,
-          attributes: [],
-          required: true,
-          where: {
-            agent_id,
-            created_at: dateFilter,
-            payment_status: ["paid", "invoiced"]
-          }
-        }],
+    const currentTotalCommission =
+      (await AgentCommission.sum("amount", {
+        include: [
+          {
+            model: Booking,
+            attributes: [],
+            required: true,
+            where: {
+              agent_id,
+              created_at: dateFilter,
+              payment_status: ["paid", "invoiced"],
+            },
+          },
+        ],
         where: {
-          agent_id
-        }
-      }) ?? 0;
+          agent_id,
+        },
+      })) ?? 0;
 
     const currentUnpaidToGiligetaway =
       (await Booking.sum("gross_total", {
         where: {
           agent_id,
           payment_status: "invoiced",
-         created_at: dateFilter,
+          created_at: dateFilter,
         },
       })) ?? 0;
 
@@ -1313,9 +1336,11 @@ const getMetricsByAgentId = async (req, res) => {
       })) ?? 0;
     const previousTotalBookingCount =
       (await Booking.count({
-        where: { agent_id,
+        where: {
+          agent_id,
           payment_status: ["paid", "invoiced"],
-           created_at: previousPeriodFilter },
+          created_at: previousPeriodFilter,
+        },
       })) ?? 0;
 
     // const previousTransportBooking =
@@ -1353,20 +1378,23 @@ const getMetricsByAgentId = async (req, res) => {
           where: { agent_id, created_at: previousPeriodFilter },
         },
       })) ?? 0;
-      const previousTotalCommission = await AgentCommission.sum("amount", {
-        include: [{
-          model: Booking,
-          attributes: [],
-          required: true,
-          where: {
-            agent_id,
-            created_at: previousPeriodFilter
-          }
-        }],
+    const previousTotalCommission =
+      (await AgentCommission.sum("amount", {
+        include: [
+          {
+            model: Booking,
+            attributes: [],
+            required: true,
+            where: {
+              agent_id,
+              created_at: previousPeriodFilter,
+            },
+          },
+        ],
         where: {
-          agent_id
-        }
-      }) ?? 0;
+          agent_id,
+        },
+      })) ?? 0;
 
     const previousUnpaidToGiligetaway =
       (await Booking.sum("gross_total", {
@@ -1438,11 +1466,17 @@ const getAnnualyMetrics = async (req, res) => {
   try {
     const { timeframe } = req.query;
     const today = moment();
-    let startDate, endDate, data = [];
+    let startDate,
+      endDate,
+      data = [];
 
     switch (timeframe) {
       case "Day":
-        startDate = today.clone().subtract(6, "days").startOf("day").format("YYYY-MM-DD");
+        startDate = today
+          .clone()
+          .subtract(6, "days")
+          .startOf("day")
+          .format("YYYY-MM-DD");
         endDate = today.clone().endOf("day").format("YYYY-MM-DD");
 
         // Get paid/invoiced bookings
@@ -1481,10 +1515,12 @@ const getAnnualyMetrics = async (req, res) => {
           today.clone().subtract(i, "days").format("YYYY-MM-DD")
         ).reverse();
 
-        data = last7Days.map(date => ({
+        data = last7Days.map((date) => ({
           date,
-          totalBookings: paidBookings.find(d => d.date === date)?.paidBookings || 0,
-          totalAllBookings: allBookings.find(d => d.date === date)?.totalBookings || 0
+          totalBookings:
+            paidBookings.find((d) => d.date === date)?.paidBookings || 0,
+          totalAllBookings:
+            allBookings.find((d) => d.date === date)?.totalBookings || 0,
         }));
         break;
 
@@ -1499,22 +1535,38 @@ const getAnnualyMetrics = async (req, res) => {
           },
           {
             week: 2,
-            start: today.clone().startOf("month").add(1, "weeks").startOf("week"),
+            start: today
+              .clone()
+              .startOf("month")
+              .add(1, "weeks")
+              .startOf("week"),
             end: today.clone().startOf("month").add(1, "weeks").endOf("week"),
           },
           {
             week: 3,
-            start: today.clone().startOf("month").add(2, "weeks").startOf("week"),
+            start: today
+              .clone()
+              .startOf("month")
+              .add(2, "weeks")
+              .startOf("week"),
             end: today.clone().startOf("month").add(2, "weeks").endOf("week"),
           },
           {
             week: 4,
-            start: today.clone().startOf("month").add(3, "weeks").startOf("week"),
+            start: today
+              .clone()
+              .startOf("month")
+              .add(3, "weeks")
+              .startOf("week"),
             end: today.clone().startOf("month").add(3, "weeks").endOf("week"),
           },
           {
             week: 5,
-            start: today.clone().startOf("month").add(4, "weeks").startOf("week"),
+            start: today
+              .clone()
+              .startOf("month")
+              .add(4, "weeks")
+              .startOf("week"),
             end: today.clone().startOf("month").add(4, "weeks").endOf("week"),
           },
         ];
@@ -1546,8 +1598,8 @@ const getAnnualyMetrics = async (req, res) => {
 
             return {
               week: `Week ${week.week}`,
-             totalBookings,
-              totalAllBookings
+              totalBookings,
+              totalAllBookings,
             };
           })
         );
@@ -1587,15 +1639,23 @@ const getAnnualyMetrics = async (req, res) => {
         });
 
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
-        data = months.map(month => ({
+        data = months.map((month) => ({
           month,
-          totalBookings: paidMonthlyBookings.find(d => d.month === month)?.paidBookings || 0,
-          totalAllBookings: allMonthlyBookings.find(d => d.month === month)?.totalBookings || 0
+          totalBookings:
+            paidMonthlyBookings.find((d) => d.month === month)?.paidBookings ||
+            0,
+          totalAllBookings:
+            allMonthlyBookings.find((d) => d.month === month)?.totalBookings ||
+            0,
         }));
         break;
 
       case "Year":
-        startDate = today.clone().subtract(3, "years").startOf("year").format("YYYY-MM-DD");
+        startDate = today
+          .clone()
+          .subtract(3, "years")
+          .startOf("year")
+          .format("YYYY-MM-DD");
         endDate = today.clone().endOf("year").format("YYYY-MM-DD");
 
         const paidYearlyBookings = await Booking.findAll({
@@ -1627,17 +1687,23 @@ const getAnnualyMetrics = async (req, res) => {
           raw: true,
         });
 
-        const years = Array.from({ length: 4 }, (_, i) => today.year() - i).reverse();
-        data = years.map(year => ({
+        const years = Array.from(
+          { length: 4 },
+          (_, i) => today.year() - i
+        ).reverse();
+        data = years.map((year) => ({
           year,
-          totalBookings: paidYearlyBookings.find(d => d.year === year)?.paidBookings || 0,
-          totalAllBookings: allYearlyBookings.find(d => d.year === year)?.totalBookings || 0
+          totalBookings:
+            paidYearlyBookings.find((d) => d.year === year)?.paidBookings || 0,
+          totalAllBookings:
+            allYearlyBookings.find((d) => d.year === year)?.totalBookings || 0,
         }));
         break;
 
       default:
         return res.status(400).json({
-          error: "Invalid timeframe provided. Use 'Day', 'Week', 'Month', or 'Year'.",
+          error:
+            "Invalid timeframe provided. Use 'Day', 'Week', 'Month', or 'Year'.",
         });
     }
 
@@ -1648,7 +1714,9 @@ const getAnnualyMetrics = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching booking metrics:", error);
-    return res.status(500).json({ status: "error", message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 };
 
@@ -1954,98 +2022,97 @@ const getBookingComparisonMetrics = async (req, res) => {
 
 const getAgentStatistics = async (req, res) => {
   try {
-      const { month, year, day } = req.query;
+    const { month, year, day } = req.query;
 
-      // Determine timeframe for response
-      let timeframe = 'Year';
-      if (month) timeframe = 'Month';
-      if (day) timeframe = 'Day';
+    // Determine timeframe for response
+    let timeframe = "Year";
+    if (month) timeframe = "Month";
+    if (day) timeframe = "Day";
 
-      // Build date filter based on parameters
-      const dateFilter = buildDateFilter({ month, year, day });
+    // Build date filter based on parameters
+    const dateFilter = buildDateFilter({ month, year, day });
 
-      // Get agent statistics with status breakdown
-      const agentStats = await Booking.findAll({
-          attributes: [
-              'agent_id',
-              'payment_status',
-              [sequelize.fn('COUNT', sequelize.col('*')), 'totalBookings'],
-              [sequelize.fn('SUM', sequelize.col('gross_total')), 'bookingTotal']
-          ],
-          include: [
-              {
-                  model: Agent,
-                  attributes: ['name'],
-                  required: true  // Changed to true to force INNER JOIN
-              }
-          ],
-          where: {
-              created_at: dateFilter,
-              payment_status: {
-                  [Op.in]: ['invoiced', 'paid']
-              },
-              agent_id: {
-                  [Op.ne]: null  // Explicitly exclude null agent_id
-              }
+    // Get agent statistics with status breakdown
+    const agentStats = await Booking.findAll({
+      attributes: [
+        "agent_id",
+        "payment_status",
+        [sequelize.fn("COUNT", sequelize.col("*")), "totalBookings"],
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "bookingTotal"],
+      ],
+      include: [
+        {
+          model: Agent,
+          attributes: ["name"],
+          required: true, // Changed to true to force INNER JOIN
+        },
+      ],
+      where: {
+        created_at: dateFilter,
+        payment_status: {
+          [Op.in]: ["invoiced", "paid"],
+        },
+        agent_id: {
+          [Op.ne]: null, // Explicitly exclude null agent_id
+        },
+      },
+      group: ["agent_id", "Agent.id", "Agent.name", "payment_status"],
+      raw: true,
+      nest: true,
+    });
+
+    // Transform and aggregate the data
+    const agentMap = new Map();
+
+    agentStats.forEach((stat) => {
+      const agentId = stat.agent_id;
+
+      if (!agentMap.has(agentId)) {
+        agentMap.set(agentId, {
+          agent_id: agentId,
+          agent_name: stat.Agent.name,
+          totalBookings: 0,
+          bookingTotal: 0,
+          statusBreakdown: {
+            invoiced: {
+              count: 0,
+              total: 0,
+            },
+            paid: {
+              count: 0,
+              total: 0,
+            },
           },
-          group: ['agent_id', 'Agent.id', 'Agent.name', 'payment_status'],
-          raw: true,
-          nest: true
-      });
+        });
+      }
 
-      // Transform and aggregate the data
-      const agentMap = new Map();
+      const agentData = agentMap.get(agentId);
+      agentData.totalBookings += parseInt(stat.totalBookings);
+      agentData.bookingTotal += parseFloat(stat.bookingTotal);
+      agentData.statusBreakdown[stat.payment_status] = {
+        count: parseInt(stat.totalBookings),
+        total: parseFloat(stat.bookingTotal),
+      };
+    });
 
-      agentStats.forEach(stat => {
-          const agentId = stat.agent_id;
+    // Convert Map to array and sort by total bookings
+    const formattedData = Array.from(agentMap.values()).sort(
+      (a, b) => b.totalBookings - a.totalBookings
+    );
 
-          if (!agentMap.has(agentId)) {
-              agentMap.set(agentId, {
-                  agent_id: agentId,
-                  agent_name: stat.Agent.name,
-                  totalBookings: 0,
-                  bookingTotal: 0,
-                  statusBreakdown: {
-                      invoiced: {
-                          count: 0,
-                          total: 0
-                      },
-                      paid: {
-                          count: 0,
-                          total: 0
-                      }
-                  }
-              });
-          }
-
-          const agentData = agentMap.get(agentId);
-          agentData.totalBookings += parseInt(stat.totalBookings);
-          agentData.bookingTotal += parseFloat(stat.bookingTotal);
-          agentData.statusBreakdown[stat.payment_status] = {
-              count: parseInt(stat.totalBookings),
-              total: parseFloat(stat.bookingTotal)
-          };
-      });
-
-      // Convert Map to array and sort by total bookings
-      const formattedData = Array.from(agentMap.values())
-          .sort((a, b) => b.totalBookings - a.totalBookings);
-
-      res.json({
-          status: 'success',
-          timeframe,
-          data: formattedData
-      });
-
+    res.json({
+      status: "success",
+      timeframe,
+      data: formattedData,
+    });
   } catch (error) {
-      console.error('Error in getAgentBookingAnalytics:', error);
-      res.status(500).json({
-          status: 'error',
-          message: 'Failed to retrieve agent booking analytics'
-      });
+    console.error("Error in getAgentBookingAnalytics:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve agent booking analytics",
+    });
   }
 };
-
 
 // create get metrics by agent id
 
@@ -2056,5 +2123,5 @@ module.exports = {
   getMetricsByAgentId,
   getAnnualyMetrics,
   getAgentAnnualyMetrics,
-  getAgentStatistics
+  getAgentStatistics,
 };
