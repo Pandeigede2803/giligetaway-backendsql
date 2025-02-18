@@ -519,7 +519,9 @@ const getScheduleSubschedule = async (req, res) => {
         departure_time: schedule.departure_time || "N/A",
         check_in_time: schedule.check_in_time || "N/A",
         arrival_time: schedule.arrival_time || "N/A",
-        journey_time: schedule.journey_time || "N/A",
+        journey_time: schedule.journey_time
+          ? calculateJourneyTime(schedule.departure_time, schedule.arrival_time)
+          : "N/A",
         boat_id: schedule.Boat?.id || "N/A",
         low_season_price: schedule.low_season_price || "N/A",
         high_season_price: schedule.high_season_price || "N/A",

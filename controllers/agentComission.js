@@ -171,6 +171,11 @@ const AgentCommissionController = {
                   // attributes: ["id", "name"],
                 },
                 {
+                  model: Boat,
+                  as: "Boat",
+                
+                },
+                {
                   model: Destination,
                   as: "ToDestination",
                   // attributes: ["id", "name"],
