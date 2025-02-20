@@ -276,44 +276,51 @@ exports.requestPasswordResetLink = async (req, res) => {
       html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">reset your password</a></p>`,
     };
 
+    // Gili Getaway <onboarding@resend.dev>
      // Try sending email via SMTP
-     transporter.sendMail(mailOptions, async (error, info) => {
-      if (error) {
-        console.log("SMTP email sending failed. Trying Resend API...");
-        
-        // If SMTP fails, try Resend API
-        try {
-          const resend = new Resend(process.env.RESEND_API_KEY);
-          const resendResponse = await resend.emails.send({
-            from:'Gili Getaway <onboarding@resend.dev>' , // Example: "noreply@yourdomain.com"
-            to: agent.email,
-            subject: "Password Reset Request",
-            html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">Reset your password</a></p>`,
-          });
 
-          if (resendResponse && resendResponse.status === "success") {
-            console.log("Email sent successfully via Resend API to:", agent.email);
-            return res.status(200).json({ message: "Reset link sent to your email." });
-          } else {
-            console.log("Error sending email via Resend API:", resendResponse);
-            return res.status(500).json({ message: "Error sending reset link" });
-          }
-        } catch (resendError) {
-          console.log("Resend API failed:", resendError);
-          return res.status(500).json({ message: "Error sending reset link via both SMTP and Resend API." });
-        }
-      } else {
-        console.log("Email sent successfully via SMTP to:", agent.email);
-        console.log("SMTP response:", info.response);
+// 4️⃣ Coba kirim email menggunakan SMTP
+transporter.sendMail(mailOptions, async (error, info) => {
+  if (error) {
+    console.log("❌ SMTP email sending failed. Trying Resend API...");
+    
+    // 5️⃣ Jika SMTP gagal, coba kirim dengan Resend API
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+
+      const resendResponse = await resend.emails.send({
+        from: "Gili Getaway <onboarding@resend.dev>", // ✅ HARUS PAKAI DOMAIN VERIFIED
+        to: agent.email,
+        subject: "Password Reset Request",
+        html: `<p>Hello ${agent.name},</p>
+               <p>You requested a password reset. Click the link below to reset your password:</p>
+               <p><a href="${resetLink}">Reset your password</a></p>
+               <p>If you did not request this, please ignore this email.</p>`,
+      });
+
+      // ✅ Cek apakah email berhasil dikirim via Resend
+      if (resendResponse?.data?.id) {
+        console.log("✅ Email sent successfully via Resend API to:", agent.email);
         return res.status(200).json({ message: "Reset link sent to your email." });
+      } else {
+        console.error("❌ Failed to send email via Resend API:", resendResponse);
+        return res.status(500).json({ message: "Error sending reset link." });
       }
-    });
-  } catch (error) {
-    console.error("Error requesting password reset link:", error.message);
-    return res.status(500).json({ message: "Internal server error." });
+    } catch (resendError) {
+      console.log("🔥 Resend API failed:", resendError);
+      return res.status(500).json({ message: "Error sending reset link via both SMTP and Resend API." });
+    }
+  } else {
+    console.log("✅ Email sent successfully via SMTP to:", agent.email);
+    console.log("📩 SMTP response:", info.response);
+    return res.status(200).json({ message: "Reset link sent to your email." });
   }
+});
+} catch (error) {
+console.error("🔥 Error requesting password reset link:", error.message);
+return res.status(500).json({ message: "Internal server error." });
+}
 };
-
 //     transporter.sendMail(mailOptions, function (error, info) {
 //       if (error) {
 //         console.log("Error sending email:", error);

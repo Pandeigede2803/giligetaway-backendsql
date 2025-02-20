@@ -64,7 +64,7 @@ const validateScheduleAndSubScheduleForRoundTrip = async (req, res, next) => {
       departure.subschedule_id && // Ensure subschedule_id exists
       typeof departure.subschedule_id === 'string' && // Ensure it's a string before using .trim()
       departure.subschedule_id.trim() !== '' && // Ensure it's not empty
-      departure.subschedule_id !== 'N/A' // Ignore "N/A"
+      departure.subschedule_id == 'N/A' // Ignore "N/A"
     ) {
       const departureSubSchedule = await SubSchedule.findOne({
         where: {
