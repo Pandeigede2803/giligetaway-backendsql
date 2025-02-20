@@ -76,13 +76,13 @@ const updateAgentCommission = async (
       commission_transport, // Fixed amount for transport commission
     } = agent;
 
-    console.log(`Commission rates for agent_id ${agent_id}:`);
-    console.log(`commission_rate: ${commission_rate}`);
-    console.log(`commission_long: ${commission_long}`);
-    console.log(`commission_short: ${commission_short}`);
-    console.log(`commission_mid: ${commission_mid}`);
-    console.log(`commission_intermediate: ${commission_intermediate}`);
-    console.log(`commission_transport: ${commission_transport}`);
+    // console.log(`Commission rates for agent_id ${agent_id}:`);
+    // console.log(`commission_rate: ${commission_rate}`);
+    // console.log(`commission_long: ${commission_long}`);
+    // console.log(`commission_short: ${commission_short}`);
+    // console.log(`commission_mid: ${commission_mid}`);
+    // console.log(`commission_intermediate: ${commission_intermediate}`);
+    // console.log(`commission_transport: ${commission_transport}`);
 
     // Step 3: Determine the applicable commission rate
     let commissionAmount = 0;
@@ -94,26 +94,24 @@ const updateAgentCommission = async (
         `Percentage-based commission calculated: ${commissionAmount}`
       );
     } else {
-      // Otherwise, use the fixed commission based on trip type
-      console.log("No percentage commission, calculating based on trip type.");
+      // Otherwise, use the fixed commission based on trip type and total passengers
+      console.log("No percentage commission, calculating based on trip type and total passengers.");
       switch (tripType) {
         case "long":
-          commissionAmount = parseFloat(commission_long);
+          commissionAmount = parseFloat(commission_long) * total_passengers;
           console.log(`Commission for long trip type: ${commissionAmount}`);
           break;
         case "short":
-          commissionAmount = parseFloat(commission_short);
+          commissionAmount = parseFloat(commission_short) * total_passengers;
           console.log(`Commission for short trip type: ${commissionAmount}`);
           break;
         case "mid":
-          commissionAmount = parseFloat(commission_mid);
+          commissionAmount = parseFloat(commission_mid) * total_passengers;
           console.log(`Commission for mid trip type: ${commissionAmount}`);
           break;
         case "intermediate":
-          commissionAmount = parseFloat(commission_intermediate);
-          console.log(
-            `Commission for intermediate trip type: ${commissionAmount}`
-          );
+          commissionAmount = parseFloat(commission_intermediate) * total_passengers;
+          console.log(`Commission for intermediate trip type: ${commissionAmount}`);
           break;
         default:
           throw new Error("Invalid trip type");
