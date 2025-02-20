@@ -15,6 +15,7 @@ const {
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { Resend } = require("resend");
 
 
 
