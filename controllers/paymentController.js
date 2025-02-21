@@ -480,7 +480,7 @@ const generateSingleMidtransLink = async (req, res) => {
     const primaryBooking = bookings[0];
     const customerDetails = {
       first_name: primaryBooking.contact_name.split(" ")[0],
-      last_name: primaryBooking.contact_name.split(" ").slice(1).join(" "),
+      last_name: primaryBooking.contact_name.split(" ")[0],
       email: primaryBooking.contact_email,
       phone: primaryBooking.contact_phone,
       nationality: primaryBooking.contact_nationality,
