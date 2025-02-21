@@ -123,13 +123,12 @@ const updateAgentCommission = async (
       console.log(
         `Transport data exists, transport commission will not reduce the commission for agent_id ${agent_id}`
       );
-      // Tidak ada pengurangan komisi karena transportasi ada
       console.log(`Total commission remains the same: ${commissionAmount}`);
     } else {
       console.log(
         `No transport data found, reducing commission with transport commission for agent_id ${agent_id}`
       );
-      commissionAmount -= parseFloat(commission_transport); // Kurangi dengan komisi transportasi
+      commissionAmount -= parseFloat(commission_transport) * total_passengers; // Calculate with total passengers
       console.log(
         `Total commission after reducing transport commission: ${commissionAmount}`
       );
