@@ -640,6 +640,11 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
     try {
       // Fetch seat availability and related details
       const seatAvailability = await findSeatAvailabilityWithDetails(id);
+      console.log("=== SEAT AVAILABILITY DATA ===", JSON.stringify(seatAvailability, null, 2));
+      // console.log("BookingSeatAvailabilities:", JSON.stringify(seatAvailability?.BookingSeatAvailabilities, null, 2));
+// console.log("Schedule jancuk:", JSON.stringify(seatAvailability?.Schedule, null, 2));
+// console.log("Availability:", JSON.stringify(seatAvailability?.availability, null, 2));
+    
   
       if (!seatAvailability || !seatAvailability.Schedule) {
         return res.status(404).json({
@@ -648,18 +653,21 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         });
       }
   
-      const { Schedule, BookingSeatAvailabilities, availability, } = seatAvailability;
+      const { Schedule, BookingSeatAvailabilities, availability,SubSchedule } = seatAvailability;
+
+      // console.log("SubSchedule BANGSAT:", JSON.stringify(BookingSeatAvailabilities[0]?.Booking?.subSchedule, null, 2));
   
       // Determine seat availability status
       const seatAvailabilityStatus = Boolean(availability);
   
       // Prepare route based on Schedule or SubSchedule
       let route = 'Unknown Route';
-      const subSchedule = BookingSeatAvailabilities[0]?.Booking?.subSchedule || null;
+      // const subSchedule = BookingSeatAvailabilities[0]?.Booking?.subSchedule || null;
+
       if (Schedule) {
-        route = buildRouteFromSchedule(Schedule, subSchedule);
+        route = buildRouteFromSchedule(Schedule, SubSchedule);
       }
-  
+   
     // Fetch all passengers related to the seat availability
     const passengers = [];
     BookingSeatAvailabilities.forEach((bsa) => {

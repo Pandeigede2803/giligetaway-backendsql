@@ -171,6 +171,15 @@ const AgentCommissionController = {
                   // attributes: ["id", "name"],
                 },
                 {
+                  model: Transit,
+                
+                  include: {
+                    model: Destination,
+                    as: "Destination",
+                    // attributes: ["id", "name"],
+                },
+                },
+                {
                   model: Boat,
                   as: "Boat",
                 
@@ -180,6 +189,8 @@ const AgentCommissionController = {
                   as: "ToDestination",
                   // attributes: ["id", "name"],
                 },
+                
+          
               ],
             },
 

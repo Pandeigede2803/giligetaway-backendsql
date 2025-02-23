@@ -62,6 +62,18 @@ const findSeatAvailabilityWithDetails = async (id) => {
                       as: 'ToDestination',
                       attributes: ['name'],
                     },
+                    {
+                      model:Transit,
+                      as: 'Transits',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    }
                   ],
                 },
                 {
@@ -110,33 +122,125 @@ const findSeatAvailabilityWithDetails = async (id) => {
           ],
         },
         {
-          model: Schedule,
-          as: 'Schedule',
+  
+
+             model: Schedule,
+                  as: 'Schedule',
+                  attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                  include: [
+                    {
+                      model: Destination,
+                      as: 'FromDestination',
+                      attributes: ['name'],
+                    },
+                    {
+                      model: Destination,
+                      as: 'ToDestination',
+                      attributes: ['name'],
+                    },
+                    {
+                      model:Transit,
+                      as: 'Transits',
+                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      include: [
+                        {
+                          model: Destination,
+                          as: 'Destination',
+                          attributes: ['name'],
+                        },
+                      ],
+                    }
+                  ],
+        },
+        {
+          model:SubSchedule,
+          as:'SubSchedule',
           attributes: ['id'],
           include: [
             {
-              model: Boat,
-              as: 'Boat',
-              attributes: ['capacity'],
+              model: Destination,
+              as: 'DestinationFrom',
+              attributes: ['name'],
             },
             {
-              model: SubSchedule,
-              as: 'SubSchedules',
-              attributes: ['id'],
+              model: Destination,
+              as: 'DestinationTo',
+              attributes: ['name'],
+            },
+            {
+              model: Transit,
+              as: 'TransitFrom',
+              attributes: ['id', 'schedule_id', 'destination_id'],
               include: [
                 {
                   model: Destination,
-                  as: 'DestinationFrom',
+                  as: 'Destination',
                   attributes: ['name'],
                 },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'TransitTo',
+              attributes: ['id', ],
+              include: [
                 {
                   model: Destination,
-                  as: 'DestinationTo',
+                  as: 'Destination',
+                  attributes: ['name'],
+                },
+              ],
+            },
+            {
+              model:Transit,
+              as:"Transit1",
+              attributes:["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['name'],
+                },
+              ],
+            },
+            {
+              model:Transit,
+              as:"Transit2",
+              attributes:["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['name'],
+                },
+              ],
+            },
+            {
+              model:Transit,
+              as:"Transit3",
+              attributes:["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+                  attributes: ['name'],
+                },
+              ],
+            },
+            {
+              model:Transit,
+              as:"Transit4",
+              attributes:["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
                   attributes: ['name'],
                 },
               ],
             },
           ],
+
         },
       ],
     });

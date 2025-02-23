@@ -31,7 +31,7 @@ const buildRoute = (seatAvailability) => {
 };
 
 const buildRouteFromSchedule = (schedule, subSchedule) => {
-  
+
 
 
   let route = '';
@@ -81,6 +81,8 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
 
   return route;
 };
+
+console.log("ini route jancuk:", buildRouteFromSchedule);
 
 
 
