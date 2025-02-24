@@ -99,7 +99,7 @@ const validateBookingCreation = async (req, res, next) => {
       }
 
       // Validate seat number if provided
-      if (passenger.seat_number) {
+      if (passenger.passenger_type !== 'infant' && passenger.seat_number) {
         console.log(`🔍 Validating seat number for passenger at index ${i}: ${passenger.seat_number}`);
 
         const occupiedSeat = await Booking.findOne({
