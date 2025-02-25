@@ -378,6 +378,8 @@ const AgentCommissionController = {
           [Op.gte]: new Date(fromDate),
           [Op.lte]: new Date(toDate),
         };
+
+        
       } else if (year) {
         let startOfPeriod, endOfPeriod;
         if (month) {
