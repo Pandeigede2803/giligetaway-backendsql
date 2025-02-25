@@ -374,7 +374,7 @@ const AgentCommissionController = {
       };
 
       if (fromDate && toDate) {
-        bookingWhereConditions.booking_date = {
+        bookingWhereConditions.created_at = {
           [Op.gte]: new Date(fromDate),
           [Op.lte]: new Date(toDate),
         };
@@ -389,7 +389,7 @@ const AgentCommissionController = {
           startOfPeriod = new Date(year, 0, 1);
           endOfPeriod = new Date(year, 11, 31, 23, 59, 59);
         }
-        bookingWhereConditions.booking_date = {
+        bookingWhereConditions.created_at = {
           [Op.gte]: startOfPeriod,
           [Op.lte]: endOfPeriod,
         };
@@ -509,81 +509,58 @@ const AgentCommissionController = {
       });
 
       // 5. Process Bookings to use `created_at` from `AgentCommission`
-      const processedBookings = commissions
-        .map((commission) => {
+      // ocess Bookings to use `created_at` from `AgentCommission`
+      const processedBookings = commissions.map((commission) => {
           const bk = commission.Booking;
-          if (!bk) return null; // Skip if Booking data is missing
+          if (!bk) return null; 
 
-          const dateFormatted = formatDateDDMMYYYY(commission.created_at); // ✅ Use `created_at` from AgentCommission
-          const departureFormatted = formatDateTimeDDMMYYYY_HHMM(
-            bk.booking_date
-          );
-          // amount is gross total - commission amount
+          const dateFormatted = formatDateDDMMYYYY(commission.created_at);
+          const departureFormatted = formatDateTimeDDMMYYYY_HHMM(bk.booking_date);
           const amount = bk.gross_total - commission.amount;
-          // const amount invoiced is all the gross total with the payment status invoiced but - the commission amount
-          const amountInvoiced =
-            bk.payment_status === "invoiced"
-              ? bk.gross_total - commission.amount
-              : 0;
-
-          // create amount paid for the payment status only,
-          //  amount paid is same as gross total but ony in payment status paid
-          const amountPaid = Number(
-            bk.payment_status === "paid" ? bk.gross_total : 0
-          );
-
-          // date to paid is only in payment status paid updated_at
-          const datePaid =
-            bk.payment_status === "paid"
-              ? formatDateDDMMYYYY(bk.updated_at)
-              : null;
-
-          // create current balance , in a condition if the payment status is paid it will be  minus(example -100000) and if payment status is invoiced it will be plus (example +100000)
-          // i want you to calculate it for the index of the array (if index 0 is -100000 and index 1 is +100000 it will be 0)
+          const amountInvoiced = bk.payment_status === "invoiced" ? bk.gross_total - commission.amount : 0;
+          const amountPaid = Number(bk.payment_status === "paid" ? bk.gross_total : 0);
+          const datePaid = bk.payment_status === "paid" ? formatDateDDMMYYYY(bk.updated_at) : null;
 
           let route = "";
           if (bk?.subSchedule) {
-            route = [
-              bk.subSchedule.DestinationFrom?.name,
-              bk.subSchedule.TransitFrom?.Destination?.name,
-              bk.subSchedule.TransitTo?.Destination?.name,
-              bk.subSchedule.DestinationTo?.name,
-            ]
-              .filter(Boolean)
-              .join(" - ");
+              route = [
+                  bk.subSchedule.DestinationFrom?.name,
+                  bk.subSchedule.TransitFrom?.Destination?.name,
+                  bk.subSchedule.TransitTo?.Destination?.name,
+                  bk.subSchedule.DestinationTo?.name,
+              ].filter(Boolean).join(" - ");
           } else if (bk?.schedule) {
-            route = [
-              bk.schedule.FromDestination?.name,
-              bk.schedule.ToDestination?.name,
-            ]
-              .filter(Boolean)
-              .join(" - ");
+              route = [
+                  bk.schedule.FromDestination?.name,
+                  bk.schedule.ToDestination?.name,
+              ].filter(Boolean).join(" - ");
           }
 
           return {
-            id: bk.ticket_id,
-            date: dateFormatted, // ✅ Use `created_at` from AgentCommission
-            departure: departureFormatted,
-            customer: bk.contact_name,
-            passport_id: bk.contact_passport_id,
-            nationality: bk.contact_nationality,
-            tickets: bk.total_passengers,
-            payment_status: bk.payment_status,
-            payment_method: bk.payment_method,
-            gross_total: bk.gross_total,
-            gross_total_in_usd: bk.gross_total_in_usd, // ✅ Include USD total
-            exchange_rate: bk.exchange_rate, // ✅ Include exchange rate
-            bank_fee: bk.bank_fee, // ✅ Include bank fee
-            commission: commission.amount, // ✅ Extract commission amount correctly
-            amount: amount,
-            amount_paid: amountPaid || 0, // ✅ Include amount paid with default 0
-            amount_invoiced: amountInvoiced || 0, // ✅ Include amount invoiced with default 0
-
-            date_paid: datePaid ? datePaid : "-", // ✅ Include date paid with default "-"
-            route,
+              id: bk.ticket_id,
+              date: dateFormatted,
+              departure: departureFormatted,
+              customer: bk.contact_name,
+              passport_id: bk.contact_passport_id,
+              nationality: bk.contact_nationality,
+              tickets: bk.total_passengers,
+              payment_status: bk.payment_status,
+              payment_method: bk.payment_method,
+              gross_total: bk.gross_total,
+              gross_total_in_usd: bk.gross_total_in_usd,
+              exchange_rate: bk.exchange_rate,
+              bank_fee: bk.bank_fee,
+              commission: commission.amount,
+              amount: amount,
+              amount_paid: amountPaid || 0,
+              amount_invoiced: amountInvoiced || 0,
+              date_paid: datePaid ? datePaid : "-",
+              route,
           };
-        })
-        .filter(Boolean); // Remove null entries
+      }).filter(Boolean);
+
+
+
       // 5. Lakukan pass ke-2 untuk menghitung running balance
       // 5. Perform a second pass to compute running balance correctly
       let runningBalance = 0;
