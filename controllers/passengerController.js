@@ -1600,7 +1600,7 @@ const getPassengersSeatNumber = async (req, res) => {
       boatData
     );
 
-    console.log("===processedbookedseat===", processedBookedSeats);
+    console.log("===processedbookedseat=== FINAL", processedBookedSeats);
 
     const totalSeats = seatAvailability.available_seats || 0;
     console.log("===totalseat===", totalSeats);
