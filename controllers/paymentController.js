@@ -995,8 +995,8 @@ const createPayPalMultiple = async (req, res) => {
         },
       ],
       application_context: {
-        return_url: `${process.env.BASE_URL}/success`,
-        cancel_url: `${process.env.BASE_URL}/cancel-order`,
+        return_url: `${process.env.PAYPAL_BASE_URL}success-page`,
+        cancel_url: `${process.env.PAYPAL_BASE_URL}cancel-order`,
       },
     };
 

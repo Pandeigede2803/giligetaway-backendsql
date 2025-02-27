@@ -60,8 +60,8 @@ const createPayPalOrder = async (orderDetails) => {
         },
       ],
       application_context: {
-        return_url: orderDetails.returnUrl,
-        cancel_url: orderDetails.cancelUrl,
+        return_url: `${process.env.PAYPAL_BASE_URL}success-booking`,
+        cancel_url: `${process.env.PAYPAL_BASE_URL}cancel-order`,
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
         brand_name: 'Giligetaway.com',
@@ -151,8 +151,8 @@ const createPayPalOrderMulti = async (orderDetails) => {
       intent: "CAPTURE", // This is the missing field
       purchase_units: purchaseUnits,
       application_context: {
-        return_url: orderDetails.return_url || `${process.env.BASE_URL}/success`,
-        cancel_url: orderDetails.cancel_url || `${process.env.BASE_URL}/cancel-order`,
+        return_url: orderDetails.return_url || `${process.env.PAYPAL_BASE_URL}success-booking`,
+        cancel_url: orderDetails.cancel_url || `${process.env.PAYPAL_BASE_URL}error`,
         shipping_preference: "NO_SHIPPING",
         user_action: "PAY_NOW",
         brand_name: "Giligetaway.com",
