@@ -35,37 +35,34 @@ exports.createAgent = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    // Generate a random password
+    // Generate password acak
     const randomPassword = generateRandomPassword(10);
     console.log("🔑 Generated Password:", randomPassword);
 
-    // Hash the password before storing it
+    // Hash password sebelum disimpan
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
     console.log("🔐 Hashed Password:", hashedPassword);
 
-    // Set image URL
+    // Tentukan URL gambar
     let imageUrl = req.file ? req.file.url : 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558';
     console.log("🖼️ Image URL:", imageUrl);
 
-    // Create agent data
+    // Membuat data agen
     const agentData = {
       ...req.body,
-      password: hashedPassword, // Store hashed password
-      image_url: imageUrl, // Use uploaded image or default image
+      password: hashedPassword, // Menyimpan password yang sudah di-hash
+      image_url: imageUrl, // Menyimpan gambar atau gambar default
     };
     console.log("📝 Agent Data:", agentData);
 
-    // Save agent in the database
+    // Menyimpan agen ke database
     const agent = await Agent.create(agentData, { transaction });
     if (!agent) {
       throw new Error("❌ Failed to create agent");
     }
     console.log("✅ Agent Created: ID =", agent.id);
 
-    // Commit the transaction
-    await transaction.commit();
-
-    // ✅ Send Email with Login Credentials
+    // ✅ Mengirim email dengan kredensial login
     const mailOptions = {
       from: `Gili Getaway <${process.env.EMAIL_USER}>`,
       to: agent.email,
@@ -87,18 +84,22 @@ exports.createAgent = async (req, res) => {
     await transporter.sendMail(mailOptions);
     console.log("✅ Email sent successfully to:", agent.email);
 
-    // Return agent details (without password for security)
+    // Commit transaksi setelah agen dibuat dan email berhasil dikirim
+    await transaction.commit();
+
+    // Mengembalikan detail agen (tanpa password untuk keamanan)
     res.status(201).json({
       agent: {
         id: agent.id,
         name: agent.name,
         email: agent.email,
         phone: agent.phone,
-        commission_rate: agent.commission_rate,
-        commission_long: agent.commission_long,
-        commission_short: agent.commission_short,
-        commission_long_transport: agent.commission_long_transport,
-        commission_short_transport: agent.commission_short_transport,
+        contact_person: agent.contact_person || "unknown",
+        commission_rate: agent.commission_rate || 0,
+        commission_long: agent.commission_long || 0,
+        commission_short: agent.commission_short || 0,
+        commission_long_transport: agent.commission_long_transport || 0,
+        commission_short_transport: agent.commission_short_transport || 0,
         address: agent.address,
         image_url: agent.image_url,
         created_at: agent.created_at,
@@ -106,14 +107,17 @@ exports.createAgent = async (req, res) => {
       },
       message: "Agent created successfully. Credentials sent via email.",
     });
+
   } catch (error) {
-    // Rollback the transaction in case of error
+    // Rollback transaksi jika terjadi error sebelum commit
     await transaction.rollback();
     console.error("❌ Error creating agent:", error.message);
 
     res.status(500).json({ message: error.message });
   }
-};
+}
+
+
 // exports.createAgent = async (req, res) => {
 //   console.log("req body:", req.body);
 //   const transaction = await sequelize.transaction();
@@ -255,21 +259,23 @@ exports.requestPasswordResetLink = async (req, res) => {
     console.log("Password reset link generated:", resetLink);
 
     // Send reset link via email
+    console.log("Creating transporter with email host:", process.env.EMAIL_HOST);
     const transporter = nodemailer.createTransport({
-      // host: 'mail.headlessexploregilis.my.id',  // SMTP Server
-      host:process.env.EMAIL_HOST,
-      port: 465,  // Gunakan port 465 untuk SSL
-      secure: true, // true karena kita menggunakan SSL
+      host: process.env.EMAIL_HOST,
+      port: 465,
+      secure: true,
       auth: {
-         user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
+      logger: true,
+      debug: true, // show debug output
     });
-
+    
 
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: "Gili Getaway System <" + process.env.EMAIL_USER + ">",
       to: agent.email,
       subject: "Password Reset Request",
       text: `Please click on the following link to reset your password: ${resetLink}`,
@@ -289,7 +295,7 @@ transporter.sendMail(mailOptions, async (error, info) => {
       const resend = new Resend(process.env.RESEND_API_KEY);
 
       const resendResponse = await resend.emails.send({
-        from: "Gili Getaway <onboarding@resend.dev>", // ✅ HARUS PAKAI DOMAIN VERIFIED
+        from: "Gili Getaway<onboarding@resend.dev>", // ✅ HARUS PAKAI DOMAIN VERIFIED
         to: agent.email,
         subject: "Password Reset Request",
         html: `<p>Hello ${agent.name},</p>

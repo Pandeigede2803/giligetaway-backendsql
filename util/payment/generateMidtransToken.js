@@ -98,7 +98,7 @@ const generateMidtransToken = async (bookingDetails) => {
     const transportDescriptions = Array.isArray(bookingDetails.transports)
       ? bookingDetails.transports.map(
           (transport) =>
-            `${transport.transport_type} (${transport.note}) x ${transport.quantity}`
+            `${transport.transport_type}  x ${transport.quantity}`
         ).join(", ") // Gabungkan deskripsi transport
       : "";
 
