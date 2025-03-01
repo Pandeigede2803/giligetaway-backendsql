@@ -287,7 +287,7 @@ const generateMidtransTokenMulti = async (data) => {
       // Generate description for the booking and transport
       const bookingDescription = `Booking ID: ${booking.id}, ticket for ${booking.total_passengers} Passengers`;
       const transportDescription = transport
-        ? `${transport.transport_type} (${transport.note})`
+        ? `${transport.transport_type}`
         : "";
 
       const combinedDescription = [bookingDescription, transportDescription]
