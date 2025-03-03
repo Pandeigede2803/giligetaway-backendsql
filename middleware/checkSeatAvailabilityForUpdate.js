@@ -873,17 +873,17 @@ const checkBookingDateUpdate = async (req, res, next) => {
         });
       }
   
-      // Hitung selisih antara waktu sekarang dan created_at
-      const createdAt = new Date(booking.created_at); 
+      // Hitung selisih antara waktu sekarang dan booking_date
+      const bookingDate = new Date(booking.booking_date); 
       const now = new Date();
-      const diffMs = now - createdAt;  // (ms)
+      const diffMs = now - bookingDate;  // (ms)
       const diffDays = diffMs / (1000 * 60 * 60 * 24);
   
       // Cek apakah lebih dari 10 hari sejak dibuat
       if (diffDays > 10) {
         return res.status(400).json({
           success: false,
-          message: `Cannot proceed. More than 10 days have passed since the booking was created. (~${diffDays.toFixed(1)} days)`
+          message: `Cannot proceed. More than 10 days have passed since the booking date was created. (~${diffDays.toFixed(1)} days)`
         });
       }
   

@@ -57,6 +57,7 @@ router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityFor
 
 router.put('/date-agent/:booking_id',authenticate,checkBookingDateUpdate,validateBookingDate2,checkSeatAvailabilityForUpdate2, bookingController.updateBookingDateAgent);
 
+// cancen booking
 router.put('/:booking_id/cancel',authenticate,checkBookingDateUpdate2, bookingController.cancelBooking);
 
 // DELETE booking
