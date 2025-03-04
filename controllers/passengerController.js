@@ -875,19 +875,11 @@ const getPassengerCountBySchedule = async (req, res) => {
 
           // console.log("====subAvailability====", JSON.stringify(subAvailability, null, 2));
 
-          console.log(
-            "==== BookingSeatAvailabilities ====",
-            JSON.stringify(
-              subAvailability?.BookingSeatAvailabilities || "nothing",
-              null,
-              2
-            )
-          );
 
           // Ambil subschedule_id dari seatAvailability yang sedang diperiksa
           const subScheduleId = subAvailability?.subschedule_id || "nothing";
 
-          console.log("Checking SubSchedule ID:", subScheduleId);
+         
 
           // Filter Booking yang benar-benar cocok dengan subschedule_id
           const realPassengersBookings =
@@ -897,8 +889,7 @@ const getPassengerCountBySchedule = async (req, res) => {
               );
             }) || [];
 
-          console.log("✅ Real Passengers Bookings:", realPassengersBookings);
-
+       
           // Hitung total real passengers dari booking yang cocok
           const totalRealPassengers =
             realPassengersBookings.length > 0
@@ -907,7 +898,7 @@ const getPassengerCountBySchedule = async (req, res) => {
                 }, 0)
               : 0;
 
-          console.log("🎯 Total Real Passengers:", totalRealPassengers);
+     
 
           const subTotalPassengers = subAvailability
             ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
