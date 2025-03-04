@@ -630,7 +630,15 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
   
     return { relatedPassenger, bookingsWithSubSchedule };
   };
-
+  const countPassengerTypes = (passengers) => {
+    const counts = { adult: 0, child: 0, infant: 0 };
+    passengers.forEach(passenger => {
+        if (counts[passenger.passenger_type] !== undefined) {
+            counts[passenger.passenger_type]++;
+        }
+    });
+    return counts;
+};
 
   //create new controller to filter relatedpassenger to usaing fetch relatedBookingandPassengers by input seatavailability id only
 
@@ -663,11 +671,15 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       // Prepare route based on Schedule or SubSchedule
       let route = 'Unknown Route';
       // const subSchedule = BookingSeatAvailabilities[0]?.Booking?.subSchedule || null;
-
+      let passengerRoute = "Unknown Route";
       if (Schedule) {
         route = buildRouteFromSchedule(Schedule, SubSchedule);
       }
-   
+  //  BookingSeatAvailabilities.Booking.schedule_id && BookingSeatAvailabilities.Booking.subschedule_id
+  // destruc the BookingSeatAvailabilites
+ 
+ 
+
     // Fetch all passengers related to the seat availability
     const passengers = [];
     BookingSeatAvailabilities.forEach((bsa) => {
@@ -685,18 +697,54 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         });
       });
     });
-  
-      return res.status(200).json({
-        status: 'success',
-        message: 'Related passengers retrieved successfully',
-        route,
-        seatAvailabilityStatus,
-        relatedPassengers: passengers,
-        relatedPassengerCount: passengers.length,
-        availability,
-        // schedule: Schedule,
-        // seatAvailability,
-      });
+
+    // how to get the real passegers
+    // === SEAT AVAILABILITY DATA === {
+  // "id": 1208,
+  // "schedule_id": 68,
+  // "available_seats": 28,
+  // "transit_id": null,
+  // "subschedule_id": 136,
+
+  // match witht the realatedPassengers array . booking.schedule_id, booking.subschedule_id with the Seatacailability.schedule_id and sub schedule id, count the real passengers and trow the data realPassengers too
+    // Match related passengers with seat availability and count real passengers
+    const realPassengers = passengers.filter((passenger) => {
+      return (
+        passenger.bookingDetails.schedule_id === seatAvailability.schedule_id &&
+        passenger.bookingDetails.subschedule_id === seatAvailability.subschedule_id
+      );
+    });
+    console.log("realPassengers:", realPassengers);
+
+    const realPassengerCount = realPassengers.length;
+    // count the passenger type base on there will be adult, child, infant  "realPassengers": [
+        // {
+        //   "id": 1778,
+        //   "booking_id": 1497,
+        //   "name": "EVA GAMET",
+        //   "nationality": "France",
+        //   "passport_id": "453y54yjhn",
+        //   "passenger_type": "adult",
+
+        // put it in array
+
+        const passengerTypeCounts = countPassengerTypes(realPassengers);
+        console.log("====passengerTypeCounts====:", passengerTypeCounts);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Related passengers retrieved successfully',
+      route,
+      seatAvailabilityStatus,
+      relatedPassengers: passengers,
+      realPassengers,
+      realPassengerCount,
+      passengerTypeCounts,
+      relatedPassengerCount: passengers.length,
+      availability,
+    });
+
+
     } catch (error) {
       console.error('Error fetching related passengers:', error);
       return res.status(500).json({

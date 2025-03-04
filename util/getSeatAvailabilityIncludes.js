@@ -13,7 +13,7 @@ const getSeatAvailabilityIncludes = () => {
             where: { 
               payment_status: ['paid','invoiced',"pending"]
              },
-            attributes: ['total_passengers']
+            attributes: ['total_passengers', 'id','schedule_id','subschedule_id'],
           }
         ]
       },

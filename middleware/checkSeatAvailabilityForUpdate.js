@@ -920,12 +920,12 @@ const validatePaymentUpdate = async (req, res, next) => {
         }
 
         // Check if both fields are provided
-        if (payment_method && payment_status) {
-            console.log('❌ Both parameters provided');
-            return res.status(400).json({
-                error: "You must specify either payment method or payment status, not both"
-            });
-        }
+        // if (payment_method && payment_status) {
+        //     console.log('❌ Both parameters provided');
+        //     return res.status(400).json({
+        //         error: "You must specify either payment method or payment status, not both"
+        //     });
+        // }
 
         // Find the booking first
         const booking = await Booking.findByPk(id, {

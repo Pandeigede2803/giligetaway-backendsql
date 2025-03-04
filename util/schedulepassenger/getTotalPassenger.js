@@ -44,6 +44,7 @@ const { Op } = require('sequelize');
   
 
 
+
 const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
   try {
     const seatAvailabilities = await SeatAvailability.findAll({

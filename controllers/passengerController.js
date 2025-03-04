@@ -290,11 +290,13 @@ const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
 
 const getFullMonthRange = (year, month) => {
   // Konversi month ke angka dan pastikan dua digit
-  const monthPadded = month.toString().padStart(2, '0');
+  const monthPadded = month.toString().padStart(2, "0");
   // Bulan di JavaScript dimulai dari 0, jadi untuk mendapatkan hari terakhir, buat tanggal ke bulan berikutnya dan ambil tanggal 0
   const lastDay = new Date(year, month, 0).getDate(); // Jika month = 2, maka lastDay = 28 (untuk tahun 2025)
   const startFullDate = `${year}-${monthPadded}-01`;
-  const endFullDate = `${year}-${monthPadded}-${lastDay.toString().padStart(2, '0')}`;
+  const endFullDate = `${year}-${monthPadded}-${lastDay
+    .toString()
+    .padStart(2, "0")}`;
   return { startFullDate, endFullDate };
 };
 
@@ -387,7 +389,6 @@ console.log("Full month range:", startFullDate, endFullDate); // Output: 2025-02
 //     const finalResults = [];
 //     for (const date of daysInMonth) {
 //       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
-   
 
 //       // Fetch related schedules and subschedules for the given date
 
@@ -492,7 +493,6 @@ console.log("Full month range:", startFullDate, endFullDate); // Output: 2025-02
 
 // const getPassengerCountByMonth = async (req, res) => {
 //   const { month, year, boat_id } = req.query;
-
 
 //   if (!month || !year || !boat_id) {
 //     return res.status(400).json({
@@ -664,7 +664,11 @@ const getPassengerCountBySchedule = async (req, res) => {
       : [0, 1, 2, 3, 4, 5, 6];
 
     // Ambil daftar tanggal dalam bulan (dengan filter hari sesuai scheduleDaysOfWeek)
-    const daysInMonth = getDaysInMonthWithDaysOfWeek(month, year, scheduleDaysOfWeek);
+    const daysInMonth = getDaysInMonthWithDaysOfWeek(
+      month,
+      year,
+      scheduleDaysOfWeek
+    );
     // Ambil rentang tanggal penuh (pastikan endFullDate valid, misalnya '2025-02-28' untuk Februari 2025)
     const { startFullDate, endFullDate } = getFullMonthRange(year, month);
     console.log("📅 Full month range:", startFullDate, endFullDate);
@@ -714,27 +718,27 @@ const getPassengerCountBySchedule = async (req, res) => {
       include: [
         {
           model: Destination,
-          as: 'FromDestination',
-          attributes: ['name']
+          as: "FromDestination",
+          attributes: ["name"],
         },
         {
           model: Destination,
-          as: 'ToDestination',
-          attributes: ['name']
+          as: "ToDestination",
+          attributes: ["name"],
         },
         {
           model: Transit,
-          as: 'Transits',
+          as: "Transits",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Boat,
-          as: 'Boat',
-          attributes: ['id', 'boat_name', 'capacity']
-        }
-      ]
+          as: "Boat",
+          attributes: ["id", "boat_name", "capacity"],
+        },
+      ],
     });
 
     // Ambil semua SubSchedule yang valid untuk rentang bulan
@@ -747,68 +751,68 @@ const getPassengerCountBySchedule = async (req, res) => {
       include: [
         {
           model: Schedule,
-          as: 'Schedule',
+          as: "Schedule",
           include: [
             {
               model: Boat,
-              as: 'Boat',
-              attributes: ['capacity']
-            }
-          ]
+              as: "Boat",
+              attributes: ["capacity"],
+            },
+          ],
         },
         {
           model: Destination,
-          as: 'DestinationFrom',
-          attributes: ['name']
+          as: "DestinationFrom",
+          attributes: ["name"],
         },
         {
           model: Destination,
-          as: 'DestinationTo',
-          attributes: ['name']
+          as: "DestinationTo",
+          attributes: ["name"],
         },
         {
           model: Transit,
-          as: 'TransitFrom',
+          as: "TransitFrom",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Transit,
-          as: 'TransitTo',
+          as: "TransitTo",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Transit,
-          as: 'Transit1',
+          as: "Transit1",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Transit,
-          as: 'Transit2',
+          as: "Transit2",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Transit,
-          as: 'Transit3',
+          as: "Transit3",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
         },
         {
           model: Transit,
-          as: 'Transit4',
+          as: "Transit4",
           include: [
-            { model: Destination, as: 'Destination', attributes: ['name'] }
-          ]
-        }
-      ]
+            { model: Destination, as: "Destination", attributes: ["name"] },
+          ],
+        },
+      ],
     });
 
     // Buat lookup object untuk SubSchedule berdasarkan schedule_id
@@ -827,7 +831,7 @@ const getPassengerCountBySchedule = async (req, res) => {
       const dateObj = new Date(date);
 
       // Filter schedule yang valid pada tanggal ini:
-      const validSchedules = schedulesForMonth.filter(sch => {
+      const validSchedules = schedulesForMonth.filter((sch) => {
         const validityStart = new Date(sch.validity_start);
         const validityEnd = new Date(sch.validity_end);
         return validityStart <= dateObj && validityEnd >= dateObj;
@@ -837,7 +841,7 @@ const getPassengerCountBySchedule = async (req, res) => {
       const seatAvailabilityForDate = seatAvailabilitiesByDate[date] || [];
 
       // Proses tiap schedule yang valid
-      validSchedules.forEach(schedule => {
+      validSchedules.forEach((schedule) => {
         // Cari seat availability utama (tanpa subschedule) untuk schedule ini
         const mainAvailability = seatAvailabilityForDate.find(
           (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id
@@ -849,7 +853,9 @@ const getPassengerCountBySchedule = async (req, res) => {
 
         const capacity = mainAvailability
           ? mainAvailability.available_seats + totalPassengers
-          : (schedule.Boat ? calculatePublicCapacity(schedule.Boat) : 0);
+          : schedule.Boat
+          ? calculatePublicCapacity(schedule.Boat)
+          : 0;
 
         const remainingSeats = capacity - totalPassengers;
 
@@ -857,20 +863,60 @@ const getPassengerCountBySchedule = async (req, res) => {
         const route = buildRouteFromSchedule(schedule, null);
 
         // Proses subschedule untuk schedule ini (ambil dari lookup object)
-        const relevantSubSchedules = subSchedulesByScheduleId[schedule.id] || [];
-        const subschedules = relevantSubSchedules.map(subSchedule => {
+        const relevantSubSchedules =
+          subSchedulesByScheduleId[schedule.id] || [];
+        const subschedules = relevantSubSchedules.map((subSchedule) => {
           // Cari seat availability untuk subschedule
           const subAvailability = seatAvailabilityForDate.find(
             (sa) =>
               sa.schedule_id === schedule.id &&
               sa.subschedule_id === subSchedule.id
           );
+
+          // console.log("====subAvailability====", JSON.stringify(subAvailability, null, 2));
+
+          console.log(
+            "==== BookingSeatAvailabilities ====",
+            JSON.stringify(
+              subAvailability?.BookingSeatAvailabilities || "nothing",
+              null,
+              2
+            )
+          );
+
+          // Ambil subschedule_id dari seatAvailability yang sedang diperiksa
+          const subScheduleId = subAvailability?.subschedule_id || "nothing";
+
+          console.log("Checking SubSchedule ID:", subScheduleId);
+
+          // Filter Booking yang benar-benar cocok dengan subschedule_id
+          const realPassengersBookings =
+            subAvailability?.BookingSeatAvailabilities?.filter((bsa) => {
+              return (
+                bsa?.Booking && bsa.Booking.subschedule_id === subScheduleId
+              );
+            }) || [];
+
+          console.log("✅ Real Passengers Bookings:", realPassengersBookings);
+
+          // Hitung total real passengers dari booking yang cocok
+          const totalRealPassengers =
+            realPassengersBookings.length > 0
+              ? realPassengersBookings.reduce((sum, bsa) => {
+                  return sum + (bsa.Booking?.total_passengers || 0);
+                }, 0)
+              : 0;
+
+          console.log("🎯 Total Real Passengers:", totalRealPassengers);
+
           const subTotalPassengers = subAvailability
             ? sumTotalPassengers(subAvailability.BookingSeatAvailabilities)
             : 0;
           const subCapacity = subAvailability
             ? subAvailability.available_seats + subTotalPassengers
-            : (schedule.Boat ? calculatePublicCapacity(schedule.Boat) : 0);
+            : schedule.Boat
+            ? calculatePublicCapacity(schedule.Boat)
+            : 0;
           const subRemainingSeats = subCapacity - subTotalPassengers;
 
           return {
@@ -882,6 +928,8 @@ const getPassengerCountBySchedule = async (req, res) => {
             boost: subAvailability?.boost || false,
             total_passengers: subTotalPassengers,
             capacity: subCapacity,
+            total_real_passengers:totalRealPassengers,
+
             remainingSeats: subRemainingSeats,
             route: buildRouteFromSchedule(schedule, subSchedule),
           };
@@ -898,6 +946,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           capacity,
           remainingSeats,
           total_passengers: totalPassengers,
+
           departure_time: schedule.departure_time,
           arrival_time: schedule.arrival_time,
           journey_time: schedule.journey_time,
@@ -925,7 +974,8 @@ const getPassengerCountByMonth = async (req, res) => {
   if (!month || !year || !boat_id) {
     return res.status(400).json({
       success: false,
-      message: "Please provide month, year, and boat_id in the query parameters.",
+      message:
+        "Please provide month, year, and boat_id in the query parameters.",
     });
   }
 
@@ -961,10 +1011,22 @@ const getPassengerCountByMonth = async (req, res) => {
           {
             model: Schedule,
             as: "Schedule",
-            attributes: ["id", "boat_id", "validity_start", "validity_end", "departure_time", "arrival_time", "journey_time"],
+            attributes: [
+              "id",
+              "boat_id",
+              "validity_start",
+              "validity_end",
+              "departure_time",
+              "arrival_time",
+              "journey_time",
+            ],
             where: { boat_id },
             include: [
-              { model: Destination, as: "FromDestination", attributes: ["name"] },
+              {
+                model: Destination,
+                as: "FromDestination",
+                attributes: ["name"],
+              },
               { model: Destination, as: "ToDestination", attributes: ["name"] },
             ],
           },
@@ -995,12 +1057,29 @@ const getPassengerCountByMonth = async (req, res) => {
           validity_end: { [Op.gte]: startFullDate },
           boat_id: boat_id,
         },
-        attributes: ["id", "validity_start", "validity_end", "departure_time", "arrival_time", "journey_time"],
+        attributes: [
+          "id",
+          "validity_start",
+          "validity_end",
+          "departure_time",
+          "arrival_time",
+          "journey_time",
+        ],
         include: [
           { model: Destination, as: "FromDestination", attributes: ["name"] },
           { model: Destination, as: "ToDestination", attributes: ["name"] },
-          { model: Transit, as: "Transits", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Boat, as: "Boat", attributes: ["id", "boat_name", "capacity"] },
+          {
+            model: Transit,
+            as: "Transits",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Boat,
+            as: "Boat",
+            attributes: ["id", "boat_name", "capacity"],
+          },
         ],
       }),
       // Ambil semua SubSchedule yang valid untuk rentang bulan dan untuk schedule dari boat_id
@@ -1015,18 +1094,52 @@ const getPassengerCountByMonth = async (req, res) => {
             model: Schedule,
             as: "Schedule",
             where: { boat_id },
-            include: [
-              { model: Boat, as: "Boat", attributes: ["capacity"] },
-            ],
+            include: [{ model: Boat, as: "Boat", attributes: ["capacity"] }],
           },
           { model: Destination, as: "DestinationFrom", attributes: ["name"] },
           { model: Destination, as: "DestinationTo", attributes: ["name"] },
-          { model: Transit, as: "TransitFrom", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Transit, as: "TransitTo", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Transit, as: "Transit1", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Transit, as: "Transit2", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Transit, as: "Transit3", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
-          { model: Transit, as: "Transit4", include: [{ model: Destination, as: "Destination", attributes: ["name"] }] },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit1",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit2",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit3",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit4",
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
         ],
       }),
     ]);
@@ -1055,7 +1168,9 @@ const getPassengerCountByMonth = async (req, res) => {
         // Jika ada data seat availability, gunakan data tersebut
         finalResults.push(
           ...seatAvailabilitiesByDate[date].map((sa) => {
-            const totalPassengers = sumTotalPassengers(sa.BookingSeatAvailabilities);
+            const totalPassengers = sumTotalPassengers(
+              sa.BookingSeatAvailabilities
+            );
             const route = buildRouteFromSchedule(sa.Schedule, sa.SubSchedule);
             return {
               seatavailability_id: sa.id,
@@ -1115,7 +1230,6 @@ const getPassengerCountByMonth = async (req, res) => {
     });
   }
 };
-
 
 // const getPassengerCountByMonth = async (req, res) => {
 //   const { month, year, boat_id } = req.query;
@@ -1221,7 +1335,7 @@ const getPassengerCountByMonth = async (req, res) => {
 //         // Jika tidak ada SeatAvailability, ambil data schedule dan subschedule untuk tanggal tersebut
 //         console.log("No seat availability for date:", date, "- Fetching schedule and subschedule for boat:", boat_id);
 //         const { schedules, subSchedules } = await getScheduleAndSubScheduleByDate(date, boat_id);
-        
+
 //         // Proses setiap schedule
 //         schedules.forEach((schedule) => {
 //           const route = buildRouteFromSchedule(schedule, null);
@@ -1550,7 +1664,7 @@ const getPassengersSeatNumber = async (req, res) => {
           as: "booking",
           required: true,
           where: {
-            payment_status: ["paid", "invoiced","pending"],
+            payment_status: ["paid", "invoiced", "pending"],
           },
 
           include: [
@@ -1567,10 +1681,7 @@ const getPassengersSeatNumber = async (req, res) => {
           ],
         },
       ],
-
     });
-
-   
 
     // query boat information from req query schedule-id
     console.log(`Fetching boat with ID: ${schedule_id}`);

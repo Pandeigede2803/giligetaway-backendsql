@@ -1819,10 +1819,13 @@ const getBookings = async (req, res) => {
 //   }
 // };
 
+
 const getFilteredBookings = async (req, res) => {
   try {
     // Ambil query parameter
-    const { monthly, ticket_id, id } = req.query;
+    const { monthly, booking_month, ticket_id, id } = req.query;
+
+    console.log("Console log all query:", { booking_month, monthly });
 
     // Filter data
     let dateFilter = {};
@@ -1833,8 +1836,27 @@ const getFilteredBookings = async (req, res) => {
     } else if (ticket_id) {
       // Jika `ticket_id` ada, abaikan filter lainnya
       dateFilter = { ticket_id };
+    } else if (booking_month) {
+      // Jika `booking_month` ada, filter berdasarkan bulan dari `booking_date`
+      console.log("Filtering by booking_month:", booking_month);
+      const [year, month] = booking_month.split("-");
+      if (!year || !month || isNaN(year) || isNaN(month)) {
+      return res
+        .status(400)
+        .json({ error: "Invalid booking_month filter format. Use YYYY-MM." });
+      }
+
+      dateFilter = {
+      booking_date: {
+        [Op.between]: [
+        new Date(year, month - 1, 1), // Awal bulan
+        new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+        ],
+      },
+      };
     } else if (monthly) {
-      // Jika `monthly` ada, filter berdasarkan bulan
+      // Jika `monthly` ada, filter berdasarkan `created_at`
+      console.log("Filtering by monthly:", monthly);
       const [year, month] = monthly.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
         return res
@@ -1844,8 +1866,10 @@ const getFilteredBookings = async (req, res) => {
 
       dateFilter = {
         created_at: {
-          [Op.gte]: new Date(year, month - 1, 1), // Awal bulan
-          [Op.lt]: new Date(year, month, 1), // Awal bulan berikutnya
+          [Op.between]: [
+            new Date(year, month - 1, 1), // Awal bulan
+            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+          ],
         },
       };
     }
@@ -1883,111 +1907,65 @@ const getFilteredBookings = async (req, res) => {
                 },
               ],
             },
-            { model: Destination, 
-            as: "FromDestination" },
-            { model: Destination, 
-            as: "ToDestination" },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
           ],
         },
+        { model: AgentCommission, as: "agentCommissions" },
         {
-          model: AgentCommission,
-          as: 'agentCommissions',
-        },
-
-        {
-          model:SubSchedule,
-          as:'subSchedule',
+          model: SubSchedule,
+          as: "subSchedule",
           attributes: [
-            'id','destination_from_schedule_id',
-            'destination_to_schedule_id',
-            'transit_from_id','transit_to_id',
-            'transit_1','transit_2','transit_3','transit_4'],
+            "id",
+            "destination_from_schedule_id",
+            "destination_to_schedule_id",
+            "transit_from_id",
+            "transit_to_id",
+            "transit_1",
+            "transit_2",
+            "transit_3",
+            "transit_4",
+          ],
           include: [
+            { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+            { model: Destination, as: "DestinationTo", attributes: ["name"] },
             {
-              model: Destination,
-              as: 'DestinationFrom',
-              attributes: ['name']
-          },
-          {
-              model: Destination,
-              as: 'DestinationTo',
-
-              attributes: ['name']
-          },
-          {
               model: Transit,
-              as: 'TransitFrom',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          },
-          {
+              as: "TransitFrom",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+            {
               model: Transit,
-              as: 'TransitTo',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          },
-          {
+              as: "TransitTo",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+            {
               model: Transit,
-              as: 'Transit1',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          },
-          {
+              as: "Transit1",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+            {
               model: Transit,
-              as: 'Transit2',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          },
-          {
+              as: "Transit2",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+            {
               model: Transit,
-              as: 'Transit3',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          },
-          {
+              as: "Transit3",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+            {
               model: Transit,
-              as: 'Transit4',
-              attributes: ['id','departure_time','arrival_time'],
-              include: [
-                  {
-                      model: Destination,
-                      as: 'Destination',
-                      attributes: ['name']
-                  }
-              ]
-          }
-          ]
-
+              as: "Transit4",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+            },
+          ],
         },
         {
           model: SeatAvailability,
@@ -2008,24 +1986,16 @@ const getFilteredBookings = async (req, res) => {
       ],
     });
 
- 
-
     // Tambahkan route ke masing-masing booking
     const enrichedBookings = bookings.map((booking) => {
       const schedule = booking.schedule || null;
       const subSchedule = booking.subSchedule || null;
 
-    
- // Tentukan departure_time dan arrival_time menggunakan fungsi
- const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
-
-
+      // Tentukan departure_time dan arrival_time menggunakan fungsi
+      const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
       // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
-      const route = schedule
-        ? buildRouteFromSchedule(schedule, subSchedule)
-        : null;
-
+      const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
 
       // Tambahkan route ke hasil booking
       return {
@@ -2036,17 +2006,6 @@ const getFilteredBookings = async (req, res) => {
       };
     });
 
-    // create function to create departure time and arrival time and push to the bookings
-    // if the subschedule null, use departure time from booking.schedule.departure time // booking.schedule.arrival time
-    // if the subschedule not null, use departure time from (if destination_from_schedule_id is exist, use departure time from schedule.departure time,
-    // if the subschedule.destination_to_schedule_id use the arrival time from schedule.arrival time
-    // if the transit_from_id is exit use the departure time from transit_from_id.Transits.departure_time
-    // if the transit_to_id is exit use the arrival time from transit_to_id.Transits.arrival_time
-    // if the transit_1 is exit use the departure time from transit1_id.Transits.departure_time
-    // if the transit_2 is exit use the arrival time from transit2_id.Transits.arrival_time
-    // if the transit_3 is exit use the departure time from transit3_id.Transits.departure_time
-    // if the transit_4 is exit use the arrival time from transit4_id.Transits.arrival_time
-
     // Respons data
     res.status(200).json({
       bookings: enrichedBookings,
@@ -2056,11 +2015,10 @@ const getFilteredBookings = async (req, res) => {
     });
   } catch (error) {
     console.error("Error retrieving filtered bookings:", error);
-    res
-      .status(400)
-      .json({ error: "An error occurred while fetching bookings." });
+    res.status(400).json({ error: "An error occurred while fetching bookings." });
   }
 };
+
 const getBookingByTicketId = async (req, res) => {
   try {
     const booking = await Booking.findOne({
@@ -2308,12 +2266,15 @@ const updateBookingPayment = async (req, res) => {
 
  
       // Handle payment method update only
-      if (payment_method && !payment_status) {
-        console.log('\n🔄 Updating payment method only...');
-        await booking.update({ payment_method }, { transaction: t });
-        console.log('✅ Payment method updated successfully');
+      if (payment_method || payment_status) {
+        console.log('\n🔄 Updating payment details...');
+        const data = {};
+        if (payment_method) data.payment_method = payment_method;
+        if (payment_status) data.payment_status = payment_status;
+        await booking.update(data, { transaction: t });
+        console.log('✅ Payment details updated successfully');
         return res.status(200).json({
-          message: "Payment method updated successfully",
+          message: "Payment details updated successfully",
           data: booking
         });
       }

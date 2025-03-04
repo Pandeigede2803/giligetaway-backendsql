@@ -290,6 +290,7 @@ const getDaysInMonth = (month, year) => {
 
 const getAllSchedulesWithSubSchedules = async (req, res) => {
   const { month, year, boat_id } = req.query;
+  console.log("boatID" ,boat_id);
 
   if (!month || !year || !boat_id) {
     return res.status(400).json({
