@@ -693,7 +693,7 @@ const getPassengerCountBySchedule = async (req, res) => {
       include: getSeatAvailabilityIncludes(),
     });
 
-    console.log("Seat Availabilities Fetched:", seatAvailabilities.length);
+  
     seatAvailabilities.forEach((sa) =>
       console.log(
         `SeatAvailability ID: ${sa.id}, Date: ${sa.date}, Available Seats: ${sa.available_seats}`
@@ -889,6 +889,7 @@ const getPassengerCountBySchedule = async (req, res) => {
               );
             }) || [];
 
+         
        
           // Hitung total real passengers dari booking yang cocok
           const totalRealPassengers =
@@ -1029,7 +1030,7 @@ const getPassengerCountByMonth = async (req, res) => {
               {
                 model: Booking,
                 as: "Booking",
-                attributes: ["total_passengers"],
+                attributes: ["total_passengers","schedule_id","subschedule_id"],
                 where: { payment_status: ["paid", "invoiced", "pending"] },
               },
             ],
@@ -1135,6 +1136,8 @@ const getPassengerCountByMonth = async (req, res) => {
       }),
     ]);
 
+
+
     console.log("Seat Availabilities Fetched:", seatAvailabilities.length);
 
     // Buat lookup: Kelompokkan SeatAvailability berdasarkan tanggal
@@ -1159,16 +1162,39 @@ const getPassengerCountByMonth = async (req, res) => {
         // Jika ada data seat availability, gunakan data tersebut
         finalResults.push(
           ...seatAvailabilitiesByDate[date].map((sa) => {
+            console.log(JSON.stringify(sa.BookingSeatAvailabilities));
             const totalPassengers = sumTotalPassengers(
               sa.BookingSeatAvailabilities
             );
+
+            // bookingSeatAvailability.Booking?.total_passengers
+            // =====bookingSeatAvailabilities====== [
+            //   {
+            //     "id": 1320,
+            //     "booking_id": 1444,
+            //     "Booking": {
+            //       "total_passengers": 3,
+            //       "schedule_id": 63,
+            //       "subschedule_id": null
+            //     }
+            //   },
+            const realPassengers = sa.BookingSeatAvailabilities.filter(bsa =>
+              bsa.Booking.schedule_id === sa.schedule_id &&
+              bsa.Booking.subschedule_id === sa.subschedule_id
+            );
+        
+            const totalRealPassengers = realPassengers.reduce((sum, bsa) => sum + (bsa.Booking.total_passengers || 0), 0);
+
+
+
             const route = buildRouteFromSchedule(sa.Schedule, sa.SubSchedule);
             return {
               seatavailability_id: sa.id,
               date: sa.date,
               schedule_id: sa.schedule_id,
               subschedule_id: sa.subschedule_id,
-              total_passengers: totalPassengers,
+              total_passengers: totalRealPassengers,
+              total_real_passengers: 0,
               route: route,
             };
           })

@@ -1,5 +1,6 @@
 const { sequelize, Booking, SeatAvailability, Destination, SubSchedule, Transport, Schedule, Passenger, Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../../models');
-const { Op } = require('sequelize');
+
+const { Op, fn, col } = require('sequelize');
 
 // /**
 //  * Utility function to get total passengers for a specific schedule and subschedule on a given date.
@@ -8,61 +9,21 @@ const { Op } = require('sequelize');
 //  * @param {string} date - The date to check for bookings (in 'YYYY-MM-DD' format).
 //  * @returns {Promise<number>} - The total number of passengers for the given schedule and date.
 //  */
-// const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
-//     try {
-//       // Fetch all bookings that match the schedule, subschedule, and date
-//       const bookings = await Booking.findAll({
-//         where: {
-//           schedule_id: schedule_id,
-//           subschedule_id: subschedule_id || { [Op.is]: null }, // Jika subschedule_id null, handle dengan { Op.is: null }
-//           booking_date: {
-//             [Op.eq]: date
-//           },
-//           payment_status: ['paid','invoiced'] // Hanya menghitung bookings dengan payment_status 'paid' dan 'invoiced'
-//         },
-//         attributes: ['total_passengers'] // Hanya mengambil field total_passengers
-//       });
-  
-//       // Menghitung total penumpang dengan mengiterasi hasil
-//       let totalPassengers = 0;
-//       bookings.forEach(booking => {
-//         totalPassengers += booking.total_passengers;
-//       });
-  
-//       console.log(`Total passengers for schedule ${schedule_id}, subschedule ${subschedule_id || 'N/A'}, and date ${date}: ${totalPassengers}`);
-      
-//       return totalPassengers; // Mengembalikan total penumpang yang dihitung
-//     } catch (error) {
-//       console.error('Error fetching total passengers:', error);
-//       return 0; // Mengembalikan 0 jika terjadi kesalahan
-//     }
-//   };
-  
-//   module.exports = {
-//     getTotalPassengers
-//   };;
-  
-
-
 
 const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
+  console.log("query schedule", schedule_id, subschedule_id);
   try {
+    // Ambil total jumlah penumpang berdasarkan SeatAvailability
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
-        schedule_id: schedule_id,
-        // Jika subschedule_id tidak diberikan, gunakan kondisi IS NULL
+        schedule_id,
         subschedule_id: subschedule_id || { [Op.is]: null },
-        date: date,
+        date,
       },
       attributes: [
-        "id",
+        "id", // Ambil ID dari SeatAvailability
         [
-          // Hitung jumlah total penumpang dari Booking yang digabungkan melalui BookingSeatAvailability
-          sequelize.fn(
-            "COALESCE",
-            sequelize.fn("SUM", sequelize.col("BookingSeatAvailabilities->Booking.total_passengers")),
-            0
-          ),
+          fn("COALESCE", fn("SUM", col("BookingSeatAvailabilities.Booking.total_passengers")), 0),
           "passengersSum"
         ]
       ],
@@ -70,48 +31,169 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
         {
           model: BookingSeatAvailability,
           as: 'BookingSeatAvailabilities',
-          required: false, // Izinkan hasil meskipun tidak ada data booking
-          attributes: [], // Jangan select kolom apapun dari BookingSeatAvailability
+          required: false,
+          attributes: [],
           include: [
             {
               model: Booking,
-              as: 'Booking',
+              as: "Booking",
               where: {
-                payment_status: ['paid', 'invoiced'] // Hanya ambil booking dengan status ini
+                payment_status: ['paid', 'invoiced']
               },
-              attributes: [] // Jangan select kolom apapun dari Booking
-            },
-          ],
-        },
+              attributes: []
+            }
+          ]
+        }
       ],
       group: ["SeatAvailability.id"],
     });
 
+    // Ambil daftar Booking yang terkait dengan SeatAvailability
+    const bookingDetails = await Booking.findAll({
+      where: {
+        schedule_id: schedule_id,
+        subschedule_id: subschedule_id || { [Op.is]: null },
+        booking_date: {
+          [Op.eq]: date
+        },
+        payment_status: ['paid', 'invoiced']
+      },
+      attributes: ["id", "schedule_id", "subschedule_id", "total_passengers"],
+    });
+
+    console.log("Raw Query Result:", JSON.stringify(seatAvailabilities, null, 2));
+    console.log("Booking Details:", JSON.stringify(bookingDetails, null, 2));
+
     let totalPassengers = 0;
+    let totalRealPassengers = 0;
     const seatAvailabilityIds = [];
 
     seatAvailabilities.forEach((sa) => {
-      // Ambil hasil agregasi dan konversi ke integer
       const passengers = parseInt(sa.getDataValue("passengersSum"), 10);
       totalPassengers += passengers;
-      // Jika ada penumpang, masukkan id SeatAvailability ke dalam array
       if (passengers > 0) {
         seatAvailabilityIds.push(sa.id);
       }
     });
 
+    bookingDetails.forEach((booking) => {
+      totalRealPassengers += booking.total_passengers;
+    });
+
     return {
       totalPassengers,
+      totalRealPassengers,
       seatAvailabilityIds,
+      bookings: bookingDetails
     };
   } catch (error) {
     console.error('Error fetching passengers and seat availability:', error);
     return {
       totalPassengers: 0,
+      totalRealPassengers: 0,
       seatAvailabilityIds: [],
+      bookings: []
     };
   }
 };
+
+
+
+// const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
+//   console.log("query schedule", schedule_id, subschedule_id);
+//   try {
+//     const seatAvailabilities = await SeatAvailability.findAll({
+//       where: {
+//         schedule_id,
+//         // Jika subschedule_id tidak diberikan, gunakan kondisi IS NULL
+//         subschedule_id: subschedule_id || { [Op.is]: null },
+//         date,
+//       },
+//       attributes: [
+//         "id", // Ambil ID dari SeatAvailability
+//         // Hitung total penumpang dari Booking.total_passengers
+//         [
+//           fn(
+//             "COALESCE",
+//             fn("SUM", col("BookingSeatAvailabilities->Booking.total_passengers")),
+//             0
+//           ),
+//           "passengersSum"
+//         ],
+//         // Gabungkan Booking.id dalam satu string (dipisahkan koma)
+//         [
+//           fn(
+//             "COALESCE",
+//             fn("GROUP_CONCAT", col("BookingSeatAvailabilities->Booking.id")),
+//             ''
+//           ),
+//           "bookingIds"
+//         ]
+//       ],
+//       include: [
+//         {
+//           model: BookingSeatAvailability,
+//           as: 'BookingSeatAvailabilities',
+//           required: false, // Tetap ambil SeatAvailability meskipun tidak ada booking
+//           attributes: [],  // Tidak memilih kolom tambahan dari BookingSeatAvailability
+//           include: [
+//             {
+//               model: Booking,
+//               as: 'Booking',
+//               attributes: ["id", "schedule_id", "subschedule_id"] // Ambil Booking.id, Booking.schedule_id, Booking.subschedule_id
+//             }
+//           ]
+//         }
+//       ],
+//       // Grouping hanya berdasarkan SeatAvailability.id
+//       group: ["SeatAvailability.id"],
+//     });
+
+//     console.log("Raw Query Result:", JSON.stringify(seatAvailabilities, null, 2));
+
+//     let totalPassengers = 0;
+//     const seatAvailabilityIds = [];
+//     const bookings = [];
+
+//     seatAvailabilities.forEach((sa) => {
+//       // Ambil nilai agregasi dan konversi ke integer
+//       const passengers = parseInt(sa.getDataValue("passengersSum"), 10);
+//       totalPassengers += passengers;
+//       if (passengers > 0) {
+//         seatAvailabilityIds.push(sa.id);
+//       }
+
+//       // Ambil data booking
+//       if (sa.BookingSeatAvailabilities) {
+//         sa.BookingSeatAvailabilities.forEach(bsa => {
+//           if (bsa.Booking) {
+//             bookings.push({
+//               id: bsa.Booking.id,
+//               schedule_id: bsa.Booking.schedule_id,
+//               subschedule_id: bsa.Booking.subschedule_id
+//             });
+//           }
+//         });
+//       }
+//     });
+
+//     return {
+//       totalPassengers,
+//       seatAvailabilityIds,
+//       bookings
+//     };
+//   } catch (error) {
+//     console.error('Error fetching passengers and seat availability:', error);
+//     return {
+//       totalPassengers: 0,
+//       seatAvailabilityIds: [],
+//       bookings: []
+//     };
+//   }
+// };
+
+
+
   module.exports = {
     getTotalPassengers
   };;

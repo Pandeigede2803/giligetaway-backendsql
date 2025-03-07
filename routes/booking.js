@@ -7,8 +7,8 @@ const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limitin
 const {validateScheduleAndSubSchedule,validateScheduleAndSubScheduleForRoundTrip} = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
 const { checkSeatAvailabilityForUpdate,checkSeatAvailabilityForUpdate2,
-    validateBookingDate,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
-    checkBookingDateUpdate2} = require('../middleware/checkSeatAvailabilityForUpdate');
+    validateBookingDate,validateRoundTripTicket,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
+    checkBookingDateUpdate2,checkBookingDateUpdateDirect} = require('../middleware/checkSeatAvailabilityForUpdate');
 const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
 
 // CREATE booking
@@ -44,7 +44,10 @@ router.get('/date',authenticate, bookingController.getBookingsByDate);;
 router.get('/:id', bookingController.getBookingById);;
 
 //read booking by ticket id
-router.get('/ticket/:ticket_id', bookingController.getBookingByTicketId);
+router.get('/ticket/:ticket_id',bookingController.getBookingByTicketId);
+
+//read booking by ticket id
+router.get('/ticket-related/:ticket_id',validateRoundTripTicket,bookingController.getRelatedBookingsByTicketId);
 
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);
@@ -53,7 +56,7 @@ router.put('/:id', bookingController.updateBooking);
 router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.updateBookingPayment);
 
 //update booking date
-router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate, bookingController.updateBookingDate);
+router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate,checkBookingDateUpdateDirect, bookingController.updateBookingDate);
 
 router.put('/date-agent/:booking_id',authenticate,checkBookingDateUpdate,validateBookingDate2,checkSeatAvailabilityForUpdate2, bookingController.updateBookingDateAgent);
 

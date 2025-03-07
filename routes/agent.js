@@ -5,6 +5,7 @@ const agentController = require('../controllers/agentController');
 const authenticate = require('../middleware/authenticate');
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
+
 // const { upload,uploadImageToImageKit } = require('../middleware/upload');
 
 const { createUploadMiddleware, uploadImageToImageKit } = require('../middleware/uploadImage');

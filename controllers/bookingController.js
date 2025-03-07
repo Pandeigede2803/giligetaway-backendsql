@@ -17,6 +17,7 @@ const {
   Boat,
 } = require("../models");
 const { fn, col } = require("sequelize");
+const nodemailer = require("nodemailer");
 
 
 
@@ -36,6 +37,7 @@ const Queue = require("bull");
 const bookingQueue = new Queue("bookingQueue"); // Inisialisasi Bull Queue
 const bookingQueueMultiple = new Queue("bookingQueueMultiple");
 const bookingRoundQueue = new Queue("bookingRoundQueue");
+const {sendPaymentEmail,sendEmailNotification} = require("../util/sendPaymentEmail");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
 const {
@@ -2047,6 +2049,109 @@ const getBookingByTicketId = async (req, res) => {
               as: "ToDestination",
             },
           ],
+          include: [
+            {
+              model: Boat,
+              as: "Boat",
+            }
+          ]
+        },
+   
+       
+        {
+          model: SubSchedule,
+          as: 'subSchedule',
+   
+          include: [
+            {
+              model: Destination,
+              as: 'DestinationFrom',
+           
+            },
+            {
+              model:Schedule,
+              as:'Schedule',
+              attributes: ['id','arrival_time','departure_time','journey_time'],
+            },
+            {
+              model: Destination,
+              as: 'DestinationTo',
+       
+            },
+            {
+              model: Transit,
+              as: 'TransitFrom',
+          
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+           
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'TransitTo',
+         
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+          
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'Transit1',
+          
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+  
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'Transit2',
+           
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+             
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'Transit3',
+          
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+         
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: 'Transit4',
+
+              include: [
+                {
+                  model: Destination,
+                  as: 'Destination',
+         
+                },
+              ],
+            },
+        
+          ],
         },
         {
           model: SeatAvailability,
@@ -2082,6 +2187,90 @@ const getBookingByTicketId = async (req, res) => {
   } catch (error) {
     console.log("Error retrieving booking:", error.message);
     res.status(400).json({ error: error.message });
+  }
+};
+
+const getRelatedBookingsByTicketId = async (req, res) => {
+  try {
+    const { ticket_id } = req.params;
+
+    console.log("Processing ticket ID:", ticket_id);
+
+    // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8867")
+    const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir
+    const regexPattern = `${prefix}%`; // Pattern wildcard untuk SQL
+
+    // 2️⃣ Cari dua booking dengan ticket_id yang mirip
+    const bookings = await Booking.findAll({
+      where: {
+        ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
+      },
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          include: [
+            { model: Boat, as: "Boat" },
+            { model: Transit, as: "Transits", include: [{ model: Destination, as: "Destination" }] },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
+          ],
+        },
+        {
+          model: SubSchedule,
+          as: "subSchedule",
+          include: [
+            { model: Destination, as: "DestinationFrom" },
+            { model: Schedule, as: "Schedule", attributes: ["id", "arrival_time", "departure_time", "journey_time"] },
+            { model: Destination, as: "DestinationTo" },
+            { model: Transit, as: "TransitFrom", include: [{ model: Destination, as: "Destination" }] },
+            { model: Transit, as: "TransitTo", include: [{ model: Destination, as: "Destination" }] },
+            { model: Transit, as: "Transit1", include: [{ model: Destination, as: "Destination" }] },
+            { model: Transit, as: "Transit2", include: [{ model: Destination, as: "Destination" }] },
+            { model: Transit, as: "Transit3", include: [{ model: Destination, as: "Destination" }] },
+            { model: Transit, as: "Transit4", include: [{ model: Destination, as: "Destination" }] },
+          ],
+        },
+        { model: SeatAvailability, as: "SeatAvailabilities" },
+        { model: Passenger, as: "passengers" },
+        { model: TransportBooking, as: "transportBookings", include: [{ model: Transport, as: "transport" }] },
+        { model: Agent, as: "Agent" },
+      ],
+      order: [["id", "DESC"]], // Urutkan dari ID terbesar ke terkecil
+      limit: 2, // Ambil maksimum 2 data
+    });
+
+    console.log("Bookings found:", bookings.length);
+
+    if (bookings.length === 0) {
+      console.log("❌ No related bookings found.");
+      return res.status(404).json({ error: "No related bookings found" });
+    }
+
+    if (bookings.length === 1) {
+      console.log("⚠️ Only one booking found. Returning single ticket.");
+      return res.status(200).json({ message: "Only one booking found", bookings });
+    }
+
+    // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
+    const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
+    if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
+      console.log("⚠️ Booking IDs are not sequential. Returning only the first booking.");
+      return res.status(200).json({ message: "Booking IDs are not sequential", bookings: [bookings[0]] });
+    }
+
+    // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
+    const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
+    if (!validMatch) {
+      console.log("❌ Ticket IDs do not match the provided ticket_id. Returning error.");
+      return res.status(400).json({ error: "Ticket IDs do not match the provided ticket_id" });
+    }
+
+    console.log("✅ Successfully retrieved related bookings.");
+    return res.status(200).json({ message: "Round-trip bookings found", bookings });
+  } catch (error) {
+    console.error("❌ Error retrieving related bookings:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -2237,25 +2426,19 @@ const updateBooking = async (req, res) => {
   }
 };
 
+
+
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
   const { payment_method, payment_status } = req.body;
 
-  console.log('\n=== Starting Payment Update Process ===');
-  console.log('📝 Request Details:');
-  console.log(`- Booking ID: ${id}`);
-  console.log(`- Payment Method: ${payment_method || 'Not provided'}`);
-  console.log(`- Payment Status: ${payment_status || 'Not provided'}`);
+
 
   try {
     await sequelize.transaction(async (t) => {
-      // Find booking with all necessary info
       console.log('\n🔍 Finding booking details...');
       const booking = await Booking.findByPk(id, {
-        include: [{
-          model: Transaction,
-          as: 'transactions'
-        }],
+        include: [{ model: Transaction, as: 'transactions' }],
         transaction: t
       });
 
@@ -2264,15 +2447,23 @@ const updateBookingPayment = async (req, res) => {
         throw new Error("Booking not found");
       }
 
- 
-      // Handle payment method update only
+      // Check if payment details need an update
       if (payment_method || payment_status) {
         console.log('\n🔄 Updating payment details...');
         const data = {};
         if (payment_method) data.payment_method = payment_method;
         if (payment_status) data.payment_status = payment_status;
+        
         await booking.update(data, { transaction: t });
         console.log('✅ Payment details updated successfully');
+
+        // Send email notification
+
+        console.log('\n📧 Sending email notification...',booking.contact_email);
+        if (booking.contact_email) {
+          sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status);
+        }
+
         return res.status(200).json({
           message: "Payment details updated successfully",
           data: booking
@@ -2281,50 +2472,39 @@ const updateBookingPayment = async (req, res) => {
 
       // Handle refund cases
       if (payment_status === 'refund_50' || payment_status === 'refund_100') {
-        // console.log('\n💰 Processing Refund Request:');
-        // console.log(`- Refund Type: ${payment_status}`);
-        
-        // Calculate refund amounts
         const refundPercentage = payment_status === 'refund_50' ? 0.5 : 1;
         const refundAmount = booking.gross_total * refundPercentage;
-        const refundAmountUSD = booking.gross_total_in_usd ? 
-          booking.gross_total_in_usd * refundPercentage : null;
+        const refundAmountUSD = booking.gross_total_in_usd ? booking.gross_total_in_usd * refundPercentage : null;
 
         console.log('\n📊 Refund Calculations:');
         console.log(`- Refund Percentage: ${refundPercentage * 100}%`);
-        console.log(`- Original Amount: ${booking.gross_total} ${booking.currency}`);
         console.log(`- Refund Amount: ${refundAmount} ${booking.currency}`);
-        if (booking.gross_total_in_usd) {
-          console.log(`- Original Amount USD: $${booking.gross_total_in_usd}`);
+        if (refundAmountUSD !== null) {
           console.log(`- Refund Amount USD: $${refundAmountUSD}`);
         }
 
-        // Calculate new totals
         const newGrossTotal = booking.gross_total - refundAmount;
-        const newGrossTotalUSD = booking.gross_total_in_usd ? 
-          booking.gross_total_in_usd - refundAmountUSD : null;
+        const newGrossTotalUSD = booking.gross_total_in_usd ? booking.gross_total_in_usd - refundAmountUSD : null;
 
-        console.log('\n📊 New Totals After Refund:');
-        console.log(`- New Gross Total: ${newGrossTotal} ${booking.currency}`);
-        if (newGrossTotalUSD !== null) {
-          console.log(`- New Gross Total USD: $${newGrossTotalUSD}`);
-        }
-
-        // Update booking with refund
         console.log('\n🔄 Updating booking with refund details...');
         await booking.update({
           payment_status,
           gross_total: newGrossTotal,
           gross_total_in_usd: newGrossTotalUSD
         }, { transaction: t });
-        console.log('✅ Booking updated successfully');
+        console.log('✅ Refund processed successfully');
 
-        // Release seats if needed
         console.log('\n🪑 Processing seat release...');
         const releasedSeatIds = await releaseSeats(booking, t);
         console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(', ') : 'None'}`);
 
-        console.log('\n✅ Refund process completed successfully');
+        console.log('\n✅ Refund process completed successfully',booking.customer_email);
+        // Send refund email notification
+        if (booking.contact_email) {
+          console.log('\n📧 Sending  email...');
+          sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status, refundAmount, refundAmountUSD);
+        }
+
         return res.status(200).json({
           message: `${payment_status === 'refund_50' ? '50%' : 'Full'} refund processed successfully`,
           data: {
@@ -2343,7 +2523,12 @@ const updateBookingPayment = async (req, res) => {
       console.log('\n🔄 Updating payment status...');
       await booking.update({ payment_status }, { transaction: t });
       console.log('✅ Payment status updated successfully');
-      
+
+      // Send email notification
+      if (booking.contact_email) {
+        sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status);
+      }
+
       return res.status(200).json({
         message: "Payment status updated successfully",
         data: booking
@@ -2352,14 +2537,136 @@ const updateBookingPayment = async (req, res) => {
 
   } catch (error) {
     console.error('\n❌ Error in updateBookingPayment:', error);
-    console.error('Error details:', error.message);
-    console.error('Error stack:', error.stack);
     return res.status(400).json({
       error: error.message,
       details: 'Failed to process payment update'
     });
   }
 };
+
+// const updateBookingPayment = async (req, res) => {
+//   const { id } = req.params;
+//   const { payment_method, payment_status } = req.body;
+
+//   console.log('\n=== Starting Payment Update Process ===');
+//   console.log('📝 Request Details:');
+//   console.log(`- Booking ID: ${id}`);
+//   console.log(`- Payment Method: ${payment_method || 'Not provided'}`);
+//   console.log(`- Payment Status: ${payment_status || 'Not provided'}`);
+
+//   try {
+//     await sequelize.transaction(async (t) => {
+//       // Find booking with all necessary info
+//       console.log('\n🔍 Finding booking details...');
+//       const booking = await Booking.findByPk(id, {
+//         include: [{
+//           model: Transaction,
+//           as: 'transactions'
+//         }],
+//         transaction: t
+//       });
+
+//       if (!booking) {
+//         console.log('❌ Booking not found');
+//         throw new Error("Booking not found");
+//       }
+
+ 
+//       // Handle payment method update only
+//       if (payment_method || payment_status) {
+//         console.log('\n🔄 Updating payment details...');
+//         const data = {};
+//         if (payment_method) data.payment_method = payment_method;
+//         if (payment_status) data.payment_status = payment_status;
+//         await booking.update(data, { transaction: t });
+//         console.log('✅ Payment details updated successfully');
+//         return res.status(200).json({
+//           message: "Payment details updated successfully",
+//           data: booking
+//         });
+//       }
+
+//       // Handle refund cases
+//       if (payment_status === 'refund_50' || payment_status === 'refund_100') {
+//         // console.log('\n💰 Processing Refund Request:');
+//         // console.log(`- Refund Type: ${payment_status}`);
+        
+//         // Calculate refund amounts
+//         const refundPercentage = payment_status === 'refund_50' ? 0.5 : 1;
+//         const refundAmount = booking.gross_total * refundPercentage;
+//         const refundAmountUSD = booking.gross_total_in_usd ? 
+//           booking.gross_total_in_usd * refundPercentage : null;
+
+//         console.log('\n📊 Refund Calculations:');
+//         console.log(`- Refund Percentage: ${refundPercentage * 100}%`);
+//         console.log(`- Original Amount: ${booking.gross_total} ${booking.currency}`);
+//         console.log(`- Refund Amount: ${refundAmount} ${booking.currency}`);
+//         if (booking.gross_total_in_usd) {
+//           console.log(`- Original Amount USD: $${booking.gross_total_in_usd}`);
+//           console.log(`- Refund Amount USD: $${refundAmountUSD}`);
+//         }
+
+//         // Calculate new totals
+//         const newGrossTotal = booking.gross_total - refundAmount;
+//         const newGrossTotalUSD = booking.gross_total_in_usd ? 
+//           booking.gross_total_in_usd - refundAmountUSD : null;
+
+//         console.log('\n📊 New Totals After Refund:');
+//         console.log(`- New Gross Total: ${newGrossTotal} ${booking.currency}`);
+//         if (newGrossTotalUSD !== null) {
+//           console.log(`- New Gross Total USD: $${newGrossTotalUSD}`);
+//         }
+
+//         // Update booking with refund
+//         console.log('\n🔄 Updating booking with refund details...');
+//         await booking.update({
+//           payment_status,
+//           gross_total: newGrossTotal,
+//           gross_total_in_usd: newGrossTotalUSD
+//         }, { transaction: t });
+//         console.log('✅ Booking updated successfully');
+
+//         // Release seats if needed
+//         console.log('\n🪑 Processing seat release...');
+//         const releasedSeatIds = await releaseSeats(booking, t);
+//         console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(', ') : 'None'}`);
+
+//         console.log('\n✅ Refund process completed successfully');
+//         return res.status(200).json({
+//           message: `${payment_status === 'refund_50' ? '50%' : 'Full'} refund processed successfully`,
+//           data: {
+//             booking_id: booking.id,
+//             refund_amount: refundAmount,
+//             refund_amount_usd: refundAmountUSD,
+//             new_gross_total: newGrossTotal,
+//             new_gross_total_usd: newGrossTotalUSD,
+//             new_payment_status: payment_status,
+//             released_seats: releasedSeatIds
+//           }
+//         });
+//       }
+
+//       // Handle other payment status updates
+//       console.log('\n🔄 Updating payment status...');
+//       await booking.update({ payment_status }, { transaction: t });
+//       console.log('✅ Payment status updated successfully');
+      
+//       return res.status(200).json({
+//         message: "Payment status updated successfully",
+//         data: booking
+//       });
+//     });
+
+//   } catch (error) {
+//     console.error('\n❌ Error in updateBookingPayment:', error);
+//     console.error('Error details:', error.message);
+//     console.error('Error stack:', error.stack);
+//     return res.status(400).json({
+//       error: error.message,
+//       details: 'Failed to process payment update'
+//     });
+//   }
+// };
 
 
 
@@ -2374,25 +2681,20 @@ const updateBookingPayment = async (req, res) => {
 const updateBookingDate = async (req, res) => {
   const { id } = req.params;
   const { booking_date } = req.body;
-  const { booking } = req.bookingDetails;
-
+  const { booking } = req.bookingDetails; // Assuming booking contains the necessary info, including user email
+  console.log("booking", booking);
   try {
     await sequelize.transaction(async (t) => {
       console.log('\n=== Starting Booking Date Update Process ===');
-      
-      // Store the original booking date before any updates
-      const originalBookingDate = booking.booking_date;
-      console.log('Original booking date:', originalBookingDate);
-      console.log('New booking date:', booking_date);
 
-      // Skip the update if dates are the same
+      const originalBookingDate = booking.booking_date;
+
       if (originalBookingDate === booking_date) {
         return res.status(400).json({
-          error: 'New booking date is the same as current booking date'
+          error: 'New booking date is the same as current booking date',
         });
       }
 
-      // 1. Release seats from current booking date
       console.log('\n🔄 Releasing seats from previous date...');
       try {
         const releasedSeatIds = await releaseSeats(booking, t);
@@ -2402,17 +2704,14 @@ const updateBookingDate = async (req, res) => {
         throw new Error(`Failed to release seats: ${error.message}`);
       }
 
-      // 2. Update booking date
       console.log('\n📅 Updating booking date...');
       await booking.update({ booking_date }, { transaction: t });
       console.log('✅ Booking date updated successfully');
 
-      // 3. Create new seat availabilities
       console.log('\n🔄 Creating new seat availabilities...');
       let remainingSeatAvailabilities;
 
       if (booking.subschedule_id) {
-        console.log(`Processing sub-schedule booking for subschedule_id ${booking.subschedule_id}`);
         remainingSeatAvailabilities = await handleSubScheduleBooking(
           booking.schedule_id,
           booking.subschedule_id,
@@ -2422,7 +2721,6 @@ const updateBookingDate = async (req, res) => {
           t
         );
       } else {
-        console.log(`Processing main schedule booking for schedule_id ${booking.schedule_id}`);
         remainingSeatAvailabilities = await handleMainScheduleBooking(
           booking.schedule_id,
           booking_date,
@@ -2451,6 +2749,13 @@ const updateBookingDate = async (req, res) => {
           affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
         }
       });
+
+      // Send email notification after successful transaction
+      console.log('\n📧 Sending email notification...',booking.contact_email);
+      if (booking.contact_email) {
+        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
+      }
+
     });
 
   } catch (error) {
@@ -2462,18 +2767,18 @@ const updateBookingDate = async (req, res) => {
   }
 };
 
+
 const updateBookingDateAgent = async (req, res) => {
-  const { booking_id } = req.params;              // Booking ID dari URL params
-  const { booking_date } = req.body;      // Booking date baru dari body
+  const { booking_id } = req.params; // Booking ID from URL params
+  const { booking_date } = req.body; // New booking date from body
 
   const id = booking_id;
 
   try {
-    // Jalankan semua proses dalam transaksi
     await sequelize.transaction(async (t) => {
       console.log('\n=== Starting Booking Date Update Process ===');
 
-      // 1. Cari booking berdasarkan ID
+      // 1. Find booking by ID
       const booking = await Booking.findByPk(id, { transaction: t });
       if (!booking) {
         return res.status(404).json({
@@ -2481,12 +2786,11 @@ const updateBookingDateAgent = async (req, res) => {
         });
       }
 
-      // Simpan booking date lama
       const originalBookingDate = booking.booking_date;
       console.log('Original booking date:', originalBookingDate);
       console.log('New booking date:', booking_date);
 
-      // 2. Cek apakah booking_date sama
+      // 2. Check if new date is the same as the old date
       if (
         originalBookingDate &&
         booking_date &&
@@ -2497,7 +2801,7 @@ const updateBookingDateAgent = async (req, res) => {
         });
       }
 
-      // 3. Release seats dari booking date lama
+      // 3. Release seats from previous date
       console.log('\n🔄 Releasing seats from previous date...');
       try {
         const releasedSeatIds = await releaseSeats(booking, t);
@@ -2512,7 +2816,7 @@ const updateBookingDateAgent = async (req, res) => {
       await booking.update({ booking_date }, { transaction: t });
       console.log('✅ Booking date updated successfully');
 
-      // 5. Create / update seat availabilities untuk booking date baru
+      // 5. Create/update seat availabilities for the new date
       console.log('\n🔄 Creating new seat availabilities...');
       let remainingSeatAvailabilities;
 
@@ -2548,7 +2852,12 @@ const updateBookingDateAgent = async (req, res) => {
 
       console.log('\n=== Booking Date Update Process Completed ===');
 
-      // 6. Response sukses
+      // 6. Send email notification to agent/customer
+      if (booking.contact_email) {
+        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
+      }
+
+      // 7. Return success response
       return res.status(200).json({
         message: 'Booking date updated successfully',
         booking: {
@@ -2558,10 +2867,11 @@ const updateBookingDateAgent = async (req, res) => {
           affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
         }
       });
-    }); // end of transaction
+
+    }); // End of transaction
 
   } catch (error) {
-    console.error('\n❌ Error in updateBookingDate:', error);
+    console.error('\n❌ Error in updateBookingDateAgent:', error);
     return res.status(400).json({
       error: 'Failed to update booking date',
       details: error.message
@@ -3120,6 +3430,7 @@ module.exports = {
   getBookings,
   getBookingById,
   updateBooking,
+  getRelatedBookingsByTicketId,
   deleteBooking,
   createBookingWithTransit2,
   createBookingWithTransit,

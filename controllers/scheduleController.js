@@ -41,7 +41,7 @@ const {
 } = require("../util/formatUtilsSimple");
 const { getSubScheduleInclude } = require("../util/formattedData2");
 const {
-  getTotalPassengers,
+  getTotalPassengers,getTotalRealPassengersRaw
 } = require("../util/schedulepassenger/getTotalPassenger");
 
 // Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
@@ -339,13 +339,14 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
         tasks.push(
           limit(() =>
             getTotalPassengers(schedule.id, null, date).then(
-              ({ totalPassengers, seatAvailabilityIds }) => ({
+              ({ totalPassengers, seatAvailabilityIds,totalRealPassengers }) => ({
                 seatavailability_id:
                   seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null,
                 date,
                 schedule_id: schedule.id,
                 subschedule_id: null,
                 total_passengers: totalPassengers,
+                total_real_passengers: totalRealPassengers ||0,
                 route: buildRouteFromSchedule2(schedule, null),
                 days_of_week: schedule.days_of_week,
               })
@@ -359,13 +360,14 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
             tasks.push(
               limit(() =>
                 getTotalPassengers(subSchedule.schedule_id, subSchedule.id, date).then(
-                  ({ totalPassengers, seatAvailabilityIds }) => ({
+                  ({ totalPassengers, seatAvailabilityIds,totalRealPassengers }) => ({
                     seatavailability_id:
                       seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null,
                     date,
                     schedule_id: subSchedule.schedule_id,
                     subschedule_id: subSchedule.id,
                     total_passengers: totalPassengers,
+                    total_real_passengers: totalRealPassengers || 0,
                     route: buildRouteFromSchedule2(schedule, subSchedule),
                     days_of_week: subSchedule.days_of_week,
                   })
@@ -392,6 +394,10 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 const getScheduleSubschedule = async (req, res) => {
   const { boat_id } = req.query;

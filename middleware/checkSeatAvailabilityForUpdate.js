@@ -899,9 +899,134 @@ const checkBookingDateUpdate = async (req, res, next) => {
       });
     }
   };
-  
-  
 
+  const checkBookingDateUpdateDirect = async (req, res, next) => {
+    try {
+      const bookingId = req.params.booking_id; 
+  
+      console.log('\n=== Starting checkBookingDateUpdate2 middleware ===');
+  
+      // Validasi booking_id
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: "booking_id is required in URL params"
+        });
+      }
+  
+      // Ambil data booking berdasarkan ID
+      const booking = await Booking.findByPk(bookingId);
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: `Booking with id ${bookingId} not found`
+        });
+      }
+  
+      // Validasi status pembayaran sebelum membatalkan
+      // if (booking.payment_status === "paid") {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "Your booking is already paid. Please contact our staff to process a refund. email: 0IgUc@example.com"
+      //   });
+      // } else if (booking.payment_status !== "invoiced") {
+      //   return res.status(400).json({
+      //     success: false,
+      //     message: "Booking can only be canceled if the payment status is 'invoiced'."
+      //   });
+      // }
+      // Hitung selisih antara waktu sekarang dan booking_date
+      const bookingDate = new Date(booking.booking_date); 
+      const now = new Date();
+      const diffMs = now - bookingDate;  // (ms)
+      const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+      // Cek apakah lebih dari 10 hari sejak dibuat
+      if (diffDays > 10) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot proceed. More than 10 days have passed since the booking date was created. (~${diffDays.toFixed(1)} days)`
+        });
+      }
+  
+      // Jika semua validasi lolos, lanjutkan ke controller berikutnya
+      next();
+  
+    } catch (err) {
+      console.error('Error in checkBookingDateUpdate2 middleware:', err);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: err.message
+      });
+    }
+  };
+  
+  
+  const { Op } = require("sequelize");
+ 
+  
+  const validateRoundTripTicket = async (req, res, next) => {
+    try {
+        const { ticket_id } = req.params;
+
+        console.log("Starting validation with ticket ID:", ticket_id);
+
+        // 1️⃣ Validasi ticket_id harus mengandung "GG-RT"
+        if (!ticket_id.includes("GG-RT")) {
+            console.log(`Invalid ticket ID format. Must contain 'GG-RT'.`);
+            return res.status(400).json({ error: "Invalid ticket ID format. Must contain 'GG-RT'." });
+        }
+
+        // 2️⃣ Cek apakah ticket ID yang diberikan benar-benar ada di database
+        const mainBooking = await Booking.findOne({ where: { ticket_id } });
+
+        if (!mainBooking) {
+            console.log(`Ticket ID ${ticket_id} not found in database.`);
+            return res.status(404).json({ error: "Ticket ID not found in database." });
+        }
+
+        // 3️⃣ Ambil prefix dari ticket_id (GG-RT-xxxx)
+        const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir untuk mencari pasangannya
+
+        // 4️⃣ Cari semua booking dengan prefix yang sama
+        const bookings = await Booking.findAll({
+            where: {
+                ticket_id: { [Op.like]: `${prefix}%` }, // Cari booking dengan ticket_id yang mirip
+            },
+            order: [["id", "DESC"]], // Urutkan berdasarkan ID terbaru
+        });
+
+        if (bookings.length < 2) {
+            console.log("Round-trip pair not found. Both departure and return tickets must exist.");
+            return res.status(200).json({ warning: "Only one ticket found, no round-trip pair available.", bookings });
+        }
+
+        // 5️⃣ Validasi booking ID harus berurutan (misal: 1439 - 1438)
+        const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a); // Urutkan dari terbesar ke terkecil
+        if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
+            console.log("Booking IDs are not sequential. Round-trip bookings should be consecutive.");
+            return res.status(400).json({ error: "Booking IDs are not sequential. Round-trip bookings should be consecutive." });
+        }
+
+        // 6️⃣ Validasi bahwa contact_name harus sama
+        const contactNames = bookings.map((b) => b.contact_name);
+        const uniqueNames = new Set(contactNames);
+
+        if (uniqueNames.size > 1) {
+            console.log("Mismatch in contact names. Both bookings must have the same contact name.");
+            return res.status(400).json({ error: "Mismatch in contact names. Both bookings must have the same contact name." });
+        }
+        console.log("PAASS the validation")
+        // ✅ Jika semua validasi lolos, lanjutkan ke controller
+        req.relatedBookings = bookings;
+        next();
+    } catch (error) {
+        console.error("Error in round-trip validation:", error.message);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+  
 
 const validatePaymentUpdate = async (req, res, next) => {
     const { payment_method, payment_status } = req.body;
@@ -954,7 +1079,7 @@ const validatePaymentUpdate = async (req, res, next) => {
 
         // Validate payment method if provided
         if (payment_method) {
-            const validPaymentMethods = ['credit_card', 'bank_transfer', 'cash', 'paypal'];
+            const validPaymentMethods = ['credit_card', 'bank_transfer', 'cash', 'paypal', 'cash_bali', 'cash_gili_trawangan', 'cash_gili_gede', 'credit_card_doku_edc'];
             if (!validPaymentMethods.includes(payment_method)) {
                 console.log('❌ Invalid payment method:', payment_method);
                 return res.status(400).json({
@@ -1170,6 +1295,8 @@ module.exports = {
     validateBookingDate2,
     validatePaymentUpdate,checkMaximumCapacity,validateSeatAvailabilityDate,
     checkBookingDateUpdate,
+    validateRoundTripTicket,
     checkBookingDateUpdate2,
+    checkBookingDateUpdateDirect,
     checkAgentPassword
 };

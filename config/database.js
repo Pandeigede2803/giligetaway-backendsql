@@ -31,7 +31,7 @@ const DB_CONFIG = {
     dialect: isProduction ? process.env.DB_DIALECT : process.env.DEV_DB_DIALECT,
 };
 
-console.log('Database config:', DB_CONFIG);
+
 
 // Inisialisasi Sequelize
 const sequelize = new Sequelize(DB_CONFIG.database, DB_CONFIG.username, DB_CONFIG.password, {
