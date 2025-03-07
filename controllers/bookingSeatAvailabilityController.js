@@ -648,7 +648,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
     try {
       // Fetch seat availability and related details
       const seatAvailability = await findSeatAvailabilityWithDetails(id);
-      console.log("=== SEAT AVAILABILITY DATA ===", JSON.stringify(seatAvailability, null, 2));
+   
       // console.log("BookingSeatAvailabilities:", JSON.stringify(seatAvailability?.BookingSeatAvailabilities, null, 2));
 // console.log("Schedule jancuk:", JSON.stringify(seatAvailability?.Schedule, null, 2));
 // console.log("Availability:", JSON.stringify(seatAvailability?.availability, null, 2));
@@ -714,7 +714,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         passenger.bookingDetails.subschedule_id === seatAvailability.subschedule_id
       );
     });
-    console.log("realPassengers:", realPassengers);
+  
 
     const realPassengerCount = realPassengers.length;
     // count the passenger type base on there will be adult, child, infant  "realPassengers": [
@@ -729,7 +729,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
         // put it in array
 
         const passengerTypeCounts = countPassengerTypes(realPassengers);
-        console.log("====passengerTypeCounts====:", passengerTypeCounts);
+
 
     return res.status(200).json({
       status: 'success',

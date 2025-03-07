@@ -61,14 +61,14 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
 
 
 
-  const sendEmailNotification = async (recipientEmail, bookingId, oldDate, newDate) => {
+  const sendEmailNotification = async (recipientEmail, bookingId, oldDate, newDate,agentEmail) => {
     try {
 
       const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
       console.log("emailUrl",emailUrl)
 
       // MAKE THE RECEPIENT ARRAY EMAIL
-      const recipientEmails = [recipientEmail, process.env.AGENT_EMAIL];
+      const recipientEmails = [recipientEmail, agentEmail ];
 
       console.log("start to send the email")
 

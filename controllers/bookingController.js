@@ -2236,7 +2236,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
         { model: TransportBooking, as: "transportBookings", include: [{ model: Transport, as: "transport" }] },
         { model: Agent, as: "Agent" },
       ],
-      order: [["id", "DESC"]], // Urutkan dari ID terbesar ke terkecil
+      order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
       limit: 2, // Ambil maksimum 2 data
     });
 
@@ -2267,7 +2267,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     }
 
     console.log("✅ Successfully retrieved related bookings.");
-    return res.status(200).json({ message: "Round-trip bookings found", bookings });
+    return res.status(200).json({ message: "Round-trip bookings found", bookings: [bookings[0], bookings[1]] });
   } catch (error) {
     console.error("❌ Error retrieving related bookings:", error.message);
     return res.status(500).json({ error: "Internal server error" });
@@ -2438,7 +2438,10 @@ const updateBookingPayment = async (req, res) => {
     await sequelize.transaction(async (t) => {
       console.log('\n🔍 Finding booking details...');
       const booking = await Booking.findByPk(id, {
-        include: [{ model: Transaction, as: 'transactions' }],
+        include: [
+          
+          { model: Transaction, as: 'transactions' }
+        ],
         transaction: t
       });
 
@@ -2669,32 +2672,27 @@ const updateBookingPayment = async (req, res) => {
 // };
 
 
-
-
-
-
-
-
-
-
-
 const updateBookingDate = async (req, res) => {
   const { id } = req.params;
   const { booking_date } = req.body;
-  const { booking } = req.bookingDetails; // Assuming booking contains the necessary info, including user email
+  const { booking } = req.bookingDetails; // Assuming booking contains necessary info, including user email
+  
   console.log("booking", booking);
+
   try {
     await sequelize.transaction(async (t) => {
       console.log('\n=== Starting Booking Date Update Process ===');
 
       const originalBookingDate = booking.booking_date;
 
+      // Cek apakah tanggal baru sama dengan yang lama
       if (originalBookingDate === booking_date) {
         return res.status(400).json({
           error: 'New booking date is the same as current booking date',
         });
       }
 
+      // 1. Lepaskan kursi dari tanggal sebelumnya
       console.log('\n🔄 Releasing seats from previous date...');
       try {
         const releasedSeatIds = await releaseSeats(booking, t);
@@ -2704,10 +2702,20 @@ const updateBookingDate = async (req, res) => {
         throw new Error(`Failed to release seats: ${error.message}`);
       }
 
+      // 2. Hapus BookingSeatAvailability lama sebelum update booking_date
+      console.log('\n🗑️ Removing old BookingSeatAvailabilities...');
+      await BookingSeatAvailability.destroy({
+        where: { booking_id: booking.id },
+        transaction: t
+      });
+      console.log('✅ Old BookingSeatAvailabilities removed');
+
+      // 3. Update booking date
       console.log('\n📅 Updating booking date...');
       await booking.update({ booking_date }, { transaction: t });
       console.log('✅ Booking date updated successfully');
 
+      // 4. Buat atau perbarui seat availability untuk tanggal baru
       console.log('\n🔄 Creating new seat availabilities...');
       let remainingSeatAvailabilities;
 
@@ -2738,8 +2746,28 @@ const updateBookingDate = async (req, res) => {
         }))
       );
 
+      // 5. Buat ulang BookingSeatAvailability dengan seat_availability yang baru
+      console.log('\n🔄 Creating new BookingSeatAvailabilities...');
+      for (const seatAvailability of remainingSeatAvailabilities) {
+        await BookingSeatAvailability.create(
+          {
+            booking_id: booking.id,
+            seat_availability_id: seatAvailability.id
+          },
+          { transaction: t }
+        );
+      }
+      console.log('✅ New BookingSeatAvailabilities created successfully');
+
       console.log('\n=== Booking Date Update Process Completed ===');
 
+      // 6. Kirim email notifikasi setelah transaksi sukses
+      console.log('\n📧 Sending email notification...', booking.contact_email);
+      if (booking.contact_email) {
+        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
+      }
+
+      // 7. Response ke client
       res.status(200).json({
         message: 'Booking date updated successfully',
         booking: {
@@ -2749,12 +2777,6 @@ const updateBookingDate = async (req, res) => {
           affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
         }
       });
-
-      // Send email notification after successful transaction
-      console.log('\n📧 Sending email notification...',booking.contact_email);
-      if (booking.contact_email) {
-        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
-      }
 
     });
 
@@ -2768,6 +2790,7 @@ const updateBookingDate = async (req, res) => {
 };
 
 
+
 const updateBookingDateAgent = async (req, res) => {
   const { booking_id } = req.params; // Booking ID from URL params
   const { booking_date } = req.body; // New booking date from body
@@ -2779,7 +2802,20 @@ const updateBookingDateAgent = async (req, res) => {
       console.log('\n=== Starting Booking Date Update Process ===');
 
       // 1. Find booking by ID
-      const booking = await Booking.findByPk(id, { transaction: t });
+      const booking = await Booking.findByPk(id, {
+        include: [
+          {
+            model: Agent,
+            as: 'Agent'
+          },
+          {
+            model: BookingSeatAvailability, // Pastikan booking mencakup seat availability yang terkait
+            as: 'BookingSeatAvailabilities'
+          }
+        ],
+        transaction: t
+      });
+
       if (!booking) {
         return res.status(404).json({
           error: 'Booking not found'
@@ -2811,12 +2847,20 @@ const updateBookingDateAgent = async (req, res) => {
         throw new Error(`Failed to release seats: ${error.message}`);
       }
 
-      // 4. Update booking date
+      // 4. Hapus BookingSeatAvailabilities lama
+      console.log('\n🗑️ Removing old BookingSeatAvailabilities...');
+      await BookingSeatAvailability.destroy({
+        where: { booking_id: booking.id },
+        transaction: t
+      });
+      console.log('✅ Old BookingSeatAvailabilities removed');
+
+      // 5. Update booking date
       console.log('\n📅 Updating booking date...');
       await booking.update({ booking_date }, { transaction: t });
       console.log('✅ Booking date updated successfully');
 
-      // 5. Create/update seat availabilities for the new date
+      // 6. Create/update seat availabilities for the new date
       console.log('\n🔄 Creating new seat availabilities...');
       let remainingSeatAvailabilities;
 
@@ -2850,14 +2894,33 @@ const updateBookingDateAgent = async (req, res) => {
         }))
       );
 
+      // 7. Buat ulang BookingSeatAvailabilities dengan seat_availability yang baru
+      console.log('\n🔄 Creating new BookingSeatAvailabilities...');
+      for (const seatAvailability of remainingSeatAvailabilities) {
+        await BookingSeatAvailability.create(
+          {
+            booking_id: booking.id,
+            seat_availability_id: seatAvailability.id
+          },
+          { transaction: t }
+        );
+      }
+      console.log('✅ New BookingSeatAvailabilities created successfully');
+
       console.log('\n=== Booking Date Update Process Completed ===');
 
-      // 6. Send email notification to agent/customer
+      // 8. Send email notification to agent/customer
       if (booking.contact_email) {
-        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
+        sendEmailNotification(
+          booking.contact_email,
+          booking.ticket_id,
+          originalBookingDate,
+          booking_date,
+          booking.Agent.email
+        );
       }
 
-      // 7. Return success response
+      // 9. Return success response
       return res.status(200).json({
         message: 'Booking date updated successfully',
         booking: {

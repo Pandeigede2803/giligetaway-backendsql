@@ -61,8 +61,8 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
       attributes: ["id", "schedule_id", "subschedule_id", "total_passengers"],
     });
 
-    console.log("Raw Query Result:", JSON.stringify(seatAvailabilities, null, 2));
-    console.log("Booking Details:", JSON.stringify(bookingDetails, null, 2));
+    // console.log("Raw Query Result:", JSON.stringify(seatAvailabilities, null, 2));
+    // console.log("Booking Details:", JSON.stringify(bookingDetails, null, 2));
 
     let totalPassengers = 0;
     let totalRealPassengers = 0;
