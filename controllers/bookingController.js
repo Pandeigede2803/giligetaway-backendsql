@@ -2022,6 +2022,7 @@ const getFilteredBookings = async (req, res) => {
 };
 
 const getBookingByTicketId = async (req, res) => {
+  console.log("start to get booking by ticket id");
   try {
     const booking = await Booking.findOne({
       where: { ticket_id: req.params.ticket_id },
@@ -2031,15 +2032,11 @@ const getBookingByTicketId = async (req, res) => {
           as: "schedule",
           include: [
             {
-              model: Transit,
-              as: "Transits",
-              include: [
-                {
-                  model: Destination,
-                  as: "Destination",
-                },
-              ],
-            },
+              model: Boat,
+              as: "Boat",
+            }
+          ],
+          include: [
             {
               model: Destination,
               as: "FromDestination",
@@ -2048,13 +2045,19 @@ const getBookingByTicketId = async (req, res) => {
               model: Destination,
               as: "ToDestination",
             },
-          ],
-          include: [
             {
-              model: Boat,
-              as: "Boat",
+              model: Transit,
+              as: "Transits",
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
             }
-          ]
+          ],
+
+
         },
    
        
@@ -2178,7 +2181,7 @@ const getBookingByTicketId = async (req, res) => {
       ],
     });
     if (booking) {
-      console.log("Booking retrieved:", booking);
+ 
       res.status(200).json(booking);
     } else {
       console.log("Booking not found:", req.params.ticket_id);
