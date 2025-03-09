@@ -56,7 +56,7 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
         booking_date: {
           [Op.eq]: date
         },
-        payment_status: ['paid', 'invoiced']
+        payment_status: ['paid', 'invoiced', 'unpaid']
       },
       attributes: ["id", "schedule_id", "subschedule_id", "total_passengers"],
     });
