@@ -38,7 +38,7 @@ const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
               model: Booking,
               as: "Booking",
               where: {
-                payment_status: ['paid', 'invoiced']
+                payment_status: ['paid', 'invoiced', 'unpaid']
               },
               attributes: []
             }
