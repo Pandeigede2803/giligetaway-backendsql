@@ -65,24 +65,60 @@ exports.updateTransportBooking = async (req, res) => {
   const { id } = req.params;
   const { booking_id, transport_id, quantity, transport_price, transport_type, note } = req.body;
   console.log(`Updating transport booking with id ${id} with data:`, req.body);
+
   try {
+    if (!id) {
+      return res.status(400).json({ message: 'Transport booking ID is required' });
+    }
+
+    // Cek apakah transport booking ada
     const transportBooking = await TransportBooking.findByPk(id);
     if (!transportBooking) {
       console.log(`Transport booking with id ${id} not found`);
       return res.status(404).json({ message: 'Transport booking not found' });
     }
-    transportBooking.booking_id = booking_id;
-    transportBooking.transport_id = transport_id;
-    transportBooking.quantity = quantity;
-    transportBooking.transport_price = transport_price;
-    transportBooking.transport_type = transport_type;
-    transportBooking.note = note;
-    await transportBooking.save();
-    console.log('Updated transport booking:', transportBooking);
-    res.status(200).json(transportBooking);
+
+    // Validasi input
+    if (!booking_id || !transport_id || !quantity || !transport_price || !transport_type) {
+      return res.status(400).json({ message: 'Missing required fields for updating transport booking' });
+    }
+
+    // Lakukan update transport booking
+    await TransportBooking.update(
+      { booking_id, transport_id, quantity, transport_price, transport_type, note },
+      { where: { id } }
+    );
+
+    // Ambil semua transport booking yang terkait dengan booking_id
+    const transportBookings = await TransportBooking.findAll({ where: { booking_id } });
+
+    // Hitung total biaya transportasi
+    const totalTransportCost = transportBookings.reduce((sum, transport) => sum + (transport.quantity * transport.transport_price), 0);
+
+    // Ambil data booking untuk mendapatkan harga tiket awal
+    const booking = await Booking.findByPk(booking_id);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Update gross_total di tabel Booking
+    const newGrossTotal = booking.ticket_total + totalTransportCost;
+    await Booking.update({ gross_total: newGrossTotal }, { where: { id: booking_id } });
+
+    // Ambil data terbaru setelah update
+    const updatedTransportBooking = await TransportBooking.findByPk(id);
+    const updatedBooking = await Booking.findByPk(booking_id);
+
+    console.log('Updated transport booking:', updatedTransportBooking);
+    console.log('Updated booking gross_total:', updatedBooking.gross_total);
+
+    res.status(200).json({
+      transportBooking: updatedTransportBooking,
+      booking: updatedBooking,
+    });
   } catch (error) {
     console.error(`Failed to update transport booking with id ${id}:`, error);
-    res.status(500).json({ message: 'Failed to update transport booking', error });
+    res.status(500).json({ message: 'Failed to update transport booking', error: error.message });
   }
 };
 

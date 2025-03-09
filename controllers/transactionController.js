@@ -561,7 +561,7 @@ const updateMultiAgentTransactionStatus = async (req, res) => {
     for (const booking of bookings) {
       let commissionResponse = { success: false, commission: 0 };
 
-      if (status === "paid" || status === "invoiced") {
+      if (status === "paid" || status === "invoiced" || status === "unpaid") {
         console.log(`Updating booking payment status to '${status}' for booking ID: ${booking.id}`);
 
         await Booking.update(
@@ -658,7 +658,7 @@ const updateTransactionStatusHandler = async (req, res) => {
   }
 
   // Validasi status
-  const validStatuses = ["paid", "pending", "failed"];
+  const validStatuses = ["paid", "pending", "failed",];
   if (status && !validStatuses.includes(status)) {
     return res.status(400).json({
       error: `Invalid status. Allowed statuses are: ${validStatuses.join(
@@ -850,7 +850,7 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
     let commissionResponse = { success: false, commission: 0 };
 
     // If the transaction status is "paid" or "invoiced", update booking and calculate commission
-    if (status === "paid" || status === "invoiced") {
+    if (status === "paid" || status === "invoiced" || status === "unpaid") {
       console.log("Updating booking payment status for status:", status);
 
       await Booking.update(

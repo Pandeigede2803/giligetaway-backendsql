@@ -156,7 +156,7 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
           include: [
             {
               model: Booking,
-              where: { payment_status: 'paid' }, // Only include bookings with payment_status 'paid'
+              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },
@@ -184,7 +184,7 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
           include: [
             {
               model: Booking,
-              where: { payment_status: 'paid' }, // Only include bookings with payment_status 'paid'
+              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },

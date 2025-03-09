@@ -16,7 +16,7 @@ const transactionUpdateValidation = async (req, res, next) => {
   }
 
   // Validate transaction status
-  const validTransactionStatuses = ['paid', 'pending', 'failed', 'invoiced'];
+  const validTransactionStatuses = ['paid', 'pending', 'failed', 'invoiced' ,"unpaid"];
   if (status && !validTransactionStatuses.includes(status)) {
     return res.status(400).json({
       error: `Invalid status. Allowed statuses are: ${validTransactionStatuses.join(', ')}`,
@@ -24,7 +24,7 @@ const transactionUpdateValidation = async (req, res, next) => {
   }
 
   // Validate booking status
-  const validBookingStatuses = ['pending', 'invoiced'];
+  const validBookingStatuses = ['pending', 'invoiced',"unpaid"];
   if (booking_status && !validBookingStatuses.includes(booking_status)) {
     return res.status(400).json({
       error: `Invalid booking status. Allowed statuses are: ${validBookingStatuses.join(', ')}`,
@@ -109,7 +109,7 @@ const validateTransactionUpdate = (req, res, next) => {
   }
 
   // Validate status (if provided)
-  const validStatuses = ["pending","invoiced", "paid", "failed",];
+  const validStatuses = ["pending","invoiced", "paid", "failed","unpaid"];
   if (status && !validStatuses.includes(status)) {
     console.error(`Validation Error: Invalid status. Allowed statuses: ${validStatuses.join(", ")}`);
     return res.status(400).json({

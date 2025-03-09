@@ -20,7 +20,7 @@ const findSeatAvailabilityById = async (req, res) => {
                   include: [
                       {
                           model: Booking,
-                          where: { payment_status: ['paid',"invoiced"] },  // Filter only paid bookings
+                          where: { payment_status: ['paid',"invoiced","unpaid"] },  // Filter only paid bookings
                           include: [
                               {
                                   model: Passenger,
@@ -218,7 +218,7 @@ const findSeatAvailabilityById = async (req, res) => {
               include: [
                 {
                   model: Booking,
-                  where:{payment_status:'paid'},
+                  where: { payment_status:   ['paid', 'unpaid', 'invoiced']  },
                   include: [
                     {
                       model: Passenger,
@@ -398,7 +398,7 @@ const findSeatAvailabilityById = async (req, res) => {
             include: [
               {
                 model: Booking,
-                where: { payment_status: 'paid' }, // Filter only paid bookings
+                where: { payment_status: ['paid', 'invoiced', 'unpaid'] }, // Filter paid, invoiced, and unpaid bookings
                 include: [
                   {
                     model: Passenger,
@@ -541,7 +541,7 @@ const findSeatAvailabilityById = async (req, res) => {
             include: [
               {
                 model: Booking,
-                where: { payment_status: 'paid' }, // Filter only paid bookings
+                where: { payment_status: ['paid', 'invoiced', 'unpaid' ]}, // Filter only paid bookings
               },
             ],
           },
@@ -609,7 +609,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
                 schedule_id: booking.schedule_id,
                 subschedule_id: relatedSubSchedule.id,
                 booking_date: bookingDate,
-                payment_status: 'paid' // Filter hanya booking dengan status 'paid'
+                payment_status: ['paid','unpaid','invoiced' ]// Filter hanya booking dengan status 'paid'
               },
               include: [{ model: Passenger, as: 'passengers' }]
             });
