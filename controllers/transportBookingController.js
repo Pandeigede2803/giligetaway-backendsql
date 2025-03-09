@@ -1,4 +1,5 @@
 const { TransportBooking, Transport,Booking, Passenger } = require('../models');
+const getExchangeRate = require('../util/getExchangeRate');
 
 // Get all transport bookings with transport details
 exports.getAllTransportBookings = async (req, res) => {
@@ -61,66 +62,94 @@ exports.createTransportBooking = async (req, res) => {
 };
 
 // Update transport booking
+const { sequelize } = require('../models'); // Import sequelize instance if not already available
+
 exports.updateTransportBooking = async (req, res) => {
   const { id } = req.params;
-  const { booking_id, transport_id, quantity, transport_price, transport_type, note } = req.body;
-  console.log(`Updating transport booking with id ${id} with data:`, req.body);
+  const { booking_id, transport_id, quantity, transport_type, note } = req.body;
 
+  console.log(`Updating transport booking ID ${id} with data:`, req.body);
+
+  if (!id) {
+    return res.status(400).json({ message: 'Transport booking ID is required' });
+  }
+
+  if (!booking_id || !transport_id || !quantity || !transport_type) {
+    return res.status(400).json({ message: 'Missing required fields for updating transport booking' });
+  }
+
+  if (isNaN(quantity) || quantity <= 0) {
+    return res.status(400).json({ message: 'Invalid quantity' });
+  }
+
+  const transaction = await sequelize.transaction();
   try {
-    if (!id) {
-      return res.status(400).json({ message: 'Transport booking ID is required' });
+    // Fetch the transport cost from the Transport table
+    const transport = await Transport.findByPk(transport_id);
+    if (!transport) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Transport not found' });
     }
 
-    // Cek apakah transport booking ada
-    const transportBooking = await TransportBooking.findByPk(id);
+    // Calculate the correct transport price (cost * quantity)
+    const transportPrice = parseFloat(transport.cost) * quantity;
+    console.log(`Transport cost: ${transport.cost}, Quantity: ${quantity}, Calculated Transport Price: ${transportPrice}`);
+
+    // Check if transport booking exists
+    const transportBooking = await TransportBooking.findByPk(id, { transaction });
     if (!transportBooking) {
-      console.log(`Transport booking with id ${id} not found`);
+      console.log(`Transport booking with ID ${id} not found`);
+      await transaction.rollback();
       return res.status(404).json({ message: 'Transport booking not found' });
     }
 
-    // Validasi input
-    if (!booking_id || !transport_id || !quantity || !transport_price || !transport_type) {
-      return res.status(400).json({ message: 'Missing required fields for updating transport booking' });
-    }
-
-    // Lakukan update transport booking
-    await TransportBooking.update(
-      { booking_id, transport_id, quantity, transport_price, transport_type, note },
-      { where: { id } }
-    );
-
-    // Ambil semua transport booking yang terkait dengan booking_id
-    const transportBookings = await TransportBooking.findAll({ where: { booking_id } });
-
-    // Hitung total biaya transportasi
-    const totalTransportCost = transportBookings.reduce((sum, transport) => sum + (transport.quantity * transport.transport_price), 0);
-
-    // Ambil data booking untuk mendapatkan harga tiket awal
-    const booking = await Booking.findByPk(booking_id);
+    // Fetch booking data before updating
+    const booking = await Booking.findByPk(booking_id, { transaction });
     if (!booking) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Update gross_total di tabel Booking
-    const newGrossTotal = booking.ticket_total + totalTransportCost;
-    await Booking.update({ gross_total: newGrossTotal }, { where: { id: booking_id } });
+    console.log(`Booking ticket total (IDR): ${booking.ticket_total}`);
 
-    // Ambil data terbaru setelah update
+    // ✅ Correctly calculate the new gross total
+    const newGrossTotal = parseFloat(booking.ticket_total) + transportPrice;
+    console.log(`New Gross Total (IDR) = Ticket Total + New Transport Price = ${booking.ticket_total} + ${transportPrice} = ${newGrossTotal}`);
+
+    // ✅ Update transport booking with the correct transport_price
+    await TransportBooking.update(
+      { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note },
+      { where: { id }, transaction }
+    );
+
+    // ✅ Ensure we correctly update the gross_total in Booking (IDR)
+    await Booking.update({ gross_total: newGrossTotal }, { where: { id: booking_id }, transaction });
+
+    // ✅ Fetch the updated booking AFTER update
+    const updatedBooking = await Booking.findByPk(booking_id, { transaction });
+
+    // ✅ Ensure we commit the transaction to persist data
+    await transaction.commit();
+
+    // ✅ Fetch the updated transport booking AFTER committing
     const updatedTransportBooking = await TransportBooking.findByPk(id);
-    const updatedBooking = await Booking.findByPk(booking_id);
 
-    console.log('Updated transport booking:', updatedTransportBooking);
-    console.log('Updated booking gross_total:', updatedBooking.gross_total);
+    console.log(`Updated transport booking ID ${id}, quantity: ${updatedTransportBooking.quantity}`);
+    console.log(`Updated booking gross_total (IDR): ${updatedBooking.gross_total}`);
 
     res.status(200).json({
       transportBooking: updatedTransportBooking,
       booking: updatedBooking,
     });
+
   } catch (error) {
-    console.error(`Failed to update transport booking with id ${id}:`, error);
+    await transaction.rollback();
+    console.error(`Failed to update transport booking ID ${id}:`, error);
     res.status(500).json({ message: 'Failed to update transport booking', error: error.message });
   }
 };
+
+
 
 // Delete transport booking
 exports.deleteTransportBooking = async (req, res) => {
