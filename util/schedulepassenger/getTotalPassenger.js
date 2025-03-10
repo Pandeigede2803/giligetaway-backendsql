@@ -11,7 +11,7 @@ const { Op, fn, col } = require('sequelize');
 //  */
 
 const getTotalPassengers = async (schedule_id, subschedule_id, date) => {
-  console.log("query schedule", schedule_id, subschedule_id);
+
   try {
     // Ambil total jumlah penumpang berdasarkan SeatAvailability
     const seatAvailabilities = await SeatAvailability.findAll({

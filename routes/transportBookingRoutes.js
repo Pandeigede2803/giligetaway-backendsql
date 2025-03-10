@@ -7,7 +7,7 @@ const authenticate = require('../middleware/authenticate');
 router.get('/',authenticate, transportBookingController.getAllTransportBookings);
 
 // Create new transport booking
-router.post('/',authenticate, transportBookingController.createTransportBooking);
+router.post('/',authenticate, transportBookingController.addTransportBooking);
 
 // Update transport booking
 router.put('/:id',authenticate, transportBookingController.updateTransportBooking);

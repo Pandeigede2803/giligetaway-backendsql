@@ -1681,7 +1681,7 @@ const getPassengersSeatNumber = async (req, res) => {
           as: "booking",
           required: true,
           where: {
-            payment_status: ["paid", "invoiced", "pending"],
+            payment_status: ["paid", "invoiced", "pending","unpaid"],
           },
 
           include: [

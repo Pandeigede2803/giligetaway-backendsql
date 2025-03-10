@@ -43,7 +43,8 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
                     <p><strong>New Payment Status:</strong> ${paymentStatus}</p>`;;
       }
   
-      message += `<p>If you have any questions, please contact our support team.</p>`;;
+      message += `<p>If you have any questions, please contact our support team.</p>
+                  <p>You can view your booking details <a href="${emailUrl}/check-invoice/${booking.ticket_id}">here</a>.</p>`;
   
       const mailOptions = {
         from: process.env.EMAIL_USER,
@@ -56,6 +57,35 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
       console.log(`📧 Payment email sent to ${recipientEmail}`);
     } catch (error) {
       console.error("❌ Failed to send payment email:", error);
+    }
+  };
+
+  const sendEmailTransportBookingUpdate = async (recipientEmail, bookingTicketId, transportBookingId, transportType, transportPrice, paymentStatus, paymentMethod) => {
+    try {
+      const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
+
+      let subject = "Transport Booking Update for Your Booking";
+      let message = `<p>Dear Customer,</p>`;
+
+      message += `<p>Your transport booking for <strong>Booking Ticket ID: ${bookingTicketId}</strong> has been updated.</p>
+                  <p><strong>Transport Type:</strong> ${transportType}</p>
+                  <p><strong>Transport Price:</strong> ${transportPrice} ${paymentMethod}</p>
+                  <p><strong>Payment Status:</strong> ${paymentStatus}</p>
+                  <p><strong>Payment Method:</strong> ${paymentMethod}</p>
+                  <p>If you have any questions, please contact our support team.</p>
+                  <p>You can view your booking details <a href="${emailUrl}/my-bookings/${bookingId}">here</a>.</p>`;
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: recipientEmail,
+        subject: subject,
+        html: message,
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Transport booking update email sent to ${recipientEmail}`);
+    } catch (error) {
+      console.error("❌ Failed to send transport booking update email:", error);
     }
   };
 
@@ -96,4 +126,4 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
   };
   
 
-  module.exports = { sendPaymentEmail, sendEmailNotification };
+  module.exports = { sendPaymentEmail, sendEmailNotification,sendEmailTransportBookingUpdate };

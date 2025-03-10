@@ -40,6 +40,18 @@ const TransportBooking = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    payment_status: {
+      type: DataTypes.ENUM('pending', 'paid', 'failed', 'refunded', 'booking-payment'),
+      allowNull: false,
+      defaultValue: 'booking-payment',
+    },
+    payment_method: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      defaultValue: 'booking-payment',
+    },
+
+    
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,

@@ -34,7 +34,7 @@ const findSeatAvailabilityWithDetails = async (id) => {
                 {
                   model: TransportBooking,
                   as: 'transportBookings',
-                  attributes: ['id', 'booking_id', 'transport_id', 'quantity', 'transport_price', 'transport_type', 'note'],
+                  attributes: ['id', 'booking_id', 'transport_id', 'quantity', 'transport_price', 'transport_type', 'note',"payment_status","payment_method"],
                   include: [
                     {
                       model: Transport,

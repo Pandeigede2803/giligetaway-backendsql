@@ -796,6 +796,7 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           currency,
           gross_total_in_usd,
           exchange_rate,
+          note
         } = data;
 
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.2] 🔍 Checking for existing booking with ticket ID:`, ticket_id);
@@ -858,6 +859,7 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
             currency,
             gross_total_in_usd,
             exchange_rate,
+            note,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ), // Default 30 minutes
@@ -1078,6 +1080,7 @@ const createBookingWithTransitQueue = async (req, res) => {
     currency,
     gross_total_in_usd,
     exchange_rate,
+    note
   } = req.body;
 
   console.log("Received request body:", req.body);
@@ -1142,6 +1145,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           child_passengers,
           infant_passengers,
           ticket_id,
+          note,
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
           ),

@@ -1,11 +1,13 @@
 const axios = require('axios');
 
+
+
 const getExchangeRate = async (currency = "IDR") => {
   try {
-    const response = await axios.get(`https://api.exchangerate-api.com/v4/latest/${currency}`);
+    const response = await axios.get("https://api.exchangerate-api.com/v4/latest/USD");
     
-    if (response.data && response.data.rates && response.data.rates.USD) {
-      return response.data.rates.USD; // Return the exchange rate IDR → USD
+    if (response.data && response.data.rates && response.data.rates[currency]) {
+      return response.data.rates[currency]; // Return USD to IDR exchange rate
     } else {
       throw new Error("Invalid exchange rate data");
     }

@@ -117,6 +117,11 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true
     },
+    note : {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Additional notes for the booking'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

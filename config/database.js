@@ -42,4 +42,13 @@ const sequelize = new Sequelize(DB_CONFIG.database, DB_CONFIG.username, DB_CONFI
     logging: false, // Nonaktifkan logging SQL
 });
 
+sequelize
+    .authenticate()
+    .then(() => {
+        console.log(`Database Connected: ${DB_CONFIG.database}`);
+    })
+    .catch((err) => {
+        console.error('Unable to connect to the database:', err);
+    });
+
 module.exports = sequelize;
