@@ -13,7 +13,7 @@ const getExchangeRate = async (currency = "IDR") => {
     }
   } catch (error) {
     console.error("Error fetching exchange rate:", error.message);
-    throw new Error("Failed to fetch exchange rate");
+    throw new Error("Failed to fetch exchange rate");;
   }
 };
 

@@ -140,15 +140,32 @@ exports.updateTransportBooking = async (req, res) => {
     // ✅ Fetch the updated booking AFTER update
     const updatedBooking = await Booking.findByPk(booking_id, { transaction });
 
+    // Store these values to use after transaction commit
+    const contactEmail = booking.contact_email;
+    const ticketId = booking.ticket_id;
+    const paymentStatus = booking.payment_status;
+    const paymentMethod = booking.payment_method;
+
     // ✅ Commit transaction to persist data
     await transaction.commit();
 
     // ✅ Fetch the updated transport booking AFTER committing
     const updatedTransportBooking = await TransportBooking.findByPk(id);
 
-    console.log(`Updated transport booking ID ${booking_id}, quantity: ${updatedTransportBooking.quantity}`);
-    console.log(`Updated booking gross_total (IDR): ${updatedBooking.gross_total}`);
-    console.log(`Updated booking gross_total_in_usd: ${updatedBooking.gross_total_in_usd}`);
+    // Now send email after transaction is committed
+    try {
+      await sendEmailTransportBookingUpdate(
+        contactEmail,
+        ticketId,
+        transport_type,
+        transportPrice,
+        paymentStatus,
+        paymentMethod
+      );
+    } catch (emailError) {
+      // Just log the email error, don't roll back the transaction
+      console.error('Failed to send email:', emailError);
+    }
 
     res.status(200).json({
       transportBooking: updatedTransportBooking,
@@ -156,12 +173,14 @@ exports.updateTransportBooking = async (req, res) => {
     });
 
   } catch (error) {
-    await transaction.rollback();
+    // Only roll back if transaction hasn't been committed
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     console.error(`Failed to update transport booking ID ${id}:`, error);
     res.status(500).json({ message: 'Failed to update transport booking', error: error.message });
   }
 };
-
 
 exports.addTransportBooking = async (req, res) => {
   const { booking_id, transport_id, quantity, transport_type, note } = req.body;
@@ -198,12 +217,8 @@ exports.addTransportBooking = async (req, res) => {
 
     console.log(`Current Booking ticket total: ${booking.ticket_total}, Current Gross Total: ${booking.gross_total}`);
 
-
-    // ✅ Calculate new gross total after adding transport
+    // Calculate new gross total after adding transport
     const newGrossTotal = parseFloat(booking.gross_total) + transportPrice;
-
-
-
 
     const exchangeRate = await getExchangeRate("IDR"); // Fetch USD to IDR rate
     console.log(`Exchange Rate (1 USD = ${exchangeRate} IDR)`);
@@ -215,7 +230,7 @@ exports.addTransportBooking = async (req, res) => {
     console.log(`Corrected Transport Price in USD: ${transportPriceInUSD}`);
     console.log(`Corrected Gross Total in USD: ${newGrossTotalInUSD}`);
 
-    // ✅ Add new Transport Booking
+    // Add new Transport Booking
     const newTransportBooking = await TransportBooking.create(
       {
         booking_id,
@@ -228,21 +243,27 @@ exports.addTransportBooking = async (req, res) => {
       { transaction }
     );
 
-    // ✅ Update the Booking `gross_total` and `gross_total_in_usd`
+    // Update the Booking `gross_total` and `gross_total_in_usd`
     await Booking.update(
       { gross_total: newGrossTotal, gross_total_in_usd: newGrossTotalInUSD },
       { where: { id: booking_id }, transaction }
     );
 
-    // ✅ Fetch updated booking
+    // Fetch updated booking
     const updatedBooking = await Booking.findByPk(booking_id, { transaction });
 
-    // ✅ Commit the transaction
+    // Commit the transaction
     await transaction.commit();
 
-    console.log("New transport booking added successfully", newTransportBooking);
-    console.log(`Updated booking gross_total (IDR): ${updatedBooking.gross_total}`);
-    console.log(`Updated booking gross_total_in_usd: ${updatedBooking.gross_total_in_usd}`);
+    // Send email notification
+    await sendEmailTransportBookingUpdate(
+      booking.contact_email,
+      booking.ticket_id,
+      transport_type,
+      transportPrice,
+      booking.payment_status,
+      booking.payment_method
+    );
 
     res.status(201).json({
       transportBooking: newTransportBooking,

@@ -52,6 +52,10 @@ router.get('/ticket-related/:ticket_id',validateRoundTripTicket,bookingControlle
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);
 
+
+// update Booking note
+router.put('/note/:id',authenticate, bookingController.updateBookingNotes);
+
 //update booking payment
 router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.updateBookingPayment);
 

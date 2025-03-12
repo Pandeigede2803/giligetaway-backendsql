@@ -799,6 +799,8 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           note
         } = data;
 
+        console.log("note from frontend type", type, note);
+
         console.log(`[Step 3.${type === "departure" ? 1 : 2}.2] 🔍 Checking for existing booking with ticket ID:`, ticket_id);
         const existingBooking = await Booking.findOne({ where: { ticket_id } });
         if (existingBooking) {
@@ -2281,6 +2283,23 @@ const getRelatedBookingsByTicketId = async (req, res) => {
   }
 };
 
+const updateBookingNotes = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note
+     } = req.body;
+    const booking = await Booking.findByPk(id);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+    await booking.update({ note });
+    return res.status(200).json({ message: "Booking notes updated successfully" });
+  } catch (error) {
+    console.error("Error updating booking notes:", error);
+    return res.status(500).json({ error: "Failed to update booking notes" });
+  }
+};
+
 const createBooking = async (req, res) => {
   try {
     const result = await sequelize.transaction(async (t) => {
@@ -3494,6 +3513,7 @@ const cancelBooking = async (req, res) => {
 
 module.exports = {
   createBooking,
+  updateBookingNotes,
   createBookingMultiple,
   getBookingContact,
   getFilteredBookings,

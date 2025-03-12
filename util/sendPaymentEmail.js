@@ -60,7 +60,8 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
     }
   };
 
-  const sendEmailTransportBookingUpdate = async (recipientEmail, bookingTicketId, transportBookingId, transportType, transportPrice, paymentStatus, paymentMethod) => {
+  const sendEmailTransportBookingUpdate = async (recipientEmail, 
+    bookingTicketId,  transportType, transportPrice, paymentStatus, paymentMethod) => {
     try {
       const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
 
@@ -73,7 +74,8 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
                   <p><strong>Payment Status:</strong> ${paymentStatus}</p>
                   <p><strong>Payment Method:</strong> ${paymentMethod}</p>
                   <p>If you have any questions, please contact our support team.</p>
-                  <p>You can view your booking details <a href="${emailUrl}/my-bookings/${bookingId}">here</a>.</p>`;
+                  <p>You can view your invoice details <a href="${emailUrl}/check-invoice-page/${bookingTicketId}">here</a>.</p>
+                  <p>You can view your ticket details <a href="${emailUrl}/check-ticket/${bookingTicketId}">here</a>.</p>`;
 
       const mailOptions = {
         from: process.env.EMAIL_USER,
