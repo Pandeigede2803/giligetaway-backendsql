@@ -5,6 +5,7 @@ const {
   Booking,
   Transaction,
   TransportBooking,
+  Agent
 } = require("../models");
 const { updateAgentCommission } = require("../util/updateAgentComission");
 const {
@@ -12,6 +13,8 @@ const {
   updateMultiTransactionStatus,
 } = require("../util/transactionUtils");
 const { Op } = require("sequelize"); // Import Sequelize operators
+
+const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const { transaction_ids } = req.body; // transaction_ids is now an array of transaction IDs
@@ -341,7 +344,10 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
     const bookingIds = existingTransactions.map((t) => t.booking_id);
     const bookings = await Booking.findAll({
       where: { id: { [Op.in]: bookingIds } },
-      include: [{ model: TransportBooking, as: "transportBookings" }],
+      include: [
+        { model: TransportBooking, as: "transportBookings" },
+        { model: Agent, as: "Agent" } // Include agent details for email notification
+      ],
       transaction,
     });
 
@@ -352,6 +358,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
     const results = [];
     for (const booking of bookings) {
       let commissionResponse = { success: false, commission: 0 };
+      let emailSent = false;
 
       console.log(`Processing booking ID: ${booking.id}`);
 
@@ -389,6 +396,31 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
             `Commission calculated successfully for booking ID: ${booking.id}`,
             commissionResponse
           );
+          
+          // Send email notification to agent when status is paid and commission is calculated (even if skipped)
+          if (status === "paid" && booking.Agent && booking.Agent.email && booking.contact_email) {
+            try {
+              // Use Booking.contact_email as the recipient email
+              const recipientEmail = booking.contact_email;
+              const agentEmail = booking.Agent.email;
+              
+              console.log(`Sending email notification to: ${recipientEmail}, agent: ${agentEmail}`);
+              await sendEmailNotificationAgent(
+                recipientEmail, // recipient email from booking contact
+                agentEmail, // agent email from agent record
+                payment_method || booking.payment_method,
+                status,
+                booking.id // Using booking ID as ticket_id
+              );
+              console.log(`Email notification sent successfully to: ${recipientEmail}, agent: ${agentEmail}`);
+              emailSent = true;
+            } catch (emailError) {
+              console.error(`Error sending email notification to: ${booking.contact_email}, agent: ${booking.Agent.email}`, emailError);
+              // Don't fail the transaction if email sending fails
+            }
+          } else {
+            console.log(`Skipping email notification for booking ID: ${booking.id}. Missing contact_email or agent email.`);
+          }
         } catch (error) {
           console.error(
             `Error calculating commission for booking ${booking.id}:`,
@@ -412,6 +444,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
         commission: commissionResponse.commission,
         commission_status: commissionResponse.success ? "Success" : "Failed",
         commission_error: commissionResponse.error,
+        email_sent: emailSent
       });
     }
 
@@ -426,7 +459,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
       updated_transactions: transaction_ids,
       booking_results: results,
       total_commissions: results.reduce(
-        (sum, result) => sum + result.commission,
+        (sum, result) => sum + (parseFloat(result.commission) || 0),
         0
       ),
     });
@@ -442,7 +475,6 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
     });
   }
 };
-
 
 const updateMultiAgentTransactionStatus = async (req, res) => {
   const {

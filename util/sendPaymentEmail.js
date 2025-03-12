@@ -91,8 +91,66 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
     }
   };
 
+  // sendEmailNotificationAgent
+  const sendEmailNotificationAgent = async (recipientEmail, agentEmail, payment_method, payment_status, ticket_id) => {
+    try {
+      const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
+
+      // Email to Agent
+      let agentSubject = "Update for Your Booking";
+      let agentMessage = `<p>Dear Agent,</p>`;
+      agentMessage += `<p>Your booking for <strong>Booking Ticket ID: ${ticket_id}</strong> has been updated.</p>
+                       <p><strong>Payment Method:</strong> ${payment_method}</p>
+                       <p><strong>Payment Status:</strong> ${payment_status}</p>
+                       <p>If you have any questions, please contact our support team.</p>
+                       <p>You can view your invoice details <a href="${emailUrl}/check-invoice/${ticket_id}">here</a>.</p>
+                       <p>You can view your ticket details <a href="${emailUrl}/check-ticket-page/${ticket_id}">here</a>.</p>`;
+      const agentMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: agentEmail,
+        subject: agentSubject,
+        html: agentMessage,
+      };
+
+      // Email to Recipient
+      let recipientSubject = "Booking Update Notification";
+      let recipientMessage = `<p>Dear Customer,</p>`;
+      recipientMessage += `<p>Your booking for <strong>Booking Ticket ID: ${ticket_id}</strong> has been updated.</p>
+                           <p><strong>Payment Method:</strong> ${payment_method}</p>
+                           <p><strong>Payment Status:</strong> ${payment_status}</p>
+                           <p>If you have any questions, please contact our support team.</p>
+                           <p>You can view your invoice details <a href="${emailUrl}/check-invoice/${ticket_id}">here</a>.</p>
+                           <p>You can view your ticket details <a href="${emailUrl}/check-ticket-page/${ticket_id}">here</a>.</p>`;
+      const recipientMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: recipientEmail,
+        subject: recipientSubject,
+        html: recipientMessage,
+      };
+
+      // Send emails
+      await transporter.sendMail(agentMailOptions);
+      console.log(`📧 Booking update email sent to agent ${agentEmail}`);
+      await transporter.sendMail(recipientMailOptions);
+      console.log(`📧 Booking update email sent to recipient ${recipientEmail}`);
+    } catch (error) {
+      console.error("❌ Failed to send booking update emails:", error);
+    }
+  };
+
+  // how to use it send notification agent
+  // sendEmailNotificationAgent(recipientEmail, agentEmail, payment_method, payment_status, ticket_id);
+  // sendEmailNotification(recipientEmail, bookingId, oldDate, newDate);
+      
 
 
+
+
+
+
+
+
+      
   const sendEmailNotification = async (recipientEmail, bookingId, oldDate, newDate,agentEmail) => {
     try {
 
@@ -128,4 +186,4 @@ const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentS
   };
   
 
-  module.exports = { sendPaymentEmail, sendEmailNotification,sendEmailTransportBookingUpdate };
+  module.exports = { sendPaymentEmail, sendEmailNotification,sendEmailTransportBookingUpdate,sendEmailNotificationAgent };
