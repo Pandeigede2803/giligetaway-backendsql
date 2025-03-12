@@ -1,5 +1,6 @@
 const { TransportBooking, Transport,Booking, Passenger } = require('../models');
 const getExchangeRate = require('../util/getExchangeRate');
+const {sendEmailTransportBookingUpdate} = require('../util/sendPaymentEmail');
 
 // Get all transport bookings with transport details
 exports.getAllTransportBookings = async (req, res) => {
@@ -67,7 +68,12 @@ const { sequelize } = require('../models'); // Import sequelize instance if not 
 
 exports.updateTransportBooking = async (req, res) => {
   const { id } = req.params;
-  const { booking_id, transport_id, quantity, transport_type, note } = req.body;
+  const { booking_id, transport_id, quantity, transport_type, note,payment_method,payment_status } = req.body;
+
+  console.log("payment method",payment_method)
+  console.log("payment status",payment_status)
+
+  console.log("transportBooking")
 
   console.log(`Updating transport booking ID ${id} with data:`, req.body);
 
@@ -127,9 +133,11 @@ exports.updateTransportBooking = async (req, res) => {
 
     // ✅ Update transport booking with the correct transport_price
     await TransportBooking.update(
-      { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note },
+      { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note,payment_method,payment_status },
       { where: { id }, transaction }
     );
+
+    console.log("transportBooking",transportBooking)
 
     // ✅ Update the `gross_total` and `gross_total_in_usd` in Booking
     await Booking.update(
@@ -183,7 +191,7 @@ exports.updateTransportBooking = async (req, res) => {
 };
 
 exports.addTransportBooking = async (req, res) => {
-  const { booking_id, transport_id, quantity, transport_type, note } = req.body;
+  const { booking_id, transport_id, quantity, transport_type,payment_method,payment_status, note } = req.body;
 
   console.log("Adding new transport booking with data:", req.body);
 
@@ -238,9 +246,14 @@ exports.addTransportBooking = async (req, res) => {
         quantity,
         transport_price: transportPrice,
         transport_type,
+        payment_method,
+        payment_status,
         note,
       },
       { transaction }
+    );
+
+    console.log("New Transport Booking:", newTransportBooking
     );
 
     // Update the Booking `gross_total` and `gross_total_in_usd`
