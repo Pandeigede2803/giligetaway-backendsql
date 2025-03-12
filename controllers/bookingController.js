@@ -2828,19 +2828,49 @@ const updateBookingDateAgent = async (req, res) => {
       console.log('\n=== Starting Booking Date Update Process ===');
 
       // 1. Find booking by ID
+      // const booking = await Booking.findByPk(id, {
+      //   include: [
+      //     {
+      //       model: Agent,
+      //       as: 'Agent'
+      //     },
+      //     {
+      //       model: BookingSeatAvailability, // Pastikan booking mencakup seat availability yang terkait
+      //       as: 'BookingSeatAvailabilities'
+      //     }
+      //   ],
+      //   transaction: t
+      // });
+
       const booking = await Booking.findByPk(id, {
         include: [
           {
             model: Agent,
             as: 'Agent'
-          },
-          {
-            model: BookingSeatAvailability, // Pastikan booking mencakup seat availability yang terkait
-            as: 'BookingSeatAvailabilities'
           }
         ],
         transaction: t
       });
+      
+      if (!booking) {
+        return res.status(404).json({
+          error: 'Booking not found'
+        });
+      }
+      
+      // Separately fetch the BookingSeatAvailabilities
+      const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
+        where: { booking_id: booking.id },
+        include: [
+          {
+            model: SeatAvailability,
+            as: 'SeatAvailability'
+          }
+        ],
+        transaction: t
+      });
+      
+      booking.BookingSeatAvailabilities = bookingSeatAvailabilities;
 
       if (!booking) {
         return res.status(404).json({
