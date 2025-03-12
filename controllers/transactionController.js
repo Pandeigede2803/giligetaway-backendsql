@@ -344,6 +344,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
     const bookingIds = existingTransactions.map((t) => t.booking_id);
     const bookings = await Booking.findAll({
       where: { id: { [Op.in]: bookingIds } },
+      attributes: { include: ['id', 'ticket_id', 'agent_id', 'contact_email', 'payment_method', 'gross_total', 'total_passengers', 'schedule_id', 'subschedule_id'] },
       include: [
         { model: TransportBooking, as: "transportBookings" },
         { model: Agent, as: "Agent" } // Include agent details for email notification
@@ -395,7 +396,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
           console.log(
             `Commission calculated successfully for booking ID: ${booking.id}`,
             commissionResponse
-          );
+          );;
           
           // Send email notification to agent when status is paid and commission is calculated (even if skipped)
           if (status === "paid" && booking.Agent && booking.Agent.email && booking.contact_email) {
@@ -406,11 +407,11 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
               
               console.log(`Sending email notification to: ${recipientEmail}, agent: ${agentEmail}`);
               await sendEmailNotificationAgent(
-                recipientEmail, // recipient email from booking contact
-                agentEmail, // agent email from agent record
+                recipientEmail,
+                agentEmail,
                 payment_method || booking.payment_method,
                 status,
-                booking.id // Using booking ID as ticket_id
+                booking.ticket_id // Using actual ticket_id or generating a fallback
               );
               console.log(`Email notification sent successfully to: ${recipientEmail}, agent: ${agentEmail}`);
               emailSent = true;
@@ -958,7 +959,7 @@ const getTransactions = async (req, res) => {
       console.log('Formatted date:', formattedDate);
       filterConditions.transaction_date = {
         [Op.eq]: formattedDate,
-      };
+      };;
     } else if (month) {
       // For month-year (format: MM-YYYY)
       console.log('\n→ Month Filter:');
