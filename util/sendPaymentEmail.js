@@ -14,6 +14,7 @@ const transporter = nodemailer.createTransport({
 const sendPaymentEmail = async (recipientEmail, booking, paymentMethod, paymentStatus, refundAmount = null, refundAmountUSD = null) => {
 
     console.log("start to send the email", recipientEmail);
+    const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
 
     try {
       let subject = "Payment Update for Your Booking";
