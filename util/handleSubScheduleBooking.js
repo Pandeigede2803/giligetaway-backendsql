@@ -1,7 +1,9 @@
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, SubSchedule,Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
+const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, SubSchedule,Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat,SubScheduleRelation } = require('../models');
 const { Op } = require('sequelize');
 
 const { calculatePublicCapacity } = require('../util/getCapacityReduction');
+const { isException, checkExceptions } = require('./isExceptionV2');
+
 
 const findRelatedSubSchedulesGet = async (schedule_id, subSchedule, transaction) => {
     console.log('Schedule ID anjiung:', schedule_id);
@@ -104,12 +106,19 @@ if (!subSchedule || !schedule_id) {
 
         const isException = (
             subSchedule.transit_to_id === relatedSubSchedule.transit_from_id ||
+
             (subSchedule.destination_from_schedule_id &&
                 subSchedule.transit_to_id &&
+
+
                 !relatedTransitIds.includes(subSchedule.transit_to_id)) ||
+
             (!subSchedule.destination_from_schedule_id &&
+
                 relatedSubSchedule.destination_from_schedule_id) ||
+
             subSchedule.transit_from_id === relatedSubSchedule.transit_to_id ||
+
             !transitIds.some(transitId => relatedTransitIds.includes(transitId))
         );
 
@@ -117,121 +126,315 @@ if (!subSchedule || !schedule_id) {
     });
 };
 
-//UNTUK SEMENTARA INI BERHASIL
-const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
+// const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
 
    
-    const transitIds = [
-        subSchedule.transit_from_id,
-        subSchedule.transit_1,
-        subSchedule.transit_2,
-        subSchedule.transit_3,
-        subSchedule.transit_4,
-        subSchedule.transit_to_id
-    ].filter(Boolean); // Menghilangkan nilai null
+//   const transitIds = [
+//       subSchedule.transit_from_id,
+//       subSchedule.transit_1,
+//       subSchedule.transit_2,
+//       subSchedule.transit_3,
+//       subSchedule.transit_4,
+//       subSchedule.transit_to_id
+//   ].filter(Boolean); // Menghilangkan nilai null
 
-    console.log(`[handleSubScheduleBooking] Mencari sub-schedule yang terkait dengan schedule_id: ${schedule_id} dan sub-schedule yang diberikan`);
+//   console.log(`[handleSubScheduleBooking] Mencari sub-schedule yang terkait dengan schedule_id: ${schedule_id} dan sub-schedule yang diberikan`);
 
-    const relatedSubSchedules = await SubSchedule.findAll({
+//   const relatedSubSchedules = await SubSchedule.findAll({
 
-        // Mencari sub-schedule yang terkait
-        where: {
-            schedule_id: schedule_id,
-            [Op.or]: [
-                {
-                    // Mencari sub-schedule yang terkait dengan sub-schedule yang diberikan
-                    destination_from_schedule_id: subSchedule.destination_from_schedule_id
-                },
-                {
-                    // Mencari sub-schedule yang terkait dengan sub-schedule yang diberikan
-                    destination_to_schedule_id: subSchedule.destination_to_schedule_id
-                },
-                {
-                    [Op.and]: [
-                        { transit_from_id: { [Op.in]: transitIds } },
-                        { transit_to_id: subSchedule.transit_to_id }
-                    ]
-                },
-                {
-                    transit_to_id: { [Op.in]: transitIds }
-                }
-            ]
-        },
-        // Include transit_from dan transit_to untuk memudahkan proses berikutnya
+//       // Mencari sub-schedule yang terkait
+//       where: {
+//           schedule_id: schedule_id,
+//           [Op.or]: [
+//               {
+//                   // Mencari sub-schedule yang terkait dengan sub-schedule yang diberikan
+//                   destination_from_schedule_id: subSchedule.destination_from_schedule_id
+//               },
+//               {
+//                   // Mencari sub-schedule yang terkait dengan sub-schedule yang diberikan
+//                   destination_to_schedule_id: subSchedule.destination_to_schedule_id
+//               },
+//               {
+//                   [Op.and]: [
+//                       { transit_from_id: { [Op.in]: transitIds } },
+//                       { transit_to_id: subSchedule.transit_to_id }
+//                   ]
+//               },
+//               {
+//                   transit_to_id: { [Op.in]: transitIds }
+//               }
+//           ]
+//       },
+//       // Include transit_from dan transit_to untuk memudahkan proses berikutnya
+//       include: [
+//           {
+//               model: Transit,
+//               as: 'TransitFrom',
+//               where: {
+//                   destination_id: {
+//                       [Op.in]: [
+//                           subSchedule.destination_from_schedule_id,
+//                           subSchedule.destination_to_schedule_id
+//                       ]
+//                   }
+//               },
+//               required: false
+//           },
+//           {
+//               model: Transit,
+//               as: 'TransitTo',
+//               where: {
+//                   destination_id: {
+//                       [Op.in]: [
+//                           subSchedule.destination_from_schedule_id,
+//                           subSchedule.destination_to_schedule_id
+//                       ]
+//                   }
+//               },
+//               required: false
+//           }
+//       ],
+//       transaction
+//   });
+
+//   console.log(`[handleSubScheduleBooking] Sub-schedule yang terkait adalah: ${relatedSubSchedules.length} buah yaitu:`, relatedSubSchedules);
+
+//   // Implementasi Pengecualian Berdasarkan Skenario yang Diberikan
+//   return relatedSubSchedules.filter(relatedSubSchedule => {
+//       const relatedTransitIds = [
+//           relatedSubSchedule.transit_from_id,
+//           relatedSubSchedule.transit_1,
+//           relatedSubSchedule.transit_2,
+//           relatedSubSchedule.transit_3,
+//           relatedSubSchedule.transit_4,
+//           relatedSubSchedule.transit_to_id
+//       ].filter(Boolean); // Menghilangkan nilai null
+
+//       const isException = (
+//           // Pengecualian 1: Jika transit_to_id dari subSchedule yang diberikan sama dengan transit_from_id dari subSchedule terkait
+//           subSchedule.transit_to_id === relatedSubSchedule.transit_from_id ||
+
+//           // Pengecualian 2: Jika destination_from_schedule_id + transit_to_id dari subSchedule yang diberikan
+//           // tidak ditemukan dalam transit 1,2,3,4 & transit_to_id dari subSchedule terkait
+//           (
+//               subSchedule.destination_from_schedule_id &&
+//               subSchedule.transit_to_id &&
+//               !relatedTransitIds.includes(subSchedule.transit_to_id)
+//           ) ||
+
+//           // Pengecualian 3: Jika destination_from_schedule_id dari subSchedule yang diberikan null
+//           // tetapi subSchedule terkait memiliki destination_from_schedule_id
+//           (
+//               !subSchedule.destination_from_schedule_id &&
+//               relatedSubSchedule.destination_from_schedule_id
+//           ) ||
+
+//           // Pengecualian 4: Jika transit_from_id dari subSchedule yang diberikan sama dengan transit_to_id dari subSchedule terkait
+//           subSchedule.transit_from_id === relatedSubSchedule.transit_to_id ||
+
+//           // Pengecualian 5: Jika tidak ada kecocokan antara transit_from, transit_to, atau transit 1/2/3/4 dari subSchedule
+//           // dengan transit_from, transit_to, atau transit 1/2/3/4 dari relatedSubSchedule
+//           !transitIds.some(transitId => relatedTransitIds.includes(transitId))
+//       );
+
+//       return !isException;
+//   });
+// };
+
+//query manual dengan inException yang sangat kompleks
+// const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
+
+    
+//     // Query semua subschedule dengan schedule_id yang sama
+//     // Tidak ada kondisi filtering lainnya untuk memastikan mendapatkan semua data
+//   // Query semua subschedule dengan schedule_id yang sama
+//   let relatedSubSchedules = await SubSchedule.findAll({
+//     where: {
+//       schedule_id: schedule_id
+//     },
+//     include: [
+//       // TransitFrom dengan destination
+//       {
+//         model: Transit,
+//         as: 'TransitFrom',
+//         attributes: ['id'],
+//         include: [
+//           {
+//             model: Destination,
+//             as: 'Destination',
+//             attributes: ['id']
+//           }
+//         ],
+//         required: false
+//       },
+//       // TransitTo dengan destination
+//       {
+//         model: Transit,
+//         as: 'TransitTo',
+//         attributes: ['id'],
+//         include: [
+//           {
+//             model: Destination,
+//             as: 'Destination',
+//             attributes: ['id']
+//           }
+//         ],
+//         required: false
+//       },
+//       // Include Transit1-4 dengan destination mereka
+//       {
+//         model: Transit,
+//         as: 'Transit1',
+//         attributes: ['id'],
+//         include: [{
+//           model: Destination,
+//           as: 'Destination',
+//           attributes: ['id']
+//         }],
+//         required: false
+//       },
+//       {
+//         model: Transit,
+//         as: 'Transit2',
+//         attributes: ['id'],
+//         include: [{
+//           model: Destination,
+//           as: 'Destination',
+//           attributes: ['id']
+//         }],
+//         required: false
+//       },
+//       {
+//         model: Transit,
+//         as: 'Transit3',
+//         attributes: ['id'],
+//         include: [{
+//           model: Destination,
+//           as: 'Destination',
+//           attributes: ['id']
+//         }],
+//         required: false
+//       },
+//       {
+//         model: Transit,
+//         as: 'Transit4',
+//         attributes: ['id'],
+//         include: [{
+//           model: Destination,
+//           as: 'Destination',
+//           attributes: ['id']
+//         }],
+//         required: false
+//       }
+//     ],
+//     transaction
+//   });
+ 
+//    // Aplikasikan filter pengecualian secara bertahap
+//    return checkExceptions(subSchedule, relatedSubSchedules);
+//   };
+  
+// query otomatis dengan SubScheduleRelation yang sudah di sempurnakan goodjob
+
+const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
+  // First, find all relations for this subschedule
+  const relations = await SubScheduleRelation.findAll({
+    where: {
+      main_subschedule_id: subSchedule.id
+    },
+    transaction
+  });
+  
+  // Extract the IDs of related subschedules
+  const relatedIds = relations.map(relation => relation.related_subschedule_id);
+  
+  // Query both the main subschedule and its related subschedules
+  let allSubSchedules = await SubSchedule.findAll({
+    where: {
+      schedule_id: schedule_id,
+      id: [...relatedIds, subSchedule.id] // Include both the main subschedule ID and related IDs
+    },
+    include: [
+      // TransitFrom with destination
+      {
+        model: Transit,
+        as: 'TransitFrom',
+        attributes: ['id'],
         include: [
-            {
-                model: Transit,
-                as: 'TransitFrom',
-                where: {
-                    destination_id: {
-                        [Op.in]: [
-                            subSchedule.destination_from_schedule_id,
-                            subSchedule.destination_to_schedule_id
-                        ]
-                    }
-                },
-                required: false
-            },
-            {
-                model: Transit,
-                as: 'TransitTo',
-                where: {
-                    destination_id: {
-                        [Op.in]: [
-                            subSchedule.destination_from_schedule_id,
-                            subSchedule.destination_to_schedule_id
-                        ]
-                    }
-                },
-                required: false
-            }
+          {
+            model: Destination,
+            as: 'Destination',
+            attributes: ['id']
+          }
         ],
-        transaction
-    });
+        required: false
+      },
+      // TransitTo with destination
+      {
+        model: Transit,
+        as: 'TransitTo',
+        attributes: ['id'],
+        include: [
+          {
+            model: Destination,
+            as: 'Destination',
+            attributes: ['id']
+          }
+        ],
+        required: false
+      },
+      // Include Transit1-4 with their destinations
+      {
+        model: Transit,
+        as: 'Transit1',
+        attributes: ['id'],
+        include: [{
+          model: Destination,
+          as: 'Destination',
+          attributes: ['id']
+        }],
+        required: false
+      },
+      {
+        model: Transit,
+        as: 'Transit2',
+        attributes: ['id'],
+        include: [{
+          model: Destination,
+          as: 'Destination',
+          attributes: ['id']
+        }],
+        required: false
+      },
+      {
+        model: Transit,
+        as: 'Transit3',
+        attributes: ['id'],
+        include: [{
+          model: Destination,
+          as: 'Destination',
+          attributes: ['id']
+        }],
+        required: false
+      },
+      {
+        model: Transit,
+        as: 'Transit4',
+        attributes: ['id'],
+        include: [{
+          model: Destination,
+          as: 'Destination',
+          attributes: ['id']
+        }],
+        required: false
+      }
+    ],
+    transaction
+  });
 
-    console.log(`[handleSubScheduleBooking] Sub-schedule yang terkait adalah: ${relatedSubSchedules.length} buah yaitu:`, relatedSubSchedules);
-
-    // Implementasi Pengecualian Berdasarkan Skenario yang Diberikan
-    return relatedSubSchedules.filter(relatedSubSchedule => {
-        const relatedTransitIds = [
-            relatedSubSchedule.transit_from_id,
-            relatedSubSchedule.transit_1,
-            relatedSubSchedule.transit_2,
-            relatedSubSchedule.transit_3,
-            relatedSubSchedule.transit_4,
-            relatedSubSchedule.transit_to_id
-        ].filter(Boolean); // Menghilangkan nilai null
-
-        const isException = (
-            // Pengecualian 1: Jika transit_to_id dari subSchedule yang diberikan sama dengan transit_from_id dari subSchedule terkait
-            subSchedule.transit_to_id === relatedSubSchedule.transit_from_id ||
-
-            // Pengecualian 2: Jika destination_from_schedule_id + transit_to_id dari subSchedule yang diberikan
-            // tidak ditemukan dalam transit 1,2,3,4 & transit_to_id dari subSchedule terkait
-            (
-                subSchedule.destination_from_schedule_id &&
-                subSchedule.transit_to_id &&
-                !relatedTransitIds.includes(subSchedule.transit_to_id)
-            ) ||
-
-            // Pengecualian 3: Jika destination_from_schedule_id dari subSchedule yang diberikan null
-            // tetapi subSchedule terkait memiliki destination_from_schedule_id
-            (
-                !subSchedule.destination_from_schedule_id &&
-                relatedSubSchedule.destination_from_schedule_id
-            ) ||
-
-            // Pengecualian 4: Jika transit_from_id dari subSchedule yang diberikan sama dengan transit_to_id dari subSchedule terkait
-            subSchedule.transit_from_id === relatedSubSchedule.transit_to_id ||
-
-            // Pengecualian 5: Jika tidak ada kecocokan antara transit_from, transit_to, atau transit 1/2/3/4 dari subSchedule
-            // dengan transit_from, transit_to, atau transit 1/2/3/4 dari relatedSubSchedule
-            !transitIds.some(transitId => relatedTransitIds.includes(transitId))
-        );
-
-        return !isException;
-    });
+  return allSubSchedules;
 };
+
 
 const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     // Fetch the main schedule and boat capacity
@@ -252,20 +455,86 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
     // Fetch the selected sub-schedule
     const subSchedule = await SubSchedule.findOne({
         where: {
-            id: subschedule_id,
-            availability: true
+          id: subschedule_id,
+          schedule_id: schedule_id,
+          availability: true,
         },
         include: [
-            { model: Transit, as: 'TransitFrom' },
-            { model: Transit, as: 'TransitTo' },
-            { model: Transit, as: 'Transit1' },
-            { model: Transit, as: 'Transit2' },
-            { model: Transit, as: 'Transit3' },
-            { model: Transit, as: 'Transit4' }
+          {
+            model: Transit,
+            as: "TransitFrom",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
+  
+          {
+            model: Transit,
+            as: "TransitTo",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
+          {
+            model: Transit,
+  
+            as: "Transit1",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
+          {
+            model: Transit,
+  
+            as: "Transit2",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
+          {
+            model: Transit,
+          
+            as: "Transit3",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
+          {
+            model: Transit,
+        
+            as: "Transit4",
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id"],
+              },
+            ],
+          },
         ],
-        transaction
-    });
-
+        transaction,
+      });
+      
     if (!subSchedule) {
         throw new Error('SubSchedule not found');
     }

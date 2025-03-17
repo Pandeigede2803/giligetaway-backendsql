@@ -106,7 +106,7 @@ const validateBookingCreation = async (req, res, next) => {
           where: {
             schedule_id,
             booking_date : booking_date,
-            payment_status: ['paid', 'invoiced'],
+            payment_status: ['paid', 'invoiced', 'unpaid'],
           },
           include: [
             {
@@ -178,27 +178,36 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     };
 
     // Function to validate passenger seat availability
-    const validatePassengerSeats = async (passengers,booking_date, scheduleId, type) => {
+    const validatePassengerSeats = async (passengers, booking_date, scheduleId, type) => {
       console.log(`🔍 Validating seat availability for ${type} passengers...`);
     
       for (const passenger of passengers) {
+        // 1. Pastikan passenger punya seat_number
         if (!passenger.seat_number) {
           console.log(`ℹ️ No seat_number specified for passenger ${passenger.name}, skipping validation.`);
-          continue; // Skip validation for passengers without a seat_number
+          // Kalau seat_number tidak ada, lewati validasi seat (tidak dicek di DB)
+          continue;
         }
     
-        // Check if the seat is already occupied
+        // 2. Cari apakah seat_number tersebut sudah ditempati di booking lain
         const occupiedSeat = await Booking.findOne({
-          where: { schedule_id: scheduleId, booking_date },
+          where: {
+            // Mencari booking dengan schedule_id dan booking_date yang sama
+            schedule_id: scheduleId,
+            booking_date,
+          },
           include: [
             {
+              // Kita include relasi ke tabel Passenger (as: "passengers")
               model: Passenger,
               as: "passengers",
-              where: { seat_number: passenger.seat_number }, // Apply the condition here
+              // 3. Filter passenger pada Booking yang punya seat_number sama
+              where: { seat_number: passenger.seat_number },
             },
           ],
         });
     
+        // 4. Jika ketemu, berarti seat_number sudah dipakai
         if (occupiedSeat) {
           throw {
             status: "error",
@@ -209,6 +218,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
         console.log(`✅ Seat number ${passenger.seat_number} is available.`);
       }
     };
+    
     // Validate Booking Object (Shared for Departure and Return)
     const validateBooking = async (booking, type) => {
       console.log(`📝 Validating ${type} booking...`);

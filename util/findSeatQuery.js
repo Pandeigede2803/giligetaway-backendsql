@@ -13,7 +13,7 @@ const findSeatAvailabilityWithDetails = async (id) => {
           include: [
             {
               model: Booking,
-              where: { payment_status: ['paid', 'invoiced','unpaid'] },
+              where: { payment_status: ['paid', 'invoiced','unpaid','pending'] },
               attributes: { exclude: [] }, // Include all attributes
               include: [
                 {

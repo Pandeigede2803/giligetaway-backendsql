@@ -30,6 +30,9 @@ router.post('/round-queue',authenticate,bookingRateLimiter,validateScheduleAndSu
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
+router.post('/find-related-sub-schedules', bookingController.findRelatedSubSchedulesGet);
+
+
 //ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
 router.get('/filtered',authenticate, bookingController.getFilteredBookings);;
 

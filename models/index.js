@@ -16,6 +16,7 @@ const SeatAvailability = require('./SeatAvailability');
 const BookingSeatAvailability = require('./BookingSeatAvailability');;
 const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
 const AgentCommission = require('./AgentComission');
+const SubScheduleRelation = require('./SubscheduleRelation')
 // import transaction 
 const Transaction = require('./Transaction');
 
@@ -35,7 +36,8 @@ const models = {
     BookingSeatAvailability,
     SubSchedule,
     AgentCommission,
-    Transaction
+    Transaction,
+    SubScheduleRelation,
 };
 
 // Associations
@@ -80,6 +82,27 @@ SeatAvailability.belongsToMany(Booking, {
     otherKey: 'booking_id'
 });
 
+
+SubSchedule.hasMany(SubScheduleRelation, {
+    as: 'MainRelations',  // SubSchedule has many relations where it's the main schedule
+    foreignKey: 'main_subschedule_id'
+});
+
+SubSchedule.hasMany(SubScheduleRelation, {
+    as: 'RelatedRelations',  // SubSchedule has many relations where it's the related schedule
+    foreignKey: 'related_subschedule_id'
+});
+
+// From SubScheduleRelation to SubSchedule (with UNIQUE aliases)
+SubScheduleRelation.belongsTo(SubSchedule, {
+    as: 'MainSchedule',  // Changed from 'MainSubSchedule' to avoid duplicate
+    foreignKey: 'main_subschedule_id'
+});
+
+SubScheduleRelation.belongsTo(SubSchedule, {
+    as: 'RelatedSchedule',  // Changed from 'RelatedSubSchedule' to be consistent
+    foreignKey: 'related_subschedule_id'
+});
 // Transaction associations
 // Booking.hasMany(Transaction, { foreignKey: 'booking_id' });
 // Transaction.belongsTo(Booking, { foreignKey: 'booking_id' });

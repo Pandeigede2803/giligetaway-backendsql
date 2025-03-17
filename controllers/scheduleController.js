@@ -23,7 +23,7 @@ const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
 const { fn, col } = require("sequelize");
 const {
   getSchedulesWithSubSchedules2,
-} = require("../util/schedulepassenger/scheduleUtils");
+} = require("../util/schedulepassenger/scheduleUtils");;
 // getAllSchedulesWithSubSchedules.js (Controller)
 
 
@@ -2114,6 +2114,16 @@ const getScheduleById = async (req, res) => {
           model: SubSchedule,
           as: "SubSchedules",
           include: [
+            {
+              model: Destination,
+              as: "DestinationFrom",
+              attributes: ["id", "name"],
+            },
+            {
+              model: Destination,
+              as: "DestinationTo",
+              attributes: ["id", "name"],
+            },
             {
               model: Transit,
               as: "TransitFrom",

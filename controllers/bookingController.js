@@ -11,7 +11,7 @@ const {
   Transit,
   TransportBooking,
   AgentMetrics,
-//   AgentCommission,
+  //   AgentCommission,
   Agent,
   BookingSeatAvailability,
   Boat,
@@ -19,13 +19,11 @@ const {
 const { fn, col } = require("sequelize");
 const nodemailer = require("nodemailer");
 
-
-
 const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
-const releaseSeats = require('../util/releaseSeats'); // Adjust the path based on your project structure
+const releaseSeats = require("../util/releaseSeats"); // Adjust the path based on your project structure
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
@@ -37,7 +35,10 @@ const Queue = require("bull");
 const bookingQueue = new Queue("bookingQueue"); // Inisialisasi Bull Queue
 const bookingQueueMultiple = new Queue("bookingQueueMultiple");
 const bookingRoundQueue = new Queue("bookingRoundQueue");
-const {sendPaymentEmail,sendEmailNotification} = require("../util/sendPaymentEmail");
+const {
+  sendPaymentEmail,
+  sendEmailNotification,
+} = require("../util/sendPaymentEmail");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
 const {
@@ -50,7 +51,7 @@ const validateSeatAvailability = require("../util/validateSeatAvailability");
 const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabilitySingleTrip");
 const AgentCommission = require("../models/AgentComission");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
-
+const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
   let { selectedDate } = req.query;
@@ -98,7 +99,7 @@ const getBookingsByDate = async (req, res) => {
 
 // const createBookingMultiple = async (req, res) => {
 //   console.log('\n=== Starting Multiple Booking Creation Process ===');
-  
+
 //   const {
 //     trips,
 //     total_passengers,
@@ -285,7 +286,6 @@ const getBookingsByDate = async (req, res) => {
 //     });
 //   }
 // };
-
 
 const createBookingMultiple = async (req, res) => {
   const {
@@ -497,7 +497,7 @@ bookingQueueMultiple.process(async (job, done) => {
   console.log("🗺️ Trips details:", trips);
 
   // Mulai transaksi
-  const transaction = await sequelize.transaction();;
+  const transaction = await sequelize.transaction();
   try {
     console.log(
       `⚙️ Processing booking with ID: ${booking_id} for multiple trips...`
@@ -577,7 +577,7 @@ bookingQueueMultiple.process(async (job, done) => {
     );
     done(error); // Menandakan job gagal
   }
-});;
+});
 
 // const createRoundBookingWithTransitQueue = async (req, res) => {
 //   console.log("\n[Step 1] 🎯 Starting round trip booking process...");
@@ -756,8 +756,7 @@ bookingQueueMultiple.process(async (job, done) => {
 //   }
 // };
 
-
-const  createRoundBookingWithTransitQueue = async (req, res) => {
+const createRoundBookingWithTransitQueue = async (req, res) => {
   console.log("\n[Step 1] 🎯 Starting round trip booking process...");
 
   const { departure, return: returnData } = req.body;
@@ -766,8 +765,15 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
     console.log("\n[Step 2] 🔄 Starting database transaction...");
     const result = await sequelize.transaction(async (t) => {
       const handleBooking = async (data, type) => {
-        console.log(`\n[Step 3.${type === "departure" ? 1 : 2}] 📋 Processing ${type} booking...`);
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`, data.schedule_id);
+        console.log(
+          `\n[Step 3.${
+            type === "departure" ? 1 : 2
+          }] 📋 Processing ${type} booking...`
+        );
+        console.log(
+          `[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`,
+          data.schedule_id
+        );
 
         const {
           schedule_id,
@@ -796,32 +802,54 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           currency,
           gross_total_in_usd,
           exchange_rate,
-          note
+          note,
         } = data;
 
         console.log("note from frontend type", type, note);
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.2] 🔍 Checking for existing booking with ticket ID:`, ticket_id);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.2] 🔍 Checking for existing booking with ticket ID:`,
+          ticket_id
+        );
         const existingBooking = await Booking.findOne({ where: { ticket_id } });
         if (existingBooking) {
-          console.log(`[Step 3.${type === "departure" ? 1 : 2}.2.1] ⚠️ Duplicate ticket ID found`);
+          console.log(
+            `[Step 3.${
+              type === "departure" ? 1 : 2
+            }.2.1] ⚠️ Duplicate ticket ID found`
+          );
           throw new Error(`Ticket ID '${ticket_id}' is already in use.`);
         }
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.3] 💺 Validating seat availability...`);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.3] 💺 Validating seat availability...`
+        );
         const seatAvailability = await validateSeatAvailabilitySingleTrip(
           schedule_id,
           subschedule_id,
           booking_date,
           total_passengers
-        );;
+        );
 
         if (!seatAvailability.success) {
-          console.log(`[Step 3.${type === "departure" ? 1 : 2}.3.1] ⚠️ Seat validation failed:`, seatAvailability.message);
+          console.log(
+            `[Step 3.${
+              type === "departure" ? 1 : 2
+            }.3.1] ⚠️ Seat validation failed:`,
+            seatAvailability.message
+          );
           throw new Error(seatAvailability.message);
         }
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.4] 💰 Calculating transport total...`);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.4] 💰 Calculating transport total...`
+        );
         const transportTotal = Array.isArray(transports)
           ? transports.reduce(
               (total, { transport_price, quantity }) =>
@@ -831,10 +859,19 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           : 0;
 
         const totalAmount = ticket_total + transportTotal;
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.5] 📊 Total amount calculated:`, totalAmount);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.5] 📊 Total amount calculated:`,
+          totalAmount
+        );
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.6] 💾 Creating booking record...`);
-      
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.6] 💾 Creating booking record...`
+        );
+
         const booking = await Booking.create(
           {
             schedule_id,
@@ -869,7 +906,11 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           { transaction: t }
         );
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.7] 💳 Creating transaction entry...`);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.7] 💳 Creating transaction entry...`
+        );
         const transactionEntry = await createTransaction(
           {
             transaction_id: `TRANS-${Date.now()}`,
@@ -883,8 +924,12 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           t
         );
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.8] 📤 Adding to booking queue...`);
-        
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.8] 📤 Adding to booking queue...`
+        );
+
         bookingRoundQueue.add({
           schedule_id,
           subschedule_id,
@@ -899,7 +944,11 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
           type,
         });
 
-        console.log(`[Step 3.${type === "departure" ? 1 : 2}.9] ✅ ${type} booking process completed`);
+        console.log(
+          `[Step 3.${
+            type === "departure" ? 1 : 2
+          }.9] ✅ ${type} booking process completed`
+        );
         return { booking, transaction: transactionEntry };
       };
 
@@ -917,7 +966,10 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
     console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
     console.log("Total gross amount:", totalGross);
     const bookings = [result.departure.booking, result.return.booking];
-    const transactions = [result.departure.transaction, result.return.transaction];
+    const transactions = [
+      result.departure.transaction,
+      result.return.transaction,
+    ];
     const transports = [
       ...(departure.transports || []),
       ...(returnData.transports || []),
@@ -930,9 +982,11 @@ const  createRoundBookingWithTransitQueue = async (req, res) => {
       transports,
       total_gross: totalGross,
     });
-
   } catch (error) {
-    console.log("\n[Error] ❌ Error creating round trip booking:", error.message);
+    console.log(
+      "\n[Error] ❌ Error creating round trip booking:",
+      error.message
+    );
     res.status(400).json({ error: error.message });
   }
 };
@@ -989,36 +1043,35 @@ bookingRoundQueue.process(async (job, done) => {
       remainingSeatAvailabilities
     );
 
+    // Step 5: Add Remaining Seat Availabilities
+    if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+      const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
+        (sa) => ({
+          booking_id,
+          seat_availability_id: sa.id,
+        })
+      );
 
-        // Step 5: Add Remaining Seat Availabilities
-        if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-          const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
-            (sa) => ({
-              booking_id,
-              seat_availability_id: sa.id,
-            })
-          );
-    
-          console.log(
-            "Data to Insert into BookingSeatAvailability:",
-            bookingSeatAvailabilityData
-          );
-    
-          const result = await BookingSeatAvailability.bulkCreate(
-            bookingSeatAvailabilityData,
-            { transaction }
-          );
-    
-          console.log(
-            `Successfully created ${result.length} BookingSeatAvailability records.`
-          );
-          console.log(
-            "Created BookingSeatAvailability entries with seat_availability_id values:",
-            result.map((record) => record.seat_availability_id)
-          );
-        } else {
-          console.log("No seat availabilities found.");
-        }
+      console.log(
+        "Data to Insert into BookingSeatAvailability:",
+        bookingSeatAvailabilityData
+      );
+
+      const result = await BookingSeatAvailability.bulkCreate(
+        bookingSeatAvailabilityData,
+        { transaction }
+      );
+
+      console.log(
+        `Successfully created ${result.length} BookingSeatAvailability records.`
+      );
+      console.log(
+        "Created BookingSeatAvailability entries with seat_availability_id values:",
+        result.map((record) => record.seat_availability_id)
+      );
+    } else {
+      console.log("No seat availabilities found.");
+    }
 
     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
 
@@ -1026,7 +1079,7 @@ bookingRoundQueue.process(async (job, done) => {
     console.log(`Adding passengers for ${type}  booking_id ${booking_id}
       `);
 
-      console.log("✅ DATA PASSENGER IS", passengers);
+    console.log("✅ DATA PASSENGER IS", passengers);
     await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings
@@ -1038,8 +1091,6 @@ bookingRoundQueue.process(async (job, done) => {
       transaction
     );
 
-
-
     await transaction.commit(); // Commit the transaction if successful
     console.log(`Booking queue success for booking ${booking_id}`);
     done(); // Mark the job as done
@@ -1049,9 +1100,6 @@ bookingRoundQueue.process(async (job, done) => {
     done(error); // Mark the job as failed
   }
 });
-
-
-
 
 const createBookingWithTransitQueue = async (req, res) => {
   const {
@@ -1082,7 +1130,7 @@ const createBookingWithTransitQueue = async (req, res) => {
     currency,
     gross_total_in_usd,
     exchange_rate,
-    note
+    note,
   } = req.body;
 
   console.log("Received request body:", req.body);
@@ -1213,122 +1261,6 @@ const createBookingWithTransitQueue = async (req, res) => {
   }
 };
 
-// bookingQueue.process(async (job, done) => {
-//   const {
-//     schedule_id,
-//     subschedule_id,
-//     booking_date,
-//     total_passengers,
-//     passengers,
-//     transports,
-//     transit_details,
-//     booking_id,
-//     agent_id,
-//     gross_total,
-//     payment_status,
-//   } = job.data;
-
-//   console.log("---START OF JOB---",);
-
-//   const transaction = await sequelize.transaction();
-//   try {
-//     // Step 2: Handle Seat Availability
-//     let remainingSeatAvailabilities;
-//     if (subschedule_id) {
-//       console.log(
-//         `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
-//       );
-//       remainingSeatAvailabilities = await handleSubScheduleBooking(
-//         schedule_id,
-//         subschedule_id,
-//         booking_date,
-//         total_passengers,
-//         transit_details,
-//         transaction
-//       );
-//     } else {
-//       console.log(
-//         `Processing main schedule booking for schedule_id ${schedule_id}`
-//       );
-//       remainingSeatAvailabilities = await handleMainScheduleBooking(
-//         schedule_id,
-//         booking_date,
-//         total_passengers,
-//         transaction
-//       );
-//     }
-
-//     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-
-//     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-//       const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
-//         (sa) => ({
-//           booking_id,
-//           seat_availability_id: sa.id,
-//         })
-//       );
-
-//       console.log(
-//         "=======Data to Insert into BookingSeatAvailability:=======",
-//         bookingSeatAvailabilityData
-//       );
-
-//       console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-
-//       // Step 6: Add remaining Seat Availabilities to BookingSeatAvailability
-//       const result = await BookingSeatAvailability.bulkCreate(
-//         bookingSeatAvailabilityData,
-//         { transaction }
-//       );
-
-//       // Log the count of created BookingSeatAvailability records and their seat_availability_ids
-//       console.log(
-//         `Successfully created ${result.length} BookingSeatAvailability records.`
-//       );
-//       console.log(
-//         "Created BookingSeatAvailability entries with seat_availability_id values:",
-//         result.map((record) => record.seat_availability_id)
-//       );
-//     } else {
-//       console.log("No seat availabilities found.");
-//     }
-
-
-    
-
-//     // Step 3: Add Passengers
-//     console.log(`Adding passengers for booking_id ${booking_id}`);
-//     await addPassengers(passengers, booking_id, transaction,);
-
-//     // Step 4: Add Transport Bookings
-//     console.log(`Adding transport bookings for booking_id ${booking_id}`);
-//     await addTransportBookings(
-//       transports,
-//       booking_id,
-//       total_passengers,
-//       transaction
-//     );
-
-//     // Step 5: Update Agent Metrics (only if payment is complete)
-//     // if (agent_id && payment_status === 'paid') {
-//     //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
-//     //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
-//     // }
-
-//     console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-//     console.log("Booking ID:", booking_id);
-
-//     // Step 6: Add remaining Seat Availabilities
- 
-//     await transaction.commit(); // Commit the transaction if successful
-//     console.log(`Booking queue success for booking ${booking_id}`);
-//     done(); // Mark the job as done
-//   } catch (error) {
-//     await transaction.rollback(); // Rollback transaction if any error occurs
-//     console.error("Error processing booking queue:", error.message);
-//     done(error); // Mark the job as failed
-//   }
-// });
 
 bookingQueue.process(async (job, done) => {
   const {
@@ -1352,7 +1284,9 @@ bookingQueue.process(async (job, done) => {
     // Step 2: Handle Seat Availability
     let remainingSeatAvailabilities;
     if (subschedule_id) {
-      console.log(`Processing sub-schedule booking for subschedule_id ${subschedule_id}`);
+      console.log(
+        `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
+      );
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
         subschedule_id,
@@ -1362,7 +1296,9 @@ bookingQueue.process(async (job, done) => {
         transaction
       );
     } else {
-      console.log(`Processing main schedule booking for schedule_id ${schedule_id}`);
+      console.log(
+        `Processing main schedule booking for schedule_id ${schedule_id}`
+      );
       remainingSeatAvailabilities = await handleMainScheduleBooking(
         schedule_id,
         booking_date,
@@ -1371,8 +1307,11 @@ bookingQueue.process(async (job, done) => {
       );
     }
 
-    console.log("THIS ISRemaining Seat Availabilities:", remainingSeatAvailabilities);
-// ======================
+    console.log(
+      "THIS ISRemaining Seat Availabilities:",
+      remainingSeatAvailabilities
+    );
+    // ======================
     // Step 2: Buat Record Pivot BookingSeatAvailability
     // ======================
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
@@ -1439,9 +1378,6 @@ bookingQueue.process(async (job, done) => {
   }
 });
 
-
-
-
 const getBookingContact = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
@@ -1462,6 +1398,127 @@ const getBookingContact = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+const findRelatedSubSchedulesGet = async (req, res) => {
+  try {
+    const { schedule_id, subschedule_id } = req.body;
+    const transaction = null;
+
+    // Fetch the subSchedule using schedule_id and subschedule_id
+    const subSchedule = await SubSchedule.findOne({
+      where: {
+        id: subschedule_id,
+        schedule_id: schedule_id,
+        availability: true,
+      },
+      include: [
+        {
+          model: Transit,
+          as: "TransitFrom",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+
+        {
+          model: Transit,
+          as: "TransitTo",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+        {
+          model: Transit,
+
+          as: "Transit1",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+        {
+          model: Transit,
+
+          as: "Transit2",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+        {
+          model: Transit,
+        
+          as: "Transit3",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+        {
+          model: Transit,
+      
+          as: "Transit4",
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id"],
+            },
+          ],
+        },
+      ],
+      transaction,
+    });
+    
+
+  
+    if (!subSchedule) {
+      return res.status(404).json({
+        success: false,
+        message: "SubSchedule not found or unavailable",
+      });
+    }
+
+    // Call the function using the fetched subSchedule object
+    const result = (await findRelatedSubSchedules(
+      schedule_id,
+      subSchedule,
+      transaction
+    )).map(({ id, schedule_id }) => ({ id, schedule_id }));
+
+    res.json({
+      success: true,
+      data: result,
+      count: result.length,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi error saat memproses permintaan",
+      error: error.message,
+    });
+  }
+};
+
+
 
 const getBookingById = async (req, res) => {
   try {
@@ -1720,10 +1777,9 @@ const getBookings = async (req, res) => {
         },
       ],
     });
- 
+
     res.status(200).json(bookings);
   } catch (error) {
- 
     res.status(400).json({ error: error.message });
   }
 };
@@ -1803,14 +1859,13 @@ const getBookings = async (req, res) => {
 //         {
 //           model: Agent,
 //           as: "Agent",
-         
+
 //         },
 //       ],
 //     });
 
 //     //  built route from schedule and subschedule
 // // const route =buildRouteFromSchedule=(schedule,subSchedule)=>
-   
 
 //     // Respons data
 //     res.status(200).json({
@@ -1826,7 +1881,6 @@ const getBookings = async (req, res) => {
 //       .json({ error: "An error occurred while fetching bookings." });
 //   }
 // };
-
 
 const getFilteredBookings = async (req, res) => {
   try {
@@ -1849,18 +1903,18 @@ const getFilteredBookings = async (req, res) => {
       console.log("Filtering by booking_month:", booking_month);
       const [year, month] = booking_month.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid booking_month filter format. Use YYYY-MM." });
+        return res
+          .status(400)
+          .json({ error: "Invalid booking_month filter format. Use YYYY-MM." });
       }
 
       dateFilter = {
-      booking_date: {
-        [Op.between]: [
-        new Date(year, month - 1, 1), // Awal bulan
-        new Date(year, month, 0, 23, 59, 59), // Akhir bulan
-        ],
-      },
+        booking_date: {
+          [Op.between]: [
+            new Date(year, month - 1, 1), // Awal bulan
+            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+          ],
+        },
       };
     } else if (monthly) {
       // Jika `monthly` ada, filter berdasarkan `created_at`
@@ -1941,37 +1995,49 @@ const getFilteredBookings = async (req, res) => {
               model: Transit,
               as: "TransitFrom",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
             {
               model: Transit,
               as: "TransitTo",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
             {
               model: Transit,
               as: "Transit1",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
             {
               model: Transit,
               as: "Transit2",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
             {
               model: Transit,
               as: "Transit3",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
             {
               model: Transit,
               as: "Transit4",
               attributes: ["id", "departure_time", "arrival_time"],
-              include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
             },
           ],
         },
@@ -2003,7 +2069,9 @@ const getFilteredBookings = async (req, res) => {
       const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
       // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
-      const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+      const route = schedule
+        ? buildRouteFromSchedule(schedule, subSchedule)
+        : null;
 
       // Tambahkan route ke hasil booking
       return {
@@ -2023,7 +2091,9 @@ const getFilteredBookings = async (req, res) => {
     });
   } catch (error) {
     console.error("Error retrieving filtered bookings:", error);
-    res.status(400).json({ error: "An error occurred while fetching bookings." });
+    res
+      .status(400)
+      .json({ error: "An error occurred while fetching bookings." });
   }
 };
 
@@ -2040,7 +2110,7 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Boat,
               as: "Boat",
-            }
+            },
           ],
           include: [
             {
@@ -2060,106 +2130,99 @@ const getBookingByTicketId = async (req, res) => {
                   as: "Destination",
                 },
               ],
-            }
+            },
           ],
-
-
         },
-   
-       
+
         {
           model: SubSchedule,
-          as: 'subSchedule',
-   
+          as: "subSchedule",
+
           include: [
             {
               model: Destination,
-              as: 'DestinationFrom',
-           
+              as: "DestinationFrom",
             },
             {
-              model:Schedule,
-              as:'Schedule',
-              attributes: ['id','arrival_time','departure_time','journey_time'],
+              model: Schedule,
+              as: "Schedule",
+              attributes: [
+                "id",
+                "arrival_time",
+                "departure_time",
+                "journey_time",
+              ],
             },
             {
               model: Destination,
-              as: 'DestinationTo',
-       
+              as: "DestinationTo",
             },
             {
               model: Transit,
-              as: 'TransitFrom',
-          
-              include: [
-                {
-                  model: Destination,
-                  as: 'Destination',
-           
-                },
-              ],
-            },
-            {
-              model: Transit,
-              as: 'TransitTo',
-         
-              include: [
-                {
-                  model: Destination,
-                  as: 'Destination',
-          
-                },
-              ],
-            },
-            {
-              model: Transit,
-              as: 'Transit1',
-          
-              include: [
-                {
-                  model: Destination,
-                  as: 'Destination',
-  
-                },
-              ],
-            },
-            {
-              model: Transit,
-              as: 'Transit2',
-           
-              include: [
-                {
-                  model: Destination,
-                  as: 'Destination',
-             
-                },
-              ],
-            },
-            {
-              model: Transit,
-              as: 'Transit3',
-          
-              include: [
-                {
-                  model: Destination,
-                  as: 'Destination',
-         
-                },
-              ],
-            },
-            {
-              model: Transit,
-              as: 'Transit4',
+              as: "TransitFrom",
 
               include: [
                 {
                   model: Destination,
-                  as: 'Destination',
-         
+                  as: "Destination",
                 },
               ],
             },
-        
+            {
+              model: Transit,
+              as: "TransitTo",
+
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                },
+              ],
+            },
           ],
         },
         {
@@ -2187,7 +2250,6 @@ const getBookingByTicketId = async (req, res) => {
       ],
     });
     if (booking) {
- 
       res.status(200).json(booking);
     } else {
       console.log("Booking not found:", req.params.ticket_id);
@@ -2220,7 +2282,11 @@ const getRelatedBookingsByTicketId = async (req, res) => {
           as: "schedule",
           include: [
             { model: Boat, as: "Boat" },
-            { model: Transit, as: "Transits", include: [{ model: Destination, as: "Destination" }] },
+            {
+              model: Transit,
+              as: "Transits",
+              include: [{ model: Destination, as: "Destination" }],
+            },
             { model: Destination, as: "FromDestination" },
             { model: Destination, as: "ToDestination" },
           ],
@@ -2230,19 +2296,56 @@ const getRelatedBookingsByTicketId = async (req, res) => {
           as: "subSchedule",
           include: [
             { model: Destination, as: "DestinationFrom" },
-            { model: Schedule, as: "Schedule", attributes: ["id", "arrival_time", "departure_time", "journey_time"] },
+            {
+              model: Schedule,
+              as: "Schedule",
+              attributes: [
+                "id",
+                "arrival_time",
+                "departure_time",
+                "journey_time",
+              ],
+            },
             { model: Destination, as: "DestinationTo" },
-            { model: Transit, as: "TransitFrom", include: [{ model: Destination, as: "Destination" }] },
-            { model: Transit, as: "TransitTo", include: [{ model: Destination, as: "Destination" }] },
-            { model: Transit, as: "Transit1", include: [{ model: Destination, as: "Destination" }] },
-            { model: Transit, as: "Transit2", include: [{ model: Destination, as: "Destination" }] },
-            { model: Transit, as: "Transit3", include: [{ model: Destination, as: "Destination" }] },
-            { model: Transit, as: "Transit4", include: [{ model: Destination, as: "Destination" }] },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              include: [{ model: Destination, as: "Destination" }],
+            },
           ],
         },
         { model: SeatAvailability, as: "SeatAvailabilities" },
         { model: Passenger, as: "passengers" },
-        { model: TransportBooking, as: "transportBookings", include: [{ model: Transport, as: "transport" }] },
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          include: [{ model: Transport, as: "transport" }],
+        },
         { model: Agent, as: "Agent" },
       ],
       order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
@@ -2258,25 +2361,43 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 
     if (bookings.length === 1) {
       console.log("⚠️ Only one booking found. Returning single ticket.");
-      return res.status(200).json({ message: "Only one booking found", bookings });
+      return res
+        .status(200)
+        .json({ message: "Only one booking found", bookings });
     }
 
     // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
     const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
     if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
-      console.log("⚠️ Booking IDs are not sequential. Returning only the first booking.");
-      return res.status(200).json({ message: "Booking IDs are not sequential", bookings: [bookings[0]] });
+      console.log(
+        "⚠️ Booking IDs are not sequential. Returning only the first booking."
+      );
+      return res
+        .status(200)
+        .json({
+          message: "Booking IDs are not sequential",
+          bookings: [bookings[0]],
+        });
     }
 
     // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
     const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
     if (!validMatch) {
-      console.log("❌ Ticket IDs do not match the provided ticket_id. Returning error.");
-      return res.status(400).json({ error: "Ticket IDs do not match the provided ticket_id" });
+      console.log(
+        "❌ Ticket IDs do not match the provided ticket_id. Returning error."
+      );
+      return res
+        .status(400)
+        .json({ error: "Ticket IDs do not match the provided ticket_id" });
     }
 
     console.log("✅ Successfully retrieved related bookings.");
-    return res.status(200).json({ message: "Round-trip bookings found", bookings: [bookings[0], bookings[1]] });
+    return res
+      .status(200)
+      .json({
+        message: "Round-trip bookings found",
+        bookings: [bookings[0], bookings[1]],
+      });
   } catch (error) {
     console.error("❌ Error retrieving related bookings:", error.message);
     return res.status(500).json({ error: "Internal server error" });
@@ -2286,14 +2407,15 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 const updateBookingNotes = async (req, res) => {
   try {
     const { id } = req.params;
-    const { note
-     } = req.body;
+    const { note } = req.body;
     const booking = await Booking.findByPk(id);
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
     await booking.update({ note });
-    return res.status(200).json({ message: "Booking notes updated successfully" });
+    return res
+      .status(200)
+      .json({ message: "Booking notes updated successfully" });
   } catch (error) {
     console.error("Error updating booking notes:", error);
     return res.status(500).json({ error: "Failed to update booking notes" });
@@ -2452,60 +2574,63 @@ const updateBooking = async (req, res) => {
   }
 };
 
-
-
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
   const { payment_method, payment_status } = req.body;
 
-
-
   try {
     await sequelize.transaction(async (t) => {
-      console.log('\n🔍 Finding booking details...');
+      console.log("\n🔍 Finding booking details...");
       const booking = await Booking.findByPk(id, {
-        include: [
-          
-          { model: Transaction, as: 'transactions' }
-        ],
-        transaction: t
+        include: [{ model: Transaction, as: "transactions" }],
+        transaction: t,
       });
 
       if (!booking) {
-        console.log('❌ Booking not found');
+        console.log("❌ Booking not found");
         throw new Error("Booking not found");
       }
 
       // Check if payment details need an update
       if (payment_method || payment_status) {
-        console.log('\n🔄 Updating payment details...');
+        console.log("\n🔄 Updating payment details...");
         const data = {};
         if (payment_method) data.payment_method = payment_method;
         if (payment_status) data.payment_status = payment_status;
-        
+
         await booking.update(data, { transaction: t });
-        console.log('✅ Payment details updated successfully');
+        console.log("✅ Payment details updated successfully");
 
         // Send email notification
 
-        console.log('\n📧 Sending email notification...',booking.contact_email);
+        console.log(
+          "\n📧 Sending email notification...",
+          booking.contact_email
+        );
         if (booking.contact_email) {
-          sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status);
+          sendPaymentEmail(
+            booking.contact_email,
+            booking,
+            payment_method,
+            payment_status
+          );
         }
 
         return res.status(200).json({
           message: "Payment details updated successfully",
-          data: booking
+          data: booking,
         });
       }
 
       // Handle refund cases
-      if (payment_status === 'refund_50' || payment_status === 'refund_100') {
-        const refundPercentage = payment_status === 'refund_50' ? 0.5 : 1;
+      if (payment_status === "refund_50" || payment_status === "refund_100") {
+        const refundPercentage = payment_status === "refund_50" ? 0.5 : 1;
         const refundAmount = booking.gross_total * refundPercentage;
-        const refundAmountUSD = booking.gross_total_in_usd ? booking.gross_total_in_usd * refundPercentage : null;
+        const refundAmountUSD = booking.gross_total_in_usd
+          ? booking.gross_total_in_usd * refundPercentage
+          : null;
 
-        console.log('\n📊 Refund Calculations:');
+        console.log("\n📊 Refund Calculations:");
         console.log(`- Refund Percentage: ${refundPercentage * 100}%`);
         console.log(`- Refund Amount: ${refundAmount} ${booking.currency}`);
         if (refundAmountUSD !== null) {
@@ -2513,29 +2638,50 @@ const updateBookingPayment = async (req, res) => {
         }
 
         const newGrossTotal = booking.gross_total - refundAmount;
-        const newGrossTotalUSD = booking.gross_total_in_usd ? booking.gross_total_in_usd - refundAmountUSD : null;
+        const newGrossTotalUSD = booking.gross_total_in_usd
+          ? booking.gross_total_in_usd - refundAmountUSD
+          : null;
 
-        console.log('\n🔄 Updating booking with refund details...');
-        await booking.update({
-          payment_status,
-          gross_total: newGrossTotal,
-          gross_total_in_usd: newGrossTotalUSD
-        }, { transaction: t });
-        console.log('✅ Refund processed successfully');
+        console.log("\n🔄 Updating booking with refund details...");
+        await booking.update(
+          {
+            payment_status,
+            gross_total: newGrossTotal,
+            gross_total_in_usd: newGrossTotalUSD,
+          },
+          { transaction: t }
+        );
+        console.log("✅ Refund processed successfully");
 
-        console.log('\n🪑 Processing seat release...');
+        console.log("\n🪑 Processing seat release...");
         const releasedSeatIds = await releaseSeats(booking, t);
-        console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(', ') : 'None'}`);
+        console.log(
+          `✅ Released seats: ${
+            releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
+          }`
+        );
 
-        console.log('\n✅ Refund process completed successfully',booking.customer_email);
+        console.log(
+          "\n✅ Refund process completed successfully",
+          booking.customer_email
+        );
         // Send refund email notification
         if (booking.contact_email) {
-          console.log('\n📧 Sending  email...');
-          sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status, refundAmount, refundAmountUSD);
+          console.log("\n📧 Sending  email...");
+          sendPaymentEmail(
+            booking.contact_email,
+            booking,
+            payment_method,
+            payment_status,
+            refundAmount,
+            refundAmountUSD
+          );
         }
 
         return res.status(200).json({
-          message: `${payment_status === 'refund_50' ? '50%' : 'Full'} refund processed successfully`,
+          message: `${
+            payment_status === "refund_50" ? "50%" : "Full"
+          } refund processed successfully`,
           data: {
             booking_id: booking.id,
             refund_amount: refundAmount,
@@ -2543,32 +2689,36 @@ const updateBookingPayment = async (req, res) => {
             new_gross_total: newGrossTotal,
             new_gross_total_usd: newGrossTotalUSD,
             new_payment_status: payment_status,
-            released_seats: releasedSeatIds
-          }
+            released_seats: releasedSeatIds,
+          },
         });
       }
 
       // Handle other payment status updates
-      console.log('\n🔄 Updating payment status...');
+      console.log("\n🔄 Updating payment status...");
       await booking.update({ payment_status }, { transaction: t });
-      console.log('✅ Payment status updated successfully');
+      console.log("✅ Payment status updated successfully");
 
       // Send email notification
       if (booking.contact_email) {
-        sendPaymentEmail(booking.contact_email, booking, payment_method, payment_status);
+        sendPaymentEmail(
+          booking.contact_email,
+          booking,
+          payment_method,
+          payment_status
+        );
       }
 
       return res.status(200).json({
         message: "Payment status updated successfully",
-        data: booking
+        data: booking,
       });
     });
-
   } catch (error) {
-    console.error('\n❌ Error in updateBookingPayment:', error);
+    console.error("\n❌ Error in updateBookingPayment:", error);
     return res.status(400).json({
       error: error.message,
-      details: 'Failed to process payment update'
+      details: "Failed to process payment update",
     });
   }
 };
@@ -2600,7 +2750,6 @@ const updateBookingPayment = async (req, res) => {
 //         throw new Error("Booking not found");
 //       }
 
- 
 //       // Handle payment method update only
 //       if (payment_method || payment_status) {
 //         console.log('\n🔄 Updating payment details...');
@@ -2619,11 +2768,11 @@ const updateBookingPayment = async (req, res) => {
 //       if (payment_status === 'refund_50' || payment_status === 'refund_100') {
 //         // console.log('\n💰 Processing Refund Request:');
 //         // console.log(`- Refund Type: ${payment_status}`);
-        
+
 //         // Calculate refund amounts
 //         const refundPercentage = payment_status === 'refund_50' ? 0.5 : 1;
 //         const refundAmount = booking.gross_total * refundPercentage;
-//         const refundAmountUSD = booking.gross_total_in_usd ? 
+//         const refundAmountUSD = booking.gross_total_in_usd ?
 //           booking.gross_total_in_usd * refundPercentage : null;
 
 //         console.log('\n📊 Refund Calculations:');
@@ -2637,7 +2786,7 @@ const updateBookingPayment = async (req, res) => {
 
 //         // Calculate new totals
 //         const newGrossTotal = booking.gross_total - refundAmount;
-//         const newGrossTotalUSD = booking.gross_total_in_usd ? 
+//         const newGrossTotalUSD = booking.gross_total_in_usd ?
 //           booking.gross_total_in_usd - refundAmountUSD : null;
 
 //         console.log('\n📊 New Totals After Refund:');
@@ -2679,7 +2828,7 @@ const updateBookingPayment = async (req, res) => {
 //       console.log('\n🔄 Updating payment status...');
 //       await booking.update({ payment_status }, { transaction: t });
 //       console.log('✅ Payment status updated successfully');
-      
+
 //       return res.status(200).json({
 //         message: "Payment status updated successfully",
 //         data: booking
@@ -2697,52 +2846,51 @@ const updateBookingPayment = async (req, res) => {
 //   }
 // };
 
-
 const updateBookingDate = async (req, res) => {
   const { id } = req.params;
   const { booking_date } = req.body;
   const { booking } = req.bookingDetails; // Assuming booking contains necessary info, including user email
-  
+
   console.log("booking", booking);
 
   try {
     await sequelize.transaction(async (t) => {
-      console.log('\n=== Starting Booking Date Update Process ===');
+      console.log("\n=== Starting Booking Date Update Process ===");
 
       const originalBookingDate = booking.booking_date;
 
       // Cek apakah tanggal baru sama dengan yang lama
       if (originalBookingDate === booking_date) {
         return res.status(400).json({
-          error: 'New booking date is the same as current booking date',
+          error: "New booking date is the same as current booking date",
         });
       }
 
       // 1. Lepaskan kursi dari tanggal sebelumnya
-      console.log('\n🔄 Releasing seats from previous date...');
+      console.log("\n🔄 Releasing seats from previous date...");
       try {
         const releasedSeatIds = await releaseSeats(booking, t);
-        console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+        console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
-        console.error('❌ Error releasing seats:', error);
+        console.error("❌ Error releasing seats:", error);
         throw new Error(`Failed to release seats: ${error.message}`);
       }
 
       // 2. Hapus BookingSeatAvailability lama sebelum update booking_date
-      console.log('\n🗑️ Removing old BookingSeatAvailabilities...');
+      console.log("\n🗑️ Removing old BookingSeatAvailabilities...");
       await BookingSeatAvailability.destroy({
         where: { booking_id: booking.id },
-        transaction: t
+        transaction: t,
       });
-      console.log('✅ Old BookingSeatAvailabilities removed');
+      console.log("✅ Old BookingSeatAvailabilities removed");
 
       // 3. Update booking date
-      console.log('\n📅 Updating booking date...');
+      console.log("\n📅 Updating booking date...");
       await booking.update({ booking_date }, { transaction: t });
-      console.log('✅ Booking date updated successfully');
+      console.log("✅ Booking date updated successfully");
 
       // 4. Buat atau perbarui seat availability untuk tanggal baru
-      console.log('\n🔄 Creating new seat availabilities...');
+      console.log("\n🔄 Creating new seat availabilities...");
       let remainingSeatAvailabilities;
 
       if (booking.subschedule_id) {
@@ -2763,59 +2911,63 @@ const updateBookingDate = async (req, res) => {
         );
       }
 
-      console.log('✅ New seat availabilities created successfully:', 
-        remainingSeatAvailabilities.map(sa => ({
+      console.log(
+        "✅ New seat availabilities created successfully:",
+        remainingSeatAvailabilities.map((sa) => ({
           id: sa.id,
           schedule_id: sa.schedule_id,
           subschedule_id: sa.subschedule_id,
-          available_seats: sa.available_seats
+          available_seats: sa.available_seats,
         }))
       );
 
       // 5. Buat ulang BookingSeatAvailability dengan seat_availability yang baru
-      console.log('\n🔄 Creating new BookingSeatAvailabilities...');
+      console.log("\n🔄 Creating new BookingSeatAvailabilities...");
       for (const seatAvailability of remainingSeatAvailabilities) {
         await BookingSeatAvailability.create(
           {
             booking_id: booking.id,
-            seat_availability_id: seatAvailability.id
+            seat_availability_id: seatAvailability.id,
           },
           { transaction: t }
         );
       }
-      console.log('✅ New BookingSeatAvailabilities created successfully');
+      console.log("✅ New BookingSeatAvailabilities created successfully");
 
-      console.log('\n=== Booking Date Update Process Completed ===');
+      console.log("\n=== Booking Date Update Process Completed ===");
 
       // 6. Kirim email notifikasi setelah transaksi sukses
-      console.log('\n📧 Sending email notification...', booking.contact_email);
+      console.log("\n📧 Sending email notification...", booking.contact_email);
       if (booking.contact_email) {
-        sendEmailNotification(booking.contact_email, booking.ticket_id, originalBookingDate, booking_date);
+        sendEmailNotification(
+          booking.contact_email,
+          booking.ticket_id,
+          originalBookingDate,
+          booking_date
+        );
       }
 
       // 7. Response ke client
       res.status(200).json({
-        message: 'Booking date updated successfully',
+        message: "Booking date updated successfully",
         booking: {
           id: booking.id,
           new_date: booking_date,
           previous_date: originalBookingDate,
-          affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
-        }
+          affected_seat_availabilities: remainingSeatAvailabilities.map(
+            (sa) => sa.id
+          ),
+        },
       });
-
     });
-
   } catch (error) {
-    console.error('\n❌ Error in updateBookingDate:', error);
-    res.status(400).json({ 
-      error: 'Failed to update booking date',
-      details: error.message
+    console.error("\n❌ Error in updateBookingDate:", error);
+    res.status(400).json({
+      error: "Failed to update booking date",
+      details: error.message,
     });
   }
 };
-
-
 
 const updateBookingDateAgent = async (req, res) => {
   const { booking_id } = req.params; // Booking ID from URL params
@@ -2825,7 +2977,7 @@ const updateBookingDateAgent = async (req, res) => {
 
   try {
     await sequelize.transaction(async (t) => {
-      console.log('\n=== Starting Booking Date Update Process ===');
+      console.log("\n=== Starting Booking Date Update Process ===");
 
       // 1. Find booking by ID
       // const booking = await Booking.findByPk(id, {
@@ -2846,82 +2998,85 @@ const updateBookingDateAgent = async (req, res) => {
         include: [
           {
             model: Agent,
-            as: 'Agent'
-          }
+            as: "Agent",
+          },
         ],
-        transaction: t
+        transaction: t,
       });
-      
+
       if (!booking) {
         return res.status(404).json({
-          error: 'Booking not found'
+          error: "Booking not found",
         });
       }
-      
+
       // Separately fetch the BookingSeatAvailabilities
       const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
         where: { booking_id: booking.id },
         include: [
           {
             model: SeatAvailability,
-            as: 'SeatAvailability'
-          }
+            as: "SeatAvailability",
+          },
         ],
-        transaction: t
+        transaction: t,
       });
-      
+
       booking.BookingSeatAvailabilities = bookingSeatAvailabilities;
 
       if (!booking) {
         return res.status(404).json({
-          error: 'Booking not found'
+          error: "Booking not found",
         });
       }
 
       const originalBookingDate = booking.booking_date;
-      console.log('Original booking date:', originalBookingDate);
-      console.log('New booking date:', booking_date);
+      console.log("Original booking date:", originalBookingDate);
+      console.log("New booking date:", booking_date);
 
       // 2. Check if new date is the same as the old date
       if (
         originalBookingDate &&
         booking_date &&
-        new Date(originalBookingDate).getTime() === new Date(booking_date).getTime()
+        new Date(originalBookingDate).getTime() ===
+          new Date(booking_date).getTime()
       ) {
         return res.status(400).json({
-          error: 'New booking date is the same as current booking date'
+          error: "New booking date is the same as current booking date",
         });
       }
 
       // 3. Release seats from previous date
-      console.log('\n🔄 Releasing seats from previous date...');
+      console.log("\n🔄 Releasing seats from previous date...");
       try {
         const releasedSeatIds = await releaseSeats(booking, t);
-        console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+        console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
-        console.error('❌ Error releasing seats:', error);
+        console.error("❌ Error releasing seats:", error);
         throw new Error(`Failed to release seats: ${error.message}`);
       }
 
       // 4. Hapus BookingSeatAvailabilities lama
-      console.log('\n🗑️ Removing old BookingSeatAvailabilities...');
+      console.log("\n🗑️ Removing old BookingSeatAvailabilities...");
       await BookingSeatAvailability.destroy({
         where: { booking_id: booking.id },
-        transaction: t
+        transaction: t,
       });
-      console.log('✅ Old BookingSeatAvailabilities removed');
+      console.log("✅ Old BookingSeatAvailabilities removed");
 
       // 5. Update booking date
-      console.log('\n📅 Updating booking date...');
+      console.log("\n📅 Updating booking date...");
       await booking.update({ booking_date }, { transaction: t });
-      console.log('✅ Booking date updated successfully');
+      console.log("✅ Booking date updated successfully");
 
       // 6. Create/update seat availabilities for the new date
-      console.log('\n🔄 Creating new seat availabilities...');
+      console.log("\n🔄 Creating new seat availabilities...");
       let remainingSeatAvailabilities;
 
       if (booking.subschedule_id) {
-        console.log(`Processing sub-schedule booking for subschedule_id ${booking.subschedule_id}`);
+        console.log(
+          `Processing sub-schedule booking for subschedule_id ${booking.subschedule_id}`
+        );
         remainingSeatAvailabilities = await handleSubScheduleBooking(
           booking.schedule_id,
           booking.subschedule_id,
@@ -2931,7 +3086,9 @@ const updateBookingDateAgent = async (req, res) => {
           t
         );
       } else {
-        console.log(`Processing main schedule booking for schedule_id ${booking.schedule_id}`);
+        console.log(
+          `Processing main schedule booking for schedule_id ${booking.schedule_id}`
+        );
         remainingSeatAvailabilities = await handleMainScheduleBooking(
           booking.schedule_id,
           booking_date,
@@ -2941,29 +3098,29 @@ const updateBookingDateAgent = async (req, res) => {
       }
 
       console.log(
-        '✅ New seat availabilities created successfully:',
-        remainingSeatAvailabilities.map(sa => ({
+        "✅ New seat availabilities created successfully:",
+        remainingSeatAvailabilities.map((sa) => ({
           id: sa.id,
           schedule_id: sa.schedule_id,
           subschedule_id: sa.subschedule_id,
-          available_seats: sa.available_seats
+          available_seats: sa.available_seats,
         }))
       );
 
       // 7. Buat ulang BookingSeatAvailabilities dengan seat_availability yang baru
-      console.log('\n🔄 Creating new BookingSeatAvailabilities...');
+      console.log("\n🔄 Creating new BookingSeatAvailabilities...");
       for (const seatAvailability of remainingSeatAvailabilities) {
         await BookingSeatAvailability.create(
           {
             booking_id: booking.id,
-            seat_availability_id: seatAvailability.id
+            seat_availability_id: seatAvailability.id,
           },
           { transaction: t }
         );
       }
-      console.log('✅ New BookingSeatAvailabilities created successfully');
+      console.log("✅ New BookingSeatAvailabilities created successfully");
 
-      console.log('\n=== Booking Date Update Process Completed ===');
+      console.log("\n=== Booking Date Update Process Completed ===");
 
       // 8. Send email notification to agent/customer
       if (booking.contact_email) {
@@ -2978,27 +3135,25 @@ const updateBookingDateAgent = async (req, res) => {
 
       // 9. Return success response
       return res.status(200).json({
-        message: 'Booking date updated successfully',
+        message: "Booking date updated successfully",
         booking: {
           id: booking.id,
           new_date: booking_date,
           previous_date: originalBookingDate,
-          affected_seat_availabilities: remainingSeatAvailabilities.map(sa => sa.id)
-        }
+          affected_seat_availabilities: remainingSeatAvailabilities.map(
+            (sa) => sa.id
+          ),
+        },
       });
-
     }); // End of transaction
-
   } catch (error) {
-    console.error('\n❌ Error in updateBookingDateAgent:', error);
+    console.error("\n❌ Error in updateBookingDateAgent:", error);
     return res.status(400).json({
-      error: 'Failed to update booking date',
-      details: error.message
+      error: "Failed to update booking date",
+      details: error.message,
     });
   }
 };
-
-
 
 const deleteBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -3022,72 +3177,79 @@ const deleteBooking = async (req, res) => {
     const { booking_date, transport_id } = booking;
 
     // Step 2: Check and delete related records in Transactions
-    console.log('\n🔍 Checking and deleting related Transactions...');
+    console.log("\n🔍 Checking and deleting related Transactions...");
     const transactions = await Transaction.findAll({
       where: { booking_id: bookingId },
     });
 
     if (transactions.length > 0) {
       const transactionIds = transactions.map((transaction) => transaction.id);
-      console.log('🔄 Deleting related Transactions records:', transactionIds);
+      console.log("🔄 Deleting related Transactions records:", transactionIds);
 
       await Transaction.destroy({
         where: { booking_id: bookingId },
         transaction,
       });
 
-      console.log('✅ Successfully deleted related Transactions records.');
+      console.log("✅ Successfully deleted related Transactions records.");
     } else {
-      console.log('✅ No related Transactions found.');
+      console.log("✅ No related Transactions found.");
     }
 
     // Step 3: Check and delete related records in Passengers
-    console.log('\n🔍 Checking and deleting related Passengers...');
+    console.log("\n🔍 Checking and deleting related Passengers...");
     const passengers = await Passenger.findAll({
       where: { booking_id: bookingId },
     });
 
     if (passengers.length > 0) {
       const passengerIds = passengers.map((passenger) => passenger.id);
-      console.log('🔄 Deleting related Passengers records:', passengerIds);
+      console.log("🔄 Deleting related Passengers records:", passengerIds);
 
       await Passenger.destroy({
         where: { booking_id: bookingId },
         transaction,
       });
 
-      console.log('✅ Successfully deleted related Passengers records.');
+      console.log("✅ Successfully deleted related Passengers records.");
     } else {
-      console.log('✅ No related Passengers found.');
+      console.log("✅ No related Passengers found.");
     }
 
     // Step 4: Check and delete related records in BookingSeatAvailability
-    console.log('\n🔍 Checking and deleting related BookingSeatAvailability...');
+    console.log(
+      "\n🔍 Checking and deleting related BookingSeatAvailability..."
+    );
     const relatedRecords = await BookingSeatAvailability.findAll({
       where: { booking_id: bookingId },
     });
 
     if (relatedRecords.length > 0) {
       const relatedIds = relatedRecords.map((record) => record.id);
-      console.log('🔄 Deleting related BookingSeatAvailability records:', relatedIds);
+      console.log(
+        "🔄 Deleting related BookingSeatAvailability records:",
+        relatedIds
+      );
 
       await BookingSeatAvailability.destroy({
         where: { booking_id: bookingId },
         transaction,
       });
 
-      console.log('✅ Successfully deleted related BookingSeatAvailability records.');
+      console.log(
+        "✅ Successfully deleted related BookingSeatAvailability records."
+      );
     } else {
-      console.log('✅ No related records found in BookingSeatAvailability.');
+      console.log("✅ No related records found in BookingSeatAvailability.");
     }
 
     // Step 5: Release seats associated with the booking
-    console.log('\n🔄 Releasing seats from current booking date...');
+    console.log("\n🔄 Releasing seats from current booking date...");
     try {
       const releasedSeatIds = await releaseSeats(booking, transaction);
-      console.log('✅ Successfully released seats for IDs:', releasedSeatIds);
+      console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
     } catch (error) {
-      console.error('❌ Error releasing seats:', error);
+      console.error("❌ Error releasing seats:", error);
       throw new Error(`Failed to release seats: ${error.message}`);
     }
 
@@ -3119,7 +3281,10 @@ const deleteBooking = async (req, res) => {
     // Rollback transaction on error
     await transaction.rollback();
 
-    console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
+    console.error(
+      `Error deleting booking with ID ${req.params.id}:`,
+      error.message
+    );
 
     return res.status(500).json({
       success: false,
@@ -3127,7 +3292,6 @@ const deleteBooking = async (req, res) => {
     });
   }
 };
-
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
@@ -3479,46 +3643,50 @@ const cancelBooking = async (req, res) => {
 
   const id = booking_id;
 
-  console.log('\n=== Starting Booking Cancellation Process ===');
-  console.log('📝 Request Details:');
+  console.log("\n=== Starting Booking Cancellation Process ===");
+  console.log("📝 Request Details:");
   console.log(`- Booking ID: ${id}`);
 
   try {
     await sequelize.transaction(async (t) => {
       // 1. Cari booking
-      console.log('\n🔍 Finding booking details...');
+      console.log("\n🔍 Finding booking details...");
       const booking = await Booking.findByPk(id, { transaction: t });
 
       if (!booking) {
-        console.log('❌ Booking not found');
+        console.log("❌ Booking not found");
         throw new Error("Booking not found");
       }
 
       // Cek apakah sudah cancelled sebelumnya (opsional)
-      if (booking.payment_status === 'cancelled') {
-        console.log('⚠️ Booking already cancelled');
+      if (booking.payment_status === "cancelled") {
+        console.log("⚠️ Booking already cancelled");
         return res.status(400).json({
-          error: "Booking is already cancelled"
+          error: "Booking is already cancelled",
         });
       }
 
       // 2. Lepaskan seat yang sudah terlanjur di-reserve
-      console.log('\n🪑 Releasing seats for the booking...');
+      console.log("\n🪑 Releasing seats for the booking...");
       const releasedSeatIds = await releaseSeats(booking, t);
-      console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(', ') : 'None'}`);
+      console.log(
+        `✅ Released seats: ${
+          releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
+        }`
+      );
 
       // 3. Update payment_status menjadi 'cancelled'
       //    (Opsional: set gross_total = 0, dsb. jika ada kebijakan refund total)
-      console.log('\n🔄 Updating booking to cancelled status...');
+      console.log("\n🔄 Updating booking to cancelled status...");
       await booking.update(
         {
-          payment_status: 'cancelled'
+          payment_status: "cancelled",
           // gross_total: 0,        // <-- jika perlu set total = 0
           // gross_total_in_usd: 0, // <-- jika perlu set total USD = 0
         },
         { transaction: t }
       );
-      console.log('✅ Booking successfully cancelled');
+      console.log("✅ Booking successfully cancelled");
 
       // 4. Return response sukses
       return res.status(200).json({
@@ -3526,23 +3694,22 @@ const cancelBooking = async (req, res) => {
         data: {
           booking_id: booking.id,
           new_payment_status: booking.payment_status,
-          released_seats: releasedSeatIds
-        }
+          released_seats: releasedSeatIds,
+        },
       });
     }); // end of transaction
-
   } catch (error) {
-    console.error('\n❌ Error in cancelBooking:', error);
+    console.error("\n❌ Error in cancelBooking:", error);
     return res.status(400).json({
-      error: error.message || 'Failed to cancel booking',
-      details: 'Cancellation process encountered an error'
+      error: error.message || "Failed to cancel booking",
+      details: "Cancellation process encountered an error",
     });
   }
 };
 
-
 module.exports = {
   createBooking,
+
   updateBookingNotes,
   createBookingMultiple,
   getBookingContact,
@@ -3562,18 +3729,9 @@ module.exports = {
   getBookingsByDate,
   updateBookingDateAgent,
   cancelBooking,
-  createRoundBookingWithTransitQueue
+  findRelatedSubSchedulesGet,
+  createRoundBookingWithTransitQueue,
 };
-
-
-
-
-
-
-
-
-
-
 
 // const createBookingWithoutTransit = async (req, res) => {
 //     const {
@@ -4359,11 +4517,6 @@ module.exports = {
 //       done(error); // Mark the job as failed
 //     }
 //   });
-
-
-
-
-
 
 // Proses bookingQueueMultiple
 

@@ -842,6 +842,8 @@ const getPassengerCountBySchedule = async (req, res) => {
 
       // Proses tiap schedule yang valid
       validSchedules.forEach((schedule) => {
+
+        
         // Cari seat availability utama (tanpa subschedule) untuk schedule ini
         const mainAvailability = seatAvailabilityForDate.find(
           (sa) => sa.schedule_id === schedule.id && !sa.subschedule_id

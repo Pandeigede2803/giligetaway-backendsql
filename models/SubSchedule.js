@@ -1,5 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const SubScheduleRelation= require('./SeatAvailability'); // Import model SeatAvailability
+
 
 const SubSchedule = sequelize.define('SubSchedule', {
     id: {
@@ -199,7 +201,11 @@ SubSchedule.associate = (models) => {
         as: 'Bookings'
     });
 
- 
 };
+
+ 
+
+
+
 
 module.exports = SubSchedule;
