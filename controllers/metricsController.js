@@ -104,25 +104,32 @@ const getBookingMetricsBySource = async (req, res) => {
   }
 };
 
-
 const fetchAgentCommissionByBoat = async (dateFilter, previousPeriodFilter) => {
   try {
     // Filter gabungan
     const combinedFilter = {
-      [Op.or]: [dateFilter, previousPeriodFilter]
+      [Op.or]: [dateFilter, previousPeriodFilter],
     };
-    
+
     // Replacements
     const replacements = {
       prevStart: previousPeriodFilter[Op.between][0],
-      prevEnd: previousPeriodFilter[Op.between][1]
+      prevEnd: previousPeriodFilter[Op.between][1],
     };
-    
+
     return await AgentCommission.findAll({
       attributes: [
-        [sequelize.literal(`CASE WHEN Booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`), 'period'],
-        [sequelize.col('Booking.schedule.boat_id'), 'boat_id'],
-        [sequelize.fn('SUM', sequelize.col('AgentCommission.amount')), 'commission_total']
+        [
+          sequelize.literal(
+            `CASE WHEN Booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+          ),
+          "period",
+        ],
+        [sequelize.col("Booking.schedule.boat_id"), "boat_id"],
+        [
+          sequelize.fn("SUM", sequelize.col("AgentCommission.amount")),
+          "commission_total",
+        ],
       ],
       include: [
         {
@@ -131,24 +138,24 @@ const fetchAgentCommissionByBoat = async (dateFilter, previousPeriodFilter) => {
           required: true,
           where: {
             payment_status: ["invoiced", "paid"],
-            created_at: combinedFilter
+            created_at: combinedFilter,
           },
           include: [
             {
               model: Schedule,
-              as: 'schedule',
+              as: "schedule",
               attributes: [],
-              required: true
-            }
-          ]
-        }
+              required: true,
+            },
+          ],
+        },
       ],
-      group: ['period', 'Booking.schedule.boat_id'],
+      group: ["period", "Booking.schedule.boat_id"],
       replacements,
-      raw: true
+      raw: true,
     });
   } catch (error) {
-    console.error('Error fetching agent commission data:', error);
+    console.error("Error fetching agent commission data:", error);
     return [];
   }
 };
@@ -156,23 +163,35 @@ const fetchAgentCommissionByBoat = async (dateFilter, previousPeriodFilter) => {
 const fetchAllMetricsData = async (dateFilter, previousPeriodFilter) => {
   try {
     // Queries yang sudah ada
-    const bookingsData = await fetchBookingsWithAllData(dateFilter, previousPeriodFilter);
-    const transportData = await fetchTransportData(dateFilter, previousPeriodFilter);
-    const passengerData = await fetchPassengerCount(dateFilter, previousPeriodFilter);
+    const bookingsData = await fetchBookingsWithAllData(
+      dateFilter,
+      previousPeriodFilter
+    );
+    const transportData = await fetchTransportData(
+      dateFilter,
+      previousPeriodFilter
+    );
+    const passengerData = await fetchPassengerCount(
+      dateFilter,
+      previousPeriodFilter
+    );
     const agentCount = await Agent.count();
-    
+
     // Tambahkan query commission
-    const commissionData = await fetchAgentCommissionByBoat(dateFilter, previousPeriodFilter);
-    
+    const commissionData = await fetchAgentCommissionByBoat(
+      dateFilter,
+      previousPeriodFilter
+    );
+
     return {
       bookingsData,
-      commissionData,  // Tambahkan ini
+      commissionData, // Tambahkan ini
       transportData,
       passengerData,
-      agentCount
+      agentCount,
     };
   } catch (error) {
-    console.error('Error fetching metrics data:', error);
+    console.error("Error fetching metrics data:", error);
     throw error;
   }
 };
@@ -181,157 +200,180 @@ const fetchBookingsWithAllData = async (dateFilter, previousPeriodFilter) => {
   try {
     // Buat filter gabungan untuk mendapatkan data current dan previous dalam 1 query
     const combinedFilter = {
-      [Op.or]: [dateFilter, previousPeriodFilter]
+      [Op.or]: [dateFilter, previousPeriodFilter],
     };
-    
+
     // Build replacements untuk CASE statement di SQL
     const replacements = {
       prevStart: previousPeriodFilter[Op.between][0],
-      prevEnd: previousPeriodFilter[Op.between][1]
+      prevEnd: previousPeriodFilter[Op.between][1],
     };
-    
+
     return await Booking.findAll({
       attributes: [
-        'id', // Tambahkan id untuk referensi
-        [sequelize.col('schedule.boat_id'), 'boat_id'],
-        [sequelize.literal(`CASE WHEN Booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`), 'period'],
-        [sequelize.col('Booking.gross_total'), 'gross_total'],  // Spesifikkan tabel
-        [sequelize.col('Booking.payment_status'), 'payment_status'],  // Spesifikkan tabel
-        [sequelize.col('Booking.agent_id'), 'agent_id']  // Spesifikkan tabel
+        "id", // Tambahkan id untuk referensi
+        [sequelize.col("schedule.boat_id"), "boat_id"],
+        [
+          sequelize.literal(
+            `CASE WHEN Booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+          ),
+          "period",
+        ],
+        [sequelize.col("Booking.gross_total"), "gross_total"], // Spesifikkan tabel
+        [sequelize.col("Booking.payment_status"), "payment_status"], // Spesifikkan tabel
+        [sequelize.col("Booking.agent_id"), "agent_id"], // Spesifikkan tabel
       ],
       include: [
         {
           model: Schedule,
-          as: 'schedule',
-          attributes: ['boat_id'],
-          required: true
+          as: "schedule",
+          attributes: ["boat_id"],
+          required: true,
         },
         {
           model: AgentCommission,
-          as: 'agentCommissions', // Pastikan nama relasi sesuai model
-          attributes: ['amount'],
-          required: false
-        }
+          as: "agentCommissions", // Pastikan nama relasi sesuai model
+          attributes: ["amount"],
+          required: false,
+        },
       ],
       where: {
-        created_at: combinedFilter
+        created_at: combinedFilter,
       },
       replacements,
       raw: true,
-      nest: true
+      nest: true,
     });
   } catch (error) {
-    console.error('Error fetching bookings with all data:', error);
+    console.error("Error fetching bookings with all data:", error);
     throw error;
   }
 };
-
 
 const fetchTransportData = async (dateFilter, previousPeriodFilter) => {
   try {
     // Filter gabungan untuk current dan previous period
     const combinedFilter = {
-      [Op.or]: [dateFilter, previousPeriodFilter]
+      [Op.or]: [dateFilter, previousPeriodFilter],
     };
-    
+
     // Build replacements untuk CASE statement di SQL
     const replacements = {
       prevStart: previousPeriodFilter[Op.between][0],
-      prevEnd: previousPeriodFilter[Op.between][1]
+      prevEnd: previousPeriodFilter[Op.between][1],
     };
-    
+
     return await TransportBooking.findAll({
       attributes: [
-        [sequelize.literal(`CASE WHEN booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`), 'period'],
-        [sequelize.col('TransportBooking.transport_price'), 'transport_price'] // Spesifikkan tabel
+        [
+          sequelize.literal(
+            `CASE WHEN booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+          ),
+          "period",
+        ],
+        [sequelize.col("TransportBooking.transport_price"), "transport_price"], // Spesifikkan tabel
       ],
       include: [
         {
           model: Booking,
-          as: 'booking',
+          as: "booking",
           attributes: [],
           where: {
-            payment_status: ["paid","invoiced"],
-            created_at: combinedFilter
-          }
-        }
+            payment_status: ["paid", "invoiced"],
+            created_at: combinedFilter,
+          },
+        },
       ],
       replacements,
-      raw: true
+      raw: true,
     });
   } catch (error) {
-    console.error('Error fetching transport data:', error);
+    console.error("Error fetching transport data:", error);
     throw error;
   }
 };
 
 const processCommissionData = (commissionData, result) => {
   // Clear existing commission data yang mungkin sudah diset sebelumnya
-  for (const period of ['current', 'previous']) {
+  for (const period of ["current", "previous"]) {
     for (const boatId of [1, 2, 3]) {
       result[period].boats[boatId].commission = 0;
     }
   }
-  
+
   // Proses data commission dari query khusus
-  commissionData.forEach(commission => {
+  commissionData.forEach((commission) => {
     const period = commission.period;
     const boatId = parseInt(commission.boat_id);
     const commissionTotal = parseFloat(commission.commission_total) || 0;
-    
+
     // Set commission untuk perahu yang sesuai
     if (result[period] && result[period].boats[boatId]) {
       result[period].boats[boatId].commission = commissionTotal;
-      
+
       // Log untuk debugging
-      console.log(`Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`);
+      console.log(
+        `Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`
+      );
     }
   });
 };
-
 
 const fetchPassengerCount = async (dateFilter, previousPeriodFilter) => {
   try {
     // Filter gabungan untuk current dan previous period
     const combinedFilter = {
-      [Op.or]: [dateFilter, previousPeriodFilter]
+      [Op.or]: [dateFilter, previousPeriodFilter],
     };
-    
+
     // Build replacements untuk CASE statement di SQL
     const replacements = {
       prevStart: previousPeriodFilter[Op.between][0],
-      prevEnd: previousPeriodFilter[Op.between][1]
+      prevEnd: previousPeriodFilter[Op.between][1],
     };
-    
+
     return await Passenger.findAll({
       attributes: [
-        [sequelize.literal(`CASE WHEN booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`), 'period'],
-        [sequelize.fn('COUNT', sequelize.col('Passenger.id')), 'passenger_count']
+        [
+          sequelize.literal(
+            `CASE WHEN booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+          ),
+          "period",
+        ],
+        [
+          sequelize.fn("COUNT", sequelize.col("Passenger.id")),
+          "passenger_count",
+        ],
       ],
       include: [
         {
           model: Booking,
-          as: 'booking',
+          as: "booking",
           attributes: [],
           where: {
-            created_at: combinedFilter
-          }
-        }
+            created_at: combinedFilter,
+          },
+        },
       ],
-      group: ['period'],
+      group: ["period"],
       replacements,
-      raw: true
+      raw: true,
     });
   } catch (error) {
-    console.error('Error fetching passenger count:', error);
+    console.error("Error fetching passenger count:", error);
     throw error;
   }
 };
 
-
 const processMetricsData = (data) => {
-  const { bookingsData, commissionData, transportData, passengerData, agentCount } = data;
-  
+  const {
+    bookingsData,
+    commissionData,
+    transportData,
+    passengerData,
+    agentCount,
+  } = data;
+
   // Inisialisasi struktur data untuk hasil
   const result = {
     current: {
@@ -345,8 +387,8 @@ const processMetricsData = (data) => {
       boats: {
         1: { totalValue: 0, netValue: 0, commission: 0 },
         2: { totalValue: 0, netValue: 0, commission: 0 },
-        3: { totalValue: 0, netValue: 0, commission: 0 }
-      }
+        3: { totalValue: 0, netValue: 0, commission: 0 },
+      },
     },
     previous: {
       totalValue: 0,
@@ -359,94 +401,94 @@ const processMetricsData = (data) => {
       boats: {
         1: { totalValue: 0, netValue: 0, commission: 0 },
         2: { totalValue: 0, netValue: 0, commission: 0 },
-        3: { totalValue: 0, netValue: 0, commission: 0 }
-      }
+        3: { totalValue: 0, netValue: 0, commission: 0 },
+      },
     },
     transport: {
       current: { count: 0, totalPrice: 0 },
-      previous: { count: 0, totalPrice: 0 }
+      previous: { count: 0, totalPrice: 0 },
     },
     passengers: {
       current: 0,
-      previous: 0
-    }
+      previous: 0,
+    },
   };
-  
+
   // Proses data booking
   if (Array.isArray(bookingsData)) {
     processBookingsData(bookingsData, result);
   } else {
-    console.warn('bookingsData is not an array or is undefined');
+    console.warn("bookingsData is not an array or is undefined");
   }
-  
+
   // Proses data commission - pastikan tidak undefined sebelum diproses
   if (Array.isArray(commissionData)) {
     processCommissionData(commissionData, result);
   } else {
-    console.warn('commissionData is not an array or is undefined');
+    console.warn("commissionData is not an array or is undefined");
   }
-  
+
   // Proses data transport
   if (Array.isArray(transportData)) {
     processTransportData(transportData, result);
   } else {
-    console.warn('transportData is not an array or is undefined');
+    console.warn("transportData is not an array or is undefined");
   }
-  
+
   // Proses data passenger
   if (Array.isArray(passengerData)) {
     processPassengerData(passengerData, result);
   } else {
-    console.warn('passengerData is not an array or is undefined');
+    console.warn("passengerData is not an array or is undefined");
   }
-  
+
   // Hitung averageOrderValue
   calculateAverageOrderValue(result);
-  
+
   // Hitung netIncome
   calculateNetIncome(result);
-  
+
   // Format hasil akhir untuk API response
   return formatMetricsForResponse(result, agentCount || 0);
 };
 
 const processBookingsData = (bookingsData, result) => {
-  bookingsData.forEach(booking => {
+  bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
     const grossTotal = parseFloat(booking.gross_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-    
+
     // Get target object based on period
     const target = result[period];
-    
+
     // Increment booking count
     target.bookingCount++;
-    
+
     // Add to total value
     target.totalValue += grossTotal;
-    
+
     // Process by payment status
-    if (paymentStatus === 'paid') {
+    if (paymentStatus === "paid") {
       target.paymentReceived += grossTotal;
-      
+
       if (hasAgent) {
         target.agentPaymentReceived += grossTotal;
       }
-    } else if (paymentStatus === 'refund') {
+    } else if (paymentStatus === "refund") {
       target.totalRefund += grossTotal;
-    } else if (paymentStatus === 'invoiced' && hasAgent) {
+    } else if (paymentStatus === "invoiced" && hasAgent) {
       target.agentBookingInvoiced += grossTotal;
     }
-    
+
     // Process boat-specific data
     if (boatId && target.boats[boatId]) {
       // Total value for boat
       target.boats[boatId].totalValue += grossTotal;
-      
+
       // Net value for boat (paid or invoiced)
-      if (paymentStatus === 'paid' || paymentStatus === 'invoiced') {
+      if (paymentStatus === "paid" || paymentStatus === "invoiced") {
         target.boats[boatId].netValue += grossTotal;
       }
     }
@@ -454,18 +496,17 @@ const processBookingsData = (bookingsData, result) => {
 };
 
 const processTransportData = (transportData, result) => {
-  transportData.forEach(transport => {
+  transportData.forEach((transport) => {
     const period = transport.period;
     const price = parseFloat(transport.transport_price) || 0;
-    
+
     result.transport[period].count++;
     result.transport[period].totalPrice += price;
   });
 };
 
-
 const processPassengerData = (passengerData, result) => {
-  passengerData.forEach(passenger => {
+  passengerData.forEach((passenger) => {
     const period = passenger.period;
     result.passengers[period] = parseInt(passenger.passenger_count) || 0;
   });
@@ -476,39 +517,39 @@ const processPassengerData = (passengerData, result) => {
  * @param {Object} result - Result object to update
  */
 const calculateAverageOrderValue = (result) => {
-  ['current', 'previous'].forEach(period => {
+  ["current", "previous"].forEach((period) => {
     if (result[period].bookingCount > 0) {
-      result[period].averageOrderValue = result[period].totalValue / result[period].bookingCount;
+      result[period].averageOrderValue =
+        result[period].totalValue / result[period].bookingCount;
     } else {
       result[period].averageOrderValue = 0;
     }
   });
 };
 
-
-
 const calculateNetIncome = (result) => {
-  ['current', 'previous'].forEach(period => {
-    const totalCommission = 
-      (result[period].boats[1].commission || 0) + 
-      (result[period].boats[2].commission || 0) + 
+  ["current", "previous"].forEach((period) => {
+    const totalCommission =
+      (result[period].boats[1].commission || 0) +
+      (result[period].boats[2].commission || 0) +
       (result[period].boats[3].commission || 0);
-    
+
     // Log untuk debugging
     console.log(`${period} period commission totals:`, {
       boat1: result[period].boats[1].commission || 0,
       boat2: result[period].boats[2].commission || 0,
       boat3: result[period].boats[3].commission || 0,
-      total: totalCommission
+      total: totalCommission,
     });
-    
+
     result[period].netIncome = result[period].paymentReceived - totalCommission;
-    
+
     // Log net income calculation
-    console.log(`${period} net income: ${result[period].paymentReceived} - ${totalCommission} = ${result[period].netIncome}`);
+    console.log(
+      `${period} net income: ${result[period].paymentReceived} - ${totalCommission} = ${result[period].netIncome}`
+    );
   });
 };
-
 
 const calculatePercentageChange = (current, previous) => {
   if (previous === 0) {
@@ -517,54 +558,118 @@ const calculatePercentageChange = (current, previous) => {
   return ((current - previous) / previous) * 100;
 };
 
-
 const formatMetricsForResponse = (data, agentCount) => {
   // Extract current and previous data
   const { current, previous, transport, passengers } = data;
-  
+
   // Calculate all percentage changes
-  const bookingValueChange = calculatePercentageChange(current.totalValue, previous.totalValue);
-  const paymentReceivedChange = calculatePercentageChange(current.paymentReceived, previous.paymentReceived);
-  const totalRefundChange = calculatePercentageChange(current.totalRefund, previous.totalRefund);
-  const averageOrderValueChange = calculatePercentageChange(current.averageOrderValue, previous.averageOrderValue);
-  const agentBookingInvoicedChange = calculatePercentageChange(current.agentBookingInvoiced, previous.agentBookingInvoiced);
-  const agentPaymentReceivedChange = calculatePercentageChange(current.agentPaymentReceived, previous.agentPaymentReceived);
-  const transportBookingCountChange = calculatePercentageChange(transport.current.count, transport.previous.count);
-  const totalBookingCountChange = calculatePercentageChange(current.bookingCount, previous.bookingCount);
-  const totalCustomersChange = calculatePercentageChange(passengers.current, passengers.previous);
-  const transportBookingTotalChange = calculatePercentageChange(transport.current.totalPrice, transport.previous.totalPrice);
-  
+  const bookingValueChange = calculatePercentageChange(
+    current.totalValue,
+    previous.totalValue
+  );
+  const paymentReceivedChange = calculatePercentageChange(
+    current.paymentReceived,
+    previous.paymentReceived
+  );
+  const totalRefundChange = calculatePercentageChange(
+    current.totalRefund,
+    previous.totalRefund
+  );
+  const averageOrderValueChange = calculatePercentageChange(
+    current.averageOrderValue,
+    previous.averageOrderValue
+  );
+  const agentBookingInvoicedChange = calculatePercentageChange(
+    current.agentBookingInvoiced,
+    previous.agentBookingInvoiced
+  );
+  const agentPaymentReceivedChange = calculatePercentageChange(
+    current.agentPaymentReceived,
+    previous.agentPaymentReceived
+  );
+  const transportBookingCountChange = calculatePercentageChange(
+    transport.current.count,
+    transport.previous.count
+  );
+  const totalBookingCountChange = calculatePercentageChange(
+    current.bookingCount,
+    previous.bookingCount
+  );
+  const totalCustomersChange = calculatePercentageChange(
+    passengers.current,
+    passengers.previous
+  );
+  const transportBookingTotalChange = calculatePercentageChange(
+    transport.current.totalPrice,
+    transport.previous.totalPrice
+  );
+
   // Boat-specific changes
-  const bookingValueBoat1Change = calculatePercentageChange(current.boats[1].totalValue, previous.boats[1].totalValue);
-  const bookingNetValueBoat1Change = calculatePercentageChange(current.boats[1].netValue, previous.boats[1].netValue);
-  const bookingValueBoat2Change = calculatePercentageChange(current.boats[2].totalValue, previous.boats[2].totalValue);
-  const bookingNetValueBoat2Change = calculatePercentageChange(current.boats[2].netValue, previous.boats[2].netValue);
-  const bookingValueBoat3Change = calculatePercentageChange(current.boats[3].totalValue, previous.boats[3].totalValue);
-  const bookingNetValueBoat3Change = calculatePercentageChange(current.boats[3].netValue, previous.boats[3].netValue);
-  
+  const bookingValueBoat1Change = calculatePercentageChange(
+    current.boats[1].totalValue,
+    previous.boats[1].totalValue
+  );
+  const bookingNetValueBoat1Change = calculatePercentageChange(
+    current.boats[1].netValue,
+    previous.boats[1].netValue
+  );
+  const bookingValueBoat2Change = calculatePercentageChange(
+    current.boats[2].totalValue,
+    previous.boats[2].totalValue
+  );
+  const bookingNetValueBoat2Change = calculatePercentageChange(
+    current.boats[2].netValue,
+    previous.boats[2].netValue
+  );
+  const bookingValueBoat3Change = calculatePercentageChange(
+    current.boats[3].totalValue,
+    previous.boats[3].totalValue
+  );
+  const bookingNetValueBoat3Change = calculatePercentageChange(
+    current.boats[3].netValue,
+    previous.boats[3].netValue
+  );
+
   // Commission changes
-  const commissionChange1 = calculatePercentageChange(current.boats[1].commission, previous.boats[1].commission);
-  const commissionChange2 = calculatePercentageChange(current.boats[2].commission, previous.boats[2].commission);
-  const commissionChange3 = calculatePercentageChange(current.boats[3].commission, previous.boats[3].commission);
-  
+  const commissionChange1 = calculatePercentageChange(
+    current.boats[1].commission,
+    previous.boats[1].commission
+  );
+  const commissionChange2 = calculatePercentageChange(
+    current.boats[2].commission,
+    previous.boats[2].commission
+  );
+  const commissionChange3 = calculatePercentageChange(
+    current.boats[3].commission,
+    previous.boats[3].commission
+  );
+
   // Net income change
-  const netIncomeChange = calculatePercentageChange(current.netIncome, previous.netIncome);
-  
+  const netIncomeChange = calculatePercentageChange(
+    current.netIncome,
+    previous.netIncome
+  );
+
   // Build final response in same format as original
   return {
     bookingValue: {
       value: current.totalValue,
-      status: current.totalValue >= previous.totalValue ? "increase" : "decrease",
+      status:
+        current.totalValue >= previous.totalValue ? "increase" : "decrease",
       change: `${bookingValueChange.toFixed(2)}%`,
     },
     paymentReceived: {
       value: current.paymentReceived,
-      status: current.paymentReceived >= previous.paymentReceived ? "increase" : "decrease",
+      status:
+        current.paymentReceived >= previous.paymentReceived
+          ? "increase"
+          : "decrease",
       change: `${paymentReceivedChange.toFixed(2)}%`,
     },
     totalRefund: {
       value: current.totalRefund,
-      status: current.totalRefund >= previous.totalRefund ? "increase" : "decrease",
+      status:
+        current.totalRefund >= previous.totalRefund ? "increase" : "decrease",
       change: `${totalRefundChange.toFixed(2)}%`,
     },
     totalAgents: {
@@ -574,82 +679,126 @@ const formatMetricsForResponse = (data, agentCount) => {
     },
     averageOrderValue: {
       value: current.averageOrderValue,
-      status: current.averageOrderValue >= previous.averageOrderValue ? "increase" : "decrease",
+      status:
+        current.averageOrderValue >= previous.averageOrderValue
+          ? "increase"
+          : "decrease",
       change: `${averageOrderValueChange.toFixed(2)}%`,
     },
     agentBookingInvoiced: {
       value: current.agentBookingInvoiced,
-      status: current.agentBookingInvoiced >= previous.agentBookingInvoiced ? "increase" : "decrease",
+      status:
+        current.agentBookingInvoiced >= previous.agentBookingInvoiced
+          ? "increase"
+          : "decrease",
       change: `${agentBookingInvoicedChange.toFixed(2)}%`,
     },
     agentPaymentReceived: {
       value: current.agentPaymentReceived,
-      status: current.agentPaymentReceived >= previous.agentPaymentReceived ? "increase" : "decrease",
+      status:
+        current.agentPaymentReceived >= previous.agentPaymentReceived
+          ? "increase"
+          : "decrease",
       change: `${agentPaymentReceivedChange.toFixed(2)}%`,
     },
     transportBookingCount: {
       value: transport.current.count,
-      status: transport.current.count >= transport.previous.count ? "increase" : "decrease",
+      status:
+        transport.current.count >= transport.previous.count
+          ? "increase"
+          : "decrease",
       change: `${transportBookingCountChange.toFixed(2)}%`,
     },
     totalBookingCount: {
       value: current.bookingCount,
-      status: current.bookingCount >= previous.bookingCount ? "increase" : "decrease",
+      status:
+        current.bookingCount >= previous.bookingCount ? "increase" : "decrease",
       change: `${totalBookingCountChange.toFixed(2)}%`,
     },
     totalCustomers: {
       value: passengers.current,
-      status: passengers.current >= passengers.previous ? "increase" : "decrease",
+      status:
+        passengers.current >= passengers.previous ? "increase" : "decrease",
       change: `${totalCustomersChange.toFixed(2)}%`,
     },
     transportBooking: {
       value: transport.current.totalPrice,
-      status: transport.current.totalPrice >= transport.previous.totalPrice ? "increase" : "decrease",
+      status:
+        transport.current.totalPrice >= transport.previous.totalPrice
+          ? "increase"
+          : "decrease",
       change: `${transportBookingTotalChange.toFixed(2)}%`,
     },
     bookingValueBoat1: {
       value: current.boats[1].totalValue,
-      status: current.boats[1].totalValue >= previous.boats[1].totalValue ? "increase" : "decrease",
+      status:
+        current.boats[1].totalValue >= previous.boats[1].totalValue
+          ? "increase"
+          : "decrease",
       change: `${bookingValueBoat1Change.toFixed(2)}%`,
     },
     bookingNetValueBoat1: {
       value: current.boats[1].netValue,
-      status: current.boats[1].netValue >= previous.boats[1].netValue ? "increase" : "decrease",
+      status:
+        current.boats[1].netValue >= previous.boats[1].netValue
+          ? "increase"
+          : "decrease",
       change: `${bookingNetValueBoat1Change.toFixed(2)}%`,
     },
     bookingNetValueBoat2: {
       value: current.boats[2].netValue,
-      status: current.boats[2].netValue >= previous.boats[2].netValue ? "increase" : "decrease",
+      status:
+        current.boats[2].netValue >= previous.boats[2].netValue
+          ? "increase"
+          : "decrease",
       change: `${bookingNetValueBoat2Change.toFixed(2)}%`,
     },
     bookingNetValueBoat3: {
       value: current.boats[3].netValue,
-      status: current.boats[3].netValue >= previous.boats[3].netValue ? "increase" : "decrease",
+      status:
+        current.boats[3].netValue >= previous.boats[3].netValue
+          ? "increase"
+          : "decrease",
       change: `${bookingNetValueBoat3Change.toFixed(2)}%`,
     },
     bookingValueBoat2: {
       value: current.boats[2].totalValue,
-      status: current.boats[2].totalValue >= previous.boats[2].totalValue ? "increase" : "decrease",
+      status:
+        current.boats[2].totalValue >= previous.boats[2].totalValue
+          ? "increase"
+          : "decrease",
       change: `${bookingValueBoat2Change.toFixed(2)}%`,
     },
     bookingValueBoat3: {
       value: current.boats[3].totalValue,
-      status: current.boats[3].totalValue >= previous.boats[3].totalValue ? "increase" : "decrease",
+      status:
+        current.boats[3].totalValue >= previous.boats[3].totalValue
+          ? "increase"
+          : "decrease",
       change: `${bookingValueBoat3Change.toFixed(2)}%`,
     },
     agentCommissionBoat1: {
       value: current.boats[1].commission,
-      status: current.boats[1].commission >= previous.boats[1].commission ? "increase" : "decrease",
+      status:
+        current.boats[1].commission >= previous.boats[1].commission
+          ? "increase"
+          : "decrease",
       change: `${commissionChange1.toFixed(2)}%`,
     },
     agentCommissionBoat2: {
       value: current.boats[2].commission,
-      status: current.boats[2].commission >= previous.boats[2].commission ? "increase" : "decrease",
+      status:
+        current.boats[2].commission >= previous.boats[2].commission
+          ? "increase"
+          : "decrease",
       change: `${commissionChange2.toFixed(2)}%`,
     },
     agentCommissionBoat3: {
       value: current.boats[3].commission,
-      status: current.boats[3].commission >= previous.boats[3].commission ? "increase" : "decrease",
+      status:
+        current.boats[3].commission >= previous.boats[3].commission
+          ? "increase"
+          : "decrease",
       change: `${commissionChange3.toFixed(2)}%`,
     },
     netIncome: {
@@ -660,12 +809,22 @@ const formatMetricsForResponse = (data, agentCount) => {
   };
 };
 
-
 const buildDateFilter = ({ from, to, month, year, day }) => {
   // For from and to dates
-  if (from && to) {
-    return { [Op.between]: [from, to] };
-  }
+// Untuk filter from-to
+// Dalam fungsi buildDateFilter
+if (from && to) {
+  const fromDate = moment(from).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  const toDate = moment(to).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+  
+  // Menggunakan operator terpisah daripada BETWEEN
+  return {
+    created_at: {
+      [Op.gte]: fromDate,
+      [Op.lte]: toDate
+    }
+  };
+}
 
   // Convert inputs to numbers and validate
   const numericYear = year ? parseInt(year) : null;
@@ -701,10 +860,10 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
   if (numericYear && numericMonth) {
     const startDate = moment(`${numericYear}-${numericMonth}-01`)
       .startOf("month")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");
     const endDate = moment(`${numericYear}-${numericMonth}-01`)
       .endOf("month")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");
 
     return {
       [Op.between]: [startDate, endDate],
@@ -715,10 +874,10 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
   if (numericYear) {
     const startDate = moment(`${numericYear}-01-01`)
       .startOf("year")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");
     const endDate = moment(`${numericYear}-12-31`)
       .endOf("year")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");
 
     return {
       [Op.between]: [startDate, endDate],
@@ -729,8 +888,8 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
   const currentDate = moment();
   return {
     [Op.between]: [
-      currentDate.clone().startOf("month").format("YYYY-MM-DD"),
-      currentDate.clone().endOf("month").format("YYYY-MM-DD"),
+      currentDate.clone().startOf("month").format("YYYY-MM-DD HH:mm:ss"),
+      currentDate.clone().endOf("month").format("YYYY-MM-DD HH:mm:ss"),
     ],
   };
 };
@@ -742,21 +901,84 @@ const getMetrics = async (req, res) => {
     // Ambil parameter filter dari query
     const { from, to, month, year, day } = req.query;
 
-    // Convert parameters to numbers for easier validation
     const numericYear = year ? parseInt(year) : null;
     const numericMonth = month ? parseInt(month) : null;
     const numericDay = day ? parseInt(day) : null;
+        
+    console.log("From raw:", req.query.from);
+    console.log("To raw:", req.query.to);
+    console.log("From parsed:", new Date(req.query.from));
+    console.log("To parsed:", new Date(req.query.to));
     
-    // Build date filters
-    const dateFilter = from && to
-      ? { [Op.between]: [from, to] }
-      : buildDateFilter({ month, year, day });
-    
+    // Cek jika from-to adalah untuk satu bulan penuh
+    let dateFilter;
+    if (from && to) {
+      const fromMoment = moment(from);
+      const toMoment = moment(to);
+      
+      // Periksa apakah rentang adalah bulan penuh (1-31)
+      const isFullMonth = 
+        fromMoment.date() === 1 && 
+        toMoment.month() === fromMoment.month() &&
+        toMoment.date() >= 28; // Mengakomodasi bulan Februari
+      
+      if (isFullMonth) {
+        // Jika bulan penuh, gunakan filter bulan-tahun
+        console.log("Detected full month query, using month-year filter");
+        dateFilter = buildDateFilter({ 
+          month: fromMoment.month() + 1, // Moment: Jan=0, API: Jan=1
+          year: fromMoment.year() 
+        });
+      } else {
+        // Untuk rentang tanggal biasa
+        const fromDate = fromMoment.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const toDate = toMoment.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        dateFilter = { [Op.between]: [fromDate, toDate] };
+      }
+    } else {
+      // Gunakan buildDateFilter untuk parameter lainnya
+      dateFilter = buildDateFilter({ month, year, day });
+    }
+        
     let previousPeriodFilter;
     if (from && to) {
-      const previousFrom = moment(from).subtract(3, "days").format("YYYY-MM-DD");
-      const previousTo = moment(to).subtract(3, "days").format("YYYY-MM-DD");
-      previousPeriodFilter = { [Op.between]: [previousFrom, previousTo] };
+      const fromMoment = moment(from);
+      const toMoment = moment(to);
+      
+      // Periksa jika bulan penuh
+      const isFullMonth = 
+        fromMoment.date() === 1 && 
+        toMoment.month() === fromMoment.month() &&
+        toMoment.date() >= 28;
+      
+      if (isFullMonth) {
+        // Jika bulan penuh, gunakan bulan sebelumnya sebagai pembanding
+        let prevMonth = fromMoment.month();
+        let prevYear = fromMoment.year();
+        
+        if (prevMonth === 0) { // Januari
+          prevMonth = 11; // Desember
+          prevYear -= 1;
+        } else {
+          prevMonth -= 1;
+        }
+        
+        previousPeriodFilter = buildDateFilter({
+          month: prevMonth + 1, // Koreksi untuk API
+          year: prevYear
+        });
+      } else {
+        // Untuk rentang tanggal biasa
+        const previousFrom = moment(from)
+          .subtract(3, "days")
+          .startOf('day')
+          .format("YYYY-MM-DD HH:mm:ss");
+        const previousTo = moment(to)
+          .subtract(3, "days")
+          .endOf('day')
+          .format("YYYY-MM-DD HH:mm:ss");
+        previousPeriodFilter = { [Op.between]: [previousFrom, previousTo] };
+      }
     } else if (numericYear && !numericMonth && !numericDay) {
       // If only year is provided, use previous year
       previousPeriodFilter = buildDateFilter({
@@ -765,38 +987,44 @@ const getMetrics = async (req, res) => {
     } else {
       // For month/day combinations
       previousPeriodFilter = buildDateFilter({
-        month: numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : undefined,
-        year: numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear,
+        month: numericMonth
+          ? numericMonth === 1
+            ? 12
+            : numericMonth - 1
+          : undefined,
+        year:
+          numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear,
         day,
       });
     }
-    
-    
+
     // Log filters untuk debugging
-    console.log('Current period filter:', dateFilter);
-    console.log('Previous period filter:', previousPeriodFilter);
-    
+    console.log("Current period filter:", dateFilter);
+    console.log("Previous period filter:", previousPeriodFilter);
+
     // Fetch semua data dengan query yang optimal
-    const metricsData = await fetchAllMetricsData(dateFilter, previousPeriodFilter);
-    
+    const metricsData = await fetchAllMetricsData(
+      dateFilter,
+      previousPeriodFilter
+    );
+
     // Proses data untuk membentuk respon yang dibutuhkan
     const metrics = processMetricsData(metricsData);
-    
+
     // Kirimkan respons
     res.json({
       status: "success",
-      metrics
+      metrics,
     });
   } catch (error) {
-    console.error('Error in getMetrics controller:', error);
+    console.error("Error in getMetrics controller:", error);
     res.status(500).json({
       status: "error",
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
-
 
 // Helper function to calculate comparison status and percentage change
 const calculateComparison = (current, previous) => {
@@ -807,15 +1035,6 @@ const calculateComparison = (current, previous) => {
     change: `${change.toFixed(2)}%`,
   };
 };
-
-
-
-
-
-
-
-
-
 
 // Get metrics by agent ID
 const getMetricsByAgentId = async (req, res) => {
@@ -883,7 +1102,6 @@ const getMetricsByAgentId = async (req, res) => {
           payment_status: ["paid", "invoiced"],
         },
       })) ?? 0;
-
 
     const currentTransportBooking =
       (await TransportBooking.sum("transport_price", {
@@ -965,8 +1183,6 @@ const getMetricsByAgentId = async (req, res) => {
           created_at: previousPeriodFilter,
         },
       })) ?? 0;
-
-
 
     const previousTransportBooking =
       (await TransportBooking.sum("transport_price", {
