@@ -27,7 +27,7 @@ router.get('/:id', agentController.getAgentById);
 
 // CREATE new agent with dynamic field name
 const uploadImageUrl = createUploadMiddleware('image_url'); // Assuming 'image_url' is the field name for agent images
-router.post('/', authenticate,checkEmailUnique, uploadImageUrl, uploadImageToImageKit, agentController.createAgent);
+router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, agentController.createAgent);
 
 
 
