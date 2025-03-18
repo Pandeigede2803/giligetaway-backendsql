@@ -7,6 +7,9 @@ const authenticate = require('../middleware/authenticate');
 
 // get the metrics
 router.get('/', authenticate,metricsController.getMetrics);
+router.get('/booking-date', authenticate,metricsController.getMetricsBookingDate)
+
+
 router.get('/annualy', authenticate,metricsController.getAnnualyMetrics);
 
 // get the metrics by agent id

@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, literal, col } = require('sequelize');
 const {
   Agent,
   Boat,
@@ -31,9 +31,8 @@ function formatDateTimeDDMMYYYY_HHMM(dateObj) {
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+
+  return `${day}/${month}/${year} `;
 }
 
 const AgentCommissionController = {
@@ -42,27 +41,27 @@ const AgentCommissionController = {
   async getCommissions(req, res) {
     try {
       console.log("Received query parameters:", req.query);
-
+  
       const agentId = req.query.agent_id
         ? parseInt(req.query.agent_id, 10)
         : null;
-
+  
       // Filter created_at in AgentCommission
       const year = req.query.year ? parseInt(req.query.year, 10) : null;
       const month = req.query.month ? parseInt(req.query.month, 10) : null;
       const fromDate = req.query.from_date || null;
       const toDate = req.query.to_date || null;
-
+  
       // Filter booking_date in Booking
       const fromBookingDate = req.query.from_booking_date || null;
       const toBookingDate = req.query.to_booking_date || null;
-
+  
       // 1. whereConditions for AgentCommission
       const whereConditions = {};
       if (agentId) {
         whereConditions.agent_id = agentId;
       }
-
+  
       // ➜ Filter created_at di AgentCommission
       if (fromDate && toDate) {
         // Jika ada from_date & to_date → filter range created_at
@@ -105,13 +104,14 @@ const AgentCommissionController = {
           );
         }
       }
-
+  
       // 2. bookingWhereConditions for Booking.booking_date
       const bookingWhereConditions = {};
       if (fromBookingDate && toBookingDate) {
         const startBooking = new Date(fromBookingDate);
         const endBooking = new Date(toBookingDate);
-        bookingWhereConditions.booking_date = {
+        // FIX: Mengganti 'create' menjadi 'created_at' atau 'booking_date' sesuai nama kolom sebenarnya di tabel Booking
+        bookingWhereConditions.created_at = {
           [Op.gte]: startBooking,
           [Op.lte]: endBooking,
         };
@@ -123,30 +123,27 @@ const AgentCommissionController = {
         );
       }
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
-
+  
       console.log("📝 AgentCommission conditions:", whereConditions);
       console.log("📝 Booking conditions:", bookingWhereConditions);
-
+  
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
         where: whereConditions,
         include: {
           model: Booking,
           as: "Booking",
-          where: {
-            ...bookingWhereConditions, // ✅ Ensure this is included!
-          }, // Hanya ambil booking dengan status invoiced
-
-
+          // Bila Anda hanya ingin filter data berdasarkan created_at 
+          // tanpa menerapkan kondisi lain pada booking, hapus where ini bila perlu
+          ...(Object.keys(bookingWhereConditions).length > 0 ? { where: bookingWhereConditions } : {}),
           include: [
             {
               model: Transaction,
               as: "transactions",
             },
             {
-              model:Passenger,
+              model: Passenger,
               as: "passengers",
-             
             },
             {
               model: Schedule,
@@ -168,35 +165,34 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "FromDestination",
-                  // attributes: ["id", "name"],
                 },
                 {
                   model: Transit,
-                
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
-                },
+                  },
                 },
                 {
                   model: Boat,
                   as: "Boat",
-                
                 },
                 {
                   model: Destination,
                   as: "ToDestination",
-                  // attributes: ["id", "name"],
                 },
-                
-          
               ],
             },
-
             {
               model: TransportBooking,
               as: "transportBookings",
+              // Penting: Jika TransportBooking memiliki created_at yang menyebabkan ambigu,
+              // tentukan atribut yang diambil secara eksplisit untuk menghindari ambigu
+              attributes: [
+                'id', 'booking_id', 'transport_id', 'transport_price',
+                // Jika ada kolom created_at di sini, gunakan alias untuk menghindari ambigu
+                [Sequelize.col('transportBookings.created_at'), 'transportBooking_created_at'],
+              ],
               include: [
                 {
                   model: Transport,
@@ -216,12 +212,10 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "DestinationFrom",
-                  // attributes: ["id", "name"],
                 },
                 {
                   model: Destination,
                   as: "DestinationTo",
-                  // attributes: ["id", "name"],
                 },
                 {
                   model: Transit,
@@ -230,7 +224,6 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -240,7 +233,6 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -250,7 +242,6 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -260,7 +251,6 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -270,7 +260,6 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -280,15 +269,23 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
-                    // attributes: ["id", "name"],
                   },
                 },
               ],
             },
           ],
         },
+        // Menentukan kolom-kolom yang ingin diambil dengan jelas
+        subQuery: false,
+        attributes: {
+          include: [
+            [Sequelize.col('AgentCommission.created_at'), 'created_at'],
+            [Sequelize.col('AgentCommission.id'), 'id'],
+            // Tambahkan kolom-kolom lain yang diperlukan dari AgentCommission di sini
+          ]
+        }
       });
-
+  
       // Process commissions to add route names
       const processedCommissions = commissions.map((commission) => {
         const booking = commission.Booking;
@@ -319,14 +316,13 @@ const AgentCommissionController = {
           route,
         };
       });
-
+  
       res.status(200).json(processedCommissions);
     } catch (error) {
       console.error("Error fetching commissions:", error);
       res.status(500).json({ error: "Failed to retrieve commissions" });
     }
   },
-
   // * GET /api/agent-sales-report?agent_id=xx&year=2024&month=5
   // *
   // * Mengembalikan struktur JSON:
@@ -456,7 +452,35 @@ const AgentCommissionController = {
               {
                 model: TransportBooking,
                 as: "transportBookings",
-                include: [{ model: Transport, as: "Transport" }],
+                attributes: [
+                  "id",
+                  "transport_id",
+                  "transport_type",
+                  "quantity",
+                  "transport_price",
+                  "note",
+                  "payment_status",
+                  "payment_method",
+              
+                
+                ],
+                include: [{ model: Transport,
+                  
+                  as: "Transport" ,
+                  attributes: [
+                    "id",
+                  
+                    "pickup_area",
+                    "pickup_time",
+                    "duration",
+                    "cost",
+                    "interval_time",
+                    "description",
+     
+                    "availability",
+                  ],
+                
+                }],
               },
               {
                 model: SubSchedule,
@@ -511,54 +535,68 @@ const AgentCommissionController = {
       // 5. Process Bookings to use `created_at` from `AgentCommission`
       // ocess Bookings to use `created_at` from `AgentCommission`
       const processedBookings = commissions.map((commission) => {
-          const bk = commission.Booking;
-          if (!bk) return null; 
+        const bk = commission.Booking;
+        if (!bk) return null;
+        
+        const dateFormatted = formatDateDDMMYYYY(commission.created_at);
+        const departureFormatted = formatDateTimeDDMMYYYY_HHMM(bk.booking_date);
+        
+        let transportCost = 0;
+        if (bk.transportBookings && bk.transportBookings.length > 0) {
+          bk.transportBookings.forEach(transport => {
+            transportCost += parseFloat(transport.transport_price || 0);
+          });
+        }
+        
+     
 
-          const dateFormatted = formatDateDDMMYYYY(commission.created_at);
-          const departureFormatted = formatDateTimeDDMMYYYY_HHMM(bk.booking_date);
-          const amount = bk.gross_total - commission.amount;
-          const amountInvoiced = bk.payment_status === "invoiced" ? bk.gross_total - commission.amount : 0;
-          const amountPaid = Number(bk.payment_status === "paid" ? bk.gross_total : 0);
-          const datePaid = bk.payment_status === "paid" ? formatDateDDMMYYYY(bk.updated_at) : null;
-
-          let route = "";
-          if (bk?.subSchedule) {
-              route = [
-                  bk.subSchedule.DestinationFrom?.name,
-                  bk.subSchedule.TransitFrom?.Destination?.name,
-                  bk.subSchedule.TransitTo?.Destination?.name,
-                  bk.subSchedule.DestinationTo?.name,
-              ].filter(Boolean).join(" - ");
-          } else if (bk?.schedule) {
-              route = [
-                  bk.schedule.FromDestination?.name,
-                  bk.schedule.ToDestination?.name,
-              ].filter(Boolean).join(" - ");
-          }
-
-          return {
-              id: bk.ticket_id,
-              date: dateFormatted,
-              departure: departureFormatted,
-              customer: bk.contact_name,
-              passport_id: bk.contact_passport_id,
-              nationality: bk.contact_nationality,
-              tickets: bk.total_passengers,
-              payment_status: bk.payment_status,
-              payment_method: bk.payment_method,
-              gross_total: bk.gross_total,
-              gross_total_in_usd: bk.gross_total_in_usd,
-              exchange_rate: bk.exchange_rate,
-              bank_fee: bk.bank_fee,
-              commission: commission.amount,
-              amount: amount,
-              amount_paid: amountPaid || 0,
-              amount_invoiced: amountInvoiced || 0,
-              date_paid: datePaid ? datePaid : "-",
-              route,
-          };
+        console.log("👶transportCost", transportCost);
+        
+        // Use transportCost instead of bk.transportBookings if needed
+        const amount = bk.gross_total - commission.amount ;
+        const amountInvoiced = bk.payment_status === "invoiced" ? bk.gross_total - commission.amount : 0;
+        const amountPaid = Number(bk.payment_status === "paid" ? bk.gross_total : 0);
+        const datePaid = bk.payment_status === "paid" ? formatDateDDMMYYYY(bk.updated_at) : null;
+        
+        // Rest of your code remains the same
+        let route = "";
+        if (bk?.subSchedule) {
+          route = [
+            bk.subSchedule.DestinationFrom?.name,
+            bk.subSchedule.TransitFrom?.Destination?.name,
+            bk.subSchedule.TransitTo?.Destination?.name,
+            bk.subSchedule.DestinationTo?.name,
+          ].filter(Boolean).join(" - ");
+        } else if (bk?.schedule) {
+          route = [
+            bk.schedule.FromDestination?.name,
+            bk.schedule.ToDestination?.name,
+          ].filter(Boolean).join(" - ");
+        }
+        
+        return {
+          id: bk.ticket_id,
+          date: dateFormatted,
+          departure: departureFormatted,
+          customer: bk.contact_name,
+          passport_id: bk.contact_passport_id,
+          nationality: bk.contact_nationality,
+          tickets: bk.total_passengers,
+          transport_booking: bk.transportBookings, // Include all transport bookings
+          payment_status: bk.payment_status,
+          payment_method: bk.payment_method,
+          gross_total: bk.gross_total,
+          gross_total_in_usd: bk.gross_total_in_usd,
+          exchange_rate: bk.exchange_rate,
+          bank_fee: bk.bank_fee,
+          commission: commission.amount,
+          amount: amount,
+          amount_paid: amountPaid || 0,
+          amount_invoiced: amountInvoiced || 0,
+          date_paid: datePaid ? datePaid : "-",
+          route,
+        };
       }).filter(Boolean);
-
 
 
       // 5. Lakukan pass ke-2 untuk menghitung running balance
@@ -608,18 +646,18 @@ const AgentCommissionController = {
       // get sub total is total amount - total amount paid
       const subTotal = totalAmount - totalAmountPaid;
 
-      console.log("Total Gross Amount:", totalGrossAmount);
-      console.log("Total Commission Amount:", totalCommissionAmount);
-      console.log(
-        "Total Amount is gross total - agent comission:",
-        totalAmount
-      );
-      console.log("Total Bank Fee:", totalBankFee);
-      console.log(
-        "Total Amount Paid for the booking with paymen status paid:",
-        totalAmountPaid
-      );
-      console.log("Sub Total:", subTotal);
+      // console.log("Total Gross Amount:", totalGrossAmount);
+      // console.log("Total Commission Amount:", totalCommissionAmount);
+      // console.log(
+      //   "Total Amount is gross total - agent comission:",
+      //   totalAmount
+      // );
+      // console.log("Total Bank Fee:", totalBankFee);
+      // console.log(
+      //   "Total Amount Paid for the booking with paymen status paid:",
+      //   totalAmountPaid
+      // );
+      // console.log("Sub Total:", subTotal);
 
       // 6. Build Final Response JSON
       const response = {
@@ -647,6 +685,12 @@ const AgentCommissionController = {
       res.status(500).json({ error: "Failed to retrieve agent sales report" });
     }
   },
+
+
+
+
+
+
   async getCommissionsInvoiced(req, res) {
     try {
       const {

@@ -1,4 +1,9 @@
-const { Op, fn, col } = require("sequelize"); // Sequelize operators
+const Sequelize = require('sequelize');
+const { Op } = Sequelize;
+
+// Di bagian paling atas file
+
+
 const moment = require("moment"); // Import Moment.js for date manipulation
 const {
   sequelize,
@@ -18,6 +23,8 @@ const {
   BookingSeatAvailability,
   Boat,
 } = require("../models");
+
+const {fetchAllMetricsDataBookingDate,processMetricsDataBookingDate,} =require("../util/fetchMetricsBookingDate")
 
 // Fungsi untuk mendapatkan metrik pemesanan berdasarkan sumber
 const getBookingMetricsBySource = async (req, res) => {
@@ -321,42 +328,46 @@ const processCommissionData = (commissionData, result) => {
 
 const fetchPassengerCount = async (dateFilter, previousPeriodFilter) => {
   try {
-    // Filter gabungan untuk current dan previous period
-    const combinedFilter = {
-      [Op.or]: [dateFilter, previousPeriodFilter],
+    // Pastikan previousPeriodFilter memiliki Op.between dengan created_at
+    if (!previousPeriodFilter || !previousPeriodFilter[Op.between]) {
+      throw new Error("Invalid previousPeriodFilter: missing Op.between.");
+    }
+
+    // Build previous period filter using created_at
+    const previousCreatedAtFilter = {
+      created_at: previousPeriodFilter, // Sesuaikan dengan created_at
     };
 
-    // Build replacements untuk CASE statement di SQL
-    const replacements = {
-      prevStart: previousPeriodFilter[Op.between][0],
-      prevEnd: previousPeriodFilter[Op.between][1],
+    // Build current period filter using created_at
+    const currentCreatedAtFilter = {
+      created_at: dateFilter, // Sesuaikan dengan created_at
     };
 
-    return await Passenger.findAll({
+    // console.log("🧠Fetching passenger count...");
+    // console.log("🧠Current period filter:", currentCreatedAtFilter);
+    // console.log("🧠Previous period filter:", previousCreatedAtFilter);
+
+    return await Booking.findAll({
       attributes: [
         [
           sequelize.literal(
-            `CASE WHEN booking.created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+            `CASE WHEN created_at BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
           ),
           "period",
         ],
         [
-          sequelize.fn("COUNT", sequelize.col("Passenger.id")),
+          sequelize.fn("SUM", sequelize.col("total_passengers")),
           "passenger_count",
         ],
       ],
-      include: [
-        {
-          model: Booking,
-          as: "booking",
-          attributes: [],
-          where: {
-            created_at: combinedFilter,
-          },
-        },
-      ],
+      where: {
+        [Op.or]: [currentCreatedAtFilter, previousCreatedAtFilter],
+      },
       group: ["period"],
-      replacements,
+      replacements: {
+        prevStart: previousPeriodFilter[Op.between][0],
+        prevEnd: previousPeriodFilter[Op.between][1],
+      },
       raw: true,
     });
   } catch (error) {
@@ -364,6 +375,7 @@ const fetchPassengerCount = async (dateFilter, previousPeriodFilter) => {
     throw error;
   }
 };
+
 
 const processMetricsData = (data) => {
   const {
@@ -905,10 +917,10 @@ const getMetrics = async (req, res) => {
     const numericMonth = month ? parseInt(month) : null;
     const numericDay = day ? parseInt(day) : null;
         
-    console.log("From raw:", req.query.from);
-    console.log("To raw:", req.query.to);
-    console.log("From parsed:", new Date(req.query.from));
-    console.log("To parsed:", new Date(req.query.to));
+    // console.log("From raw:", req.query.from);
+    // console.log("To raw:", req.query.to);
+    // console.log("From parsed:", new Date(req.query.from));
+    // console.log("To parsed:", new Date(req.query.to));
     
     // Cek jika from-to adalah untuk satu bulan penuh
     let dateFilter;
@@ -1026,6 +1038,221 @@ const getMetrics = async (req, res) => {
   }
 };
 
+
+const buildBookingDateFilter = ({ from, to, month, year, day }) => {
+  // Log incoming parameters for debugging
+  // console.log("FROM BUILDBOOKINGDATE FILTER:", from);
+  // console.log("TO:", to);
+  // console.log("MONTH:", month);
+  // console.log("YEAR:", year);
+  // console.log("DAY:", day);
+
+  // Prioritize explicit from and to dates first
+  if (from && to) {
+    const fromDate = moment(from).startOf('day').format('YYYY-MM-DD');
+    const toDate = moment(to).endOf('day').format('YYYY-MM-DD');
+    return { booking_date: { [Op.between]: [fromDate, toDate] } };
+  }
+
+  // Convert inputs to numbers and validate
+  const numericYear = year ? parseInt(year) : moment().year();
+  const numericMonth = month ? parseInt(month) : null;
+  const numericDay = day ? parseInt(day) : null;
+
+  console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
+
+  // Full date (year, month, day)
+  if (numericYear && numericMonth && numericDay) {
+    return {
+      [Op.and]: [
+        sequelize.where(
+          sequelize.fn("YEAR", sequelize.col("booking_date")),
+          numericYear
+        ),
+        sequelize.where(
+          sequelize.fn("MONTH", sequelize.col("booking_date")),
+          numericMonth
+        ),
+        sequelize.where(
+          sequelize.fn("DAY", sequelize.col("booking_date")),
+          numericDay
+        ),
+      ],
+    };
+  }
+
+  // Year and month
+  if (numericYear && numericMonth) {
+    const startDate = moment(`${numericYear}-${numericMonth}-01`).startOf('month').format('YYYY-MM-DD');
+    const endDate = moment(`${numericYear}-${numericMonth}-01`).endOf('month').format('YYYY-MM-DD');
+
+    return {
+      booking_date: { [Op.between]: [startDate, endDate] },
+    };
+  }
+
+  // Only year
+  if (numericYear) {
+    const startDate = moment(`${numericYear}-01-01`).startOf('year').format('YYYY-MM-DD');
+    const endDate = moment(`${numericYear}-12-31`).endOf('year').format('YYYY-MM-DD');
+
+    return {
+      booking_date: { [Op.between]: [startDate, endDate] },
+    };
+  }
+
+  // Default case - return current month
+  const currentDate = moment();
+  return {
+    booking_date: {
+      [Op.between]: [
+        currentDate.clone().startOf('month').format('YYYY-MM-DD'),
+        currentDate.clone().endOf('month').format('YYYY-MM-DD'),
+      ]
+    },
+  };
+};
+
+// booking date
+const getMetricsBookingDate = async (req, res) => {
+  try {
+    // Ambil parameter filter dari query
+    const { from, to, month, year, day } = req.query;
+    console.log("  ✅===all query====  ✅", req.query);
+
+
+    const numericYear = year ? parseInt(year) : null;
+    const numericMonth = month ? parseInt(month) : null;
+    const numericDay = day ? parseInt(day) : null;
+        
+    // console.log("From raw:", req.query.from);
+    // console.log("To raw:", req.query.to);
+    // console.log("From parsed:", new Date(req.query.from));
+    // console.log("To parsed:", new Date(req.query.to));
+    
+    // Cek jika from-to adalah untuk satu bulan penuh
+    let dateFilter;
+    if (from && to) {
+      const fromMoment = moment(from);
+      const toMoment = moment(to);
+      
+// Periksa apakah rentang adalah bulan penuh (1-31)
+const isFullMonth = 
+  fromMoment.date() === 1 && 
+  toMoment.month() === fromMoment.month() &&
+  toMoment.date() === toMoment.daysInMonth(); // Check if it's the last day of the month
+
+if (isFullMonth) {
+  console.log("Detected full month query, using month-year filter");
+  dateFilter = buildBookingDateFilter({ 
+    month: fromMoment.month() + 1, // Moment: Jan=0, API: Jan=1
+    year: fromMoment.year() 
+  });
+} 
+      
+      else {
+        // Untuk rentang tanggal biasa dengan komponen waktu
+        const fromDate = fromMoment.startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const toDate = toMoment.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        // Filter untuk booking_date
+        dateFilter = { booking_date: { [Op.between]: [fromDate, toDate] } };
+      }
+    } else {
+      // Gunakan buildBookingDateFilter untuk parameter lainnya
+      dateFilter = buildBookingDateFilter({ month, year, day });
+    }
+        
+    let previousPeriodFilter;
+    if (from && to) {
+      const fromMoment = moment(from);
+      const toMoment = moment(to);
+      
+      // Periksa jika bulan penuh
+      const isFullMonth = 
+        fromMoment.date() === 1 && 
+        toMoment.month() === fromMoment.month() &&
+        toMoment.date() >= 28;
+      
+      if (isFullMonth) {
+        // Jika bulan penuh, gunakan bulan sebelumnya sebagai pembanding
+        let prevMonth = fromMoment.month();
+        let prevYear = fromMoment.year();
+        
+        if (prevMonth === 0) { // Januari
+          prevMonth = 11; // Desember
+          prevYear -= 1;
+        } else {
+          prevMonth -= 1;
+        }
+        
+        // Gunakan buildBookingDateFilter untuk booking_date
+        previousPeriodFilter = buildBookingDateFilter({
+          month: prevMonth + 1, // Koreksi untuk API
+          year: prevYear
+        });
+      } else {
+        // Untuk rentang tanggal biasa
+        const previousFrom = moment(from)
+          .subtract(3, "days")
+          .startOf('day')
+          .format("YYYY-MM-DD HH:mm:ss");
+        const previousTo = moment(to)
+          .subtract(3, "days")
+          .endOf('day')
+          .format("YYYY-MM-DD HH:mm:ss");
+        // Filter untuk booking_date
+        previousPeriodFilter = { booking_date: { [Op.between]: [previousFrom, previousTo] } };
+      }
+    } else if (numericYear && !numericMonth && !numericDay) {
+      // If only year is provided, use previous year
+      // Gunakan buildBookingDateFilter untuk booking_date
+      previousPeriodFilter = buildBookingDateFilter({
+        year: numericYear - 1,
+      });
+    } else {
+      // For month/day combinations
+      // Gunakan buildBookingDateFilter untuk booking_date
+      previousPeriodFilter = buildBookingDateFilter({
+        month: numericMonth
+          ? numericMonth === 1
+            ? 12
+            : numericMonth - 1
+          : undefined,
+        year:
+          numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear,
+        day,
+      });
+    }
+
+    // Log filters untuk debugging
+    console.log("Current period filter:", dateFilter);
+    console.log("Previous period filter:", previousPeriodFilter);
+
+    // Gunakan fungsi fetchAllMetricsDataBookingDate untuk query booking_date
+    const metricsData = await fetchAllMetricsDataBookingDate(
+      dateFilter,
+      previousPeriodFilter
+    );
+
+    // Proses data untuk membentuk respon yang dibutuhkan
+    // Pastikan ini menggunakan processMetricsData yang benar
+    const metrics = processMetricsDataBookingDate(metricsData);
+
+    // Kirimkan respons
+    res.json({
+      status: "success",
+      metrics,
+    });
+  } catch (error) {
+    console.error("Error in getMetricsBookingDate controller:", error);
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+};
+
 // Helper function to calculate comparison status and percentage change
 const calculateComparison = (current, previous) => {
   const change = previous ? ((current - previous) / previous) * 100 : 0;
@@ -1035,6 +1262,7 @@ const calculateComparison = (current, previous) => {
     change: `${change.toFixed(2)}%`,
   };
 };
+
 
 // Get metrics by agent ID
 const getMetricsByAgentId = async (req, res) => {
@@ -1061,6 +1289,7 @@ const getMetricsByAgentId = async (req, res) => {
       });
     }
   }
+  
   try {
     // Filter berdasarkan rentang tanggal atau bulan/tahun/hari
     const dateFilter =
@@ -1103,6 +1332,7 @@ const getMetricsByAgentId = async (req, res) => {
         },
       })) ?? 0;
 
+    // Perbaikan untuk TransportBooking - gunakan where literal
     const currentTransportBooking =
       (await TransportBooking.sum("transport_price", {
         include: [
@@ -1111,13 +1341,26 @@ const getMetricsByAgentId = async (req, res) => {
             as: "booking",
             attributes: [],
             where: {
-              created_at: dateFilter,
+              agent_id,
               payment_status: ["paid", "invoiced"],
+              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+              [Op.and]: Sequelize.literal(
+                from && to
+                  ? `booking.created_at BETWEEN '${from}' AND '${to}'`
+                  : year
+                  ? month
+                    ? day
+                      ? `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month} AND DAY(booking.created_at) = ${day}`
+                      : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month}`
+                    : `YEAR(booking.created_at) = ${year}`
+                  : "1=1"
+              ),
             },
           },
         ],
       })) || 0;
 
+    // Perbaikan untuk Passenger count - gunakan where literal
     const currentTotalCustomers =
       (await Passenger.count({
         distinct: true,
@@ -1128,7 +1371,18 @@ const getMetricsByAgentId = async (req, res) => {
           where: {
             agent_id,
             payment_status: ["paid", "invoiced"],
-            created_at: dateFilter,
+            // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+            [Op.and]: Sequelize.literal(
+              from && to
+                ? `booking.created_at BETWEEN '${from}' AND '${to}'`
+                : year
+                ? month
+                  ? day
+                    ? `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month} AND DAY(booking.created_at) = ${day}`
+                    : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month}`
+                  : `YEAR(booking.created_at) = ${year}`
+                : "1=1"
+            ),
           },
         },
       })) ?? 0;
@@ -1142,8 +1396,19 @@ const getMetricsByAgentId = async (req, res) => {
             required: true,
             where: {
               agent_id,
-              created_at: dateFilter,
               payment_status: ["paid", "invoiced"],
+              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+              [Op.and]: Sequelize.literal(
+                from && to
+                  ? `Booking.created_at BETWEEN '${from}' AND '${to}'`
+                  : year
+                  ? month
+                    ? day
+                      ? `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month} AND DAY(Booking.created_at) = ${day}`
+                      : `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month}`
+                    : `YEAR(Booking.created_at) = ${year}`
+                  : "1=1"
+              ),
             },
           },
         ],
@@ -1173,8 +1438,13 @@ const getMetricsByAgentId = async (req, res) => {
     // Previous metrics for comparison
     const previousBookingValue =
       (await Booking.sum("gross_total", {
-        where: { agent_id, created_at: previousPeriodFilter },
+        where: { 
+          agent_id, 
+          payment_status: ["paid", "invoiced"],
+          created_at: previousPeriodFilter 
+        },
       })) ?? 0;
+      
     const previousTotalBookingCount =
       (await Booking.count({
         where: {
@@ -1184,20 +1454,35 @@ const getMetricsByAgentId = async (req, res) => {
         },
       })) ?? 0;
 
+    // Perbaikan untuk TransportBooking - gunakan where literal
     const previousTransportBooking =
       (await TransportBooking.sum("transport_price", {
         include: [
           {
             model: Booking,
             as: "booking",
-            attributes: [], // Kosongkan attributes
+            attributes: [],
             where: {
-              created_at: previousPeriodFilter,
+              agent_id,
               payment_status: ["paid", "invoiced"],
+              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+              [Op.and]: Sequelize.literal(
+                from && to
+                  ? `booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
+                  : year
+                  ? month
+                    ? month === 1
+                      ? `YEAR(booking.created_at) = ${year-1} AND MONTH(booking.created_at) = 12`
+                      : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month-1}`
+                    : `YEAR(booking.created_at) = ${year-1}`
+                  : "1=1"
+              ),
             },
           },
         ],
       })) || 0;
+      
+    // Perbaikan untuk Passenger count - gunakan where literal
     const previousTotalCustomers =
       (await Passenger.count({
         distinct: true,
@@ -1205,9 +1490,25 @@ const getMetricsByAgentId = async (req, res) => {
         include: {
           model: Booking,
           as: "booking",
-          where: { agent_id, created_at: previousPeriodFilter },
+          where: { 
+            agent_id, 
+            payment_status: ["paid", "invoiced"],
+            // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+            [Op.and]: Sequelize.literal(
+              from && to
+                ? `booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
+                : year
+                ? month
+                  ? month === 1
+                    ? `YEAR(booking.created_at) = ${year-1} AND MONTH(booking.created_at) = 12`
+                    : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month-1}`
+                  : `YEAR(booking.created_at) = ${year-1}`
+                : "1=1"
+            ),
+          },
         },
       })) ?? 0;
+      
     const previousTotalCommission =
       (await AgentCommission.sum("amount", {
         include: [
@@ -1217,7 +1518,19 @@ const getMetricsByAgentId = async (req, res) => {
             required: true,
             where: {
               agent_id,
-              created_at: previousPeriodFilter,
+              payment_status: ["paid", "invoiced"],
+              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
+              [Op.and]: Sequelize.literal(
+                from && to
+                  ? `Booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
+                  : year
+                  ? month
+                    ? month === 1
+                      ? `YEAR(Booking.created_at) = ${year-1} AND MONTH(Booking.created_at) = 12`
+                      : `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month-1}`
+                    : `YEAR(Booking.created_at) = ${year-1}`
+                  : "1=1"
+              ),
             },
           },
         ],
@@ -1234,11 +1547,12 @@ const getMetricsByAgentId = async (req, res) => {
           created_at: previousPeriodFilter,
         },
       })) ?? 0;
+      
     const previouspaidToGiligetaway =
       (await Booking.sum("gross_total", {
         where: {
           agent_id,
-          payment_status: "invoiced",
+          payment_status: "paid", // Fix: payment_status seharusnya "paid" bukan "invoiced"
           created_at: previousPeriodFilter,
         },
       })) ?? 0;
@@ -1269,16 +1583,10 @@ const getMetricsByAgentId = async (req, res) => {
         currentUnpaidToGiligetaway,
         previousUnpaidToGiligetaway
       ),
-      // get paid to giligetaway
-
       paidToGiligetaway: calculateComparison(
         currentpaidToGiligetaway,
         previouspaidToGiligetaway
       ),
-      // unpaidToGiligetaway: calculateComparison(
-      //   currentUnpaidToGiligetaway,
-      //   previousUnpaidToGiligetaway
-      // ),
     };
 
     // Send the metrics as the response
@@ -1850,6 +2158,9 @@ const getBookingComparisonMetrics = async (req, res) => {
   }
 };
 
+
+
+
 const getAgentStatistics = async (req, res) => {
   try {
     const { month, year, day } = req.query;
@@ -1954,4 +2265,5 @@ module.exports = {
   getAnnualyMetrics,
   getAgentAnnualyMetrics,
   getAgentStatistics,
+  getMetricsBookingDate
 };

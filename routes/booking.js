@@ -27,6 +27,7 @@ router.post('/multi-queue',authenticate,bookingRateLimiter, validateMultipleBook
 router.post('/round-queue',authenticate,bookingRateLimiter,validateScheduleAndSubScheduleForRoundTrip, validateRoundTripBookingPost, bookingController.createRoundBookingWithTransitQueue);
 
 
+
 // Route for booking without transit
 router.post('/non-transit', bookingController.createBookingWithoutTransit);
 
@@ -52,6 +53,9 @@ router.get('/ticket/:ticket_id',bookingController.getBookingByTicketId);
 //read booking by ticket id
 router.get('/ticket-related/:ticket_id',validateRoundTripTicket,bookingController.getRelatedBookingsByTicketId);
 
+//update multiple booking payment
+router.put('/multipayment',authenticate, bookingController.updateMultipleBookingPayment);
+
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);
 
@@ -59,10 +63,11 @@ router.put('/:id', bookingController.updateBooking);
 // update Booking note
 router.put('/note/:id',authenticate, bookingController.updateBookingNotes);
 
+//upd
 //update booking payment
 router.put('/payment/:id',authenticate,validatePaymentUpdate, bookingController.updateBookingPayment);
 
-//update booking date
+
 router.put('/date/:id',authenticate,validateBookingDate,checkSeatAvailabilityForUpdate,checkBookingDateUpdateDirect, bookingController.updateBookingDate);
 
 router.put('/date-agent/:booking_id',authenticate,checkBookingDateUpdate,validateBookingDate2,checkSeatAvailabilityForUpdate2, bookingController.updateBookingDateAgent);
