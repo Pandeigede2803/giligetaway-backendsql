@@ -465,6 +465,7 @@ const processMetricsData = (data) => {
 };
 
 const processBookingsData = (bookingsData, result) => {
+  console.log("booking data",bookingsData)
   bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
@@ -482,17 +483,21 @@ const processBookingsData = (bookingsData, result) => {
     target.totalValue += grossTotal;
 
     // Process by payment status
-    if (paymentStatus === "paid") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
       target.paymentReceived += grossTotal;
-
+      
       if (hasAgent) {
         target.agentPaymentReceived += grossTotal;
+        
+        // Tambahkan kondisi ini untuk melacak booking agen yang invoiced
+        if (paymentStatus === "invoiced") {
+          target.agentBookingInvoiced += grossTotal;
+        }
       }
     } else if (paymentStatus === "refund") {
       target.totalRefund += grossTotal;
-    } else if (paymentStatus === "invoiced" && hasAgent) {
-      target.agentBookingInvoiced += grossTotal;
     }
+    console.log("target.agentBookingInvoice",target.agentBookingInvoiced)
 
     // Process boat-specific data
     if (boatId && target.boats[boatId]) {
@@ -504,7 +509,7 @@ const processBookingsData = (bookingsData, result) => {
         target.boats[boatId].netValue += grossTotal;
       }
     }
-  });
+  });;
 };
 
 const processTransportData = (transportData, result) => {
