@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-const { Op } = Sequelize;
+const { Op,fn,col } = Sequelize;
 
 // Di bagian paling atas file
 
@@ -81,7 +81,7 @@ const getBookingMetricsBySource = async (req, res) => {
         created_at: {
           [Op.between]: [startDate, endDate],
         },
-        payment_status: ["Paid", "Invoiced"],
+        payment_status: ["paid", "invoiced"],
       },
       attributes: ["booking_source", [fn("COUNT", col("id")), "totalBookings"]],
       group: ["booking_source"],
@@ -464,52 +464,79 @@ const processMetricsData = (data) => {
   return formatMetricsForResponse(result, agentCount || 0);
 };
 
+// Pastikan objek result diinisialisasi dengan benar
+const initializeResultObject = () => {
+  return {
+    current: {
+      bookingCount: 0,
+      totalValue: 0,
+      paymentReceived: 0,
+      agentPaymentReceived: 0,     // Hanya untuk paid
+      agentBookingInvoiced: 0,     // Untuk invoiced
+      totalRefund: 0,
+      boats: {
+        1: { totalValue: 0, netValue: 0 },
+        2: { totalValue: 0, netValue: 0 }
+      }
+    }
+  };
+};
+
 const processBookingsData = (bookingsData, result) => {
-  console.log("booking data",bookingsData)
+  console.log("booking data", bookingsData);
+  
   bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
     const grossTotal = parseFloat(booking.gross_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-
+    
     // Get target object based on period
     const target = result[period];
-
+    
     // Increment booking count
     target.bookingCount++;
-
+    
     // Add to total value
     target.totalValue += grossTotal;
-
-    // Process by payment status
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    
+    // Memproses berdasarkan status pembayaran
+    if (paymentStatus === "paid") {
+      // Total nilai booking yang sudah dibayar
       target.paymentReceived += grossTotal;
       
+      // Hanya tambahkan ke agentPaymentReceived jika statusnya paid dan ada agent
       if (hasAgent) {
         target.agentPaymentReceived += grossTotal;
-        
-        // Tambahkan kondisi ini untuk melacak booking agen yang invoiced
-        if (paymentStatus === "invoiced") {
-          target.agentBookingInvoiced += grossTotal;
-        }
+      }
+    } else if (paymentStatus === "invoiced") {
+      // Total nilai booking yang sudah ditagih
+      target.paymentReceived += grossTotal;
+      
+      // Khusus untuk invoiced dengan agent
+      if (hasAgent) {
+        target.agentBookingInvoiced += grossTotal;
       }
     } else if (paymentStatus === "refund") {
+      // Total nilai refund/pengembalian dana
       target.totalRefund += grossTotal;
     }
-    console.log("target.agentBookingInvoice",target.agentBookingInvoiced)
-
+    
+    console.log("target.agentBookingInvoiced", target.agentBookingInvoiced);
+    console.log("target.agentPaymentReceived", target.agentPaymentReceived);
+    
     // Process boat-specific data
     if (boatId && target.boats[boatId]) {
       // Total value for boat
       target.boats[boatId].totalValue += grossTotal;
-
+      
       // Net value for boat (paid or invoiced)
       if (paymentStatus === "paid" || paymentStatus === "invoiced") {
         target.boats[boatId].netValue += grossTotal;
       }
     }
-  });;
+  });
 };
 
 const processTransportData = (transportData, result) => {
