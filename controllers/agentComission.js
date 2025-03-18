@@ -41,27 +41,27 @@ const AgentCommissionController = {
   async getCommissions(req, res) {
     try {
       console.log("Received query parameters:", req.query);
-  
+
       const agentId = req.query.agent_id
         ? parseInt(req.query.agent_id, 10)
         : null;
-  
+
       // Filter created_at in AgentCommission
       const year = req.query.year ? parseInt(req.query.year, 10) : null;
       const month = req.query.month ? parseInt(req.query.month, 10) : null;
       const fromDate = req.query.from_date || null;
       const toDate = req.query.to_date || null;
-  
+
       // Filter booking_date in Booking
       const fromBookingDate = req.query.from_booking_date || null;
       const toBookingDate = req.query.to_booking_date || null;
-  
+
       // 1. whereConditions for AgentCommission
       const whereConditions = {};
       if (agentId) {
         whereConditions.agent_id = agentId;
       }
-  
+
       // ➜ Filter created_at di AgentCommission
       if (fromDate && toDate) {
         // Jika ada from_date & to_date → filter range created_at
@@ -104,14 +104,13 @@ const AgentCommissionController = {
           );
         }
       }
-  
+
       // 2. bookingWhereConditions for Booking.booking_date
       const bookingWhereConditions = {};
       if (fromBookingDate && toBookingDate) {
         const startBooking = new Date(fromBookingDate);
         const endBooking = new Date(toBookingDate);
-        // FIX: Mengganti 'create' menjadi 'created_at' atau 'booking_date' sesuai nama kolom sebenarnya di tabel Booking
-        bookingWhereConditions.created_at = {
+        bookingWhereConditions.booking_date = {
           [Op.gte]: startBooking,
           [Op.lte]: endBooking,
         };
@@ -123,27 +122,30 @@ const AgentCommissionController = {
         );
       }
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
-  
+
       console.log("📝 AgentCommission conditions:", whereConditions);
       console.log("📝 Booking conditions:", bookingWhereConditions);
-  
+
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
         where: whereConditions,
         include: {
           model: Booking,
           as: "Booking",
-          // Bila Anda hanya ingin filter data berdasarkan created_at 
-          // tanpa menerapkan kondisi lain pada booking, hapus where ini bila perlu
-          ...(Object.keys(bookingWhereConditions).length > 0 ? { where: bookingWhereConditions } : {}),
+          where: {
+            ...bookingWhereConditions, // ✅ Ensure this is included!
+          }, // Hanya ambil booking dengan status invoiced
+
+
           include: [
             {
               model: Transaction,
               as: "transactions",
             },
             {
-              model: Passenger,
+              model:Passenger,
               as: "passengers",
+             
             },
             {
               model: Schedule,
@@ -165,34 +167,35 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "FromDestination",
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Transit,
+                
                   include: {
                     model: Destination,
                     as: "Destination",
-                  },
+                    // attributes: ["id", "name"],
+                },
                 },
                 {
                   model: Boat,
                   as: "Boat",
+                
                 },
                 {
                   model: Destination,
                   as: "ToDestination",
+                  // attributes: ["id", "name"],
                 },
+                
+          
               ],
             },
+
             {
               model: TransportBooking,
               as: "transportBookings",
-              // Penting: Jika TransportBooking memiliki created_at yang menyebabkan ambigu,
-              // tentukan atribut yang diambil secara eksplisit untuk menghindari ambigu
-              attributes: [
-                'id', 'booking_id', 'transport_id', 'transport_price',
-                // Jika ada kolom created_at di sini, gunakan alias untuk menghindari ambigu
-                [Sequelize.col('transportBookings.created_at'), 'transportBooking_created_at'],
-              ],
               include: [
                 {
                   model: Transport,
@@ -212,10 +215,12 @@ const AgentCommissionController = {
                 {
                   model: Destination,
                   as: "DestinationFrom",
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Destination,
                   as: "DestinationTo",
+                  // attributes: ["id", "name"],
                 },
                 {
                   model: Transit,
@@ -224,6 +229,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -233,6 +239,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -242,6 +249,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -251,6 +259,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -260,6 +269,7 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
                 {
@@ -269,23 +279,15 @@ const AgentCommissionController = {
                   include: {
                     model: Destination,
                     as: "Destination",
+                    // attributes: ["id", "name"],
                   },
                 },
               ],
             },
           ],
         },
-        // Menentukan kolom-kolom yang ingin diambil dengan jelas
-        subQuery: false,
-        attributes: {
-          include: [
-            [Sequelize.col('AgentCommission.created_at'), 'created_at'],
-            [Sequelize.col('AgentCommission.id'), 'id'],
-            // Tambahkan kolom-kolom lain yang diperlukan dari AgentCommission di sini
-          ]
-        }
       });
-  
+
       // Process commissions to add route names
       const processedCommissions = commissions.map((commission) => {
         const booking = commission.Booking;
@@ -316,7 +318,7 @@ const AgentCommissionController = {
           route,
         };
       });
-  
+
       res.status(200).json(processedCommissions);
     } catch (error) {
       console.error("Error fetching commissions:", error);
