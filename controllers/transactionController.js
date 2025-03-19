@@ -260,6 +260,223 @@ const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");
 //   }
 // };
 
+// const updateMultiTransactionStatusHandler = async (req, res) => {
+//   const {
+//     transaction_ids,
+//     status,
+//     failure_reason,
+//     refund_reason,
+//     payment_method,
+//     payment_gateway,
+//     amount_in_usd,
+//     exchange_rate,
+//     amount,
+//     currency,
+//   } = req.body;
+
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     console.log("Step 1: Fetching existing transactions...");
+
+//     // Fetch existing transactions and their statuses
+//     const existingTransactions = await Transaction.findAll({
+//       where: {
+//         transaction_id: { [Op.in]: transaction_ids },
+//       },
+//       attributes: ["transaction_id", "booking_id", "status"],
+//       transaction,
+//     });
+
+//     console.log("Existing transactions found:", existingTransactions);
+
+//     // Identify transactions that are not `paid` or `invoiced`
+//     const transactionsToUpdate = existingTransactions.filter(
+//       (t) => t.status !== "paid" && t.status !== "invoiced"
+//     );
+
+//     const transactionsToUpdateIds = transactionsToUpdate.map(
+//       (t) => t.transaction_id
+//     );
+
+//     if (transactionsToUpdateIds.length > 0) {
+//       console.log("Updating transactions with data...");
+
+//       // Prepare update data
+//       const updateData = {
+//         ...(typeof status !== "undefined" && { status }),
+//         ...(typeof failure_reason !== "undefined" && {
+//           failure_reason: failure_reason || null,
+//         }),
+//         ...(typeof refund_reason !== "undefined" && {
+//           refund_reason: refund_reason || null,
+//         }),
+//         ...(typeof payment_method !== "undefined" && { payment_method }),
+//         ...(typeof payment_gateway !== "undefined" && { payment_gateway }),
+//         ...(typeof amount !== "undefined" && { amount }),
+//         ...(typeof amount_in_usd !== "undefined" && {
+//           amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
+//         }),
+//         ...(typeof exchange_rate !== "undefined" && {
+//           exchange_rate: exchange_rate ? parseFloat(exchange_rate) : 0,
+//         }),
+//         ...(typeof currency !== "undefined" && { currency }),
+//       };
+
+//       console.log("Data for transaction update:", updateData);
+
+//       // Update transactions
+//       const updatedCount = await Transaction.update(updateData, {
+//         where: { transaction_id: { [Op.in]: transactionsToUpdateIds } },
+//         transaction,
+//       });
+
+//       console.log(`${updatedCount} transactions updated successfully.`);
+//     } else {
+//       console.log(
+//         "No transactions to update. All are already 'paid' or 'invoiced'."
+//       );
+//     }
+
+//     console.log("Step 2: Fetching related bookings...");
+
+//     // Fetch bookings related to the transactions
+//     const bookingIds = existingTransactions.map((t) => t.booking_id);
+//     const bookings = await Booking.findAll({
+//       where: { id: { [Op.in]: bookingIds } },
+//       attributes: { include: ['id', 'ticket_id', 'agent_id', 'contact_email', 'payment_method', 'gross_total', 'total_passengers', 'schedule_id', 'subschedule_id'] },
+//       include: [
+//         { model: TransportBooking, as: "transportBookings" },
+//         { model: Agent, as: "Agent" } // Include agent details for email notification
+//       ],
+//       transaction,
+//     });
+
+//     console.log("Related bookings found:", bookings);
+
+//     console.log("Step 3: Updating bookings based on status...");
+
+//     const results = [];
+//     for (const booking of bookings) {
+//       let commissionResponse = { success: false, commission: 0 };
+//       let emailSent = false;
+
+//       console.log(`Processing booking ID: ${booking.id}`);
+
+//       // Update booking payment status
+//       await Booking.update(
+//         {
+//           payment_status: status, // Update to match the transaction status
+//           payment_method: payment_method || booking.payment_method,
+//           expiration_time: null,
+//         },
+//         {
+//           where: { id: booking.id },
+//           transaction,
+//         }
+//       );
+
+//       if (status === "paid" && booking.agent_id) {
+//         console.log(
+//           `Calculating commission for agent ID: ${booking.agent_id}, booking ID: ${booking.id}`
+//         );
+
+//         try {
+//           commissionResponse = await updateAgentCommission(
+//             booking.agent_id,
+//             booking.gross_total,
+//             booking.total_passengers,
+//             "paid",
+//             booking.schedule_id,
+//             booking.subschedule_id,
+//             booking.id,
+//             transaction,
+//             booking.transportBookings
+//           );
+//           console.log(
+//             `Commission calculated successfully for booking ID: ${booking.id}`,
+//             commissionResponse
+//           );;
+          
+//           // Send email notification to agent when status is paid and commission is calculated (even if skipped)
+//           if (status === "paid" && booking.Agent && booking.Agent.email && booking.contact_email) {
+//             try {
+//               // Use Booking.contact_email as the recipient email
+//               const recipientEmail = booking.contact_email;
+//               const agentEmail = booking.Agent.email;
+              
+//               console.log(`Sending email notification to: ${recipientEmail}, agent: ${agentEmail}`);
+//               await sendEmailNotificationAgent(
+//                 recipientEmail,
+//                 agentEmail,
+//                 payment_method || booking.payment_method,
+//                 status,
+//                 booking.ticket_id // Using actual ticket_id or generating a fallback
+//               );
+//               console.log(`Email notification sent successfully to: ${recipientEmail}, agent: ${agentEmail}`);
+//               emailSent = true;
+//             } catch (emailError) {
+//               console.error(`Error sending email notification to: ${booking.contact_email}, agent: ${booking.Agent.email}`, emailError);
+//               // Don't fail the transaction if email sending fails
+//             }
+//           } else {
+//             console.log(`Skipping email notification for booking ID: ${booking.id}. Missing contact_email or agent email.`);
+//           }
+//         } catch (error) {
+//           console.error(
+//             `Error calculating commission for booking ${booking.id}:`,
+//             error
+//           );
+//           commissionResponse = {
+//             success: false,
+//             commission: 0,
+//             error: error.message,
+//           };
+//         }
+//       } else if (status !== "paid") {
+//         console.log(
+//           `Booking ID: ${booking.id} updated to '${status}'. No commission calculation needed.`
+//         );
+//       }
+
+//       results.push({
+//         booking_id: booking.id,
+//         agent_id: booking.agent_id,
+//         commission: commissionResponse.commission,
+//         commission_status: commissionResponse.success ? "Success" : "Failed",
+//         commission_error: commissionResponse.error,
+//         email_sent: emailSent
+//       });
+//     }
+
+//     console.log("Step 4: Committing transaction...");
+//     await transaction.commit();
+
+//     console.log("Transaction committed successfully.");
+
+//     return res.status(200).json({
+//       success: true,
+//       message: `Transactions and related bookings updated successfully`,
+//       updated_transactions: transaction_ids,
+//       booking_results: results,
+//       total_commissions: results.reduce(
+//         (sum, result) => sum + (parseFloat(result.commission) || 0),
+//         0
+//       ),
+//     });
+//   } catch (error) {
+//     console.error("Error processing transactions:", error);
+
+//     await transaction.rollback();
+
+//     return res.status(500).json({
+//       success: false,
+//       error: "Failed to process transactions and bookings",
+//       details: error.message,
+//     });
+//   }
+// };
+
 const updateMultiTransactionStatusHandler = async (req, res) => {
   const {
     transaction_ids,
@@ -363,18 +580,52 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
 
       console.log(`Processing booking ID: ${booking.id}`);
 
-      // Update booking payment status
+      // Update booking payment status and gross_total if amount is provided
+      const bookingUpdateData = {
+        payment_status: status, // Update to match the transaction status
+        payment_method: payment_method || booking.payment_method,
+        expiration_time: null,
+      };
+      
+      // If amount is provided, update the gross_total and calculate bank_fee
+      if (typeof amount !== "undefined") {
+        const originalGrossTotal = parseFloat(booking.gross_total);
+        const newGrossTotal = parseFloat(amount);
+        bookingUpdateData.gross_total = newGrossTotal;
+        
+        // Calculate bank_fee based on the difference between new and original gross_total
+        const bankFee = newGrossTotal - originalGrossTotal;
+        
+        // Only set bank_fee if it's a positive number (new > original)
+        if (bankFee > 0) {
+          bookingUpdateData.bank_fee = bankFee;
+          console.log(`Setting bank_fee: ${bankFee} for booking ID: ${booking.id} (${newGrossTotal} - ${originalGrossTotal})`);
+        }
+        
+        console.log(`Updating gross_total for booking ID: ${booking.id} from ${originalGrossTotal} to ${newGrossTotal}`);
+      }
+
       await Booking.update(
-        {
-          payment_status: status, // Update to match the transaction status
-          payment_method: payment_method || booking.payment_method,
-          expiration_time: null,
-        },
+        bookingUpdateData,
         {
           where: { id: booking.id },
           transaction,
         }
       );
+
+      // Update the booking object in memory for correct commission calculation
+      if (typeof amount !== "undefined") {
+        const originalGrossTotal = parseFloat(booking.gross_total);
+        const newGrossTotal = parseFloat(amount);
+        
+        // Update in-memory gross_total value
+        booking.gross_total = newGrossTotal;
+        
+        // Calculate and store bank_fee in the in-memory booking object
+        if (newGrossTotal > originalGrossTotal) {
+          booking.bank_fee = newGrossTotal - originalGrossTotal;
+        }
+      }
 
       if (status === "paid" && booking.agent_id) {
         console.log(
@@ -384,7 +635,7 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
         try {
           commissionResponse = await updateAgentCommission(
             booking.agent_id,
-            booking.gross_total,
+            booking.gross_total, // Now using the potentially updated gross_total
             booking.total_passengers,
             "paid",
             booking.schedule_id,
@@ -445,7 +696,12 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
         commission: commissionResponse.commission,
         commission_status: commissionResponse.success ? "Success" : "Failed",
         commission_error: commissionResponse.error,
-        email_sent: emailSent
+        email_sent: emailSent,
+        gross_total_updated: typeof amount !== "undefined" ? true : false,
+        new_gross_total: typeof amount !== "undefined" ? parseFloat(amount) : booking.gross_total,
+        bank_fee_updated: typeof amount !== "undefined" && (parseFloat(amount) - parseFloat(booking.gross_total)) > 0 ? true : false,
+        bank_fee: typeof amount !== "undefined" && (parseFloat(amount) - parseFloat(booking.gross_total)) > 0 ? 
+          (parseFloat(amount) - parseFloat(booking.gross_total)) : 0
       });
     }
 

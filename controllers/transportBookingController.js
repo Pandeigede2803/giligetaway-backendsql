@@ -44,6 +44,8 @@ exports.getAllTransportBookings = async (req, res) => {
 // Create new transport booking
 exports.createTransportBooking = async (req, res) => {
   const { booking_id, transport_id, quantity, transport_price, transport_type, note } = req.body;
+  
+  // transport_price: '600000',
   console.log('Creating new transport booking with data:', req.body);
   try {
     const newTransportBooking = await TransportBooking.create({
@@ -65,13 +67,14 @@ exports.createTransportBooking = async (req, res) => {
 // Update transport booking
 const { sequelize } = require('../models'); // Import sequelize instance if not already available
 
-
 exports.updateTransportBooking = async (req, res) => {
   const { id } = req.params;
-  const { booking_id, transport_id, quantity, transport_type, note,payment_method,payment_status } = req.body;
+  const { booking_id, transport_id, quantity, transport_type, note, payment_method, payment_status, transport_price } = req.body;
+  console.log("start to updated the transportBooking 🫦")
 
-  console.log("payment method",payment_method)
-  console.log("payment status",payment_status)
+  console.log("payment method", payment_method)
+  console.log("payment status", payment_status)
+  console.log("transport_price from body", transport_price)
 
   console.log("transportBooking")
 
@@ -98,9 +101,17 @@ exports.updateTransportBooking = async (req, res) => {
       return res.status(404).json({ message: 'Transport not found' });
     }
 
-    // ✅ Calculate the correct transport price (cost * quantity)
-    const transportPrice = parseFloat(transport.cost) * quantity;
-    console.log(`Transport cost: ${transport.cost}, Quantity: ${quantity}, Calculated Transport Price: ${transportPrice}`);
+    // ✅ Determine the transport price to use
+    let transportPrice;
+    if (transport_price && parseFloat(transport_price) > 0) {
+      // If transport_price is provided and > 0, use it directly (it's already the final price)
+      transportPrice = parseFloat(transport_price);
+      console.log(`Using transport_price from request body (already final): ${transportPrice}`);
+    } else {
+      // Otherwise calculate using transport.cost * quantity
+      transportPrice = parseFloat(transport.cost) * quantity;
+      console.log(`Calculated transport price: ${transport.cost} × ${quantity} = ${transportPrice}`);
+    }
 
     // ✅ Check if transport booking exists
     const transportBooking = await TransportBooking.findByPk(id, { transaction });
@@ -125,7 +136,7 @@ exports.updateTransportBooking = async (req, res) => {
 
     // ✅ Correctly calculate the new gross total (IDR)
     const newGrossTotal = parseFloat(booking.ticket_total) + transportPrice;
-    console.log(`New Gross Total (IDR) = Ticket Total + New Transport Price = ${booking.ticket_total} + ${transportPrice} = ${newGrossTotal}`);
+    console.log(`New Gross Total (IDR) = Ticket Total + Transport Price = ${booking.ticket_total} + ${transportPrice} = ${newGrossTotal}`);
 
     // ✅ Convert `gross_total` to `gross_total_in_usd`
     const newGrossTotalInUSD = parseFloat((newGrossTotal / exchangeRate).toFixed(2));
@@ -133,11 +144,11 @@ exports.updateTransportBooking = async (req, res) => {
 
     // ✅ Update transport booking with the correct transport_price
     await TransportBooking.update(
-      { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note,payment_method,payment_status },
+      { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note, payment_method, payment_status },
       { where: { id }, transaction }
     );
 
-    console.log("transportBooking",transportBooking)
+    console.log("transportBooking", transportBooking)
 
     // ✅ Update the `gross_total` and `gross_total_in_usd` in Booking
     await Booking.update(
@@ -189,6 +200,133 @@ exports.updateTransportBooking = async (req, res) => {
     res.status(500).json({ message: 'Failed to update transport booking', error: error.message });
   }
 };
+
+// exports.updateTransportBooking = async (req, res) => {
+//   const { id } = req.params;
+//   const { booking_id, transport_id, quantity, transport_type, note,payment_method,payment_status,transport_price } = req.body;
+//   console.log("start to updated the transportBooking 🫦")
+
+//     // transport_price: '600000',
+
+//   console.log("payment method",payment_method)
+//   console.log("payment status",payment_status)
+
+//   console.log("transportBooking")
+
+//   console.log(`Updating transport booking ID ${id} with data:`, req.body);
+
+//   if (!id) {
+//     return res.status(400).json({ message: 'Transport booking ID is required' });
+//   }
+
+//   if (!booking_id || !transport_id || !quantity || !transport_type) {
+//     return res.status(400).json({ message: 'Missing required fields for updating transport booking' });
+//   }
+
+//   if (isNaN(quantity) || quantity <= 0) {
+//     return res.status(400).json({ message: 'Invalid quantity' });
+//   }
+
+//   const transaction = await sequelize.transaction();
+//   try {
+//     // ✅ Fetch the transport cost from the Transport table
+//     const transport = await Transport.findByPk(transport_id);
+//     if (!transport) {
+//       await transaction.rollback();
+//       return res.status(404).json({ message: 'Transport not found' });
+//     }
+
+//     // ✅ Calculate the correct transport price (cost * quantity)
+//     const transportPrice = parseFloat(transport.cost) * quantity;
+//     console.log(`Transport cost: ${transport.cost}, Quantity: ${quantity}, Calculated Transport Price: ${transportPrice}`);
+
+//     // ✅ Check if transport booking exists
+//     const transportBooking = await TransportBooking.findByPk(id, { transaction });
+//     if (!transportBooking) {
+//       console.log(`Transport booking with ID ${id} not found`);
+//       await transaction.rollback();
+//       return res.status(404).json({ message: 'Transport booking not found' });
+//     }
+
+//     // ✅ Fetch booking data before updating
+//     const booking = await Booking.findByPk(booking_id, { transaction });
+//     if (!booking) {
+//       await transaction.rollback();
+//       return res.status(404).json({ message: 'Booking not found' });
+//     }
+
+//     console.log(`Booking ticket total (IDR): ${booking.ticket_total}`);
+
+//     // ✅ Fetch latest exchange rate for IDR to USD
+//     const exchangeRate = await getExchangeRate("IDR");
+//     console.log(`Exchange Rate (1 USD = ${exchangeRate} IDR)`);
+
+//     // ✅ Correctly calculate the new gross total (IDR)
+//     const newGrossTotal = parseFloat(booking.ticket_total) + transportPrice;
+//     console.log(`New Gross Total (IDR) = Ticket Total + New Transport Price = ${booking.ticket_total} + ${transportPrice} = ${newGrossTotal}`);
+
+//     // ✅ Convert `gross_total` to `gross_total_in_usd`
+//     const newGrossTotalInUSD = parseFloat((newGrossTotal / exchangeRate).toFixed(2));
+//     console.log(`New Gross Total in USD: ${newGrossTotalInUSD}`);
+
+//     // ✅ Update transport booking with the correct transport_price
+//     await TransportBooking.update(
+//       { booking_id, transport_id, quantity, transport_price: transportPrice, transport_type, note,payment_method,payment_status },
+//       { where: { id }, transaction }
+//     );
+
+//     console.log("transportBooking",transportBooking)
+
+//     // ✅ Update the `gross_total` and `gross_total_in_usd` in Booking
+//     await Booking.update(
+//       { gross_total: newGrossTotal, gross_total_in_usd: newGrossTotalInUSD },
+//       { where: { id: booking_id }, transaction }
+//     );
+
+//     // ✅ Fetch the updated booking AFTER update
+//     const updatedBooking = await Booking.findByPk(booking_id, { transaction });
+
+//     // Store these values to use after transaction commit
+//     const contactEmail = booking.contact_email;
+//     const ticketId = booking.ticket_id;
+//     const paymentStatus = booking.payment_status;
+//     const paymentMethod = booking.payment_method;
+
+//     // ✅ Commit transaction to persist data
+//     await transaction.commit();
+
+//     // ✅ Fetch the updated transport booking AFTER committing
+//     const updatedTransportBooking = await TransportBooking.findByPk(id);
+
+//     // Now send email after transaction is committed
+//     try {
+//       await sendEmailTransportBookingUpdate(
+//         contactEmail,
+//         ticketId,
+//         transport_type,
+//         transportPrice,
+//         paymentStatus,
+//         paymentMethod
+//       );
+//     } catch (emailError) {
+//       // Just log the email error, don't roll back the transaction
+//       console.error('Failed to send email:', emailError);
+//     }
+
+//     res.status(200).json({
+//       transportBooking: updatedTransportBooking,
+//       booking: updatedBooking,
+//     });
+
+//   } catch (error) {
+//     // Only roll back if transaction hasn't been committed
+//     if (transaction && !transaction.finished) {
+//       await transaction.rollback();
+//     }
+//     console.error(`Failed to update transport booking ID ${id}:`, error);
+//     res.status(500).json({ message: 'Failed to update transport booking', error: error.message });
+//   }
+// };
 
 exports.addTransportBooking = async (req, res) => {
   const { booking_id, transport_id, quantity, transport_type,payment_method,payment_status, note } = req.body;

@@ -14,6 +14,7 @@ router.get('/annualy', authenticate,metricsController.getAnnualyMetrics);
 
 // get the metrics by agent id
 router.get('/agent/:agent_id', authenticate,metricsController.getMetricsByAgentId); 
+router.get('/agent-travel-date/:agent_id', authenticate,metricsController.getMetricsByAgentIdTravelDate); 
 router.get('/agent/annualy/:agent_id', authenticate,metricsController.getAgentAnnualyMetrics);
 router.get('/agent-statistics', authenticate,metricsController.getAgentStatistics);
 

@@ -1,4 +1,4 @@
-const { Op, literal, col } = require('sequelize');
+const { Op, literal, col } = require("sequelize");
 const {
   Agent,
   Boat,
@@ -136,16 +136,14 @@ const AgentCommissionController = {
             ...bookingWhereConditions, // ✅ Ensure this is included!
           }, // Hanya ambil booking dengan status invoiced
 
-
           include: [
             {
               model: Transaction,
               as: "transactions",
             },
             {
-              model:Passenger,
+              model: Passenger,
               as: "passengers",
-             
             },
             {
               model: Schedule,
@@ -171,25 +169,22 @@ const AgentCommissionController = {
                 },
                 {
                   model: Transit,
-                
+
                   include: {
                     model: Destination,
                     as: "Destination",
                     // attributes: ["id", "name"],
-                },
+                  },
                 },
                 {
                   model: Boat,
                   as: "Boat",
-                
                 },
                 {
                   model: Destination,
                   as: "ToDestination",
                   // attributes: ["id", "name"],
                 },
-                
-          
               ],
             },
 
@@ -207,10 +202,16 @@ const AgentCommissionController = {
               model: SubSchedule,
               as: "subSchedule",
               attributes: [
-                'id','destination_from_schedule_id',
-                'destination_to_schedule_id',
-                'transit_from_id','transit_to_id',
-                'transit_1','transit_2','transit_3','transit_4'],
+                "id",
+                "destination_from_schedule_id",
+                "destination_to_schedule_id",
+                "transit_from_id",
+                "transit_to_id",
+                "transit_1",
+                "transit_2",
+                "transit_3",
+                "transit_4",
+              ],
               include: [
                 {
                   model: Destination,
@@ -225,7 +226,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "TransitFrom",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -235,7 +236,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "TransitTo",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -245,7 +246,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "Transit1",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -255,7 +256,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "Transit2",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -265,7 +266,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "Transit3",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -275,7 +276,7 @@ const AgentCommissionController = {
                 {
                   model: Transit,
                   as: "Transit4",
-                  attributes: ['id','departure_time','arrival_time'],
+                  attributes: ["id", "departure_time", "arrival_time"],
                   include: {
                     model: Destination,
                     as: "Destination",
@@ -371,13 +372,12 @@ const AgentCommissionController = {
         payment_status: ["invoiced", "paid"],
       };
 
+      // Changed from created_at to booking_date
       if (fromDate && toDate) {
-        bookingWhereConditions.created_at = {
+        bookingWhereConditions.booking_date = {
           [Op.gte]: new Date(fromDate),
           [Op.lte]: new Date(toDate),
         };
-
-        
       } else if (year) {
         let startOfPeriod, endOfPeriod;
         if (month) {
@@ -387,7 +387,8 @@ const AgentCommissionController = {
           startOfPeriod = new Date(year, 0, 1);
           endOfPeriod = new Date(year, 11, 31, 23, 59, 59);
         }
-        bookingWhereConditions.created_at = {
+        // Changed from created_at to booking_date
+        bookingWhereConditions.booking_date = {
           [Op.gte]: startOfPeriod,
           [Op.lte]: endOfPeriod,
         };
@@ -462,27 +463,30 @@ const AgentCommissionController = {
                   "transport_price",
                   "note",
                   "payment_status",
+                  "created_at",
+                  "updated_at",
                   "payment_method",
-              
-                
                 ],
-                include: [{ model: Transport,
-                  
-                  as: "Transport" ,
-                  attributes: [
-                    "id",
-                  
-                    "pickup_area",
-                    "pickup_time",
-                    "duration",
-                    "cost",
-                    "interval_time",
-                    "description",
-     
-                    "availability",
-                  ],
-                
-                }],
+                include: [
+                  {
+                    model: Transport,
+
+                    as: "Transport",
+                    attributes: [
+                      "id",
+
+                      "pickup_area",
+                      "pickup_time",
+                      "duration",
+                      "cost",
+                      "interval_time",
+                      "description",
+                      
+
+                      "availability",
+                    ],
+                  },
+                ],
               },
               {
                 model: SubSchedule,
@@ -536,70 +540,93 @@ const AgentCommissionController = {
 
       // 5. Process Bookings to use `created_at` from `AgentCommission`
       // ocess Bookings to use `created_at` from `AgentCommission`
-      const processedBookings = commissions.map((commission) => {
-        const bk = commission.Booking;
-        if (!bk) return null;
-        
-        const dateFormatted = formatDateDDMMYYYY(commission.created_at);
-        const departureFormatted = formatDateTimeDDMMYYYY_HHMM(bk.booking_date);
-        
-        let transportCost = 0;
-        if (bk.transportBookings && bk.transportBookings.length > 0) {
-          bk.transportBookings.forEach(transport => {
-            transportCost += parseFloat(transport.transport_price || 0);
-          });
-        }
-        
-     
+      const processedBookings = commissions
+        .map((commission) => {
+          const bk = commission.Booking;
+          if (!bk) return null;
 
-        console.log("👶transportCost", transportCost);
-        
-        // Use transportCost instead of bk.transportBookings if needed
-        const amount = bk.gross_total - commission.amount ;
-        const amountInvoiced = bk.payment_status === "invoiced" ? bk.gross_total - commission.amount : 0;
-        const amountPaid = Number(bk.payment_status === "paid" ? bk.gross_total : 0);
-        const datePaid = bk.payment_status === "paid" ? formatDateDDMMYYYY(bk.updated_at) : null;
-        
-        // Rest of your code remains the same
-        let route = "";
-        if (bk?.subSchedule) {
-          route = [
-            bk.subSchedule.DestinationFrom?.name,
-            bk.subSchedule.TransitFrom?.Destination?.name,
-            bk.subSchedule.TransitTo?.Destination?.name,
-            bk.subSchedule.DestinationTo?.name,
-          ].filter(Boolean).join(" - ");
-        } else if (bk?.schedule) {
-          route = [
-            bk.schedule.FromDestination?.name,
-            bk.schedule.ToDestination?.name,
-          ].filter(Boolean).join(" - ");
-        }
-        
-        return {
-          id: bk.ticket_id,
-          date: dateFormatted,
-          departure: departureFormatted,
-          customer: bk.contact_name,
-          passport_id: bk.contact_passport_id,
-          nationality: bk.contact_nationality,
-          tickets: bk.total_passengers,
-          transport_booking: bk.transportBookings, // Include all transport bookings
-          payment_status: bk.payment_status,
-          payment_method: bk.payment_method,
-          gross_total: bk.gross_total,
-          gross_total_in_usd: bk.gross_total_in_usd,
-          exchange_rate: bk.exchange_rate,
-          bank_fee: bk.bank_fee,
-          commission: commission.amount,
-          amount: amount,
-          amount_paid: amountPaid || 0,
-          amount_invoiced: amountInvoiced || 0,
-          date_paid: datePaid ? datePaid : "-",
-          route,
-        };
-      }).filter(Boolean);
+          const dateFormatted = formatDateDDMMYYYY(commission.created_at);
+          const departureFormatted = formatDateTimeDDMMYYYY_HHMM(
+            bk.booking_date
+          );
 
+          let transportCost = 0;
+          if (bk.transportBookings && bk.transportBookings.length > 0) {
+            bk.transportBookings.forEach((transport) => {
+              transportCost += parseFloat(transport.transport_price || 0);
+            });
+          }
+
+          console.log("👶transportCost", transportCost);
+
+          // Use transportCost instead of bk.transportBookings if needed
+          const amount = bk.gross_total - commission.amount-transportCost;
+          const amountInvoiced =
+            bk.payment_status === "invoiced"
+              ? bk.gross_total - commission.amount
+              : 0;
+          const amountPaid = Number(
+            bk.payment_status === "paid" ? bk.gross_total-transportCost : 0
+          );
+          const datePaid =
+            bk.payment_status === "paid"
+              ? formatDateDDMMYYYY(bk.updated_at)
+              : null;
+
+          const amountTransportInvoiced =
+            bk.payment_status === "invoiced"
+              ? transportCost
+              : 0;
+          const amountTransportPaid =
+            bk.payment_status === "paid" ? transportCost : 0;
+         
+
+          // Rest of your code remains the same
+          let route = "";
+          if (bk?.subSchedule) {
+            route = [
+              bk.subSchedule.DestinationFrom?.name,
+              bk.subSchedule.TransitFrom?.Destination?.name,
+              bk.subSchedule.TransitTo?.Destination?.name,
+              bk.subSchedule.DestinationTo?.name,
+            ]
+              .filter(Boolean)
+              .join(" - ");
+          } else if (bk?.schedule) {
+            route = [
+              bk.schedule.FromDestination?.name,
+              bk.schedule.ToDestination?.name,
+            ]
+              .filter(Boolean)
+              .join(" - ");
+          }
+
+          return {
+            id: bk.ticket_id,
+            date: dateFormatted,
+            departure: departureFormatted,
+            customer: bk.contact_name,
+            passport_id: bk.contact_passport_id,
+            nationality: bk.contact_nationality,
+            tickets: bk.total_passengers,
+            transport_booking: bk.transportBookings, // Include all transport bookings
+            payment_status: bk.payment_status,
+            payment_method: bk.payment_method,
+            gross_total: bk.gross_total,
+            gross_total_in_usd: bk.gross_total_in_usd,
+            exchange_rate: bk.exchange_rate,
+            bank_fee: bk.bank_fee,
+            commission: commission.amount,
+            amount: amount,
+            amount_paid: amountPaid || 0,
+            amount_invoiced: amountInvoiced || 0,
+            amount_transport_invoiced: amountTransportInvoiced || 0,
+            amount_transport_paid: amountTransportPaid || 0,
+            date_paid: datePaid ? datePaid : "-",
+            route,
+          };
+        })
+        .filter(Boolean);
 
       // 5. Lakukan pass ke-2 untuk menghitung running balance
       // 5. Perform a second pass to compute running balance correctly
@@ -624,6 +651,17 @@ const AgentCommissionController = {
         (total, booking) => total + parseFloat(booking.amount_paid),
         0
       );
+
+      const totalAmountTransportPaid = processedBookings.reduce(
+        (total, booking) => total + parseFloat(booking.amount_transport_paid),
+        0
+      );
+
+      const totalAmountTransportInvoiced = processedBookings.reduce(
+        (total, booking) => total + parseFloat(booking.amount_transport_invoiced),
+        0
+      );
+
       // get total amount (gross amount - commission)
 
       const totalCommissionAmount = processedBookings.reduce(
@@ -676,7 +714,10 @@ const AgentCommissionController = {
         total_bank_fee: totalBankFee,
         total_amount_paid: totalAmountPaid,
         total_amount_invoiced: totalAmountInvoiced,
+        total_amount_transport_invoiced: totalAmountTransportInvoiced,
+        total_amount_transport_paid: totalAmountTransportPaid,
         sub_total: subTotal,
+
 
         bookings: processedBookings,
       };
@@ -687,11 +728,6 @@ const AgentCommissionController = {
       res.status(500).json({ error: "Failed to retrieve agent sales report" });
     }
   },
-
-
-
-
-
 
   async getCommissionsInvoiced(req, res) {
     try {

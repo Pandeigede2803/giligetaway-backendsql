@@ -1310,7 +1310,7 @@ const getMetricsByAgentId = async (req, res) => {
       .json({ error: "Agent ID is required as a route parameter." });
   }
 
-  // Validasi tanggal dari dan ke
+  // Validasi tanggal
   if (from && to) {
     const isValidFrom = moment(from, "YYYY-MM-DD", true).isValid();
     const isValidTo = moment(to, "YYYY-MM-DD", true).isValid();
@@ -1329,7 +1329,6 @@ const getMetricsByAgentId = async (req, res) => {
         ? { [Op.between]: [from, to] }
         : buildDateFilter({ month, year, day });
 
-    // Define previous period filter (e.g., previous month or year)
     // Filter untuk periode sebelumnya
     const previousPeriodFilter =
       from && to
@@ -1344,280 +1343,171 @@ const getMetricsByAgentId = async (req, res) => {
             month: month ? month - 1 : undefined,
             day,
           });
-
-    // Current metrics
-    const currentBookingValue =
-      (await Booking.sum("gross_total", {
-        where: {
-          agent_id,
-          payment_status: ["paid", "invoiced"],
-          created_at: dateFilter,
+          
+    // Kombinasikan filter untuk satu query
+    const combinedFilter = {
+      [Op.or]: [
+        { created_at: dateFilter },
+        { created_at: previousPeriodFilter }
+      ]
+    };
+    
+    // Definisikan kondisi where untuk agent
+    const whereConditions = {
+      agent_id,
+      // Tidak filter berdasarkan payment_status agar mendapatkan semua status
+    };
+    
+    // Tambahkan filter gabungan
+    const fullWhereConditions = {
+      ...whereConditions,
+      ...combinedFilter
+    };
+    
+    // Query 1: Mendapatkan semua data booking dengan include
+    const bookings = await Booking.findAll({
+      where: fullWhereConditions,
+      attributes: [
+        'id',
+        'gross_total',
+        'payment_status',
+        'created_at'
+      ],
+      include: [
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          attributes: ['id', 'transport_price']
         },
-      })) ?? 0;
-
-    const currentTotalBookingCount =
-      (await Booking.count({
-        where: {
-          agent_id,
-          created_at: dateFilter,
-          payment_status: ["paid", "invoiced"],
+        {
+          model: Passenger,
+          as: "passengers",
+          attributes: ['id']
         },
-      })) ?? 0;
-
-    // Perbaikan untuk TransportBooking - gunakan where literal
-    const currentTransportBooking =
-      (await TransportBooking.sum("transport_price", {
-        include: [
-          {
-            model: Booking,
-            as: "booking",
-            attributes: [],
-            where: {
-              agent_id,
-              payment_status: ["paid", "invoiced"],
-              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-              [Op.and]: Sequelize.literal(
-                from && to
-                  ? `booking.created_at BETWEEN '${from}' AND '${to}'`
-                  : year
-                  ? month
-                    ? day
-                      ? `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month} AND DAY(booking.created_at) = ${day}`
-                      : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month}`
-                    : `YEAR(booking.created_at) = ${year}`
-                  : "1=1"
-              ),
-            },
-          },
-        ],
-      })) || 0;
-
-    // Perbaikan untuk Passenger count - gunakan where literal
-    const currentTotalCustomers =
-      (await Passenger.count({
-        distinct: true,
-        col: "id",
-        include: {
-          model: Booking,
-          as: "booking",
-          where: {
-            agent_id,
-            payment_status: ["paid", "invoiced"],
-            // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-            [Op.and]: Sequelize.literal(
-              from && to
-                ? `booking.created_at BETWEEN '${from}' AND '${to}'`
-                : year
-                ? month
-                  ? day
-                    ? `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month} AND DAY(booking.created_at) = ${day}`
-                    : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month}`
-                  : `YEAR(booking.created_at) = ${year}`
-                : "1=1"
-            ),
-          },
-        },
-      })) ?? 0;
-
-    const currentTotalCommission =
-      (await AgentCommission.sum("amount", {
-        include: [
-          {
-            model: Booking,
-            attributes: [],
-            required: true,
-            where: {
-              agent_id,
-              payment_status: ["paid", "invoiced"],
-              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-              [Op.and]: Sequelize.literal(
-                from && to
-                  ? `Booking.created_at BETWEEN '${from}' AND '${to}'`
-                  : year
-                  ? month
-                    ? day
-                      ? `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month} AND DAY(Booking.created_at) = ${day}`
-                      : `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month}`
-                    : `YEAR(Booking.created_at) = ${year}`
-                  : "1=1"
-              ),
-            },
-          },
-        ],
-        where: {
-          agent_id,
-        },
-      })) ?? 0;
-
-    const currentUnpaidToGiligetaway =
-      (await Booking.sum("gross_total", {
-        where: {
-          agent_id,
-          payment_status: "invoiced",
-          created_at: dateFilter,
-        },
-      })) ?? 0;
-
-    const currentpaidToGiligetaway =
-      (await Booking.sum("gross_total", {
-        where: {
-          agent_id,
-          payment_status: "paid",
-          created_at: dateFilter,
-        },
-      })) ?? 0;
-
-    // Previous metrics for comparison
-    const previousBookingValue =
-      (await Booking.sum("gross_total", {
-        where: { 
-          agent_id, 
-          payment_status: ["paid", "invoiced"],
-          created_at: previousPeriodFilter 
-        },
-      })) ?? 0;
+        {
+          model: AgentCommission,
+          as: "agentCommissions",
+          attributes: ['id', 'amount']
+        }
+      ],
+      raw: false, // Perlu objek untuk relasi
+      nest: true
+    });
+    
+    // Proses data yang diperoleh
+    const currentData = {
+      totalValue: 0,
+      bookingCount: 0,
+      paidTotal: 0,
+      invoicedTotal: 0, // Renamed from unpaidTotal
+      unpaidTotal: 0,    // New field for unpaid status
+      cancelledTotal: 0, // New field for cancelled status
+      transportTotal: 0,
+      passengerCount: new Set(),
+      commissionTotal: 0
+    };
+    
+    const previousData = {
+      totalValue: 0,
+      bookingCount: 0,
+      paidTotal: 0,
+      invoicedTotal: 0, // Renamed from unpaidTotal
+      unpaidTotal: 0,    // New field for unpaid status
+      cancelledTotal: 0, // New field for cancelled status
+      transportTotal: 0,
+      passengerCount: new Set(),
+      commissionTotal: 0
+    };
+    
+    // Proses masing-masing booking untuk dikelompokkan berdasarkan periode
+    bookings.forEach(booking => {
+      // Tentukan apakah booking ini dari periode saat ini atau sebelumnya
+      const isCurrentPeriod = isInDateRange(booking.created_at, dateFilter);
+      const target = isCurrentPeriod ? currentData : previousData;
       
-    const previousTotalBookingCount =
-      (await Booking.count({
-        where: {
-          agent_id,
-          payment_status: ["paid", "invoiced"],
-          created_at: previousPeriodFilter,
-        },
-      })) ?? 0;
-
-    // Perbaikan untuk TransportBooking - gunakan where literal
-    const previousTransportBooking =
-      (await TransportBooking.sum("transport_price", {
-        include: [
-          {
-            model: Booking,
-            as: "booking",
-            attributes: [],
-            where: {
-              agent_id,
-              payment_status: ["paid", "invoiced"],
-              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-              [Op.and]: Sequelize.literal(
-                from && to
-                  ? `booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
-                  : year
-                  ? month
-                    ? month === 1
-                      ? `YEAR(booking.created_at) = ${year-1} AND MONTH(booking.created_at) = 12`
-                      : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month-1}`
-                    : `YEAR(booking.created_at) = ${year-1}`
-                  : "1=1"
-              ),
-            },
-          },
-        ],
-      })) || 0;
+      // Tambahkan nilai total
+      const grossTotal = parseFloat(booking.gross_total) || 0;
+      target.totalValue += grossTotal;
+      target.bookingCount++;
       
-    // Perbaikan untuk Passenger count - gunakan where literal
-    const previousTotalCustomers =
-      (await Passenger.count({
-        distinct: true,
-        col: "id",
-        include: {
-          model: Booking,
-          as: "booking",
-          where: { 
-            agent_id, 
-            payment_status: ["paid", "invoiced"],
-            // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-            [Op.and]: Sequelize.literal(
-              from && to
-                ? `booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
-                : year
-                ? month
-                  ? month === 1
-                    ? `YEAR(booking.created_at) = ${year-1} AND MONTH(booking.created_at) = 12`
-                    : `YEAR(booking.created_at) = ${year} AND MONTH(booking.created_at) = ${month-1}`
-                  : `YEAR(booking.created_at) = ${year-1}`
-                : "1=1"
-            ),
-          },
-        },
-      })) ?? 0;
+      // Status pembayaran - menghitung berdasarkan semua status
+      if (booking.payment_status === 'paid') {
+        target.paidTotal += grossTotal;
+      } else if (booking.payment_status === 'invoiced') {
+        target.invoicedTotal += grossTotal;
+      } else if (booking.payment_status === 'unpaid') {
+        target.unpaidTotal += grossTotal;
+      } else if (booking.payment_status === 'cancelled') {
+        target.cancelledTotal += grossTotal;
+      }
       
-    const previousTotalCommission =
-      (await AgentCommission.sum("amount", {
-        include: [
-          {
-            model: Booking,
-            attributes: [],
-            required: true,
-            where: {
-              agent_id,
-              payment_status: ["paid", "invoiced"],
-              // Gunakan literal SQL untuk menentukan tabel secara eksplisit
-              [Op.and]: Sequelize.literal(
-                from && to
-                  ? `Booking.created_at BETWEEN '${moment(from).subtract(1, "months").format("YYYY-MM-DD")}' AND '${moment(to).subtract(1, "months").format("YYYY-MM-DD")}'`
-                  : year
-                  ? month
-                    ? month === 1
-                      ? `YEAR(Booking.created_at) = ${year-1} AND MONTH(Booking.created_at) = 12`
-                      : `YEAR(Booking.created_at) = ${year} AND MONTH(Booking.created_at) = ${month-1}`
-                    : `YEAR(Booking.created_at) = ${year-1}`
-                  : "1=1"
-              ),
-            },
-          },
-        ],
-        where: {
-          agent_id,
-        },
-      })) ?? 0;
-
-    const previousUnpaidToGiligetaway =
-      (await Booking.sum("gross_total", {
-        where: {
-          agent_id,
-          payment_status: "invoiced",
-          created_at: previousPeriodFilter,
-        },
-      })) ?? 0;
+      // Transport bookings - hanya hitung transport untuk pembayaran yang valid (paid/invoiced)
+      if (['paid', 'invoiced'].includes(booking.payment_status) && 
+          booking.transportBookings && Array.isArray(booking.transportBookings)) {
+        booking.transportBookings.forEach(transport => {
+          target.transportTotal += parseFloat(transport.transport_price) || 0;
+        });
+      }
       
-    const previouspaidToGiligetaway =
-      (await Booking.sum("gross_total", {
-        where: {
-          agent_id,
-          payment_status: "paid", // Fix: payment_status seharusnya "paid" bukan "invoiced"
-          created_at: previousPeriodFilter,
-        },
-      })) ?? 0;
-
-    // Metrics with comparison
+      // Passengers - hitung semua penumpang terlepas dari status pembayaran
+      if (booking.passengers && Array.isArray(booking.passengers)) {
+        booking.passengers.forEach(passenger => {
+          target.passengerCount.add(passenger.id);
+        });
+      }
+      
+      // Agent commissions - hanya hitung komisi untuk pembayaran yang valid (paid/invoiced)
+      if (['paid', 'invoiced'].includes(booking.payment_status) && 
+          booking.agentCommissions && Array.isArray(booking.agentCommissions)) {
+        booking.agentCommissions.forEach(commission => {
+          target.commissionTotal += parseFloat(commission.amount) || 0;
+        });
+      }
+    });
+    
+    // Hitung jumlah penumpang unik
+    const currentTotalCustomers = currentData.passengerCount.size;
+    const previousTotalCustomers = previousData.passengerCount.size;
+    
+    // Metrics with comparison - dengan metrik baru dan nama yang diubah
     const metrics = {
       bookingValue: calculateComparison(
-        currentBookingValue,
-        previousBookingValue
+        currentData.totalValue,
+        previousData.totalValue
       ),
       totalBookingCount: calculateComparison(
-        currentTotalBookingCount,
-        previousTotalBookingCount
+        currentData.bookingCount,
+        previousData.bookingCount
       ),
       transportBooking: calculateComparison(
-        currentTransportBooking,
-        previousTransportBooking
+        currentData.transportTotal,
+        previousData.transportTotal
       ),
       totalCustomers: calculateComparison(
         currentTotalCustomers,
         previousTotalCustomers
       ),
       totalCommission: calculateComparison(
-        currentTotalCommission,
-        previousTotalCommission
+        currentData.commissionTotal,
+        previousData.commissionTotal
       ),
-      unpaidToGiligetaway: calculateComparison(
-        currentUnpaidToGiligetaway,
-        previousUnpaidToGiligetaway
+      // Renamed metric
+      invoicedBooking: calculateComparison(
+        currentData.invoicedTotal,
+        previousData.invoicedTotal
+      ),
+      // New metrics
+      unpaidBooking: calculateComparison(
+        currentData.unpaidTotal,
+        previousData.unpaidTotal
+      ),
+      cancelledBooking: calculateComparison(
+        currentData.cancelledTotal,
+        previousData.cancelledTotal
       ),
       paidToGiligetaway: calculateComparison(
-        currentpaidToGiligetaway,
-        previouspaidToGiligetaway
+        currentData.paidTotal,
+        previousData.paidTotal
       ),
     };
 
@@ -1631,6 +1521,262 @@ const getMetricsByAgentId = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve metrics" });
   }
 };
+const getMetricsByAgentIdTravelDate = async (req, res) => {
+
+  console.log("start the traveler date metrics agent")
+  const { agent_id } = req.params;
+  const { from, to, month, year, day } = req.query;
+
+  console.log("Agent ID:", agent_id);
+  console.log("Date Filters:", { from, to, month, year, day });
+
+  if (!agent_id) {
+    return res
+      .status(400)
+      .json({ error: "Agent ID is required as a route parameter." });
+  }
+
+  // Validasi tanggal
+  if (from && to) {
+    const isValidFrom = moment(from, "YYYY-MM-DD", true).isValid();
+    const isValidTo = moment(to, "YYYY-MM-DD", true).isValid();
+
+    if (!isValidFrom || !isValidTo) {
+      return res.status(400).json({
+        error: "Invalid date format. Use YYYY-MM-DD for 'from' and 'to'.",
+      });
+    }
+  }
+  
+  try {
+    // Filter berdasarkan rentang tanggal atau bulan/tahun/hari
+    const dateFilter =
+      from && to
+        ? { [Op.between]: [from, to] }
+        : buildDateFilter({ month, year, day });
+
+    // Filter untuk periode sebelumnya
+    const previousPeriodFilter =
+      from && to
+        ? {
+            [Op.between]: [
+              moment(from).subtract(1, "months").format("YYYY-MM-DD"),
+              moment(to).subtract(1, "months").format("YYYY-MM-DD"),
+            ],
+          }
+        : buildDateFilter({
+            year: month && month === 1 ? year - 1 : year,
+            month: month ? month - 1 : undefined,
+            day,
+          });
+          
+    // Kombinasikan filter untuk satu query
+    const combinedFilter = {
+      [Op.or]: [
+        { booking_date: dateFilter },
+        { booking_date: previousPeriodFilter }
+      ]
+    };
+    
+    // Definisikan kondisi where untuk agent
+    const whereConditions = {
+      agent_id,
+      // Tidak filter berdasarkan payment_status agar mendapatkan semua status
+    };
+    
+    // Tambahkan filter gabungan
+    const fullWhereConditions = {
+      ...whereConditions,
+      ...combinedFilter
+    };
+    
+    // Query 1: Mendapatkan semua data booking dengan include
+    const bookings = await Booking.findAll({
+      where: fullWhereConditions,
+      attributes: [
+        'id',
+        'gross_total',
+        'payment_status',
+        'booking_date'
+      ],
+      include: [
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          attributes: ['id', 'transport_price']
+        },
+        {
+          model: Passenger,
+          as: "passengers",
+          attributes: ['id']
+        },
+        {
+          model: AgentCommission,
+          as: "agentCommissions",
+          attributes: ['id', 'amount']
+        }
+      ],
+      raw: false, // Perlu objek untuk relasi
+      nest: true
+    });
+
+    console.log("bookings", JSON.stringify(bookings, null, 2))
+    
+    // Proses data yang diperoleh
+    const currentData = {
+      totalValue: 0,
+      bookingCount: 0,
+      paidTotal: 0,
+      invoicedTotal: 0, // Renamed from unpaidTotal
+      unpaidTotal: 0,    // New field for unpaid status
+      cancelledTotal: 0, // New field for cancelled status
+      transportTotal: 0,
+      passengerCount: new Set(),
+      commissionTotal: 0
+    };
+    
+    const previousData = {
+      totalValue: 0,
+      bookingCount: 0,
+      paidTotal: 0,
+      invoicedTotal: 0, // Renamed from unpaidTotal
+      unpaidTotal: 0,    // New field for unpaid status
+      cancelledTotal: 0, // New field for cancelled status
+      transportTotal: 0,
+      passengerCount: new Set(),
+      commissionTotal: 0
+    };
+    
+    // Proses masing-masing booking untuk dikelompokkan berdasarkan periode
+    bookings.forEach(booking => {
+      // Tentukan apakah booking ini dari periode saat ini atau sebelumnya
+      const isCurrentPeriod = isInDateRange(booking.booking_date, dateFilter);
+      const target = isCurrentPeriod ? currentData : previousData;
+      
+      // Tambahkan nilai total
+      const grossTotal = parseFloat(booking.gross_total) || 0;
+      target.totalValue += grossTotal;
+      target.bookingCount++;
+      
+      // Status pembayaran - menghitung berdasarkan semua status
+      if (booking.payment_status === 'paid') {
+        target.paidTotal += grossTotal;
+      } else if (booking.payment_status === 'invoiced') {
+        target.invoicedTotal += grossTotal;
+      } else if (booking.payment_status === 'unpaid') {
+        target.unpaidTotal += grossTotal;
+      } else if (booking.payment_status === 'cancelled') {
+        target.cancelledTotal += grossTotal;
+      }
+      
+      // Transport bookings - hanya hitung transport untuk pembayaran yang valid (paid/invoiced)
+      if (['paid', 'invoiced'].includes(booking.payment_status) && 
+          booking.transportBookings && Array.isArray(booking.transportBookings)) {
+        booking.transportBookings.forEach(transport => {
+          target.transportTotal += parseFloat(transport.transport_price) || 0;
+        });
+      }
+      
+      // Passengers - hitung semua penumpang terlepas dari status pembayaran
+      if (booking.passengers && Array.isArray(booking.passengers)) {
+        booking.passengers.forEach(passenger => {
+          target.passengerCount.add(passenger.id);
+        });
+      }
+      
+      // Agent commissions - hanya hitung komisi untuk pembayaran yang valid (paid/invoiced)
+      if (['paid', 'invoiced'].includes(booking.payment_status) && 
+          booking.agentCommissions && Array.isArray(booking.agentCommissions)) {
+        booking.agentCommissions.forEach(commission => {
+          target.commissionTotal += parseFloat(commission.amount) || 0;
+        });
+      }
+    });
+    
+    // Hitung jumlah penumpang unik
+    const currentTotalCustomers = currentData.passengerCount.size;
+    const previousTotalCustomers = previousData.passengerCount.size;
+    
+    // Metrics with comparison - dengan metrik baru dan nama yang diubah
+    const metrics = {
+      bookingValue: calculateComparison(
+        currentData.totalValue,
+        previousData.totalValue
+      ),
+      totalBookingCount: calculateComparison(
+        currentData.bookingCount,
+        previousData.bookingCount
+      ),
+      transportBooking: calculateComparison(
+        currentData.transportTotal,
+        previousData.transportTotal
+      ),
+      totalCustomers: calculateComparison(
+        currentTotalCustomers,
+        previousTotalCustomers
+      ),
+      totalCommission: calculateComparison(
+        currentData.commissionTotal,
+        previousData.commissionTotal
+      ),
+      // Renamed metric
+      invoicedBooking: calculateComparison(
+        currentData.invoicedTotal,
+        previousData.invoicedTotal
+      ),
+      // New metrics
+      unpaidBooking: calculateComparison(
+        currentData.unpaidTotal,
+        previousData.unpaidTotal
+      ),
+      cancelledBooking: calculateComparison(
+        currentData.cancelledTotal,
+        previousData.cancelledTotal
+      ),
+      paidToGiligetaway: calculateComparison(
+        currentData.paidTotal,
+        previousData.paidTotal
+      ),
+    };
+
+    // Send the metrics as the response
+    res.json({
+      status: "success",
+      metrics,
+    });
+  } catch (error) {
+    console.error("Error fetching agent booking metrics:", error);
+    res.status(500).json({ error: "Failed to retrieve metrics" });
+  }
+};
+
+// Helper function untuk memeriksa apakah tanggal dalam range
+function isInDateRange(date, dateRange) {
+  if (!date) return false;
+  
+  const checkDate = new Date(date);
+  
+  if (dateRange[Op.between]) {
+    const [startDate, endDate] = dateRange[Op.between].map(d => new Date(d));
+    return checkDate >= startDate && checkDate <= endDate;
+  }
+  
+  return false;
+}
+
+// Helper function untuk memeriksa apakah tanggal dalam range
+function isInDateRange(date, dateRange) {
+  if (!date) return false;
+  
+  const checkDate = new Date(date);
+  
+  if (dateRange[Op.between]) {
+    const [startDate, endDate] = dateRange[Op.between].map(d => new Date(d));
+    return checkDate >= startDate && checkDate <= endDate;
+  }
+  
+  return false;
+}
 
 const getAnnualyMetrics = async (req, res) => {
   try {
@@ -2294,6 +2440,7 @@ module.exports = {
   getBookingMetricsBySource,
   getBookingComparisonMetrics,
   getMetricsByAgentId,
+  getMetricsByAgentIdTravelDate,
   getAnnualyMetrics,
   getAgentAnnualyMetrics,
   getAgentStatistics,
