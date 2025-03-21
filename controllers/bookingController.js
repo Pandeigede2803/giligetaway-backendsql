@@ -1920,7 +1920,7 @@ const getFilteredBookings = async (req, res) => {
             { model: Destination, as: "ToDestination" },
           ],
         },
-        { model: AgentCommission, as: "agentCommissions" },
+        { model: AgentCommission, as: "agentCommission" },
         {
           model: SubSchedule,
           as: "subSchedule",

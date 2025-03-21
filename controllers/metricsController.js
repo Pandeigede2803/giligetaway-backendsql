@@ -241,7 +241,7 @@ const fetchBookingsWithAllData = async (dateFilter, previousPeriodFilter) => {
         },
         {
           model: AgentCommission,
-          as: "agentCommissions", // Pastikan nama relasi sesuai model
+          as: "agentCommission", // Pastikan nama relasi sesuai model
           attributes: ["amount"],
           required: false,
         },
