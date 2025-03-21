@@ -1447,8 +1447,8 @@ const getMetricsByAgentId = async (req, res) => {
     // Kombinasikan filter untuk satu query
     const combinedFilter = {
       [Op.or]: [
-        { "Booking.created_at": dateFilter }, // Sebelumnya: { created_at: dateFilter }
-        { "Booking.created_at": previousPeriodFilter }, // Sebelumnya: { created_at: previousPeriodFilter }
+        { created_at: dateFilter },
+        { created_at: previousPeriodFilter },
       ],
     };
 
@@ -1467,12 +1467,7 @@ const getMetricsByAgentId = async (req, res) => {
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: [
-        "id",
-        "gross_total",
-        "payment_status",
-        [sequelize.col("Booking.created_at"), "created_at"], // Perbaikan disini
-      ],
+      attributes: ["id", "gross_total", "payment_status", "created_at"],
       include: [
         {
           model: TransportBooking,
