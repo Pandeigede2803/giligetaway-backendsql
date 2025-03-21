@@ -854,17 +854,102 @@ const formatMetricsForResponse = (data, agentCount) => {
   };
 };
 
+// const buildDateFilter = ({ from, to, month, year, day }) => {
+//   // For from and to dates
+//   // Untuk filter from-to
+//   // Dalam fungsi buildDateFilter
+//   if (from && to) {
+//     const fromDate = moment(from).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+//     const toDate = moment(to).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
+//     // Menggunakan operator terpisah daripada BETWEEN
+//     return {
+//       created_at: {
+//         [Op.gte]: fromDate,
+//         [Op.lte]: toDate,
+//       },
+//     };
+//   }
+
+//   // Convert inputs to numbers and validate
+//   const numericYear = year ? parseInt(year) : null;
+//   const numericMonth = month ? parseInt(month) : null;
+//   const numericDay = day ? parseInt(day) : null;
+
+//   console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
+
+//   // Full date (year, month, day)
+//   if (numericYear && numericMonth && numericDay) {
+//     const dateStr = moment(
+//       `${numericYear}-${numericMonth}-${numericDay}`
+//     ).format("YYYY-MM-DD");
+//     return {
+//       [Op.and]: [
+//         sequelize.where(
+//           sequelize.fn("YEAR", sequelize.col("created_at")),
+//           numericYear
+//         ),
+//         sequelize.where(
+//           sequelize.fn("MONTH", sequelize.col("created_at")),
+//           numericMonth
+//         ),
+//         sequelize.where(
+//           sequelize.fn("DAY", sequelize.col("created_at")),
+//           numericDay
+//         ),
+//       ],
+//     };
+//   }
+
+//   // Year and month
+//   if (numericYear && numericMonth) {
+//     const startDate = moment(`${numericYear}-${numericMonth}-01`)
+//       .startOf("month")
+//       .format("YYYY-MM-DD HH:mm:ss");
+//     const endDate = moment(`${numericYear}-${numericMonth}-01`)
+//       .endOf("month")
+//       .format("YYYY-MM-DD HH:mm:ss");
+
+//     return {
+//       [Op.between]: [startDate, endDate],
+//     };
+//   }
+
+//   // Only year
+//   if (numericYear) {
+//     const startDate = moment(`${numericYear}-01-01`)
+//       .startOf("year")
+//       .format("YYYY-MM-DD HH:mm:ss");
+//     const endDate = moment(`${numericYear}-12-31`)
+//       .endOf("year")
+//       .format("YYYY-MM-DD HH:mm:ss");
+
+//     return {
+//       [Op.between]: [startDate, endDate],
+//     };
+//   }
+
+//   // Default case - return current month if no parameters
+//   const currentDate = moment();
+//   return {
+//     [Op.between]: [
+//       currentDate.clone().startOf("month").format("YYYY-MM-DD HH:mm:ss"),
+//       currentDate.clone().endOf("month").format("YYYY-MM-DD HH:mm:ss"),
+//     ],
+//   };
+// };
+
+// Controller to fetch metrics
+
 const buildDateFilter = ({ from, to, month, year, day }) => {
   // For from and to dates
-  // Untuk filter from-to
-  // Dalam fungsi buildDateFilter
   if (from && to) {
     const fromDate = moment(from).startOf("day").format("YYYY-MM-DD HH:mm:ss");
     const toDate = moment(to).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-
+    
     // Menggunakan operator terpisah daripada BETWEEN
     return {
-      created_at: {
+      'Booking.created_at': {  // Tambahkan nama tabel
         [Op.gte]: fromDate,
         [Op.lte]: toDate,
       },
@@ -886,15 +971,15 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
     return {
       [Op.and]: [
         sequelize.where(
-          sequelize.fn("YEAR", sequelize.col("created_at")),
+          sequelize.fn("YEAR", sequelize.col("Booking.created_at")),  // Tambahkan nama tabel
           numericYear
         ),
         sequelize.where(
-          sequelize.fn("MONTH", sequelize.col("created_at")),
+          sequelize.fn("MONTH", sequelize.col("Booking.created_at")),  // Tambahkan nama tabel
           numericMonth
         ),
         sequelize.where(
-          sequelize.fn("DAY", sequelize.col("created_at")),
+          sequelize.fn("DAY", sequelize.col("Booking.created_at")),  // Tambahkan nama tabel
           numericDay
         ),
       ],
@@ -911,7 +996,9 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
       .format("YYYY-MM-DD HH:mm:ss");
 
     return {
-      [Op.between]: [startDate, endDate],
+      'Booking.created_at': {  // Tambahkan nama kolom dengan tabel
+        [Op.between]: [startDate, endDate],
+      }
     };
   }
 
@@ -925,22 +1012,23 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
       .format("YYYY-MM-DD HH:mm:ss");
 
     return {
-      [Op.between]: [startDate, endDate],
+      'Booking.created_at': {  // Tambahkan nama kolom dengan tabel
+        [Op.between]: [startDate, endDate],
+      }
     };
   }
 
   // Default case - return current month if no parameters
   const currentDate = moment();
   return {
-    [Op.between]: [
-      currentDate.clone().startOf("month").format("YYYY-MM-DD HH:mm:ss"),
-      currentDate.clone().endOf("month").format("YYYY-MM-DD HH:mm:ss"),
-    ],
+    'Booking.created_at': {  // Tambahkan nama kolom dengan tabel
+      [Op.between]: [
+        currentDate.clone().startOf("month").format("YYYY-MM-DD HH:mm:ss"),
+        currentDate.clone().endOf("month").format("YYYY-MM-DD HH:mm:ss"),
+      ],
+    }
   };
 };
-
-// Controller to fetch metrics
-
 const getMetrics = async (req, res) => {
   try {
     // Ambil parameter filter dari query
@@ -1359,8 +1447,8 @@ const getMetricsByAgentId = async (req, res) => {
     // Kombinasikan filter untuk satu query
     const combinedFilter = {
       [Op.or]: [
-        { created_at: dateFilter },
-        { created_at: previousPeriodFilter },
+        { "Booking.created_at": dateFilter }, // Sebelumnya: { created_at: dateFilter }
+        { "Booking.created_at": previousPeriodFilter }, // Sebelumnya: { created_at: previousPeriodFilter }
       ],
     };
 
@@ -1379,7 +1467,12 @@ const getMetricsByAgentId = async (req, res) => {
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: ["id", "gross_total", "payment_status", "created_at"],
+      attributes: [
+        "id",
+        "gross_total",
+        "payment_status",
+        [sequelize.col("Booking.created_at"), "created_at"], // Perbaikan disini
+      ],
       include: [
         {
           model: TransportBooking,
@@ -1477,11 +1570,11 @@ const getMetricsByAgentId = async (req, res) => {
       if (
         ["paid", "invoiced"].includes(booking.payment_status) &&
         booking.agentCommission // Tidak perlu cek apakah array
-     ) {
+      ) {
         console.log("agentCommission", booking.agentCommission);
-        target.commissionTotal += parseFloat(booking.agentCommission.amount) || 0;
-     }
-     
+        target.commissionTotal +=
+          parseFloat(booking.agentCommission.amount) || 0;
+      }
     });
 
     // Hitung jumlah penumpang unik
@@ -1685,17 +1778,14 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
         target.cancelledTotal += grossTotal;
       }
 
-      
-
       // Transport bookings - hanya hitung transport untuk pembayaran yang valid (paid/invoiced)
       if (
         ["paid", "invoiced"].includes(booking.payment_status) &&
         booking.agentCommission // Tidak perlu cek apakah array
-     ) {
-    
-        target.commissionTotal += parseFloat(booking.agentCommission.amount) || 0;
-     }
-     
+      ) {
+        target.commissionTotal +=
+          parseFloat(booking.agentCommission.amount) || 0;
+      }
 
       // Passengers - hitung semua penumpang terlepas dari status pembayaran
       if (booking.passengers && Array.isArray(booking.passengers)) {
