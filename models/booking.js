@@ -177,9 +177,9 @@ Booking.associate = (models) => {
         as: 'transportBookings'
     });
 
-    Booking.hasMany(models.AgentCommission, {
+    Booking.hasOne(models.AgentCommission, {
         foreignKey: 'booking_id',
-        as: 'agentCommissions'
+        as: 'agentCommission'
     });
       // **Adding Transaction Association**:
     // One Booking can have many Transactions (for different payment attempts, refunds, etc.)

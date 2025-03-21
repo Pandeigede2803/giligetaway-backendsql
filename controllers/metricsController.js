@@ -1,8 +1,7 @@
-const Sequelize = require('sequelize');
-const { Op,fn,col } = Sequelize;
+const Sequelize = require("sequelize");
+const { Op, fn, col } = Sequelize;
 
 // Di bagian paling atas file
-
 
 const moment = require("moment"); // Import Moment.js for date manipulation
 const {
@@ -24,7 +23,10 @@ const {
   Boat,
 } = require("../models");
 
-const {fetchAllMetricsDataBookingDate,processMetricsDataBookingDate,} =require("../util/fetchMetricsBookingDate")
+const {
+  fetchAllMetricsDataBookingDate,
+  processMetricsDataBookingDate,
+} = require("../util/fetchMetricsBookingDate");
 
 // Fungsi untuk mendapatkan metrik pemesanan berdasarkan sumber
 const getBookingMetricsBySource = async (req, res) => {
@@ -376,7 +378,6 @@ const fetchPassengerCount = async (dateFilter, previousPeriodFilter) => {
   }
 };
 
-
 const processMetricsData = (data) => {
   const {
     bookingsData,
@@ -471,41 +472,41 @@ const initializeResultObject = () => {
       bookingCount: 0,
       totalValue: 0,
       paymentReceived: 0,
-      agentPaymentReceived: 0,     // Hanya untuk paid
-      agentBookingInvoiced: 0,     // Untuk invoiced
+      agentPaymentReceived: 0, // Hanya untuk paid
+      agentBookingInvoiced: 0, // Untuk invoiced
       totalRefund: 0,
       boats: {
         1: { totalValue: 0, netValue: 0 },
-        2: { totalValue: 0, netValue: 0 }
-      }
-    }
+        2: { totalValue: 0, netValue: 0 },
+      },
+    },
   };
 };
 
 const processBookingsData = (bookingsData, result) => {
   console.log("booking data", bookingsData);
-  
+
   bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
     const grossTotal = parseFloat(booking.gross_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-    
+
     // Get target object based on period
     const target = result[period];
-    
+
     // Increment booking count
     target.bookingCount++;
-    
+
     // Add to total value
     target.totalValue += grossTotal;
-    
+
     // Memproses berdasarkan status pembayaran
     if (paymentStatus === "paid") {
       // Total nilai booking yang sudah dibayar
       target.paymentReceived += grossTotal;
-      
+
       // Hanya tambahkan ke agentPaymentReceived jika statusnya paid dan ada agent
       if (hasAgent) {
         target.agentPaymentReceived += grossTotal;
@@ -513,7 +514,7 @@ const processBookingsData = (bookingsData, result) => {
     } else if (paymentStatus === "invoiced") {
       // Total nilai booking yang sudah ditagih
       target.paymentReceived += grossTotal;
-      
+
       // Khusus untuk invoiced dengan agent
       if (hasAgent) {
         target.agentBookingInvoiced += grossTotal;
@@ -522,15 +523,15 @@ const processBookingsData = (bookingsData, result) => {
       // Total nilai refund/pengembalian dana
       target.totalRefund += grossTotal;
     }
-    
+
     console.log("target.agentBookingInvoiced", target.agentBookingInvoiced);
     console.log("target.agentPaymentReceived", target.agentPaymentReceived);
-    
+
     // Process boat-specific data
     if (boatId && target.boats[boatId]) {
       // Total value for boat
       target.boats[boatId].totalValue += grossTotal;
-      
+
       // Net value for boat (paid or invoiced)
       if (paymentStatus === "paid" || paymentStatus === "invoiced") {
         target.boats[boatId].netValue += grossTotal;
@@ -855,20 +856,20 @@ const formatMetricsForResponse = (data, agentCount) => {
 
 const buildDateFilter = ({ from, to, month, year, day }) => {
   // For from and to dates
-// Untuk filter from-to
-// Dalam fungsi buildDateFilter
-if (from && to) {
-  const fromDate = moment(from).startOf('day').format('YYYY-MM-DD HH:mm:ss');
-  const toDate = moment(to).endOf('day').format('YYYY-MM-DD HH:mm:ss');
-  
-  // Menggunakan operator terpisah daripada BETWEEN
-  return {
-    created_at: {
-      [Op.gte]: fromDate,
-      [Op.lte]: toDate
-    }
-  };
-}
+  // Untuk filter from-to
+  // Dalam fungsi buildDateFilter
+  if (from && to) {
+    const fromDate = moment(from).startOf("day").format("YYYY-MM-DD HH:mm:ss");
+    const toDate = moment(to).endOf("day").format("YYYY-MM-DD HH:mm:ss");
+
+    // Menggunakan operator terpisah daripada BETWEEN
+    return {
+      created_at: {
+        [Op.gte]: fromDate,
+        [Op.lte]: toDate,
+      },
+    };
+  }
 
   // Convert inputs to numbers and validate
   const numericYear = year ? parseInt(year) : null;
@@ -948,78 +949,81 @@ const getMetrics = async (req, res) => {
     const numericYear = year ? parseInt(year) : null;
     const numericMonth = month ? parseInt(month) : null;
     const numericDay = day ? parseInt(day) : null;
-        
+
     // console.log("From raw:", req.query.from);
     // console.log("To raw:", req.query.to);
     // console.log("From parsed:", new Date(req.query.from));
     // console.log("To parsed:", new Date(req.query.to));
-    
+
     // Cek jika from-to adalah untuk satu bulan penuh
     let dateFilter;
     if (from && to) {
       const fromMoment = moment(from);
       const toMoment = moment(to);
-      
+
       // Periksa apakah rentang adalah bulan penuh (1-31)
-      const isFullMonth = 
-        fromMoment.date() === 1 && 
+      const isFullMonth =
+        fromMoment.date() === 1 &&
         toMoment.month() === fromMoment.month() &&
         toMoment.date() >= 28; // Mengakomodasi bulan Februari
-      
+
       if (isFullMonth) {
         // Jika bulan penuh, gunakan filter bulan-tahun
         console.log("Detected full month query, using month-year filter");
-        dateFilter = buildDateFilter({ 
+        dateFilter = buildDateFilter({
           month: fromMoment.month() + 1, // Moment: Jan=0, API: Jan=1
-          year: fromMoment.year() 
+          year: fromMoment.year(),
         });
       } else {
         // Untuk rentang tanggal biasa
-        const fromDate = fromMoment.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const toDate = toMoment.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const fromDate = fromMoment
+          .startOf("day")
+          .format("YYYY-MM-DD HH:mm:ss");
+        const toDate = toMoment.endOf("day").format("YYYY-MM-DD HH:mm:ss");
         dateFilter = { [Op.between]: [fromDate, toDate] };
       }
     } else {
       // Gunakan buildDateFilter untuk parameter lainnya
       dateFilter = buildDateFilter({ month, year, day });
     }
-        
+
     let previousPeriodFilter;
     if (from && to) {
       const fromMoment = moment(from);
       const toMoment = moment(to);
-      
+
       // Periksa jika bulan penuh
-      const isFullMonth = 
-        fromMoment.date() === 1 && 
+      const isFullMonth =
+        fromMoment.date() === 1 &&
         toMoment.month() === fromMoment.month() &&
         toMoment.date() >= 28;
-      
+
       if (isFullMonth) {
         // Jika bulan penuh, gunakan bulan sebelumnya sebagai pembanding
         let prevMonth = fromMoment.month();
         let prevYear = fromMoment.year();
-        
-        if (prevMonth === 0) { // Januari
+
+        if (prevMonth === 0) {
+          // Januari
           prevMonth = 11; // Desember
           prevYear -= 1;
         } else {
           prevMonth -= 1;
         }
-        
+
         previousPeriodFilter = buildDateFilter({
           month: prevMonth + 1, // Koreksi untuk API
-          year: prevYear
+          year: prevYear,
         });
       } else {
         // Untuk rentang tanggal biasa
         const previousFrom = moment(from)
           .subtract(3, "days")
-          .startOf('day')
+          .startOf("day")
           .format("YYYY-MM-DD HH:mm:ss");
         const previousTo = moment(to)
           .subtract(3, "days")
-          .endOf('day')
+          .endOf("day")
           .format("YYYY-MM-DD HH:mm:ss");
         previousPeriodFilter = { [Op.between]: [previousFrom, previousTo] };
       }
@@ -1070,7 +1074,6 @@ const getMetrics = async (req, res) => {
   }
 };
 
-
 const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   // Log incoming parameters for debugging
   // console.log("FROM BUILDBOOKINGDATE FILTER:", from);
@@ -1081,8 +1084,8 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
 
   // Prioritize explicit from and to dates first
   if (from && to) {
-    const fromDate = moment(from).startOf('day').format('YYYY-MM-DD');
-    const toDate = moment(to).endOf('day').format('YYYY-MM-DD');
+    const fromDate = moment(from).startOf("day").format("YYYY-MM-DD");
+    const toDate = moment(to).endOf("day").format("YYYY-MM-DD");
     return { booking_date: { [Op.between]: [fromDate, toDate] } };
   }
 
@@ -1115,8 +1118,12 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
 
   // Year and month
   if (numericYear && numericMonth) {
-    const startDate = moment(`${numericYear}-${numericMonth}-01`).startOf('month').format('YYYY-MM-DD');
-    const endDate = moment(`${numericYear}-${numericMonth}-01`).endOf('month').format('YYYY-MM-DD');
+    const startDate = moment(`${numericYear}-${numericMonth}-01`)
+      .startOf("month")
+      .format("YYYY-MM-DD");
+    const endDate = moment(`${numericYear}-${numericMonth}-01`)
+      .endOf("month")
+      .format("YYYY-MM-DD");
 
     return {
       booking_date: { [Op.between]: [startDate, endDate] },
@@ -1125,8 +1132,12 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
 
   // Only year
   if (numericYear) {
-    const startDate = moment(`${numericYear}-01-01`).startOf('year').format('YYYY-MM-DD');
-    const endDate = moment(`${numericYear}-12-31`).endOf('year').format('YYYY-MM-DD');
+    const startDate = moment(`${numericYear}-01-01`)
+      .startOf("year")
+      .format("YYYY-MM-DD");
+    const endDate = moment(`${numericYear}-12-31`)
+      .endOf("year")
+      .format("YYYY-MM-DD");
 
     return {
       booking_date: { [Op.between]: [startDate, endDate] },
@@ -1138,9 +1149,9 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   return {
     booking_date: {
       [Op.between]: [
-        currentDate.clone().startOf('month').format('YYYY-MM-DD'),
-        currentDate.clone().endOf('month').format('YYYY-MM-DD'),
-      ]
+        currentDate.clone().startOf("month").format("YYYY-MM-DD"),
+        currentDate.clone().endOf("month").format("YYYY-MM-DD"),
+      ],
     },
   };
 };
@@ -1152,40 +1163,39 @@ const getMetricsBookingDate = async (req, res) => {
     const { from, to, month, year, day } = req.query;
     console.log("  ✅===all query====  ✅", req.query);
 
-
     const numericYear = year ? parseInt(year) : null;
     const numericMonth = month ? parseInt(month) : null;
     const numericDay = day ? parseInt(day) : null;
-        
+
     // console.log("From raw:", req.query.from);
     // console.log("To raw:", req.query.to);
     // console.log("From parsed:", new Date(req.query.from));
     // console.log("To parsed:", new Date(req.query.to));
-    
+
     // Cek jika from-to adalah untuk satu bulan penuh
     let dateFilter;
     if (from && to) {
       const fromMoment = moment(from);
       const toMoment = moment(to);
-      
-// Periksa apakah rentang adalah bulan penuh (1-31)
-const isFullMonth = 
-  fromMoment.date() === 1 && 
-  toMoment.month() === fromMoment.month() &&
-  toMoment.date() === toMoment.daysInMonth(); // Check if it's the last day of the month
 
-if (isFullMonth) {
-  console.log("Detected full month query, using month-year filter");
-  dateFilter = buildBookingDateFilter({ 
-    month: fromMoment.month() + 1, // Moment: Jan=0, API: Jan=1
-    year: fromMoment.year() 
-  });
-} 
-      
-      else {
+      // Periksa apakah rentang adalah bulan penuh (1-31)
+      const isFullMonth =
+        fromMoment.date() === 1 &&
+        toMoment.month() === fromMoment.month() &&
+        toMoment.date() === toMoment.daysInMonth(); // Check if it's the last day of the month
+
+      if (isFullMonth) {
+        console.log("Detected full month query, using month-year filter");
+        dateFilter = buildBookingDateFilter({
+          month: fromMoment.month() + 1, // Moment: Jan=0, API: Jan=1
+          year: fromMoment.year(),
+        });
+      } else {
         // Untuk rentang tanggal biasa dengan komponen waktu
-        const fromDate = fromMoment.startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const toDate = toMoment.endOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const fromDate = fromMoment
+          .startOf("day")
+          .format("YYYY-MM-DD HH:mm:ss");
+        const toDate = toMoment.endOf("day").format("YYYY-MM-DD HH:mm:ss");
         // Filter untuk booking_date
         dateFilter = { booking_date: { [Op.between]: [fromDate, toDate] } };
       }
@@ -1193,47 +1203,50 @@ if (isFullMonth) {
       // Gunakan buildBookingDateFilter untuk parameter lainnya
       dateFilter = buildBookingDateFilter({ month, year, day });
     }
-        
+
     let previousPeriodFilter;
     if (from && to) {
       const fromMoment = moment(from);
       const toMoment = moment(to);
-      
+
       // Periksa jika bulan penuh
-      const isFullMonth = 
-        fromMoment.date() === 1 && 
+      const isFullMonth =
+        fromMoment.date() === 1 &&
         toMoment.month() === fromMoment.month() &&
         toMoment.date() >= 28;
-      
+
       if (isFullMonth) {
         // Jika bulan penuh, gunakan bulan sebelumnya sebagai pembanding
         let prevMonth = fromMoment.month();
         let prevYear = fromMoment.year();
-        
-        if (prevMonth === 0) { // Januari
+
+        if (prevMonth === 0) {
+          // Januari
           prevMonth = 11; // Desember
           prevYear -= 1;
         } else {
           prevMonth -= 1;
         }
-        
+
         // Gunakan buildBookingDateFilter untuk booking_date
         previousPeriodFilter = buildBookingDateFilter({
           month: prevMonth + 1, // Koreksi untuk API
-          year: prevYear
+          year: prevYear,
         });
       } else {
         // Untuk rentang tanggal biasa
         const previousFrom = moment(from)
           .subtract(3, "days")
-          .startOf('day')
+          .startOf("day")
           .format("YYYY-MM-DD HH:mm:ss");
         const previousTo = moment(to)
           .subtract(3, "days")
-          .endOf('day')
+          .endOf("day")
           .format("YYYY-MM-DD HH:mm:ss");
         // Filter untuk booking_date
-        previousPeriodFilter = { booking_date: { [Op.between]: [previousFrom, previousTo] } };
+        previousPeriodFilter = {
+          booking_date: { [Op.between]: [previousFrom, previousTo] },
+        };
       }
     } else if (numericYear && !numericMonth && !numericDay) {
       // If only year is provided, use previous year
@@ -1295,7 +1308,6 @@ const calculateComparison = (current, previous) => {
   };
 };
 
-
 // Get metrics by agent ID
 const getMetricsByAgentId = async (req, res) => {
   const { agent_id } = req.params;
@@ -1321,7 +1333,7 @@ const getMetricsByAgentId = async (req, res) => {
       });
     }
   }
-  
+
   try {
     // Filter berdasarkan rentang tanggal atau bulan/tahun/hari
     const dateFilter =
@@ -1343,132 +1355,139 @@ const getMetricsByAgentId = async (req, res) => {
             month: month ? month - 1 : undefined,
             day,
           });
-          
+
     // Kombinasikan filter untuk satu query
     const combinedFilter = {
       [Op.or]: [
         { created_at: dateFilter },
-        { created_at: previousPeriodFilter }
-      ]
+        { created_at: previousPeriodFilter },
+      ],
     };
-    
+
     // Definisikan kondisi where untuk agent
     const whereConditions = {
       agent_id,
       // Tidak filter berdasarkan payment_status agar mendapatkan semua status
     };
-    
+
     // Tambahkan filter gabungan
     const fullWhereConditions = {
       ...whereConditions,
-      ...combinedFilter
+      ...combinedFilter,
     };
-    
+
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: [
-        'id',
-        'gross_total',
-        'payment_status',
-        'created_at'
-      ],
+      attributes: ["id", "gross_total", "payment_status", "created_at"],
       include: [
         {
           model: TransportBooking,
           as: "transportBookings",
-          attributes: ['id', 'transport_price']
+          attributes: ["id", "transport_price"],
         },
         {
           model: Passenger,
           as: "passengers",
-          attributes: ['id']
+          attributes: ["id"],
         },
         {
           model: AgentCommission,
-          as: "agentCommissions",
-          attributes: ['id', 'amount']
-        }
+          as: "agentCommission",
+          attributes: ["id", "amount"],
+        },
       ],
       raw: false, // Perlu objek untuk relasi
-      nest: true
+      nest: true,
     });
-    
+
     // Proses data yang diperoleh
     const currentData = {
       totalValue: 0,
       bookingCount: 0,
       paidTotal: 0,
       invoicedTotal: 0, // Renamed from unpaidTotal
-      unpaidTotal: 0,    // New field for unpaid status
+      unpaidTotal: 0, // New field for unpaid status
       cancelledTotal: 0, // New field for cancelled status
       transportTotal: 0,
       passengerCount: new Set(),
-      commissionTotal: 0
+      commissionTotal: 0,
     };
-    
+
     const previousData = {
       totalValue: 0,
       bookingCount: 0,
       paidTotal: 0,
       invoicedTotal: 0, // Renamed from unpaidTotal
-      unpaidTotal: 0,    // New field for unpaid status
+      unpaidTotal: 0, // New field for unpaid status
       cancelledTotal: 0, // New field for cancelled status
       transportTotal: 0,
       passengerCount: new Set(),
-      commissionTotal: 0
+      commissionTotal: 0,
     };
-    
+
     // Proses masing-masing booking untuk dikelompokkan berdasarkan periode
-    bookings.forEach(booking => {
+    bookings.forEach((booking) => {
       // Tentukan apakah booking ini dari periode saat ini atau sebelumnya
       const isCurrentPeriod = isInDateRange(booking.created_at, dateFilter);
       const target = isCurrentPeriod ? currentData : previousData;
-      
+
       // Tambahkan nilai total
       const grossTotal = parseFloat(booking.gross_total) || 0;
-      target.totalValue += grossTotal;
+      if (["invoiced", "paid", "unpaid"].includes(booking.payment_status)) {
+        target.totalValue += grossTotal;
+      }
       target.bookingCount++;
-      
+
       // Status pembayaran - menghitung berdasarkan semua status
-      if (booking.payment_status === 'paid') {
+      if (booking.payment_status === "paid") {
         target.paidTotal += grossTotal;
-      } else if (booking.payment_status === 'invoiced') {
+        // Jika statusnya paid, tambahkan ke total paidTotal
+
+        // Jika statusnya invoiced, tambahkan ke total invoicedTotal
+      } else if (booking.payment_status === "invoiced") {
         target.invoicedTotal += grossTotal;
-      } else if (booking.payment_status === 'unpaid') {
+        // Jika statusnya unpaid, tambahkan ke total unpaidTotal
+      } else if (booking.payment_status === "unpaid") {
         target.unpaidTotal += grossTotal;
-      } else if (booking.payment_status === 'cancelled') {
+        // Jika statusnya cancelled, tambahkan ke total cancelledTotal
+      } else if (booking.payment_status === "cancelled") {
         target.cancelledTotal += grossTotal;
       }
-      
+
       // Transport bookings - hanya hitung transport untuk pembayaran yang valid (paid/invoiced)
-      if (['paid', 'invoiced'].includes(booking.payment_status) && 
-          booking.transportBookings && Array.isArray(booking.transportBookings)) {
-        booking.transportBookings.forEach(transport => {
+      if (
+        ["paid", "invoiced"].includes(booking.payment_status) &&
+        booking.transportBookings &&
+        Array.isArray(booking.transportBookings)
+      ) {
+        booking.transportBookings.forEach((transport) => {
           target.transportTotal += parseFloat(transport.transport_price) || 0;
         });
       }
-      
+
       // Passengers - hitung semua penumpang terlepas dari status pembayaran
       if (booking.passengers && Array.isArray(booking.passengers)) {
-        booking.passengers.forEach(passenger => {
+        booking.passengers.forEach((passenger) => {
           target.passengerCount.add(passenger.id);
         });
       }
-      
+
       // Agent commissions - hanya hitung komisi untuk pembayaran yang valid (paid/invoiced)
-      if (['paid', 'invoiced'].includes(booking.payment_status) && 
-          booking.agentCommissions && Array.isArray(booking.agentCommissions)) {
-        booking.agentCommissions.forEach(commission => {
-          target.commissionTotal += parseFloat(commission.amount) || 0;
-        });
-      }
+      if (
+        ["paid", "invoiced"].includes(booking.payment_status) &&
+        booking.agentCommission // Tidak perlu cek apakah array
+     ) {
+        console.log("agentCommission", booking.agentCommission);
+        target.commissionTotal += parseFloat(booking.agentCommission.amount) || 0;
+     }
+     
     });
-    
+
     // Hitung jumlah penumpang unik
     const currentTotalCustomers = currentData.passengerCount.size;
     const previousTotalCustomers = previousData.passengerCount.size;
-    
+
     // Metrics with comparison - dengan metrik baru dan nama yang diubah
     const metrics = {
       bookingValue: calculateComparison(
@@ -1521,9 +1540,9 @@ const getMetricsByAgentId = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve metrics" });
   }
 };
-const getMetricsByAgentIdTravelDate = async (req, res) => {
 
-  console.log("start the traveler date metrics agent")
+const getMetricsByAgentIdTravelDate = async (req, res) => {
+  console.log("start the traveler date metrics agent");
   const { agent_id } = req.params;
   const { from, to, month, year, day } = req.query;
 
@@ -1547,7 +1566,7 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
       });
     }
   }
-  
+
   try {
     // Filter berdasarkan rentang tanggal atau bulan/tahun/hari
     const dateFilter =
@@ -1569,134 +1588,138 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
             month: month ? month - 1 : undefined,
             day,
           });
-          
+
     // Kombinasikan filter untuk satu query
     const combinedFilter = {
       [Op.or]: [
         { booking_date: dateFilter },
-        { booking_date: previousPeriodFilter }
-      ]
+        { booking_date: previousPeriodFilter },
+      ],
     };
-    
+
     // Definisikan kondisi where untuk agent
     const whereConditions = {
       agent_id,
       // Tidak filter berdasarkan payment_status agar mendapatkan semua status
     };
-    
+
     // Tambahkan filter gabungan
     const fullWhereConditions = {
       ...whereConditions,
-      ...combinedFilter
+      ...combinedFilter,
     };
-    
+
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: [
-        'id',
-        'gross_total',
-        'payment_status',
-        'booking_date'
-      ],
+      attributes: ["id", "gross_total", "payment_status", "booking_date"],
       include: [
         {
           model: TransportBooking,
           as: "transportBookings",
-          attributes: ['id', 'transport_price']
+          attributes: ["id", "transport_price"],
         },
         {
           model: Passenger,
           as: "passengers",
-          attributes: ['id']
+          attributes: ["id"],
         },
         {
           model: AgentCommission,
-          as: "agentCommissions",
-          attributes: ['id', 'amount']
-        }
+          as: "agentCommission",
+          attributes: ["id", "amount"],
+        },
       ],
       raw: false, // Perlu objek untuk relasi
-      nest: true
+      nest: true,
     });
 
-    console.log("bookings", JSON.stringify(bookings, null, 2))
-    
+    console.log("👧bookings", JSON.stringify(bookings, null, 2));
+
     // Proses data yang diperoleh
     const currentData = {
       totalValue: 0,
       bookingCount: 0,
       paidTotal: 0,
       invoicedTotal: 0, // Renamed from unpaidTotal
-      unpaidTotal: 0,    // New field for unpaid status
+      unpaidTotal: 0, // New field for unpaid status
       cancelledTotal: 0, // New field for cancelled status
       transportTotal: 0,
       passengerCount: new Set(),
-      commissionTotal: 0
+      commissionTotal: 0,
     };
-    
+
     const previousData = {
       totalValue: 0,
       bookingCount: 0,
       paidTotal: 0,
       invoicedTotal: 0, // Renamed from unpaidTotal
-      unpaidTotal: 0,    // New field for unpaid status
+      unpaidTotal: 0, // New field for unpaid status
       cancelledTotal: 0, // New field for cancelled status
       transportTotal: 0,
       passengerCount: new Set(),
-      commissionTotal: 0
+      commissionTotal: 0,
     };
-    
+
     // Proses masing-masing booking untuk dikelompokkan berdasarkan periode
-    bookings.forEach(booking => {
+    bookings.forEach((booking) => {
       // Tentukan apakah booking ini dari periode saat ini atau sebelumnya
       const isCurrentPeriod = isInDateRange(booking.booking_date, dateFilter);
       const target = isCurrentPeriod ? currentData : previousData;
-      
+
       // Tambahkan nilai total
       const grossTotal = parseFloat(booking.gross_total) || 0;
-      target.totalValue += grossTotal;
-      target.bookingCount++;
-      
+      if (["invoiced", "paid", "unpaid"].includes(booking.payment_status)) {
+        target.totalValue += grossTotal;
+        target.bookingCount++;
+      }
+
       // Status pembayaran - menghitung berdasarkan semua status
-      if (booking.payment_status === 'paid') {
+      if (booking.payment_status === "paid") {
         target.paidTotal += grossTotal;
-      } else if (booking.payment_status === 'invoiced') {
+      } else if (booking.payment_status === "invoiced") {
         target.invoicedTotal += grossTotal;
-      } else if (booking.payment_status === 'unpaid') {
+      } else if (booking.payment_status === "unpaid") {
         target.unpaidTotal += grossTotal;
-      } else if (booking.payment_status === 'cancelled') {
+      } else if (booking.payment_status === "cancelled") {
         target.cancelledTotal += grossTotal;
       }
+
       
+
       // Transport bookings - hanya hitung transport untuk pembayaran yang valid (paid/invoiced)
-      if (['paid', 'invoiced'].includes(booking.payment_status) && 
-          booking.transportBookings && Array.isArray(booking.transportBookings)) {
-        booking.transportBookings.forEach(transport => {
-          target.transportTotal += parseFloat(transport.transport_price) || 0;
-        });
-      }
-      
+      if (
+        ["paid", "invoiced"].includes(booking.payment_status) &&
+        booking.agentCommission // Tidak perlu cek apakah array
+     ) {
+    
+        target.commissionTotal += parseFloat(booking.agentCommission.amount) || 0;
+     }
+     
+
       // Passengers - hitung semua penumpang terlepas dari status pembayaran
       if (booking.passengers && Array.isArray(booking.passengers)) {
-        booking.passengers.forEach(passenger => {
+        booking.passengers.forEach((passenger) => {
           target.passengerCount.add(passenger.id);
         });
       }
-      
+
       // Agent commissions - hanya hitung komisi untuk pembayaran yang valid (paid/invoiced)
-      if (['paid', 'invoiced'].includes(booking.payment_status) && 
-          booking.agentCommissions && Array.isArray(booking.agentCommissions)) {
-        booking.agentCommissions.forEach(commission => {
+      if (
+        ["paid", "invoiced"].includes(booking.payment_status) &&
+        booking.agentCommissions &&
+        Array.isArray(booking.agentCommissions)
+      ) {
+        booking.agentCommissions.forEach((commission) => {
           target.commissionTotal += parseFloat(commission.amount) || 0;
         });
       }
     });
-    
+
     // Hitung jumlah penumpang unik
     const currentTotalCustomers = currentData.passengerCount.size;
     const previousTotalCustomers = previousData.passengerCount.size;
-    
+
     // Metrics with comparison - dengan metrik baru dan nama yang diubah
     const metrics = {
       bookingValue: calculateComparison(
@@ -1753,28 +1776,28 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
 // Helper function untuk memeriksa apakah tanggal dalam range
 function isInDateRange(date, dateRange) {
   if (!date) return false;
-  
+
   const checkDate = new Date(date);
-  
+
   if (dateRange[Op.between]) {
-    const [startDate, endDate] = dateRange[Op.between].map(d => new Date(d));
+    const [startDate, endDate] = dateRange[Op.between].map((d) => new Date(d));
     return checkDate >= startDate && checkDate <= endDate;
   }
-  
+
   return false;
 }
 
 // Helper function untuk memeriksa apakah tanggal dalam range
 function isInDateRange(date, dateRange) {
   if (!date) return false;
-  
+
   const checkDate = new Date(date);
-  
+
   if (dateRange[Op.between]) {
-    const [startDate, endDate] = dateRange[Op.between].map(d => new Date(d));
+    const [startDate, endDate] = dateRange[Op.between].map((d) => new Date(d));
     return checkDate >= startDate && checkDate <= endDate;
   }
-  
+
   return false;
 }
 
@@ -2336,9 +2359,6 @@ const getBookingComparisonMetrics = async (req, res) => {
   }
 };
 
-
-
-
 const getAgentStatistics = async (req, res) => {
   try {
     const { month, year, day } = req.query;
@@ -2444,5 +2464,5 @@ module.exports = {
   getAnnualyMetrics,
   getAgentAnnualyMetrics,
   getAgentStatistics,
-  getMetricsBookingDate
+  getMetricsBookingDate,
 };

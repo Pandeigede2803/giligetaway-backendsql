@@ -824,7 +824,7 @@ const getScheduleSubschedule = async (req, res) => {
           },
           { model: Boat, as: "Boat", attributes: ["id", "boat_name"] },
         ],
-        logging: console.log,
+        // logging: console.log,
       });
 
       if (schedules.length === 0) {
@@ -858,7 +858,7 @@ const getScheduleSubschedule = async (req, res) => {
           },
           { model: Boat, as: "Boat", attributes: ["id", "boat_name"] },
         ],
-        logging: console.log,
+        // logging: console.log,
       });
     }
 
@@ -871,7 +871,7 @@ const getScheduleSubschedule = async (req, res) => {
         availability: true,
       },
       include: getSubScheduleInclude(),
-      logging: console.log,
+      // logging: console.log,
     });
 
     const calculateJourneyTime = (departure, arrival) => {
@@ -940,7 +940,7 @@ const getScheduleSubschedule = async (req, res) => {
               const lastTransit = schedule.Transits
                 ? schedule.Transits[schedule.Transits.length - 1]
                 : null;
-              console.log(`Using lastTransit: ${lastTransit}`);
+              // console.log(`Using lastTransit: ${lastTransit}`);
 
               // Get timing data
               const departure_time = subSchedule.departure_time

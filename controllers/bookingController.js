@@ -1261,7 +1261,6 @@ const createBookingWithTransitQueue = async (req, res) => {
   }
 };
 
-
 bookingQueue.process(async (job, done) => {
   const {
     schedule_id,
@@ -1461,7 +1460,7 @@ const findRelatedSubSchedulesGet = async (req, res) => {
         },
         {
           model: Transit,
-        
+
           as: "Transit3",
           include: [
             {
@@ -1473,7 +1472,7 @@ const findRelatedSubSchedulesGet = async (req, res) => {
         },
         {
           model: Transit,
-      
+
           as: "Transit4",
           include: [
             {
@@ -1486,9 +1485,7 @@ const findRelatedSubSchedulesGet = async (req, res) => {
       ],
       transaction,
     });
-    
 
-  
     if (!subSchedule) {
       return res.status(404).json({
         success: false,
@@ -1497,11 +1494,9 @@ const findRelatedSubSchedulesGet = async (req, res) => {
     }
 
     // Call the function using the fetched subSchedule object
-    const result = (await findRelatedSubSchedules(
-      schedule_id,
-      subSchedule,
-      transaction
-    )).map(({ id, schedule_id }) => ({ id, schedule_id }));
+    const result = (
+      await findRelatedSubSchedules(schedule_id, subSchedule, transaction)
+    ).map(({ id, schedule_id }) => ({ id, schedule_id }));
 
     res.json({
       success: true,
@@ -1517,8 +1512,6 @@ const findRelatedSubSchedulesGet = async (req, res) => {
     });
   }
 };
-
-
 
 const getBookingById = async (req, res) => {
   try {
@@ -1784,17 +1777,16 @@ const getBookings = async (req, res) => {
   }
 };
 
-
 const getFilteredBookings = async (req, res) => {
   try {
     // Ambil query parameter
-    const { monthly, booking_month, ticket_id, id } = req.query;
+    const { monthly, booking_month, day, booking_day, ticket_id, id } =
+      req.query;
 
     console.log("Console log all query:", { booking_month, monthly });
 
     // Filter data
     let dateFilter = {};
-
     // Prioritaskan filter berdasarkan `id` jika tersedia
     if (id) {
       dateFilter = { id }; // Filter berdasarkan `id`
@@ -1819,6 +1811,33 @@ const getFilteredBookings = async (req, res) => {
           ],
         },
       };
+    } else if (booking_day) {
+      // Filter berdasarkan hari tertentu dari booking_date
+      console.log("Filtering by booking_day:", booking_day);
+      const [year, month, day] = booking_day.split("-");
+      if (
+        !year ||
+        !month ||
+        !day ||
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(day)
+      ) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
+          });
+      }
+
+      dateFilter = {
+        booking_date: {
+          [Op.between]: [
+            new Date(year, month - 1, day), // Awal hari
+            new Date(year, month - 1, day, 23, 59, 59), // Akhir hari
+          ],
+        },
+      };
     } else if (monthly) {
       // Jika `monthly` ada, filter berdasarkan `created_at`
       console.log("Filtering by monthly:", monthly);
@@ -1834,6 +1853,31 @@ const getFilteredBookings = async (req, res) => {
           [Op.between]: [
             new Date(year, month - 1, 1), // Awal bulan
             new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+          ],
+        },
+      };
+    } else if (day) {
+      // Filter berdasarkan hari tertentu dari created_at
+      console.log("Filtering by day:", day);
+      const [year, month, dayValue] = day.split("-");
+      if (
+        !year ||
+        !month ||
+        !dayValue ||
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(dayValue)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Invalid day filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        created_at: {
+          [Op.between]: [
+            new Date(year, month - 1, dayValue), // Awal hari
+            new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
           ],
         },
       };
@@ -2275,12 +2319,10 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       console.log(
         "⚠️ Booking IDs are not sequential. Returning only the first booking."
       );
-      return res
-        .status(200)
-        .json({
-          message: "Booking IDs are not sequential",
-          bookings: [bookings[0]],
-        });
+      return res.status(200).json({
+        message: "Booking IDs are not sequential",
+        bookings: [bookings[0]],
+      });
     }
 
     // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
@@ -2295,12 +2337,10 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     }
 
     console.log("✅ Successfully retrieved related bookings.");
-    return res
-      .status(200)
-      .json({
-        message: "Round-trip bookings found",
-        bookings: [bookings[0], bookings[1]],
-      });
+    return res.status(200).json({
+      message: "Round-trip bookings found",
+      bookings: [bookings[0], bookings[1]],
+    });
   } catch (error) {
     console.error("❌ Error retrieving related bookings:", error.message);
     return res.status(500).json({ error: "Internal server error" });
@@ -2481,7 +2521,14 @@ const updateMultipleBookingPayment = async (req, res) => {
   try {
     console.log("\n🚐 Processing multiple booking payment updates...");
     const { booking_ids, payment_status, payment_method } = req.body;
-    console.log("Received IDs:", booking_ids, "Status:", payment_status, "Method:", payment_method);
+    console.log(
+      "Received IDs:",
+      booking_ids,
+      "Status:",
+      payment_status,
+      "Method:",
+      payment_method
+    );
 
     const results = await Promise.allSettled(
       booking_ids.map(async (booking_id) => {
@@ -2489,37 +2536,47 @@ const updateMultipleBookingPayment = async (req, res) => {
           const booking = await Booking.findByPk(booking_id);
           if (!booking) {
             console.log(`Booking ID ${booking_id} not found`);
-            return { success: false, id: booking_id, error: "Booking not found" };
+            return {
+              success: false,
+              id: booking_id,
+              error: "Booking not found",
+            };
           }
-          
+
           await booking.update({ payment_status, payment_method });
           console.log(`Successfully updated booking ID ${booking_id}`);
           return { success: true, id: booking_id, booking };
         } catch (err) {
-          console.error(`Error updating booking ID ${booking_id}:`, err.message);
+          console.error(
+            `Error updating booking ID ${booking_id}:`,
+            err.message
+          );
           return { success: false, id: booking_id, error: err.message };
         }
       })
     );
 
     const updatedBookings = results
-      .filter(result => result.status === 'fulfilled' && result.value.success)
-      .map(result => result.value.booking);
-    
+      .filter((result) => result.status === "fulfilled" && result.value.success)
+      .map((result) => result.value.booking);
+
     const failedUpdates = results
-      .filter(result => result.status === 'rejected' || !result.value.success)
-      .map(result => result.status === 'rejected' ? result.reason : result.value);
+      .filter((result) => result.status === "rejected" || !result.value.success)
+      .map((result) =>
+        result.status === "rejected" ? result.reason : result.value
+      );
 
     if (failedUpdates.length > 0) {
       console.log("Some bookings failed to update:", failedUpdates);
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       updated: updatedBookings,
       failed: failedUpdates,
-      message: failedUpdates.length > 0 
-        ? `Updated ${updatedBookings.length} bookings, ${failedUpdates.length} failed` 
-        : `Successfully updated all ${updatedBookings.length} bookings`
+      message:
+        failedUpdates.length > 0
+          ? `Updated ${updatedBookings.length} bookings, ${failedUpdates.length} failed`
+          : `Successfully updated all ${updatedBookings.length} bookings`,
     });
   } catch (error) {
     console.error("Error in bulk update:", error);
@@ -2674,8 +2731,6 @@ const updateBookingPayment = async (req, res) => {
     });
   }
 };
-
-
 
 const updateBookingDate = async (req, res) => {
   const { id } = req.params;
@@ -3538,28 +3593,29 @@ const cancelBooking = async (req, res) => {
   }
 };
 
-const updateMultipleBookingStatus
-  = async (req, res) => {
-    try {
-      const { booking_ids, payment_status } = req.body;
+const updateMultipleBookingStatus = async (req, res) => {
+  try {
+    const { booking_ids, payment_status } = req.body;
 
-      const updatedBookings = await Promise.all(
-        booking_ids.map(async (booking_id) => {
-          const booking = await Booking.findByPk(booking_id);
-          if (booking) {
-            await booking.update({ payment_status });
-            return booking;
-          }
-          return null;
-        })
-      );
+    const updatedBookings = await Promise.all(
+      booking_ids.map(async (booking_id) => {
+        const booking = await Booking.findByPk(booking_id);
+        if (booking) {
+          await booking.update({ payment_status });
+          return booking;
+        }
+        return null;
+      })
+    );
 
-      res.status(200).json({ message: 'Bookings updated successfully', updatedBookings });
-    } catch (error) {
-      console.error('Error updating bookings:', error);
-      res.status(500).json({ error: 'Failed to update bookings' });
-    }
-  };
+    res
+      .status(200)
+      .json({ message: "Bookings updated successfully", updatedBookings });
+  } catch (error) {
+    console.error("Error updating bookings:", error);
+    res.status(500).json({ error: "Failed to update bookings" });
+  }
+};
 
 module.exports = {
   createBooking,
@@ -3587,4 +3643,3 @@ module.exports = {
   findRelatedSubSchedulesGet,
   createRoundBookingWithTransitQueue,
 };
-

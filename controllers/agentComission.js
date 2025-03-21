@@ -42,6 +42,8 @@ const AgentCommissionController = {
     try {
       console.log("Received query parameters:", req.query);
 
+      console.log("START AGENT GET COMISSION DATA")
+
       const agentId = req.query.agent_id
         ? parseInt(req.query.agent_id, 10)
         : null;
@@ -49,6 +51,10 @@ const AgentCommissionController = {
       // Filter created_at in AgentCommission
       const year = req.query.year ? parseInt(req.query.year, 10) : null;
       const month = req.query.month ? parseInt(req.query.month, 10) : null;
+
+      const yearBooking = req.query.yearBooking ? parseInt(req.query.yearBooking, 10) : null;
+      const monthBooking = req.query.monthBooking ? parseInt(req.query.monthBooking, 10) : null;
+
       const fromDate = req.query.from_date || null;
       const toDate = req.query.to_date || null;
 
@@ -106,6 +112,8 @@ const AgentCommissionController = {
       }
 
       // 2. bookingWhereConditions for Booking.booking_date
+   
+      // 2. bookingWhereConditions for Booking.booking_date
       const bookingWhereConditions = {};
       if (fromBookingDate && toBookingDate) {
         const startBooking = new Date(fromBookingDate);
@@ -120,11 +128,37 @@ const AgentCommissionController = {
           "-",
           endBooking
         );
+      } else if (yearBooking) {
+        // Add filter for booking_date using yearBooking/monthBooking
+        bookingWhereConditions.booking_date = {};
+        if (monthBooking) {
+          const startOfMonth = new Date(yearBooking, monthBooking - 1, 1);
+          const endOfMonth = new Date(yearBooking, monthBooking, 0, 23, 59, 59);
+          bookingWhereConditions.booking_date[Op.gte] = startOfMonth;
+          bookingWhereConditions.booking_date[Op.lte] = endOfMonth;
+          console.log(
+            "✅ Filter Booking.booking_date by month:",
+            startOfMonth,
+            "-",
+            endOfMonth
+          );
+        } else {
+          const startOfYear = new Date(yearBooking, 0, 1);
+          const endOfYear = new Date(yearBooking, 11, 31, 23, 59, 59);
+          bookingWhereConditions.booking_date[Op.gte] = startOfYear;
+          bookingWhereConditions.booking_date[Op.lte] = endOfYear;
+          console.log(
+            "✅ Filter Booking.booking_date by year:",
+            startOfYear,
+            "-",
+            endOfYear
+          );
+        }
       }
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
 
-      console.log("📝 AgentCommission conditions:", whereConditions);
-      console.log("📝 Booking conditions:", bookingWhereConditions);
+      // console.log("📝 AgentCommission conditions:", whereConditions);
+      // console.log("📝 Booking conditions:", bookingWhereConditions);
 
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
@@ -289,6 +323,8 @@ const AgentCommissionController = {
         },
       });
 
+   
+
       // Process commissions to add route names
       const processedCommissions = commissions.map((commission) => {
         const booking = commission.Booking;
@@ -326,6 +362,8 @@ const AgentCommissionController = {
       res.status(500).json({ error: "Failed to retrieve commissions" });
     }
   },
+
+
   // * GET /api/agent-sales-report?agent_id=xx&year=2024&month=5
   // *
   // * Mengembalikan struktur JSON:
@@ -369,7 +407,7 @@ const AgentCommissionController = {
 
       const bookingWhereConditions = {
         agent_id: agentId,
-        payment_status: ["invoiced", "paid"],
+        payment_status: ["invoiced", "paid",],
       };
 
       // Changed from created_at to booking_date

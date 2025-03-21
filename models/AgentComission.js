@@ -27,7 +27,6 @@ const AgentCommission = sequelize.define('AgentCommission', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
-    // agentComission.amount
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
@@ -40,7 +39,14 @@ const AgentCommission = sequelize.define('AgentCommission', {
     tableName: 'AgentCommissions',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    indexes: [
+        {
+            unique: true,
+            fields: ['booking_id', 'agent_id'],
+            name: 'unique_booking_agent'
+        }
+    ]
 });
 
 // Association

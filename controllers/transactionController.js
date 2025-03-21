@@ -788,7 +788,7 @@ const updateMultiAgentTransactionStatus = async (req, res) => {
 
     if (nonExistentTransactionIds.length > 0) {
       await transaction.rollback();
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         error: "Some transaction IDs do not exist",
         nonExistentTransactionIds,
@@ -832,7 +832,7 @@ const updateMultiAgentTransactionStatus = async (req, res) => {
 
     if (updatedCount[0] === 0) {
       await transaction.rollback();
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         error: "No transactions were updated",
       });
@@ -1116,7 +1116,7 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
       amount_in_usd: amount_in_usd || 0,
       exchange_rate: exchange_rate || 0,
       currency: currency || null,
-    };
+    };;
 
     console.log("Updating transaction details:", updateData);
 
