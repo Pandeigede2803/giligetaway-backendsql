@@ -601,7 +601,7 @@ exports.getAgentById = async (req, res) => {
             },
             {
               model: AgentCommission,
-              as: "agentCommissions",
+              as: "agentCommission",
             },
           ],
         },

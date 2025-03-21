@@ -692,7 +692,7 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
           },
           {
             model: AgentCommission,
-            as: "agentCommissions",
+            as: "agentCommission",
             attributes: ["amount"],
             required: false,
           },

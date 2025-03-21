@@ -29,7 +29,7 @@ const findSeatAvailabilityWithDetails = async (id) => {
                 },
                 {
                   model: AgentCommission,
-                  as: 'agentCommissions',
+                  as: 'agentCommission',
                 },
                 {
                   model: TransportBooking,
