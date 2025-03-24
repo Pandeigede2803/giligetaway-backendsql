@@ -40,7 +40,7 @@ const AgentCommissionController = {
   // Fetch commissions with optional filters: month, year, agent_id, or from_date, to_date
   async getCommissions(req, res) {
     try {
-      console.log("Received query parameters:", req.query);
+      console.log("Received query parameters:", req.query);;
 
       console.log("START AGENT GET COMISSION DATA")
 
@@ -50,7 +50,7 @@ const AgentCommissionController = {
 
       // Filter created_at in AgentCommission
       const year = req.query.year ? parseInt(req.query.year, 10) : null;
-      const month = req.query.month ? parseInt(req.query.month, 10) : null;
+      const month = req.query.month ? parseInt(req.query.month, 10) : null;;
 
       const yearBooking = req.query.yearBooking ? parseInt(req.query.yearBooking, 10) : null;
       const monthBooking = req.query.monthBooking ? parseInt(req.query.monthBooking, 10) : null;
@@ -77,12 +77,12 @@ const AgentCommissionController = {
           [Op.gte]: start,
           [Op.lte]: end,
         };
-        console.log(
-          "✅ Filter AgentCommission.created_at by custom range:",
-          start,
-          "-",
-          end
-        );
+        // console.log(
+        //   "✅ Filter AgentCommission.created_at by custom range:",
+        //   start,
+        //   "-",
+        //   end
+        // );
       } else if (year) {
         // Fallback ke year/month
         whereConditions.created_at = {};
@@ -163,7 +163,11 @@ const AgentCommissionController = {
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
         where: whereConditions,
-        include: {
+        include:
+        
+        
+        {
+
           model: Booking,
           as: "Booking",
           where: {
@@ -174,6 +178,10 @@ const AgentCommissionController = {
             {
               model: Transaction,
               as: "transactions",
+            },
+            {
+              model:Agent,
+              as: "Agent",
             },
             {
               model: Passenger,
@@ -364,30 +372,7 @@ const AgentCommissionController = {
   },
 
 
-  // * GET /api/agent-sales-report?agent_id=xx&year=2024&month=5
-  // *
-  // * Mengembalikan struktur JSON:
-  // * {
-  // *   agent: [
-  // *     {
-  // *       agent_name,
-  // *       agent_contact,
-  // *       agent_id
-  // *     }
-  // *   ],
-  // *   bookings: [
-  // *     {
-  // *       date,
-  // *       departure,
-  // *       customer,
-  // *       tickets,
-  // *       payment_status,
-  // *       gross_total
-  // *     },
-  // *     ...
-  // *   ]
-  // * }
-  // */
+  
 
   async getAgentSalesReport(req, res) {
     try {

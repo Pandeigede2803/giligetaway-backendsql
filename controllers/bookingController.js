@@ -1780,10 +1780,18 @@ const getBookings = async (req, res) => {
 const getFilteredBookings = async (req, res) => {
   try {
     // Ambil query parameter
-    const { monthly, booking_month, day, booking_day, ticket_id, id } =
-      req.query;
-
-    console.log("Console log all query:", { booking_month, monthly });
+    const {
+      monthly,
+      fromDate,
+      fromBookingDate,
+      toBookingDate,
+      toDate,
+      booking_month,
+      day,
+      booking_day,
+      ticket_id,
+      id,
+    } = req.query;
 
     // Filter data
     let dateFilter = {};
@@ -1879,6 +1887,39 @@ const getFilteredBookings = async (req, res) => {
             new Date(year, month - 1, dayValue), // Awal hari
             new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
           ],
+        },
+      };
+    } else if (fromDate && toDate) {
+      // Jika `fromDate` dan `toDate` ada, filter berdasarkan range created_at
+      console.log("Filtering by date range:", fromDate, toDate);
+      const fromDateObj = new Date(fromDate);
+      const toDateObj = new Date(toDate);
+
+      if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        created_at: {
+          [Op.between]: [fromDateObj, toDateObj],
+        },
+      };
+    } else if (fromBookingDate && toBookingDate) {
+
+      const fromDateObj = new Date(fromBookingDate);
+      const toDateObj = new Date(toBookingDate);
+
+      if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        booking_date: {
+          [Op.between]: [fromDateObj, toDateObj],
         },
       };
     }

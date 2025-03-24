@@ -176,6 +176,8 @@ const fetchAllMetricsData = async (dateFilter, previousPeriodFilter) => {
       dateFilter,
       previousPeriodFilter
     );
+
+    console.log("🫦fetchall Metrcis data booking data :", bookingsData);
     const transportData = await fetchTransportData(
       dateFilter,
       previousPeriodFilter
@@ -230,6 +232,8 @@ const fetchBookingsWithAllData = async (dateFilter, previousPeriodFilter) => {
         ],
         [sequelize.col("Booking.gross_total"), "gross_total"], // Spesifikkan tabel
         [sequelize.col("Booking.payment_status"), "payment_status"], // Spesifikkan tabel
+        // add ticket total
+        [sequelize.col("Booking.ticket_total"), "ticket_total"],
         [sequelize.col("Booking.agent_id"), "agent_id"], // Spesifikkan tabel
       ],
       include: [
@@ -321,9 +325,9 @@ const processCommissionData = (commissionData, result) => {
       result[period].boats[boatId].commission = commissionTotal;
 
       // Log untuk debugging
-      console.log(
-        `Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`
-      );
+      // console.log(
+      //   `Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`
+      // );
     }
   });
 };
@@ -387,14 +391,21 @@ const processMetricsData = (data) => {
     agentCount,
   } = data;
 
+
+
   // Inisialisasi struktur data untuk hasil
   const result = {
     current: {
       totalValue: 0,
+      // total ticket only
+      ticketTotal: 0,
+      // cancel only
+      totalCancelled: 0,
       paymentReceived: 0,
       totalRefund: 0,
       agentBookingInvoiced: 0,
       agentPaymentReceived: 0,
+      agentBookingUnpaid: 0,
       bookingCount: 0,
       grossTotal: 0,
       boats: {
@@ -405,10 +416,13 @@ const processMetricsData = (data) => {
     },
     previous: {
       totalValue: 0,
+      ticketTotal: 0,
       paymentReceived: 0,
+      totalCancelled: 0,
       totalRefund: 0,
       agentBookingInvoiced: 0,
       agentPaymentReceived: 0,
+      agentBookingUnpaid: 0,
       bookingCount: 0,
       grossTotal: 0,
       boats: {
@@ -484,15 +498,25 @@ const initializeResultObject = () => {
 };
 
 const processBookingsData = (bookingsData, result) => {
-  console.log("booking data", bookingsData);
-
+  // 🦷bookingData [
+  // {
+  //   id: 1808,
+  //   boat_id: 1,
+  //   period: 'current',
+  //   gross_total: '1820000.00',
+  //   payment_status: 'invoiced',
+  //   ticket_total: '1520000.00',
+  //   agent_id: 897,
+  //   schedule: { boat_id: 1 },
+  //   agentCommission: { amount: '300000.00' }
   bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
     const grossTotal = parseFloat(booking.gross_total) || 0;
+    const ticketTotal = parseFloat(booking.ticket_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-
+  
     // Get target object based on period
     const target = result[period];
 
@@ -501,6 +525,7 @@ const processBookingsData = (bookingsData, result) => {
 
     // Add to total value
     target.totalValue += grossTotal;
+
 
     // Memproses berdasarkan status pembayaran
     if (paymentStatus === "paid") {
@@ -522,10 +547,21 @@ const processBookingsData = (bookingsData, result) => {
     } else if (paymentStatus === "refund") {
       // Total nilai refund/pengembalian dana
       target.totalRefund += grossTotal;
+    }  else if (paymentStatus === "unpaid" && hasAgent) {
+      target.agentBookingUnpaid += grossTotal;
+    }
+    // get the unpaid agent booking
+
+
+    // how to get ticketTotal
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      target.ticketTotal += ticketTotal;
     }
 
-    console.log("target.agentBookingInvoiced", target.agentBookingInvoiced);
-    console.log("target.agentPaymentReceived", target.agentPaymentReceived);
+    // how to get totalCancceled
+    if ( paymentStatus === "cancelled") {
+      target.totalCancelled += grossTotal;
+    }
 
     // Process boat-specific data
     if (boatId && target.boats[boatId]) {
@@ -580,19 +616,8 @@ const calculateNetIncome = (result) => {
       (result[period].boats[3].commission || 0);
 
     // Log untuk debugging
-    console.log(`${period} period commission totals:`, {
-      boat1: result[period].boats[1].commission || 0,
-      boat2: result[period].boats[2].commission || 0,
-      boat3: result[period].boats[3].commission || 0,
-      total: totalCommission,
-    });
 
     result[period].netIncome = result[period].paymentReceived - totalCommission;
-
-    // Log net income calculation
-    console.log(
-      `${period} net income: ${result[period].paymentReceived} - ${totalCommission} = ${result[period].netIncome}`
-    );
   });
 };
 
@@ -606,11 +631,24 @@ const calculatePercentageChange = (current, previous) => {
 const formatMetricsForResponse = (data, agentCount) => {
   // Extract current and previous data
   const { current, previous, transport, passengers } = data;
+  // console.log("🧠curent BANGSAT", current);
 
   // Calculate all percentage changes
   const bookingValueChange = calculatePercentageChange(
     current.totalValue,
     previous.totalValue
+  );
+  const ticketTotalChange = calculatePercentageChange(
+    current.ticketTotal,
+    previous.ticketTotal
+  );
+
+  // 
+
+  // cancel only
+  const totalCancelledChange = calculatePercentageChange(
+    current.totalCancelled,
+    previous.totalCancelled
   );
   const paymentReceivedChange = calculatePercentageChange(
     current.paymentReceived,
@@ -631,6 +669,11 @@ const formatMetricsForResponse = (data, agentCount) => {
   const agentPaymentReceivedChange = calculatePercentageChange(
     current.agentPaymentReceived,
     previous.agentPaymentReceived
+  );
+   // get the unpaid agent
+   const agentBookingUnpaidChange = calculatePercentageChange(
+    current.agentBookingUnpaid,
+    previous.agentBookingUnpaid
   );
   const transportBookingCountChange = calculatePercentageChange(
     transport.current.count,
@@ -703,6 +746,20 @@ const formatMetricsForResponse = (data, agentCount) => {
         current.totalValue >= previous.totalValue ? "increase" : "decrease",
       change: `${bookingValueChange.toFixed(2)}%`,
     },
+    ticketTotal: {
+      value: current.ticketTotal,
+      status:
+        current.ticketTotal >= previous.ticketTotal ? "increase" : "decrease",
+      change: `${ticketTotalChange.toFixed(2)}%`,
+    },
+    totalCancelled: {
+      value: current.totalCancelled,
+      status:
+        current.totalCancelled >= previous.totalCancelled
+          ? "increase"
+          : "decrease",
+      change: `${totalCancelledChange.toFixed(2)}%`,
+    },
     paymentReceived: {
       value: current.paymentReceived,
       status:
@@ -745,6 +802,14 @@ const formatMetricsForResponse = (data, agentCount) => {
           ? "increase"
           : "decrease",
       change: `${agentPaymentReceivedChange.toFixed(2)}%`,
+    },
+    agentBookingUnpaid: {
+      value: current.agentBookingUnpaid,
+      status:
+        current.agentBookingUnpaid >= previous.agentBookingUnpaid
+          ? "increase"
+          : "decrease",
+      change: `${agentBookingUnpaidChange.toFixed(2)}%`,
     },
     transportBookingCount: {
       value: transport.current.count,
@@ -876,8 +941,6 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
   const numericMonth = month ? parseInt(month) : null;
   const numericDay = day ? parseInt(day) : null;
 
-  console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
-
   // Full date (year, month, day)
   if (numericYear && numericMonth && numericDay) {
     const dateStr = moment(
@@ -946,7 +1009,7 @@ const buildDateFilter = ({ from, to, month, year, day }) => {
 //   if (from && to) {
 //     const fromDate = moment(from).startOf("day").format("YYYY-MM-DD HH:mm:ss");
 //     const toDate = moment(to).endOf("day").format("YYYY-MM-DD HH:mm:ss");
-    
+
 //     // Menggunakan operator terpisah daripada BETWEEN
 //     return {
 //       'Booking.created_at': {  // Tambahkan nama tabel
@@ -1135,8 +1198,8 @@ const getMetrics = async (req, res) => {
     }
 
     // Log filters untuk debugging
-    console.log("Current period filter:", dateFilter);
-    console.log("Previous period filter:", previousPeriodFilter);
+    // console.log("Current period filter:", dateFilter);
+    // console.log("Previous period filter:", previousPeriodFilter);
 
     // Fetch semua data dengan query yang optimal
     const metricsData = await fetchAllMetricsData(
@@ -1164,11 +1227,11 @@ const getMetrics = async (req, res) => {
 
 const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   // Log incoming parameters for debugging
-  // console.log("FROM BUILDBOOKINGDATE FILTER:", from);
-  // console.log("TO:", to);
-  // console.log("MONTH:", month);
-  // console.log("YEAR:", year);
-  // console.log("DAY:", day);
+  console.log("FROM BUILDBOOKINGDATE FILTER:", from);
+  console.log("TO:", to);
+  console.log("MONTH:", month);
+  console.log("YEAR:", year);
+  console.log("DAY:", day);
 
   // Prioritize explicit from and to dates first
   if (from && to) {
@@ -1248,6 +1311,7 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
 const getMetricsBookingDate = async (req, res) => {
   try {
     // Ambil parameter filter dari query
+    console.log("START TO FILTER BOOKING DATE METRICS");
     const { from, to, month, year, day } = req.query;
     console.log("  ✅===all query====  ✅", req.query);
 
@@ -1357,9 +1421,9 @@ const getMetricsBookingDate = async (req, res) => {
       });
     }
 
-    // Log filters untuk debugging
-    console.log("Current period filter:", dateFilter);
-    console.log("Previous period filter:", previousPeriodFilter);
+    // // Log filters untuk debugging
+    // console.log("Current period filter:", dateFilter);
+    // console.log("Previous period filter:", previousPeriodFilter);
 
     // Gunakan fungsi fetchAllMetricsDataBookingDate untuk query booking_date
     const metricsData = await fetchAllMetricsDataBookingDate(
@@ -1582,6 +1646,7 @@ const getMetricsByAgentId = async (req, res) => {
         currentData.totalValue,
         previousData.totalValue
       ),
+
       totalBookingCount: calculateComparison(
         currentData.bookingCount,
         previousData.bookingCount
