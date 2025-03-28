@@ -1531,7 +1531,7 @@ const getMetricsByAgentId = async (req, res) => {
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: ["id", "gross_total", "payment_status", "created_at"],
+      attributes: ["id", "gross_total", "payment_status","created_at" ],
       include: [
         {
           model: TransportBooking,
@@ -1630,7 +1630,7 @@ const getMetricsByAgentId = async (req, res) => {
         ["paid", "invoiced"].includes(booking.payment_status) &&
         booking.agentCommission // Tidak perlu cek apakah array
       ) {
-        console.log("agentCommission", booking.agentCommission);
+    
         target.commissionTotal +=
           parseFloat(booking.agentCommission.amount) || 0;
       }
@@ -1699,8 +1699,8 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
   const { agent_id } = req.params;
   const { from, to, month, year, day } = req.query;
 
-  console.log("Agent ID:", agent_id);
-  console.log("Date Filters:", { from, to, month, year, day });
+  // console.log("Agent ID:", agent_id);
+  // console.log("Date Filters:", { from, to, month, year, day });
 
   if (!agent_id) {
     return res
@@ -1787,7 +1787,7 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
       nest: true,
     });
 
-    console.log("👧bookings", JSON.stringify(bookings, null, 2));
+    // console.log("👧bookings", JSON.stringify(bookings, null, 2));
 
     // Proses data yang diperoleh
     const currentData = {

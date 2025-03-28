@@ -17,6 +17,8 @@ const BookingSeatAvailability = require('./BookingSeatAvailability');;
 const SubSchedule = require('./SubSchedule'); // Tambahkan model baru
 const AgentCommission = require('./AgentComission');
 const SubScheduleRelation = require('./SubscheduleRelation')
+const WaitingList = require('./WaitingList');
+// ... other model imports
 // import transaction 
 const Transaction = require('./Transaction');
 
@@ -106,6 +108,41 @@ SubScheduleRelation.belongsTo(SubSchedule, {
 // Transaction associations
 // Booking.hasMany(Transaction, { foreignKey: 'booking_id' });
 // Transaction.belongsTo(Booking, { foreignKey: 'booking_id' });
+
+
+// Add these lines at the bottom of your associations section in index.js
+
+// WaitingList associations
+WaitingList.belongsTo(Schedule, { 
+    foreignKey: 'schedule_id',
+    as: 'Schedule'
+});
+
+WaitingList.belongsTo(SubSchedule, { 
+    foreignKey: 'subschedule_id',
+    as: 'SubSchedule'
+});
+
+WaitingList.belongsTo(SeatAvailability, { 
+    foreignKey: 'seat_availability_id',
+    as: 'SeatAvailability'
+});
+
+// Inverse associations
+Schedule.hasMany(WaitingList, { 
+    foreignKey: 'schedule_id',
+    as: 'WaitingLists'
+});
+
+SubSchedule.hasMany(WaitingList, { 
+    foreignKey: 'subschedule_id',
+    as: 'WaitingLists'
+});
+
+SeatAvailability.hasMany(WaitingList, { 
+    foreignKey: 'seat_availability_id',
+    as: 'WaitingLists'
+});
 
 
 // BookingSeatAvailability associations

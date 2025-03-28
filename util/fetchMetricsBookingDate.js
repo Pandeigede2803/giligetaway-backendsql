@@ -340,19 +340,19 @@ const calculateAverageOrderValue = (result) => {
         (result[period].boats[3].commission || 0);
   
       // Log untuk debugging
-      console.log(`${period} period commission totals:`, {
-        boat1: result[period].boats[1].commission || 0,
-        boat2: result[period].boats[2].commission || 0,
-        boat3: result[period].boats[3].commission || 0,
-        total: totalCommission,
-      });
+      // console.log(`${period} period commission totals:`, {
+      //   boat1: result[period].boats[1].commission || 0,
+      //   boat2: result[period].boats[2].commission || 0,
+      //   boat3: result[period].boats[3].commission || 0,
+      //   total: totalCommission,
+      // });
   
       result[period].netIncome = result[period].paymentReceived - totalCommission;
   
       // Log net income calculation
-      console.log(
-        `${period} net income: ${result[period].paymentReceived} - ${totalCommission} = ${result[period].netIncome}`
-      );
+      // console.log(
+      //   `${period} net income: ${result[period].paymentReceived} - ${totalCommission} = ${result[period].netIncome}`
+      // );
     });
   };
   
@@ -384,10 +384,10 @@ const processCommissionDataBookingDate = (commissionData, result) => {
     if (result[period] && result[period].boats[boatId]) {
       result[period].boats[boatId].commission = commissionTotal;
 
-      // Log untuk debugging
-      console.log(
-        `Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`
-      );
+      // // Log untuk debugging
+      // console.log(
+      //   `Setting commission for boat ${boatId} in ${period} period: ${commissionTotal}`
+      // );
     }
   });
 };
@@ -467,7 +467,7 @@ const processTransportDataBookingDate = (transportData, result) => {
 };
 
 const processPassengerDataBookingDate = (passengerData, result) => {
-    console.log('🫦passengerData:', passengerData);
+    // console.log('🫦passengerData:', passengerData);
   passengerData.forEach((passenger) => {
     const period = passenger.period;
     result.passengers[period] = parseInt(passenger.passenger_count) || 0;
@@ -556,7 +556,7 @@ const processMetricsDataBookingDate = (data) => {
   
     // Proses data passenger
     if (Array.isArray(passengerData)) {
-        console.log("passengerData:", passengerData);
+        // console.log("passengerData:", passengerData);
       processPassengerDataBookingDate(passengerData, result);
     } else {
       console.warn("passengerData is not an array or is undefined");
@@ -730,7 +730,7 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
         prevEnd,
       };
   
-      console.log('Bookings query replacements:', replacements);
+      // console.log('Bookings query replacements:', replacements);
   
       return await Booking.findAll({
         attributes: [
@@ -884,7 +884,7 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
         { period: "previous", passenger_count: summary.previous || 0 },
       ];
   
-      console.log("🫦 passengerData:", passengerData);
+      // console.log("🫦 passengerData:", passengerData);
   
       return passengerData;
     } catch (error) {

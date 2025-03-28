@@ -2344,7 +2344,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 
     if (bookings.length === 0) {
       console.log("❌ No related bookings found.");
-      return res.status(404).json({ error: "No related bookings found" });
+      return res.status(400).json({ error: "No related bookings found" });
     }
 
     if (bookings.length === 1) {

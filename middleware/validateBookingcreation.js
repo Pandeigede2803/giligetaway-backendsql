@@ -159,12 +159,12 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     }
 
     // ticket total cannot be 0
-    if (departure.ticket_total === 0 || returnBooking.ticket_total === 0) {
-      return res.status(400).json({
-        status: "error",
-        message: "Ticket total cannot be 0"
-      });
-    }
+    // if (departure.ticket_total === 0 || returnBooking.ticket_total === 0) {
+    //   return res.status(400).json({
+    //     status: "error",
+    //     message: "Ticket total cannot be 0"
+    //   });
+    // }
 
     // Check if departure and return are objects
     if (typeof departure !== "object" || typeof returnBooking !== "object") {
