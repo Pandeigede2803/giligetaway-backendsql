@@ -627,7 +627,10 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
         }
       }
 
-      if (status === "paid" && booking.agent_id) {
+
+      // if (status === "paid" || status === "invoiced" || status === "unpaid") {
+
+      if (status === "paid" || status === "invoiced"  || status === "unpaid" && booking.agent_id) {
         console.log(
           `Calculating commission for agent ID: ${booking.agent_id}, booking ID: ${booking.id}`
         );
