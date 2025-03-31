@@ -13,8 +13,8 @@ const transporter = nodemailer.createTransport({
 
 const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   console.log("Starting to send expired booking email to:", recipientEmail);
-  // const emailUrl = process.env.FRONTEND_URL;
-  const emailUrl = "https://localhost:3000";
+  const emailUrl = process.env.FRONTEND_URL;
+  // const emailUrl = "https://localhost:3000";
   
   try {
     const subject = "Your Booking Has Expired";

@@ -33,6 +33,7 @@ const queueExpiredBookingEmail = async (email, booking, delay = DEFAULT_EMAIL_DE
       booking: {
         id: booking.id,
         ticket_id: booking.ticket_id,
+        contact_name: booking.contact_name,
         // Include only necessary booking data to minimize storage
         payment_method: booking.payment_method,
         currency: booking.currency,
