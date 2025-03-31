@@ -56,115 +56,115 @@ const TIME_TOLERANCE = parseFloat(process.env.UNPAID_TIME_TOLERANCE || "0.5"); /
  * Emails will be sent at configurable hours after booking creation
  * Bookings will be canceled after cancellation hour if still unpaid
  */
-const sendUnpaidReminders = async () => {
-  console.log(
-    "✅========Checking for unpaid bookings needing reminders...====✅"
-  );
-  console.log(
-    `Reminder hours: ${FIRST_REMINDER_HOUR}h, ${SECOND_REMINDER_HOUR}h, ${THIRD_REMINDER_HOUR}h`
-  );
-  console.log(
-    `Cancellation hour: ${CANCELLATION_HOUR}h, Tolerance: ${TIME_TOLERANCE}h`
-  );
+// const sendUnpaidReminders = async () => {
+//   console.log(
+//     "✅========Checking for unpaid bookings needing reminders...====✅"
+//   );
+//   console.log(
+//     `Reminder hours: ${FIRST_REMINDER_HOUR}h, ${SECOND_REMINDER_HOUR}h, ${THIRD_REMINDER_HOUR}h`
+//   );
+//   console.log(
+//     `Cancellation hour: ${CANCELLATION_HOUR}h, Tolerance: ${TIME_TOLERANCE}h`
+//   );
 
-  try {
-    // Get current time
-    const now = new Date();
+//   try {
+//     // Get current time
+//     const now = new Date();
 
-    // Find bookings with unpaid status
-    const unpaidBookings = await Booking.findAll({
-      where: {
-        payment_status: "unpaid",
-      },
+//     // Find bookings with unpaid status
+//     const unpaidBookings = await Booking.findAll({
+//       where: {
+//         payment_status: "unpaid",
+//       },
 
-      include: [
-        {
-          model: Transaction,
-          as: "transactions",
-        },
-        {
-          model: Agent,
-          as: "Agent",
-        },
-      ],
-      limit: parseInt(process.env.UNPAID_BATCH_LIMIT || "100"), // Configurable batch limit
-    });
+//       include: [
+//         {
+//           model: Transaction,
+//           as: "transactions",
+//         },
+//         {
+//           model: Agent,
+//           as: "Agent",
+//         },
+//       ],
+//       limit: parseInt(process.env.UNPAID_BATCH_LIMIT || "100"), // Configurable batch limit
+//     });
 
-    console.log(
-      "🧒🏻bookings",
-      unpaidBookings.map((b) => b.Agent?.email || "No Agent") // Tambahkan ? untuk menghindari error jika Agent null
-    );
+//     console.log(
+//       "🧒🏻bookings",
+//       unpaidBookings.map((b) => b.Agent?.email || "No Agent") // Tambahkan ? untuk menghindari error jika Agent null
+//     );
 
-    console.log(`Found ${unpaidBookings.length} unpaid bookings to check`);
+//     console.log(`Found ${unpaidBookings.length} unpaid bookings to check`);
 
-    // Filter bookings that need reminders based on booking age
-    const bookingsNeedingReminders = [];
-    const bookingsToCancel = [];
+//     // Filter bookings that need reminders based on booking age
+//     const bookingsNeedingReminders = [];
+//     const bookingsToCancel = [];
 
-    for (const booking of unpaidBookings) {
-      const createdAt = new Date(booking.created_at);
-      const hoursSinceCreation = Math.floor(
-        (now - createdAt) / (1000 * 60 * 60)
-      );
+//     for (const booking of unpaidBookings) {
+//       const createdAt = new Date(booking.created_at);
+//       const hoursSinceCreation = Math.floor(
+//         (now - createdAt) / (1000 * 60 * 60)
+//       );
 
-      // If booking is past cancellation hour, mark for cancellation
-      if (hoursSinceCreation >= CANCELLATION_HOUR) {
-        bookingsToCancel.push(booking);
-      }
-      // Menentukan reminder dengan jendela waktu yang lebih lebar
-      else if (
-        // Reminder pertama: antara FIRST_REMINDER_HOUR dan SECOND_REMINDER_HOUR
-        (hoursSinceCreation >= FIRST_REMINDER_HOUR && 
-        hoursSinceCreation < SECOND_REMINDER_HOUR &&
-        hoursSinceCreation < FIRST_REMINDER_HOUR + 2) || // Beri jendela 2 jam
+//       // If booking is past cancellation hour, mark for cancellation
+//       if (hoursSinceCreation >= CANCELLATION_HOUR) {
+//         bookingsToCancel.push(booking);
+//       }
+//       // Menentukan reminder dengan jendela waktu yang lebih lebar
+//       else if (
+//         // Reminder pertama: antara FIRST_REMINDER_HOUR dan SECOND_REMINDER_HOUR
+//         (hoursSinceCreation >= FIRST_REMINDER_HOUR && 
+//         hoursSinceCreation < SECOND_REMINDER_HOUR &&
+//         hoursSinceCreation < FIRST_REMINDER_HOUR + 2) || // Beri jendela 2 jam
         
-        // Reminder kedua: antara SECOND_REMINDER_HOUR dan THIRD_REMINDER_HOUR
-        (hoursSinceCreation >= SECOND_REMINDER_HOUR && 
-        hoursSinceCreation < THIRD_REMINDER_HOUR &&
-        hoursSinceCreation < SECOND_REMINDER_HOUR + 2) || // Beri jendela 2 jam
+//         // Reminder kedua: antara SECOND_REMINDER_HOUR dan THIRD_REMINDER_HOUR
+//         (hoursSinceCreation >= SECOND_REMINDER_HOUR && 
+//         hoursSinceCreation < THIRD_REMINDER_HOUR &&
+//         hoursSinceCreation < SECOND_REMINDER_HOUR + 2) || // Beri jendela 2 jam
         
-        // Reminder ketiga: antara THIRD_REMINDER_HOUR dan CANCELLATION_HOUR
-        (hoursSinceCreation >= THIRD_REMINDER_HOUR && 
-        hoursSinceCreation < CANCELLATION_HOUR &&
-        hoursSinceCreation < THIRD_REMINDER_HOUR + 2) // Beri jendela 2 jam
-      ) {
-        // Determine reminder level based on age
-        let reminderLevel = 1;
-        if (hoursSinceCreation >= THIRD_REMINDER_HOUR) {
-          reminderLevel = 3; // Third reminder
-        } else if (hoursSinceCreation >= SECOND_REMINDER_HOUR) {
-          reminderLevel = 2; // Second reminder
-        }
+//         // Reminder ketiga: antara THIRD_REMINDER_HOUR dan CANCELLATION_HOUR
+//         (hoursSinceCreation >= THIRD_REMINDER_HOUR && 
+//         hoursSinceCreation < CANCELLATION_HOUR &&
+//         hoursSinceCreation < THIRD_REMINDER_HOUR + 2) // Beri jendela 2 jam
+//       ) {
+//         // Determine reminder level based on age
+//         let reminderLevel = 1;
+//         if (hoursSinceCreation >= THIRD_REMINDER_HOUR) {
+//           reminderLevel = 3; // Third reminder
+//         } else if (hoursSinceCreation >= SECOND_REMINDER_HOUR) {
+//           reminderLevel = 2; // Second reminder
+//         }
 
-        bookingsNeedingReminders.push({
-          booking,
-          reminderLevel,
-          hoursSinceCreation,
-        });
-      }
-    }
+//         bookingsNeedingReminders.push({
+//           booking,
+//           reminderLevel,
+//           hoursSinceCreation,
+//         });
+//       }
+//     }
 
-    console.log(`From ${unpaidBookings.length} unpaid bookings:`);
-    console.log(`- ${bookingsNeedingReminders.length} bookings need reminders`);
-    console.log(
-      `- ${bookingsToCancel.length} bookings need to be canceled (unpaid > ${CANCELLATION_HOUR} hours)`
-    );
+//     console.log(`From ${unpaidBookings.length} unpaid bookings:`);
+//     console.log(`- ${bookingsNeedingReminders.length} bookings need reminders`);
+//     console.log(
+//       `- ${bookingsToCancel.length} bookings need to be canceled (unpaid > ${CANCELLATION_HOUR} hours)`
+//     );
 
-    // 1. Process reminder emails
-    if (bookingsNeedingReminders.length > 0) {
-      await processReminders(bookingsNeedingReminders);
-    }
+//     // 1. Process reminder emails
+//     if (bookingsNeedingReminders.length > 0) {
+//       await processReminders(bookingsNeedingReminders);
+//     }
 
-    // 2. Process cancellation for bookings past the cancellation hour
-    if (bookingsToCancel.length > 0) {
-      await cancelUnpaidBookings(bookingsToCancel);
-    }
+//     // 2. Process cancellation for bookings past the cancellation hour
+//     if (bookingsToCancel.length > 0) {
+//       await cancelUnpaidBookings(bookingsToCancel);
+//     }
 
-    console.log("✅ Reminder and cancellation process completed ✅");
-  } catch (error) {
-    console.error("❌ Error handling unpaid reminders:", error);
-  }
-};
+//     console.log("✅ Reminder and cancellation process completed ✅");
+//   } catch (error) {
+//     console.error("❌ Error handling unpaid reminders:", error);
+//   }
+// };
 
 /**
  * Function to process reminder emails in batches
@@ -374,7 +374,7 @@ cron.schedule(cronSchedule, async () => {
 });
 
 module.exports = {
-  sendUnpaidReminders,
+  // sendUnpaidReminders,
 
   cancelUnpaidBookings,
 };

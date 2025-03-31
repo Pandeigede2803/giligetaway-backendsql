@@ -1586,9 +1586,7 @@ const getMetricsByAgentId = async (req, res) => {
 
       // Tambahkan nilai total
       const grossTotal = parseFloat(booking.gross_total) || 0;
-      if (["invoiced", "paid", "unpaid"].includes(booking.payment_status)) {
-        target.totalValue += grossTotal;
-      }
+      target.totalValue += grossTotal;
       target.bookingCount++;
 
       // Status pembayaran - menghitung berdasarkan semua status
@@ -1760,12 +1758,12 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
     const fullWhereConditions = {
       ...whereConditions,
       ...combinedFilter,
-    };
+    };;
 
     // Query 1: Mendapatkan semua data booking dengan include
     const bookings = await Booking.findAll({
       where: fullWhereConditions,
-      attributes: ["id", "gross_total", "payment_status", "booking_date"],
+      attributes: ["id", "gross_total", "payment_status","payment_method", "booking_date"],
       include: [
         {
           model: TransportBooking,
@@ -1787,6 +1785,7 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
       nest: true,
     });
 
+  
     // console.log("👧bookings", JSON.stringify(bookings, null, 2));
 
     // Proses data yang diperoleh
@@ -1822,10 +1821,8 @@ const getMetricsByAgentIdTravelDate = async (req, res) => {
 
       // Tambahkan nilai total
       const grossTotal = parseFloat(booking.gross_total) || 0;
-      if (["invoiced", "paid", "unpaid"].includes(booking.payment_status)) {
-        target.totalValue += grossTotal;
-        target.bookingCount++;
-      }
+      target.totalValue += grossTotal;
+      target.bookingCount++;
 
       // Status pembayaran - menghitung berdasarkan semua status
       if (booking.payment_status === "paid") {

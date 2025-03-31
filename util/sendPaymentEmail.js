@@ -10,6 +10,87 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+
+const sendExpiredBookingEmail = async (recipientEmail, booking) => {
+  console.log("Starting to send expired booking email to:", recipientEmail);
+  // const emailUrl = process.env.FRONTEND_URL;
+  const emailUrl = "https://localhost:3000";
+  
+  try {
+    const subject = "Your Booking Has Expired";
+    
+    const message = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Booking Expired</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #ddd;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-01.jpg?updatedAt=1740878261713" alt="Gili Getaway" style="max-width: 200px;">
+            </div>
+            <h1 style="margin: 0; color: #333;">Booking Expired</h1>
+          </div>
+          <div style="padding: 20px; background-color: #fff;">
+            <p style="margin-top: 0;">Dear Customer, ${booking.contact_name},</p>
+            
+            <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #F44336;">
+              ⏰ Booking Expired
+            </div>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Expired
+              </div>
+              <p style="margin-bottom: 0;">We regret to inform you that your booking has expired due to incomplete payment within the allocated time frame.</p>
+              <p style="margin-bottom: 0;">The reserved seats have been released and are now available for other customers.</p>
+              <p style="margin-bottom: 0;">If you still wish to make a booking, please visit our website to create a new reservation.</p>
+            </div>
+            
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            
+            <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+              <a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #2196F3; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Try Payment Again</a>
+              <a href="${emailUrl}/" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Make a New Booking</a>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
+              <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
+              <p style="margin-top: 0;">This is an automated message, please do not reply directly to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER_GMAIL,
+      to: recipientEmail,
+      subject: subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Expired booking email sent to ${recipientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send expired booking email:", error);
+    return false;
+  }
+};
+
+
+
+
+
 const sendPaymentEmail = async (
   recipientEmail,
   booking,
@@ -876,7 +957,113 @@ const sendCancellationEmailToAgent = async (
     console.error("❌ Failed to send cancellation email to agent:", error);
     return false;
   }
-};
+}; 
+
+
+
+const sendWaitingListConfirmationEmail = async (transporter, email, name, schedule, date, passengers) => {
+
+  console.log("email",email)
+  try {
+    const routeInfo = schedule ? 
+      `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}` : 
+      'Selected route';
+
+    const mailOptions = {
+      from: `"Gili Getaway" <${process.env.EMAIL_USER_GMAIL}>`,
+      to: email,
+      subject: 'Your Waiting List Confirmation',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-01.jpg?updatedAt=1740878261713" alt="Gili Getaway" style="max-width: 200px;">
+          </div>
+          
+          <h2 style="color: #0047AB;">Waiting List Confirmation</h2>
+          
+          <p>Hello ${name},</p>
+          
+          <p>Thank you for joining our waiting list. We've received your request and will notify you as soon as seats become available for your selected journey.</p>
+          
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #0047AB;">Journey Details</h3>
+            <p><strong>Route:</strong> ${routeInfo}</p>
+            <p><strong>Date:</strong> ${date}</p>
+            <p><strong>Passengers:</strong> ${passengers}</p>
+          </div>
+          
+          <p>We'll do our best to accommodate your request. If seats become available, we'll contact you immediately with instructions on how to complete your booking.</p>
+          
+          <p>If you have any questions or need to update your waiting list request, please contact our customer service team at <a href="mailto:giligetaway@ozemail.com">giligetaway@ozemail.com</a> or call +62 123 456 789.</p>
+          
+          <p>Thank you for choosing Gili Getaway for your journey.</p>
+          
+          <p>Best regards,<br>The Gili Getaway Team</p>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #777; text-align: center;">
+            <p>This is an automated message, please do not reply directly to this email.</p>
+            <p>&copy; 2025 Gili Getaway. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Customer confirmation email sent: %s', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error sending customer confirmation email:', error);
+    // Don't throw error to avoid disrupting the main process
+  }
+}
+
+// Function to send notification email to admin
+const sendAdminNotificationEmail = async (transporter, waitingList, schedule, formattedDate) => {
+  try {
+    const routeInfo = schedule ? 
+      `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}` : 
+      'Selected route';
+
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER_GMAIL;
+    
+    const mailOptions = {
+      from: `"Gili Getaway System" <${process.env.EMAIL_USER_GMAIL}>`,
+      to: adminEmail,
+      subject: 'New Waiting List Entry',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+          <h2 style="color: #0047AB;">New Waiting List Notification</h2>
+          
+          <p>A new customer has joined the waiting list with the following details:</p>
+          
+          <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Name:</strong> ${waitingList.contact_name}</p>
+            <p><strong>Email:</strong> ${waitingList.contact_email}</p>
+            <p><strong>Phone:</strong> ${waitingList.contact_phone}</p>
+            <p><strong>Route:</strong> ${routeInfo}</p>
+            <p><strong>Date:</strong> ${formattedDate}</p>
+            <p><strong>Total Passengers:</strong> ${waitingList.total_passengers}</p>
+            <p><strong>Adults:</strong> ${waitingList.adult_passengers}</p>
+            <p><strong>Children:</strong> ${waitingList.child_passengers}</p>
+            <p><strong>Infants:</strong> ${waitingList.infant_passengers}</p>
+            ${waitingList.follow_up_notes ? `<p><strong>Notes:</strong> ${waitingList.follow_up_notes}</p>` : ''}
+          </div>
+          
+          <p>Please check the admin dashboard for full details and to manage this waiting list entry.</p>
+          
+          <p>This notification was sent automatically by the Gili Getaway booking system.</p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Admin notification email sent: %s', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error sending admin notification email:', error);
+    // Don't throw error to avoid disrupting the main process
+  }
+}
 
 module.exports = {
   sendPaymentEmail,
@@ -888,4 +1075,5 @@ module.exports = {
   sendEmailTransportBookingUpdate,
   sendEmailNotificationAgent,
   sendUnpaidReminderEmail,
-};
+  sendAdminNotificationEmail,sendWaitingListConfirmationEmail
+,sendExpiredBookingEmail};

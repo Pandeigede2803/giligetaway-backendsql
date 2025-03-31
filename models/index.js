@@ -40,6 +40,7 @@ const models = {
     AgentCommission,
     Transaction,
     SubScheduleRelation,
+    WaitingList
 };
 
 // Associations
@@ -113,20 +114,22 @@ SubScheduleRelation.belongsTo(SubSchedule, {
 // Add these lines at the bottom of your associations section in index.js
 
 // WaitingList associations
+// WaitingList associations
 WaitingList.belongsTo(Schedule, { 
     foreignKey: 'schedule_id',
-    as: 'Schedule'
+    as: 'WaitingSchedule'
 });
 
 WaitingList.belongsTo(SubSchedule, { 
     foreignKey: 'subschedule_id',
-    as: 'SubSchedule'
+    as: 'WaitingSubSchedule'
 });
 
 WaitingList.belongsTo(SeatAvailability, { 
     foreignKey: 'seat_availability_id',
-    as: 'SeatAvailability'
+    as: 'WaitingSeatAvailability'
 });
+
 
 // Inverse associations
 Schedule.hasMany(WaitingList, { 
@@ -143,8 +146,6 @@ SeatAvailability.hasMany(WaitingList, {
     foreignKey: 'seat_availability_id',
     as: 'WaitingLists'
 });
-
-
 // BookingSeatAvailability associations
 BookingSeatAvailability.belongsTo(Booking, { foreignKey: 'booking_id',  });
 BookingSeatAvailability.belongsTo(SeatAvailability, { foreignKey: 'seat_availability_id',});

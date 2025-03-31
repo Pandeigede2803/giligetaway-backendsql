@@ -62,6 +62,9 @@ const AgentCommissionController = {
       const fromBookingDate = req.query.from_booking_date || null;
       const toBookingDate = req.query.to_booking_date || null;
 
+      const day = req.query.day ? parseInt(req.query.day, 10) : null;
+      const dayBooking = req.query.dayBooking ? parseInt(req.query.dayBooking, 10) : null;
+
       // 1. whereConditions for AgentCommission
       const whereConditions = {};
       if (agentId) {
@@ -77,13 +80,25 @@ const AgentCommissionController = {
           [Op.gte]: start,
           [Op.lte]: end,
         };
-        // console.log(
-        //   "✅ Filter AgentCommission.created_at by custom range:",
-        //   start,
-        //   "-",
-        //   end
+     
         // );
-      } else if (year) {
+      } else if (day) {
+        // Jika ada day → filter created_at by day
+        const startOfDay = new Date(year, month - 1, day);
+        const endOfDay = new Date(year, month - 1, day, 23, 59, 59);
+        whereConditions.created_at = {
+          [Op.gte]: startOfDay,
+          [Op.lte]: endOfDay,
+        };
+        console.log(
+          "✅ Filter AgentCommission.created_at by day:",
+          startOfDay,
+          "-",
+          endOfDay
+        );
+      }
+      
+      else if (year) {
         // Fallback ke year/month
         whereConditions.created_at = {};
         if (month) {
@@ -128,7 +143,21 @@ const AgentCommissionController = {
           "-",
           endBooking
         );
-      } else if (yearBooking) {
+      } else if (dayBooking) {
+        const startOfDay = new Date(yearBooking, monthBooking - 1, dayBooking);
+        const endOfDay = new Date(yearBooking, monthBooking - 1, dayBooking, 23, 59, 59);
+        bookingWhereConditions.booking_date = {
+          [Op.gte]: startOfDay,
+          [Op.lte]: endOfDay,
+        };
+        console.log(
+          "✅ Filter Booking.booking_date by day:",
+          startOfDay,
+          "-",
+          endOfDay
+        );
+      }
+       else if (yearBooking) {
         // Add filter for booking_date using yearBooking/monthBooking
         bookingWhereConditions.booking_date = {};
         if (monthBooking) {
@@ -154,11 +183,11 @@ const AgentCommissionController = {
             endOfYear
           );
         }
-      }
+      } 
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
 
-      // console.log("📝 AgentCommission conditions:", whereConditions);
-      // console.log("📝 Booking conditions:", bookingWhereConditions);
+      console.log("📝 AgentCommission conditions:", whereConditions);
+      console.log("📝 Booking conditions:", bookingWhereConditions);
 
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({

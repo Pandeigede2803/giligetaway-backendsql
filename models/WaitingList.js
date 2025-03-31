@@ -98,23 +98,23 @@ const WaitingList = sequelize.define('WaitingList', {
 });
 
 
-// Define associations
-// Define associations
+// Define associations only in the model file
 WaitingList.associate = function(models) {
     WaitingList.belongsTo(models.Schedule, { 
         foreignKey: 'schedule_id',
-        as: 'Schedule'
+        as: 'WaitingListSchedule'  // Using a more unique name
     });
     
     WaitingList.belongsTo(models.SubSchedule, { 
         foreignKey: 'subschedule_id',
-        as: 'SubSchedule'
+        as: 'WaitingListSubSchedule'  // Using a more unique name
     });
     
     WaitingList.belongsTo(models.SeatAvailability, { 
         foreignKey: 'seat_availability_id',
-        as: 'SeatAvailability'
+        as: 'WaitingListSeatAvailability'  // Using a more unique name
     });
 };
+
 
 module.exports = WaitingList;;

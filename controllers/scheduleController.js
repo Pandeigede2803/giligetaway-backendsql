@@ -20,6 +20,7 @@ const {
 const {calculatePublicCapacity} = require("../util/getCapacityReduction");
 
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
+
 const { fn, col } = require("sequelize");
 const {
   getSchedulesWithSubSchedules2,
@@ -1796,30 +1797,103 @@ const createSchedule = async (req, res) => {
 const getSchedules = async (req, res) => {
   try {
     const schedules = await Schedule.findAll({
-      attributes: ["id", "validity_start", "validity_end"], // Select specific fields from the Schedule
+      attributes: ["id", "validity_start", "validity_end"],
       include: [
         {
           model: Destination,
-          as: "FromDestination", // Ensure this alias matches your model associations
-          attributes: ["id", "name"], // Select specific fields from the Destination
+          as: "DestinationFrom",
+          attributes: ["id", "name"],
         },
         {
           model: Destination,
-          as: "ToDestination", // Ensure this alias matches your model associations
-          attributes: ["id", "name"], // Select specific fields from the Destination
+          as: "DestinationTo",
+          attributes: ["id", "name"],
         },
         {
-          model: Boat,
-          as: "Boat",
-          attributes: ["id", "boat_name", "capacity", "boat_image"],
+          model: Transit,
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name"],
+          },
         },
+        {
+          model: SubSchedule,
+          as: "SubSchedules",
+          attributes: ["id"],
+          include: [
+            { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+            { model: Destination, as: "DestinationTo", attributes: ["name"] },
+            { model: Transit, as: "TransitFrom", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+            { model: Transit, as: "TransitTo", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+            { model: Transit, as: "Transit1", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+            { model: Transit, as: "Transit2", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+            { model: Transit, as: "Transit3", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+            { model: Transit, as: "Transit4", include: { model: Destination, as: "Destination", attributes: ["name"] } },
+          ]
+        }
       ],
     });
-    res.status(200).json(schedules);
+
+    const response = [];
+
+    schedules.forEach(schedule => {
+      // Main route: only from and to
+      const route = [
+        schedule.DestinationFrom?.name,
+        schedule.DestinationTo?.name
+      ].filter(Boolean);
+
+      response.push({
+        schedule_id: schedule.id,
+        subschedule_id: null,
+        route,
+        stops: schedule.Transits.length,
+      });
+
+      // SubSchedules: get first & last name only
+      schedule.SubSchedules.forEach(sub => {
+        const orderedPoints = [
+          sub.DestinationFrom?.name,
+          sub.TransitFrom?.Destination?.name,
+          sub.Transit1?.Destination?.name,
+          sub.Transit2?.Destination?.name,
+          sub.Transit3?.Destination?.name,
+          sub.Transit4?.Destination?.name,
+          sub.TransitTo?.Destination?.name,
+          sub.DestinationTo?.name,
+        ].filter(Boolean);
+
+        const subRoute = [
+          orderedPoints[0], // first
+          orderedPoints[orderedPoints.length - 1] // last
+        ].filter(Boolean);
+
+        const subStops = [
+          sub.TransitFrom,
+          sub.Transit1,
+          sub.Transit2,
+          sub.Transit3,
+          sub.Transit4,
+          sub.TransitTo,
+        ].filter(Boolean).length;
+
+        response.push({
+          schedule_id: schedule.id,
+          subschedule_id: sub.id,
+          route: subRoute,
+          stops: subStops,
+        });
+      });
+    });
+
+    res.status(200).json(response);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
+
 
 // Get all schedules with destination and transit details
 const getAllSchedulesWithDetails = async (req, res) => {

@@ -7,6 +7,10 @@ const {transactionUpdateValidation,validateTransactionUpdate,transactionIdsValid
 const calculateAgentCommissionMiddleware = require('../middleware/calculateAgentComissionMiddleware');
 
 
+// status: 404,
+// url: 'http://localhost:8000/api/transactions/TRANS-1743326884022/status',
+// method: 'PUT',
+// response: 'PRO FEATURE ONLY'
 router.put('/:transaction_id/status',authenticate,transactionUpdateValidation, updateTransactionStatusHandler);
 
 router.put('/:transaction_id/agent-status',authenticate,transactionUpdateValidation, updateAgentTransactionStatusHandler);

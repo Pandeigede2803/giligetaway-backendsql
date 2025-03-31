@@ -24,7 +24,7 @@ const transactionUpdateValidation = async (req, res, next) => {
   }
 
   // Validate booking status
-  const validBookingStatuses = ['pending', 'invoiced',"unpaid"];
+  const validBookingStatuses = ['pending', 'invoiced',"unpaid","abandoned","cancelled","abandoned payment"];
   if (booking_status && !validBookingStatuses.includes(booking_status)) {
     return res.status(400).json({
       error: `Invalid booking status. Allowed statuses are: ${validBookingStatuses.join(', ')}`,
@@ -49,7 +49,7 @@ const transactionUpdateValidation = async (req, res, next) => {
     });
 
     if (!existingTransaction) {
-      return res.status(404).json({ error: `Transaction with ID ${transaction_id} not found` });
+      return res.status(400).json({ error: `Transaction with ID ${transaction_id} not found` });
     }
 
     // If the transaction is already "paid" or "invoiced", prevent further updates

@@ -1511,7 +1511,7 @@ const findRelatedSubSchedulesGet = async (req, res) => {
       error: error.message,
     });
   }
-};
+};;
 
 const getBookingById = async (req, res) => {
   try {
@@ -1821,7 +1821,7 @@ const getFilteredBookings = async (req, res) => {
       };
     } else if (booking_day) {
       // Filter berdasarkan hari tertentu dari booking_date
-      console.log("Filtering by booking_day:", booking_day);
+      // console.log("Filtering by booking_day:", booking_day);
       const [year, month, day] = booking_day.split("-");
       if (
         !year ||
@@ -1848,7 +1848,7 @@ const getFilteredBookings = async (req, res) => {
       };
     } else if (monthly) {
       // Jika `monthly` ada, filter berdasarkan `created_at`
-      console.log("Filtering by monthly:", monthly);
+      // console.log("Filtering by monthly:", monthly);
       const [year, month] = monthly.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
         return res
@@ -1891,7 +1891,7 @@ const getFilteredBookings = async (req, res) => {
       };
     } else if (fromDate && toDate) {
       // Jika `fromDate` dan `toDate` ada, filter berdasarkan range created_at
-      console.log("Filtering by date range:", fromDate, toDate);
+      // console.log("Filtering by date range:", fromDate, toDate);
       const fromDateObj = new Date(fromDate);
       const toDateObj = new Date(toDate);
 
@@ -2085,12 +2085,334 @@ const getFilteredBookings = async (req, res) => {
   }
 };
 
+const getAbandonedPayments = async (req, res) => {
+  try {
+    // Ambil query parameter untuk filtering tambahan
+    const {
+      monthly,
+      fromDate,
+      fromBookingDate,
+      toBookingDate,
+      toDate,
+      booking_month,
+      day,
+      booking_day,
+      ticket_id,
+      id,
+    } = req.query;
+
+    // Base filter untuk abandoned payments
+    let paymentFilter = {
+      payment_status: 'abandoned' // Filter utama untuk status abandoned
+    };
+
+    // Filter tambahan berdasarkan tanggal
+    let dateFilter = {};
+    
+    // Prioritaskan filter berdasarkan `id` jika tersedia
+    if (id) {
+      dateFilter = { id }; // Filter berdasarkan `id`
+    } else if (ticket_id) {
+      // Jika `ticket_id` ada, abaikan filter lainnya
+      dateFilter = { ticket_id };
+    } else if (booking_month) {
+      // Filter berdasarkan bulan dari `booking_date`
+      const [year, month] = booking_month.split("-");
+      if (!year || !month || isNaN(year) || isNaN(month)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid booking_month filter format. Use YYYY-MM." });
+      }
+
+      dateFilter = {
+        booking_date: {
+          [Op.between]: [
+            new Date(year, month - 1, 1), // Awal bulan
+            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+          ],
+        },
+      };
+    } else if (booking_day) {
+      // Filter berdasarkan hari tertentu dari booking_date
+      const [year, month, day] = booking_day.split("-");
+      if (
+        !year ||
+        !month ||
+        !day ||
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(day)
+      ) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
+          });
+      }
+
+      dateFilter = {
+        booking_date: {
+          [Op.between]: [
+            new Date(year, month - 1, day), // Awal hari
+            new Date(year, month - 1, day, 23, 59, 59), // Akhir hari
+          ],
+        },
+      };
+    } else if (monthly) {
+      // Filter berdasarkan bulan dari `created_at`
+      const [year, month] = monthly.split("-");
+      if (!year || !month || isNaN(year) || isNaN(month)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid monthly filter format. Use YYYY-MM." });
+      }
+
+      dateFilter = {
+        created_at: {
+          [Op.between]: [
+            new Date(year, month - 1, 1), // Awal bulan
+            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+          ],
+        },
+      };
+    } else if (day) {
+      // Filter berdasarkan hari dari created_at
+      const [year, month, dayValue] = day.split("-");
+      if (
+        !year ||
+        !month ||
+        !dayValue ||
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(dayValue)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Invalid day filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        created_at: {
+          [Op.between]: [
+            new Date(year, month - 1, dayValue), // Awal hari
+            new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
+          ],
+        },
+      };
+    } else if (fromDate && toDate) {
+      // Filter range created_at
+      const fromDateObj = new Date(fromDate);
+      const toDateObj = new Date(toDate);
+
+      if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        created_at: {
+          [Op.between]: [fromDateObj, toDateObj],
+        },
+      };
+    } else if (fromBookingDate && toBookingDate) {
+      // Filter range booking_date
+      const fromDateObj = new Date(fromBookingDate);
+      const toDateObj = new Date(toBookingDate);
+
+      if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+      }
+
+      dateFilter = {
+        booking_date: {
+          [Op.between]: [fromDateObj, toDateObj],
+        },
+      };
+    }
+
+    // Gabungkan filter payment status dengan filter tanggal
+    const combinedFilter = {
+      ...paymentFilter,
+      ...dateFilter
+    };
+
+    // Query abandoned bookings sesuai filter
+    const abandonedBookings = await Booking.findAll({
+      where: combinedFilter,
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          attributes: [
+            "id",
+            "boat_id",
+            "availability",
+            "arrival_time",
+            "journey_time",
+            "route_image",
+            "departure_time",
+            "check_in_time",
+            "schedule_type",
+            "days_of_week",
+            "trip_type",
+          ],
+          include: [
+            {
+              model: Transit,
+              as: "Transits",
+              attributes: ["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                  attributes: ["id", "name"],
+                },
+              ],
+            },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
+          ],
+        },
+        { model: AgentCommission, as: "agentCommission" },
+        {
+          model: SubSchedule,
+          as: "subSchedule",
+          attributes: [
+            "id",
+            "destination_from_schedule_id",
+            "destination_to_schedule_id",
+            "transit_from_id",
+            "transit_to_id",
+            "transit_1",
+            "transit_2",
+            "transit_3",
+            "transit_4",
+          ],
+          include: [
+            { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+            { model: Destination, as: "DestinationTo", attributes: ["name"] },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+          ],
+        },
+        {
+          model: SeatAvailability,
+          as: "SeatAvailabilities",
+          attributes: ["id"],
+          through: {
+            model: BookingSeatAvailability,
+            attributes: ["id"],
+          },
+        },
+        { model: Passenger, as: "passengers" },
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          include: [{ model: Transport, as: "transport" }],
+        },
+        { model: Agent, as: "Agent" },
+      ],
+      order: [['created_at', 'DESC']], // Sorting abandoned bookings by creation date, newest first
+    });
+
+    // Tambahkan route ke masing-masing booking
+    const enrichedBookings = abandonedBookings.map((booking) => {
+      const schedule = booking.schedule || null;
+      const subSchedule = booking.subSchedule || null;
+
+      // Tentukan departure_time dan arrival_time menggunakan fungsi
+      const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+
+      // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
+      const route = schedule
+        ? buildRouteFromSchedule(schedule, subSchedule)
+        : null;
+
+      // Tambahkan route ke hasil booking
+      return {
+        ...booking.dataValues,
+        route,
+        departure_time: times.departure_time,
+        arrival_time: times.arrival_time,
+      };
+    });
+
+    // Respons data
+    res.status(200).json({
+      abandonedBookings: enrichedBookings,
+      totalItems: enrichedBookings.length,
+      id, // Jika tersedia, kirim kembali ke frontend
+      ticket_id, // Jika tersedia, kirim kembali ke frontend
+    });
+  } catch (error) {
+    console.error("Error retrieving abandoned payments:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching abandoned payments." });
+  }
+};
+
+
 const getBookingByTicketId = async (req, res) => {
   console.log("start to get booking by ticket id");
   try {
     const booking = await Booking.findOne({
       where: { ticket_id: req.params.ticket_id },
       include: [
+        {
+          model:Transaction,
+          as:'transactions'
+
+        },
         {
           model: Schedule,
           as: "schedule",
@@ -2265,6 +2587,11 @@ const getRelatedBookingsByTicketId = async (req, res) => {
         ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
       },
       include: [
+        {
+          model:Transaction,
+          as:'transactions'
+
+        },
         {
           model: Schedule,
           as: "schedule",
@@ -3658,9 +3985,340 @@ const updateMultipleBookingStatus = async (req, res) => {
   }
 };
 
+/**
+ * Update status pembayaran
+ */
+const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_status } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Payment ID is required" });
+    }
+
+    if (!payment_status) {
+      return res.status(400).json({ error: "Payment status is required" });
+    }
+
+    // Validasi nilai payment_status
+    const validStatuses = ['pending', 'paid', 'cancelled', 'refunded', 'abandoned'];
+    if (!validStatuses.includes(payment_status)) {
+      return res.status(400).json({ 
+        error: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
+      });
+    }
+
+    // Cari booking untuk diupdate
+    const booking = await Booking.findByPk(id);
+
+    if (!booking) {
+      return res.status(404).json({ error: "Payment not found" });
+    }
+
+    // Update status pembayaran
+    booking.payment_status = payment_status;
+    
+    // Jika payment menjadi paid, update payment_date
+    if (payment_status === 'paid' && !booking.payment_date) {
+      booking.payment_date = new Date();
+    }
+    
+    // Simpan perubahan
+    await booking.save();
+
+    // Respons sukses
+    res.status(200).json({
+      success: true,
+      message: "Payment status updated successfully",
+      payment: {
+        id: booking.id,
+        payment_status: booking.payment_status,
+        payment_date: booking.payment_date
+      }
+    });
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating payment status." });
+  }
+};
+const sendPaymentReminder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Payment ID is required" });
+    }
+
+    // Cari booking untuk dikirim reminder
+    const booking = await Booking.findOne({
+      where: {
+        id,
+        payment_status: 'abandoned'
+      },
+      include: [
+        { model: Passenger, as: "passengers" }
+      ]
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Abandoned payment not found" });
+    }
+    
+    // Validasi apakah ada passenger dengan contact info
+    const hasContactInfo = booking.passengers && booking.passengers.some(
+      p => p.email || p.phone
+    );
+    
+    if (!hasContactInfo) {
+      return res.status(400).json({ 
+        error: "Cannot send reminder. No contact information found for passengers." 
+      });
+    }
+
+    // TODO: Implementasi pengiriman email/SMS reminder disini
+    // Ini adalah placeholder, pada implementasi sebenarnya, Anda perlu
+    // menambahkan kode untuk mengirim email/SMS
+
+    // Update booking last_reminder_sent
+    booking.last_reminder_sent = new Date();
+    await booking.save();
+
+    // Respons sukses
+    res.status(200).json({
+      success: true,
+      message: "Payment reminder sent successfully",
+      payment: {
+        id: booking.id,
+        last_reminder_sent: booking.last_reminder_sent
+      }
+    });
+  } catch (error) {
+    console.error("Error sending payment reminder:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while sending payment reminder." });
+  }
+};
+const getAbandonedPaymentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Payment ID is required" });
+    }
+
+    // Query booking dengan status abandoned berdasarkan ID
+    const booking = await Booking.findOne({
+      where: {
+        id,
+        payment_status: 'abandoned'
+      },
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          attributes: [
+            "id",
+            "boat_id",
+            "availability",
+            "arrival_time",
+            "journey_time",
+            "route_image",
+            "departure_time",
+            "check_in_time",
+            "schedule_type",
+            "days_of_week",
+            "trip_type",
+          ],
+          include: [
+            {
+              model: Transit,
+              as: "Transits",
+              attributes: ["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                  attributes: ["id", "name"],
+                },
+              ],
+            },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
+          ],
+        },
+        { model: AgentCommission, as: "agentCommission" },
+        {
+          model: SubSchedule,
+          as: "subSchedule",
+          attributes: [
+            "id",
+            "destination_from_schedule_id",
+            "destination_to_schedule_id",
+            "transit_from_id",
+            "transit_to_id",
+            "transit_1",
+            "transit_2",
+            "transit_3",
+            "transit_4",
+          ],
+          include: [
+            { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+            { model: Destination, as: "DestinationTo", attributes: ["name"] },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              attributes: ["id", "departure_time", "arrival_time"],
+              include: [
+                { model: Destination, as: "Destination", attributes: ["name"] },
+              ],
+            },
+          ],
+        },
+        {
+          model: SeatAvailability,
+          as: "SeatAvailabilities",
+          attributes: ["id"],
+          through: {
+            model: BookingSeatAvailability,
+            attributes: ["id"],
+          },
+        },
+        { model: Passenger, as: "passengers" },
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          include: [{ model: Transport, as: "transport" }],
+        },
+        { model: Agent, as: "Agent" },
+      ],
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Abandoned payment not found" });
+    }
+
+    // Tambahkan route dan times
+    const schedule = booking.schedule || null;
+    const subSchedule = booking.subSchedule || null;
+
+    // Tentukan departure_time dan arrival_time
+    const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+
+    // Bangun route
+    const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+
+    // Tambahkan ke hasil
+    const enrichedBooking = {
+      ...booking.dataValues,
+      route,
+      departure_time: times.departure_time,
+      arrival_time: times.arrival_time,
+    };
+
+    // Respons data
+    res.status(200).json({
+      abandonedPayment: enrichedBooking
+    });
+  } catch (error) {
+    console.error("Error retrieving abandoned payment:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching the abandoned payment." });
+  }
+};
+
+
+/**
+ * Menghapus abandoned payment
+ */
+const deleteAbandonedPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Payment ID is required" });
+    }
+
+    // Cari booking untuk dihapus dan pastikan statusnya abandoned
+    const booking = await Booking.findOne({
+      where: {
+        id,
+        payment_status: 'abandoned'
+      }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Abandoned payment not found" });
+    }
+
+    // Hapus booking
+    await booking.destroy();
+
+    // Respons sukses
+    res.status(200).json({
+      success: true,
+      message: "Abandoned payment deleted successfully",
+      payment_id: id
+    });
+  } catch (error) {
+    console.error("Error deleting abandoned payment:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the abandoned payment." });
+  }
+};
+
 module.exports = {
   createBooking,
   updateMultipleBookingPayment,
+  getAbandonedPayments,
+  deleteAbandonedPayment,
+  sendPaymentReminder,
+  getAbandonedPaymentById,
 
   updateBookingNotes,
   createBookingMultiple,

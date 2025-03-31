@@ -41,6 +41,13 @@ router.get('/filtered',authenticate, bookingController.getFilteredBookings);;
 // READ bookings
 router.get('/',authenticate, bookingController.getBookings);
 
+// get abandoned payment
+router.get('/abandoned-payments',authenticate, bookingController.getAbandonedPayments);
+
+router.get('abandoned-payments/:id',authenticate, bookingController.getAbandonedPaymentById);
+
+
+
 // READ bookings
 router.get('/date',authenticate, bookingController.getBookingsByDate);;
 
