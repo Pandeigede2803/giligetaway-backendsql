@@ -20,13 +20,23 @@ const { Resend } = require("resend");
 
 
 // Configure Nodemailer
+// const transporter = nodemailer.createTransport({
+//   host: process.env.EMAIL_HOST, // SMTP Server (e.g., smtp.gmail.com)
+//   port: 465, // Use port 465 for SSL
+//   secure: true, // Use SSL
+//   auth: {
+//     user: process.env.EMAIL_USER, // Your email
+//     pass: process.env.EMAIL_PASSWORD, // Your email password or app password
+//   },
+// });
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST, // SMTP Server (e.g., smtp.gmail.com)
-  port: 465, // Use port 465 for SSL
+  host: process.env.EMAIL_HOST_GMAIL, // SMTP Server (e.g., smtp.gmail.com)
+  port: process.env.EMAIL_PORT_GMAIL, // Use port 465 for SSL
   secure: true, // Use SSL
   auth: {
-    user: process.env.EMAIL_USER, // Your email
-    pass: process.env.EMAIL_PASSWORD, // Your email password or app password
+    user: process.env.EMAIL_USER_GMAIL, // Your email
+    pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
   },
 });
 
