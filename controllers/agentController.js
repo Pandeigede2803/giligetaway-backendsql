@@ -74,7 +74,7 @@ exports.createAgent = async (req, res) => {
 
     // ✅ Mengirim email dengan kredensial login
     const mailOptions = {
-      from: `Gili Getaway <${process.env.EMAIL_USER}>`,
+      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
       to: agent.email,
       subject: 'Your Gili Getaway Agent Account Details',
       html: `
