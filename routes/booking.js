@@ -58,7 +58,10 @@ router.get('/:id', bookingController.getBookingById);;
 router.get('/ticket/:ticket_id',bookingController.getBookingByTicketId);
 
 //read booking by ticket id
-router.get('/ticket-related/:ticket_id',validateRoundTripTicket,bookingController.getRelatedBookingsByTicketId);
+router.get('/ticket-related/:ticket_id',
+    validateRoundTripTicket
+    ,
+    bookingController.getRelatedBookingsByTicketId);
 
 //update multiple booking payment
 router.put('/multipayment',authenticate, bookingController.updateMultipleBookingPayment);

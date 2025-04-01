@@ -144,7 +144,7 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
     for (const seat of bookedSeatsSet) {
       // console.log(`🔍 Processing seat: ${seat} with addSeatPairBoat2`);
       addSeatPairBoat2(resultSet, seat);
-      console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
+      // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
     }
 
     return Array.from(resultSet);
@@ -163,11 +163,11 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
   for (const seat of bookedSeatsSet) {
     console.log(`🔍 Processing seat: ${seat}`);
     addSeatPair(resultSet, seat);
-    console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
+    // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
   }
 
-  console.log("🎉 Finished processing all seats. Final set of seats:");
-  console.log(Array.from(resultSet).join(', '));
+  // console.log("🎉 Finished processing all seats. Final set of seats:");
+  // console.log(Array.from(resultSet).join(', '));
 
   return Array.from(resultSet);
 };

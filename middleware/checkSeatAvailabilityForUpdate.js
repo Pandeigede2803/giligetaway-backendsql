@@ -972,7 +972,7 @@ const checkBookingDateUpdate2 = async (req, res, next) => {
 
         if (!mainBooking) {
             console.log(`Ticket ID ${ticket_id} not found in database.`);
-            return res.status(404).json({ error: "Ticket ID not found in database." });
+            return res.status(400).json({ error: "Booking not found" });
         }
 
         // 3️⃣ Ambil prefix dari ticket_id (GG-RT-xxxx)

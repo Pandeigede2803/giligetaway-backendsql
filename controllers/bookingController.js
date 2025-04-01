@@ -41,6 +41,7 @@ const {
 } = require("../util/sendPaymentEmail");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
+const {checkSeatAvailability}= require("../util/checkSeatNumber");
 const {
   generateMidtransToken,
 } = require("../util/payment/generateMidtransToken"); // MidTrans utility
@@ -2409,9 +2410,8 @@ const getBookingByTicketId = async (req, res) => {
       where: { ticket_id: req.params.ticket_id },
       include: [
         {
-          model:Transaction,
-          as:'transactions'
-
+          model: Transaction,
+          as: 'transactions'
         },
         {
           model: Schedule,
@@ -2443,11 +2443,9 @@ const getBookingByTicketId = async (req, res) => {
             },
           ],
         },
-
         {
           model: SubSchedule,
           as: "subSchedule",
-
           include: [
             {
               model: Destination,
@@ -2470,7 +2468,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "TransitFrom",
-
               include: [
                 {
                   model: Destination,
@@ -2481,7 +2478,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "TransitTo",
-
               include: [
                 {
                   model: Destination,
@@ -2492,7 +2488,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "Transit1",
-
               include: [
                 {
                   model: Destination,
@@ -2503,7 +2498,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "Transit2",
-
               include: [
                 {
                   model: Destination,
@@ -2514,7 +2508,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "Transit3",
-
               include: [
                 {
                   model: Destination,
@@ -2525,7 +2518,6 @@ const getBookingByTicketId = async (req, res) => {
             {
               model: Transit,
               as: "Transit4",
-
               include: [
                 {
                   model: Destination,
@@ -2559,8 +2551,54 @@ const getBookingByTicketId = async (req, res) => {
         },
       ],
     });
+
     if (booking) {
-      res.status(200).json(booking);
+      // Get data to check seat availability
+      const seatAvailability = booking.SeatAvailabilities[0];
+      const schedule_id = booking.schedule?.id;
+      const sub_schedule_id = booking.subSchedule?.id;
+      
+      // Enhanced response with seat availability for each passenger
+      const enhancedBooking = {...booking.get()};
+      
+      // Check seat availability for each passenger
+      if (enhancedBooking.passengers && enhancedBooking.passengers.length > 0 && seatAvailability) {
+        const passengersWithAvailability = await Promise.all(
+          enhancedBooking.passengers.map(async (passenger) => {
+            const passengerData = {...passenger.get()};
+            
+            // Check if this seat is still available (not booked by someone else)
+            if (passengerData.seat_number) {
+              const availabilityCheck = await checkSeatAvailability({
+                date: seatAvailability.date,
+                schedule_id: schedule_id,
+                sub_schedule_id: sub_schedule_id,
+                seat_number: passengerData.seat_number
+              });
+              
+              passengerData.seatNumberAvailability = availabilityCheck.isAvailable;
+              passengerData.seatAvailabilityMessage = availabilityCheck.message;
+            } else {
+              passengerData.seatNumberAvailability = null;
+              passengerData.seatAvailabilityMessage = "No seat assigned yet";
+            }
+            
+            return passengerData;
+          })
+        );
+        
+        enhancedBooking.passengers = passengersWithAvailability;
+        
+        // Check if any passenger has a seat availability issue
+        const hasUnavailableSeat = enhancedBooking.passengers.some(
+          passenger => passenger.seatNumberAvailability === false
+        );
+        
+        // Add overall availability flag to the main response
+        enhancedBooking.availability = !hasUnavailableSeat;
+      }
+      
+      res.status(200).json(enhancedBooking);
     } else {
       console.log("Booking not found:", req.params.ticket_id);
       res.status(404).json({ error: "Booking not found" });
