@@ -19,61 +19,65 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     const subject = "Your Booking Has Expired";
 
     const message = `
-      <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Booking Expired</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
-  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #ddd;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-01.jpg?updatedAt=1740878261713" alt="Gili Getaway" style="max-width: 200px;">
-      </div>
-      <h1 style="margin: 0; color: #333;">Booking Expired</h1>
-    </div>
-    <div style="padding: 20px; background-color: #fff;">
-      <p style="margin-top: 0;">Dear Customer, ${booking.contact_name},</p>
-      
-      <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #F44336;">
-        ⏰ Booking Expired
-      </div>
-      
-      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-        <div style="margin-bottom: 10px;">
-          <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${
-            booking.ticket_id
-          }
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+      <title>Complete Your Booking</title>
+    </head>
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
+      <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #165297, #134782); padding: 30px 20px; text-align: center;">
+          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
+          <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your Island Adventure Awaits!</h1>
         </div>
-        <div style="margin-bottom: 10px;">
-          <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Expired
+        
+          
+          <p style="font-size: 16px; line-height: 1.5;">Whether you're headed to <strong>Gili Trawangan</strong>, <strong>Gili Air</strong>, or <strong>Gili Gede</strong>, we'd love to get you there safely and in comfort aboard our premium fast boats.</p>
+          
+          <!-- Call to Action Buttons -->
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Complete Your Booking Now</a>
+            <br/>
+            <a href="${emailUrl}/" style="display: inline-block; padding: 12px 20px; margin-top: 10px; background-color: #FFBF00; color: #134782; text-decoration: none; border-radius: 6px; font-weight: bold; min-width: 160px; text-align: center; font-size: 16px;">Make a New Booking</a>
+          </div>
+          
+      
+          <p style="font-size: 16px; line-height: 1.5;">If you had any issues during checkout or have questions about the trip, our team is here to help. Email us at giligetaway@ozemail.au</p>
+          
+          <p style="font-size: 16px; line-height: 1.5;">Don't miss the boat – paradise is just a click away. 🌊</p>
+          
+          <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
+          <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
+          <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
         </div>
-        <p style="margin-bottom: 0;">We regret to inform you that your booking has expired due to incomplete payment within the allocated time frame.</p>
-        <p style="margin-bottom: 0;">The reserved seats have been released and are now available for other customers.</p>
-        <p style="margin-bottom: 0;">If you still wish to make a booking, please visit our website to create a new reservation.</p>
+        
+        <!-- Footer -->
+        <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+          <div style="display: flex; justify-content: center; margin-bottom: 15px;">
+            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/facebook-icon.png" alt="Facebook" style="width: 24px; height: 24px;"/></a>
+            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/instagram-icon.png" alt="Instagram" style="width: 24px; height: 24px;"/></a>
+            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/twitter-icon.png" alt="Twitter" style="width: 24px; height: 24px;"/></a>
+          </div>
+          
+          <p style="margin: 6px 0;">📞 +62 XXX XXX XXX | ✉️ info@giligetaway.com</p>
+          <p style="margin: 6px 0;"><a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Complete Your Booking Now</a></p>
+          <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
+          <p style="margin: 6px 0; font-size: 12px;">This is an automated message. Please don't reply directly to this email.</p>
+          
+          <!-- Unsubscribe Link -->
+          <p style="margin-top: 15px; font-size: 12px;">
+            <a href="${emailUrl}/unsubscribe?email=${recipientEmail}" style="color: #6c757d; text-decoration: underline;">Unsubscribe</a> from promotional emails
+          </p>
+        </div>
       </div>
-      
-      <p>If you have any questions, please don't hesitate to contact our support team.</p>
-      
-      <!-- Improved button container for better mobile responsiveness -->
-      <div style="text-align: center; margin: 20px 0;">
-        <a href="${emailUrl}/follow-up-payment/${
-      booking.ticket_id
-    }" style="display: inline-block; padding: 12px 20px; margin: 5px; background-color: #2196F3; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; min-width: 160px; text-align: center;">Try Payment Again</a>
-        <a href="${emailUrl}/" style="display: inline-block; padding: 12px 20px; margin: 5px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; min-width: 160px; text-align: center;">Make a New Booking</a>
-      </div>
-      
-      <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
-        <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
-        <p style="margin-top: 0;">This is an automated message, please do not reply directly to this email.</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+    </body>
+    </html>
     `;
+
 
     const mailOptions = {
       from: process.env.EMAIL_USER_GMAIL,
