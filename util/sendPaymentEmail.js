@@ -57,12 +57,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
         
         <!-- Footer -->
         <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-          <div style="display: flex; justify-content: center; margin-bottom: 15px;">
-            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/facebook-icon.png" alt="Facebook" style="width: 24px; height: 24px;"/></a>
-            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/instagram-icon.png" alt="Instagram" style="width: 24px; height: 24px;"/></a>
-            <a href="#" style="margin: 0 10px; color: #165297;"><img src="${emailUrl}/assets/twitter-icon.png" alt="Twitter" style="width: 24px; height: 24px;"/></a>
-          </div>
-          
+     
           <p style="margin: 6px 0;">📞 +62 XXX XXX XXX | ✉️ info@giligetaway.com</p>
           <p style="margin: 6px 0;"><a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Complete Your Booking Now</a></p>
           <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
