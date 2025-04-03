@@ -231,6 +231,8 @@ const fetchBookingsWithAllData = async (dateFilter, previousPeriodFilter) => {
           "period",
         ],
         [sequelize.col("Booking.gross_total"), "gross_total"], // Spesifikkan tabel
+        // add tabel booking for booking source
+        [sequelize.col("Booking.booking_source"), "booking_source"],
         [sequelize.col("Booking.payment_status"), "payment_status"], // Spesifikkan tabel
         // add ticket total
         [sequelize.col("Booking.ticket_total"), "ticket_total"],
@@ -408,6 +410,18 @@ const processMetricsData = (data) => {
       agentBookingUnpaid: 0,
       bookingCount: 0,
       grossTotal: 0,
+      bookingSource: {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      },
+      bookingCountBySource: {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      },
       boats: {
         1: { totalValue: 0, netValue: 0, commission: 0 },
         2: { totalValue: 0, netValue: 0, commission: 0 },
@@ -425,6 +439,18 @@ const processMetricsData = (data) => {
       agentBookingUnpaid: 0,
       bookingCount: 0,
       grossTotal: 0,
+      bookingSource: {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      },
+      bookingCountBySource: {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      },
       boats: {
         1: { totalValue: 0, netValue: 0, commission: 0 },
         2: { totalValue: 0, netValue: 0, commission: 0 },
@@ -498,17 +524,7 @@ const initializeResultObject = () => {
 };
 
 const processBookingsData = (bookingsData, result) => {
-  // 🦷bookingData [
-  // {
-  //   id: 1808,
-  //   boat_id: 1,
-  //   period: 'current',
-  //   gross_total: '1820000.00',
-  //   payment_status: 'invoiced',
-  //   ticket_total: '1520000.00',
-  //   agent_id: 897,
-  //   schedule: { boat_id: 1 },
-  //   agentCommission: { amount: '300000.00' }
+
   bookingsData.forEach((booking) => {
     const period = booking.period;
     const boatId = booking.boat_id;
@@ -516,9 +532,20 @@ const processBookingsData = (bookingsData, result) => {
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-  
+    const bookingSource = booking.booking_source;
+
     // Get target object based on period
     const target = result[period];
+
+    // Initialize bookingSource object
+    if (!target.bookingSource) {
+      target.bookingSource = {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      };
+    }
 
     // Increment booking count
     target.bookingCount++;
@@ -572,6 +599,36 @@ const processBookingsData = (bookingsData, result) => {
       if (paymentStatus === "paid" || paymentStatus === "invoiced") {
         target.boats[boatId].netValue += grossTotal;
       }
+    }
+
+    // Process booking source
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      switch (bookingSource) {
+        case "agent":
+          target.bookingSource.agent += grossTotal;
+          break;
+        case "website":
+          target.bookingSource.website += grossTotal;
+          break;
+        case "staff":
+          target.bookingSource.staff += grossTotal;
+          break;
+        case "others":
+          target.bookingSource.others += grossTotal;
+          break;
+      }
+    }
+    // add booking count for the each source
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      if (!target.bookingCountBySource) {
+        target.bookingCountBySource = {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        };
+      }
+      target.bookingCountBySource[bookingSource] += 1;
     }
   });
 };
@@ -731,6 +788,23 @@ const formatMetricsForResponse = (data, agentCount) => {
     current.boats[3].commission,
     previous.boats[3].commission
   );
+
+  // add booking source
+  const bookingSourceChange = {
+    agent: calculatePercentageChange(current.bookingSource.agent, previous.bookingSource.agent),
+    website: calculatePercentageChange(current.bookingSource.website, previous.bookingSource.website),
+    staff: calculatePercentageChange(current.bookingSource.staff, previous.bookingSource.staff),
+    others: calculatePercentageChange(current.bookingSource.others, previous.bookingSource.others),
+  };
+  // add Booking source count
+console.log("`bookingCountBySource", current.bookingCountBySource);
+const bookingCountBySourceChange = {
+  agent: calculatePercentageChange(current.bookingCountBySource.agent, previous.bookingCountBySource.agent),
+  website: calculatePercentageChange(current.bookingCountBySource.website, previous.bookingCountBySource.website),
+  staff: calculatePercentageChange(current.bookingCountBySource.staff, previous.bookingCountBySource.staff),
+}
+
+  
 
   // Net income change
   const netIncomeChange = calculatePercentageChange(
@@ -916,6 +990,17 @@ const formatMetricsForResponse = (data, agentCount) => {
       status: current.netIncome >= previous.netIncome ? "increase" : "decrease",
       change: `${netIncomeChange.toFixed(2)}%`,
     },
+    bookingSource: {
+      value: current.bookingSource,
+      change: bookingSourceChange,
+      status: bookingSourceChange >= 0 ? "increase" : "decrease",
+    },
+    // console.log("`bookingCountBySource", current.bookingCountBySource);
+    bookingSourceCountChange: {
+      value: current.bookingCountBySource,
+      change: bookingCountBySourceChange,
+      status: bookingCountBySourceChange >= 0 ? "increase" : "decrease",
+    }
   };
 };
 
