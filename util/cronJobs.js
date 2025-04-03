@@ -113,6 +113,75 @@ const releaseSeats = async (booking, transaction) => {
 // };
 
 //new function with email
+// const handleExpiredBookings = async () => {
+//   const expiredStatus = process.env.EXPIRED_STATUS;
+//   console.log("✅========Checking for expired bookings...====✅");
+  
+//   try {
+//     const expiredBookings = await Booking.findAll({
+//       where: {
+//         payment_status: "pending",
+//         expiration_time: {
+//           [Op.lte]: new Date(), // Mencari pemesanan yang sudah melewati waktu kedaluwarsa
+//         },
+//       },
+//       include: [
+//         {
+//           model: Transaction, // Include the related transaction
+//           as: "transactions", // Assuming the association is correctly named
+//         },
+//       ],
+//     });
+    
+//     for (let booking of expiredBookings) {
+//       // Logika untuk melepaskan kursi yang sudah dipesan ke available_seats
+//       await releaseSeats(booking);
+      
+//       // Update status pemesanan menjadi 'cancelled'
+//       booking.payment_status = expiredStatus;
+//       await booking.save();
+      
+//       // Update related transaction status to 'cancelled'
+//       const transaction = await Transaction.findOne({
+//         where: { booking_id: booking.id, status: "pending" }, // Only cancel pending transactions
+//       });
+      
+//       if (transaction) {
+//         transaction.status = "cancelled";
+//         await transaction.save();
+        
+//         console.log(
+//           `Transaction ID ${transaction.transaction_id} telah dibatalkan karena pemesanan melewati waktu kedaluwarsa.`
+//         );
+//       }
+      
+//       // Queue expired booking notification email to be sent after seats are released
+//       if (booking.contact_email) {
+//         try {
+//           // Default delay is 3 hours (defined in bullEmailQueue.js)
+//           // Can be overridden with EXPIRED_EMAIL_DELAY environment variable
+//           const queued = await queueExpiredBookingEmail(booking.contact_email, booking);
+//           if (queued) {
+//             console.log(`📧 Expiration notification email queued for ${booking.contact_email} (Booking ID: ${booking.id})`);
+//           } else {
+//             console.log(`⚠️ Failed to queue expiration email for ${booking.contact_email} (Booking ID: ${booking.id})`);
+//           }
+//         } catch (queueError) {
+//           console.error(`❌ Error queuing email for booking ID ${booking.id}:`, queueError);
+//         }
+//       } else {
+//         console.log(`⚠️ No contact email found for booking ID ${booking.id}`);
+//       }
+      
+//       console.log(
+//         `Booking ID ${booking.id} dan ticket id ${booking.ticket_id} telah dibatalkan karena melewati waktu kedaluwarsa.`
+//       );
+//     }
+//   } catch (error) {
+//     console.error("Error handling expired bookings:", error);
+//   }
+// };
+
 const handleExpiredBookings = async () => {
   const expiredStatus = process.env.EXPIRED_STATUS;
   console.log("✅========Checking for expired bookings...====✅");
@@ -155,19 +224,49 @@ const handleExpiredBookings = async () => {
         );
       }
       
-      // Queue expired booking notification email to be sent after seats are released
+      // Verify if booking has contact_email before sending notification
       if (booking.contact_email) {
         try {
-          // Default delay is 3 hours (defined in bullEmailQueue.js)
-          // Can be overridden with EXPIRED_EMAIL_DELAY environment variable
-          const queued = await queueExpiredBookingEmail(booking.contact_email, booking);
-          if (queued) {
-            console.log(`📧 Expiration notification email queued for ${booking.contact_email} (Booking ID: ${booking.id})`);
+          // Check ticket_id prefix to determine which email utility to use
+          if (booking.ticket_id && booking.ticket_id.startsWith("GG-OW")) {
+            // Use queueExpiredBookingEmail for GG-OW tickets
+            const queued = await queueExpiredBookingEmail(booking.contact_email, booking);
+            if (queued) {
+              console.log(`📧 GG-OW Expiration notification email queued for ${booking.contact_email} (Booking ID: ${booking.id})`);
+            } else {
+              console.log(`⚠️ Failed to queue expiration email for ${booking.contact_email} (Booking ID: ${booking.id})`);
+            }
+          } else if (booking.ticket_id && booking.ticket_id.startsWith("GG-RT")) {
+            // For GG-RT tickets, check if this is the first booking of the pair
+            // Extract the numeric part after "GG-RT-"
+            const ticketNumberMatch = booking.ticket_id.match(/GG-RT-(\d+)/);
+            
+            if (ticketNumberMatch && ticketNumberMatch[1]) {
+              const ticketNumber = parseInt(ticketNumberMatch[1]);
+              
+              // Only send email for odd-numbered tickets (01, 03, 05, etc.)
+              // This assumes ticket pairs are numbered consecutively (01 and 02, 03 and 04, etc.)
+              if (ticketNumber % 2 === 1) {
+                // Gunakan queueExpiredBookingEmail yang sudah ada, tapi hanya untuk tiket ganjil
+                const queued = await queueExpiredBookingEmail(booking.contact_email, booking);
+                if (queued) {
+                  console.log(`📧 GG-RT Expiration notification email queued for ${booking.contact_email} (Booking ID: ${booking.id})`);
+                } else {
+                  console.log(`⚠️ Failed to queue GG-RT expiration email for ${booking.contact_email} (Booking ID: ${booking.id})`);
+                }
+              } else {
+                // Untuk tiket genap, lewati pengiriman email karena sudah dikirim oleh tiket ganjil
+                console.log(`ℹ️ Skipping email for even-numbered ticket ${booking.ticket_id} (Booking ID: ${booking.id})`);
+              }
+            } else {
+              // Fallback untuk format tiket yang tidak valid
+              console.log(`⚠️ Invalid GG-RT ticket format: ${booking.ticket_id}`);
+            }
           } else {
-            console.log(`⚠️ Failed to queue expiration email for ${booking.contact_email} (Booking ID: ${booking.id})`);
+            console.log(`ℹ️ No email sent for ticket ID ${booking.ticket_id} - not matching any defined pattern`);
           }
-        } catch (queueError) {
-          console.error(`❌ Error queuing email for booking ID ${booking.id}:`, queueError);
+        } catch (emailError) {
+          console.error(`❌ Error sending email for booking ID ${booking.id}:`, emailError);
         }
       } else {
         console.log(`⚠️ No contact email found for booking ID ${booking.id}`);
@@ -181,8 +280,6 @@ const handleExpiredBookings = async () => {
     console.error("Error handling expired bookings:", error);
   }
 };
-
-
 // Ambil frekuensi cron dari variabel environment, dengan default setiap 15 menit
 const cronFrequency = process.env.CRON_FREQUENCY || "*/5 * * * *"; // Default 15 menit
 
