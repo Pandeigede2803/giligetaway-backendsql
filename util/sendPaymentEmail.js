@@ -36,7 +36,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #165297, #134782); padding: 30px 20px; text-align: center;">
           <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
-          <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your seat is not confirm yet – complete your booking now.</h1>
+          <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your fast boat seats are still waiting – complete your booking now.</h1>
         </div>
     
         <!-- Body -->
@@ -44,7 +44,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
           <p style="font-size: 16px; line-height: 1.5;">Hi ${booking.contact_name},</p>
     
           <p style="font-size: 16px; line-height: 1.5;">
-            We noticed you were about to book your fast boat trip with Gili Getaway, but didn’t make it quite to the finish line. No worries – your seats are still waiting for you!
+            We noticed you were about to book your fast boat trip with Gili Getaway, but didn’t make it quite to the finish line. No worries – your seats are still waiting for you for now. However, are not confirmed until you finalize your booking and may be booked very soon!
           </p>
     
           <p style="font-size: 16px; line-height: 1.5;">
