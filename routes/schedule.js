@@ -21,6 +21,8 @@ router.get('/search',authenticate, scheduleController.getSchedulesByMultiplePara
 
 //multiple params
 router.get('/search/v2',authenticate, scheduleController.searchSchedulesAndSubSchedules);
+// multiple params agent
+router.get('/search/v3',authenticate, scheduleController.searchSchedulesAndSubSchedulesAgent);
 
 //multiple params
 router.get('/fetchtimetable/',authenticate, scheduleController.getScheduleSubschedule);
@@ -32,7 +34,7 @@ router.get('/with-transits', authenticate, scheduleController.getSchedulesWithTr
 
 
 
-router.get('/all-details',authenticate, scheduleController.getAllSchedulesWithDetails);
+router.get('/all-details',authenticate, scheduleController.getAllSchedulesWithDetails);;
 
 // READ schedules
 router.get('/', authenticate, scheduleController.getSchedules);

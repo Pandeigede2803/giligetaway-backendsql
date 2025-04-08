@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const agentController = require('../controllers/agentController');
 const authenticate = require('../middleware/authenticate');
+const validateAgent = require('../middleware/validateAgent');
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 
@@ -27,7 +28,8 @@ router.get('/:id', agentController.getAgentById);
 
 // CREATE new agent with dynamic field name
 const uploadImageUrl = createUploadMiddleware('image_url'); // Assuming 'image_url' is the field name for agent images
-router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, agentController.createAgent);
+
+router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, validateAgent,agentController.createAgent);
 
 
 

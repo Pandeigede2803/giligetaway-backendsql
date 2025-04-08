@@ -867,13 +867,31 @@ const getScheduleSubschedule = async (req, res) => {
 
     // Fetch related sub-schedules
     const subSchedules = await SubSchedule.findAll({
-      where: {
+      where: { 
         schedule_id: scheduleIds,
         availability: true,
       },
       include: getSubScheduleInclude(),
       // logging: console.log,
     });
+
+    const formatDate = (dateStr)=> {
+      if (!dateStr) return "Invalid Date"; // atau bisa juga return "N/A"
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "Invalid Date";
+    
+      const day = String(date.getDate()).padStart(2, '0');
+      const monthNames = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+      ];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear();
+    
+      return `${day} ${month} ${year}`;
+    };
+    
+    
 
     const calculateJourneyTime = (departure, arrival) => {
       if (departure && arrival) {
@@ -926,7 +944,8 @@ const getScheduleSubschedule = async (req, res) => {
         low_season_price: schedule.low_season_price || "N/A",
         high_season_price: schedule.high_season_price || "N/A",
         peak_season_price: schedule.peak_season_price || "N/A",
-        validity: `${schedule.validity_start} to ${schedule.validity_end}`,
+        validity: `${formatDate(schedule.validity_start)} to ${formatDate(schedule.validity_end)}`,
+
       };
 
       // Filter subSchedules related to this schedule
@@ -1647,6 +1666,315 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     });
   }
 };
+
+const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
+  const { from, to, date, passengers_total } = req.query;
+
+  try {
+    const selectedDate = new Date(date);
+    const selectedDayOfWeek = getDay(selectedDate);
+
+    // Original schedules query remains the same
+    const schedules = await Schedule.findAll({
+      where: {
+        destination_from_id: from,
+        destination_to_id: to,
+        availability: 1,
+        validity_start: { [Op.lte]: selectedDate },
+        validity_end: { [Op.gte]: selectedDate },
+        [Op.and]: sequelize.literal(
+          `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+        ),
+      },
+      include: [
+        {
+          model: Destination,
+          as: "FromDestination",
+          attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model: Destination,
+          as: "ToDestination",
+          attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model: Boat,
+          as: "Boat",
+          attributes: ["id", "capacity", "boat_name"],
+        },
+        {
+          model: Transit,
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: [
+            {
+              model: Destination,
+              as: "Destination",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+      ],
+      attributes: [
+        "id",
+        "route_image",
+        "low_season_price",
+        "high_season_price",
+        "peak_season_price",
+        "departure_time",
+        "check_in_time",
+        "arrival_time",
+        "journey_time",
+      ],
+    });
+
+    // Original subSchedules query remains the same
+    const subSchedules = await SubSchedule.findAll({
+      where: {
+        availability: true,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { destination_from_schedule_id: from },
+              { "$TransitFrom.destination_id$": from },
+            ],
+          },
+          {
+            [Op.or]: [
+              { destination_to_schedule_id: to },
+              { "$TransitTo.destination_id$": to },
+            ],
+          },
+          {
+            validity_start: { [Op.lte]: selectedDate },
+            validity_end: { [Op.gte]: selectedDate },
+            [Op.and]: sequelize.literal(
+              `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+            ),
+          },
+        ],
+        availability: true,
+      },
+      include: [
+        {
+          model: Destination,
+          as: "DestinationFrom",
+          attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model: Destination,
+          as: "DestinationTo",
+          attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model: Transit,
+          as: "TransitFrom",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        {
+          model: Transit,
+          as: "TransitTo",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        // Keep other transit includes
+        {
+          model: Transit,
+          as: "Transit1",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit2",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit3",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        {
+          model: Transit,
+          as: "Transit4",
+          attributes: [
+            "id",
+            "destination_id",
+            "departure_time",
+            "arrival_time",
+            "journey_time",
+            "check_in_time",
+          ],
+          include: {
+            model: Destination,
+            as: "Destination",
+            attributes: ["id", "name", "port_map_url", "image_url"],
+          },
+        },
+        {
+          model: Schedule,
+          as: "Schedule",
+          attributes: [
+            "id",
+            "departure_time",
+            "check_in_time",
+            "arrival_time",
+            "journey_time",
+          ],
+          include: [
+            {
+              model: Boat,
+              as: "Boat",
+              attributes: ["id", "capacity", "boat_name"],
+            },
+          ],
+        },
+      ],
+    });
+
+    // Process seat availability for schedules
+    for (const schedule of schedules) {
+      let seatAvailability = await SeatAvailability.findOne({
+        where: {
+          schedule_id: schedule.id,
+          date: selectedDate,
+          availability: 1,
+          available_seats: { [Op.gte]: passengers_total },
+        },
+      });
+
+      if (!seatAvailability) {
+        seatAvailability = await createSeatAvailability(
+          schedule,
+          null,
+          selectedDate
+        );
+      }
+
+      schedule.dataValues.seatAvailability = {
+        id: seatAvailability.id,
+        available_seats: seatAvailability.available_seats,
+        date: selectedDate,
+      };
+    }
+
+    // Process seat availability for subSchedules
+    for (const subSchedule of subSchedules) {
+      let seatAvailability = await SeatAvailability.findOne({
+        where: {
+          subschedule_id: subSchedule.id,
+          date: selectedDate,
+          availability: true,
+          available_seats: { [Op.gte]: passengers_total },
+        },
+      });
+
+      if (!seatAvailability) {
+        seatAvailability = await createSeatAvailability(
+          null,
+          subSchedule,
+          selectedDate
+        );
+      }
+
+      subSchedule.dataValues.seatAvailability = {
+        id: seatAvailability.id,
+        available_seats: seatAvailability.available_seats,
+        date: selectedDate,
+      };
+    }
+
+    // Format schedules and subSchedules
+    const formattedSchedules = formatSchedules(schedules, selectedDate);
+    const formattedSubSchedules = formatSubSchedules(subSchedules, selectedDate);
+
+    // Combine the results into a single array
+    const combinedSchedules = [
+      ...formattedSchedules,
+      ...formattedSubSchedules
+    ];
+
+    // Return the combined results
+    res.status(200).json({
+      status: "success",
+      data: {
+        schedules: combinedSchedules
+      },
+    });
+  } catch (error) {
+    console.error("Error searching schedules and subschedules:", error);
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
+
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
@@ -2789,6 +3117,7 @@ module.exports = {
   searchSchedulesAndSubSchedules,
   getScheduleFormatted,
   getScheduleSubschedule,
+  searchSchedulesAndSubSchedulesAgent,
 };
 
 // Get schedules by multiple parametersconst { Op } = require('sequelize'); // Pastikan Anda mengimpor Op dari sequelize
