@@ -60,7 +60,7 @@ exports.createAgent = async (req, res) => {
     // Membuat data agen
     const agentData = {
       ...req.body,
-      password: randomPassword, // Menyimpan password random , hashed nanti saja
+      password: hashedPassword, // Menyimpan password random , hashed nanti saja
       image_url: imageUrl, // Menyimpan gambar atau gambar default
     };
     console.log("📝 Agent Data:", agentData);
@@ -268,6 +268,8 @@ exports.createAgent = async (req, res) => {
 exports.loginAgent = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("Login request received for email:", email);
+    console.log("Login request received for password:", password);
     const agent = await Agent.findOne({ where: { email } });
     if (!agent) {
       return res.status(404).json({ message: "Agent not found" });
@@ -276,6 +278,7 @@ exports.loginAgent = async (req, res) => {
     // Compare the hashed password
     const isMatch = await bcrypt.compare(password, agent.password);
     if (!isMatch) {
+      console.log("Password mismatch for email:", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
