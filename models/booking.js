@@ -117,6 +117,12 @@ const Booking = sequelize.define('Booking', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true
     },
+    abandoned: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Flag to indicate if the booking was abandoned'
+    },
     note : {
         type: DataTypes.TEXT,
         allowNull: true,

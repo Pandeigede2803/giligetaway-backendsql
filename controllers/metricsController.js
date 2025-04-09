@@ -532,7 +532,7 @@ const processBookingsData = (bookingsData, result) => {
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-    const bookingSource = booking.booking_source;
+    const bookingSource = booking.booking_source;;
 
     // Get target object based on period
     const target = result[period];
@@ -630,6 +630,8 @@ const processBookingsData = (bookingsData, result) => {
       }
       target.bookingCountBySource[bookingSource] += 1;
     }
+
+
   });
 };
 
@@ -1515,7 +1517,7 @@ const getMetricsBookingDate = async (req, res) => {
       dateFilter,
       previousPeriodFilter
     );
-
+    console.log("Metrics Data:", metricsData);
     // Proses data untuk membentuk respon yang dibutuhkan
     // Pastikan ini menggunakan processMetricsData yang benar
     const metrics = processMetricsDataBookingDate(metricsData);

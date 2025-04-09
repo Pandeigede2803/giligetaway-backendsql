@@ -208,6 +208,7 @@ const handleExpiredBookings = async () => {
       
       // Update status pemesanan menjadi 'cancelled'
       booking.payment_status = expiredStatus;
+      booking.abandoned = true;  // Set abandoned to true
       await booking.save();
       
       // Update related transaction status to 'cancelled'

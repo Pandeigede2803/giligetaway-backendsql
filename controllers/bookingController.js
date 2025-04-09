@@ -2103,8 +2103,12 @@ const getAbandonedPayments = async (req, res) => {
     } = req.query;
 
     // Base filter untuk abandoned payments
+    // Memodifikasi filter utama untuk menyertakan payment_status: 'abandoned' ATAU (payment_status: 'pending' dan abandoned: true)
     let paymentFilter = {
-      payment_status: 'abandoned' // Filter utama untuk status abandoned
+      [Op.or]: [
+        { payment_status: 'abandoned' }, // Filter untuk status abandoned
+        { abandoned: true }  
+      ]
     };
 
     // Filter tambahan berdasarkan tanggal
@@ -2608,7 +2612,6 @@ const getBookingByTicketId = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 const getRelatedBookingsByTicketId = async (req, res) => {
   try {
     const { ticket_id } = req.params;
@@ -2712,6 +2715,40 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       return res.status(400).json({ error: "No related bookings found" });
     }
 
+    // Add availability check to bookings
+    for (let i = 0; i < bookings.length; i++) {
+      const booking = bookings[i];
+      const bookingPlain = booking.get();
+      
+      // Check if any passenger has seat availability issues
+      let hasUnavailableSeat = false;
+      
+      if (bookingPlain.passengers && bookingPlain.passengers.length > 0 && booking.SeatAvailabilities && booking.SeatAvailabilities.length > 0) {
+        const seatAvailability = booking.SeatAvailabilities[0];
+        const schedule_id = booking.schedule?.id;
+        const sub_schedule_id = booking.subSchedule?.id;
+        
+        for (const passenger of bookingPlain.passengers) {
+          if (passenger.seat_number) {
+            const availabilityCheck = await checkSeatAvailability({
+              date: seatAvailability.date,
+              schedule_id: schedule_id,
+              sub_schedule_id: sub_schedule_id,
+              seat_number: passenger.seat_number
+            });
+            
+            if (!availabilityCheck.isAvailable) {
+              hasUnavailableSeat = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Add availability flag to the booking object
+      bookings[i].dataValues.availability = !hasUnavailableSeat;
+    }
+
     if (bookings.length === 1) {
       console.log("⚠️ Only one booking found. Returning single ticket.");
       return res
@@ -2752,6 +2789,203 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// Helper function to enhance a booking with seat availability information
+const enhanceBookingWithAvailability = async (booking) => {
+  // Convert Sequelize instance to plain object
+  const enhancedBooking = {...booking.get()};
+  
+  // Get data to check seat availability
+  const seatAvailability = booking.SeatAvailabilities[0];
+  const schedule_id = booking.schedule?.id;
+  const sub_schedule_id = booking.subSchedule?.id;
+  
+  // Check seat availability for each passenger
+  if (enhancedBooking.passengers && enhancedBooking.passengers.length > 0 && seatAvailability) {
+    const passengersWithAvailability = await Promise.all(
+      enhancedBooking.passengers.map(async (passenger) => {
+        const passengerData = {...passenger.get()};
+        
+        // Check if this seat is still available (not booked by someone else)
+        if (passengerData.seat_number) {
+          const availabilityCheck = await checkSeatAvailability({
+            date: seatAvailability.date,
+            schedule_id: schedule_id,
+            sub_schedule_id: sub_schedule_id,
+            seat_number: passengerData.seat_number
+          });
+          
+          passengerData.seatNumberAvailability = availabilityCheck.isAvailable;
+          passengerData.seatAvailabilityMessage = availabilityCheck.message;
+        } else {
+          passengerData.seatNumberAvailability = null;
+          passengerData.seatAvailabilityMessage = "No seat assigned yet";
+        }
+        
+        return passengerData;
+      })
+    );
+    
+    enhancedBooking.passengers = passengersWithAvailability;
+    
+    // Check if any passenger has a seat availability issue
+    const hasUnavailableSeat = enhancedBooking.passengers.some(
+      passenger => passenger.seatNumberAvailability === false
+    );
+    
+    // Add overall availability flag to the main response
+    enhancedBooking.availability = !hasUnavailableSeat;
+  } else {
+    // If no passengers or no seat availability data
+    enhancedBooking.availability = null;
+  }
+  
+  return enhancedBooking;
+};
+
+// const getRelatedBookingsByTicketId = async (req, res) => {
+//   try {
+//     const { ticket_id } = req.params;
+
+//     console.log("Processing ticket ID:", ticket_id);
+
+//     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8867")
+//     const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir
+//     const regexPattern = `${prefix}%`; // Pattern wildcard untuk SQL
+
+//     // 2️⃣ Cari dua booking dengan ticket_id yang mirip
+//     const bookings = await Booking.findAll({
+//       where: {
+//         ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
+//       },
+//       include: [
+//         {
+//           model:Transaction,
+//           as:'transactions'
+
+//         },
+//         {
+//           model: Schedule,
+//           as: "schedule",
+//           include: [
+//             { model: Boat, as: "Boat" },
+//             {
+//               model: Transit,
+//               as: "Transits",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             { model: Destination, as: "FromDestination" },
+//             { model: Destination, as: "ToDestination" },
+//           ],
+//         },
+//         {
+//           model: SubSchedule,
+//           as: "subSchedule",
+//           include: [
+//             { model: Destination, as: "DestinationFrom" },
+//             {
+//               model: Schedule,
+//               as: "Schedule",
+//               attributes: [
+//                 "id",
+//                 "arrival_time",
+//                 "departure_time",
+//                 "journey_time",
+//               ],
+//             },
+//             { model: Destination, as: "DestinationTo" },
+//             {
+//               model: Transit,
+//               as: "TransitFrom",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "TransitTo",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit1",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit2",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit3",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit4",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//           ],
+//         },
+//         { model: SeatAvailability, as: "SeatAvailabilities" },
+//         { model: Passenger, as: "passengers" },
+//         {
+//           model: TransportBooking,
+//           as: "transportBookings",
+//           include: [{ model: Transport, as: "transport" }],
+//         },
+//         { model: Agent, as: "Agent" },
+//       ],
+//       order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
+//       limit: 2, // Ambil maksimum 2 data
+//     });
+
+//     console.log("Bookings found:", bookings.length);
+
+//     if (bookings.length === 0) {
+//       console.log("❌ No related bookings found.");
+//       return res.status(400).json({ error: "No related bookings found" });
+//     }
+
+//     if (bookings.length === 1) {
+//       console.log("⚠️ Only one booking found. Returning single ticket.");
+//       return res
+//         .status(200)
+//         .json({ message: "Only one booking found", bookings });
+//     }
+
+//     // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
+//     const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
+//     if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
+//       console.log(
+//         "⚠️ Booking IDs are not sequential. Returning only the first booking."
+//       );
+//       return res.status(200).json({
+//         message: "Booking IDs are not sequential",
+//         bookings: [bookings[0]],
+//       });
+//     }
+
+//     // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
+//     const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
+//     if (!validMatch) {
+//       console.log(
+//         "❌ Ticket IDs do not match the provided ticket_id. Returning error."
+//       );
+//       return res
+//         .status(400)
+//         .json({ error: "Ticket IDs do not match the provided ticket_id" });
+//     }
+
+//     console.log("✅ Successfully retrieved related bookings.");
+//     return res.status(200).json({
+//       message: "Round-trip bookings found",
+//       bookings: [bookings[0], bookings[1]],
+//     });
+//   } catch (error) {
+//     console.error("❌ Error retrieving related bookings:", error.message);
+//     return res.status(500).json({ error: "Internal server error" });
+//   }
+// };
 
 const updateBookingNotes = async (req, res) => {
   try {
@@ -4148,11 +4382,17 @@ const getAbandonedPaymentById = async (req, res) => {
       return res.status(400).json({ error: "Payment ID is required" });
     }
 
-    // Query booking dengan status abandoned berdasarkan ID
+    // Query booking dengan status abandoned atau flag abandoned=true berdasarkan ID
     const booking = await Booking.findOne({
       where: {
         id,
-        payment_status: 'abandoned'
+        [Op.or]: [
+          { payment_status: 'abandoned' }, // Filter untuk status abandoned
+          { 
+            payment_status: { [Op.ne]: 'abandoned' }, // Semua status selain 'abandoned'
+            abandoned: true // Dengan flag abandoned = true
+          }
+        ]
       },
       include: [
         {

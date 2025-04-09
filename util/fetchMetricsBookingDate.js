@@ -135,6 +135,21 @@ const formatMetricsForResponse = (data, agentCount) => {
       current.netIncome,
       previous.netIncome
     );
+    const bookingSourceChange = {
+      agent: calculatePercentageChange(current.bookingSource.agent, previous.bookingSource.agent),
+      website: calculatePercentageChange(current.bookingSource.website, previous.bookingSource.website),
+      staff: calculatePercentageChange(current.bookingSource.staff, previous.bookingSource.staff),
+      others: calculatePercentageChange(current.bookingSource.others, previous.bookingSource.others),
+    };
+
+    const bookingCountBySourceChange = {
+      agent: calculatePercentageChange(current.bookingCountBySource.agent, previous.bookingCountBySource.agent),
+      website: calculatePercentageChange(current.bookingCountBySource.website, previous.bookingCountBySource.website),
+      staff: calculatePercentageChange(current.bookingCountBySource.staff, previous.bookingCountBySource.staff),
+    }
+    
+    
+
   
     // Build final response in same format as original
     return {
@@ -316,6 +331,17 @@ const formatMetricsForResponse = (data, agentCount) => {
         status: current.netIncome >= previous.netIncome ? "increase" : "decrease",
         change: `${netIncomeChange.toFixed(2)}%`,
       },
+      bookingSource: {
+        value: current.bookingSource,
+        change: bookingSourceChange,
+        status: bookingSourceChange >= 0 ? "increase" : "decrease",
+      },
+      // console.log("`bookingCountBySource", current.bookingCountBySource);
+      bookingSourceCountChange: {
+        value: current.bookingCountBySource,
+        change: bookingCountBySourceChange,
+        status: bookingCountBySourceChange >= 0 ? "increase" : "decrease",
+      }
     };
   };
 
@@ -404,9 +430,20 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
+    const bookingSource = booking.booking_source;
 
     // Get target object based on period
     const target = result[period];
+
+     // Initialize bookingSource object
+     if (!target.bookingSource) {
+      target.bookingSource = {
+        agent: 0,
+        website: 0,
+        staff: 0,
+        others: 0,
+      };
+    }
 
     // Increment booking count
     target.bookingCount++;
@@ -453,6 +490,34 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
         target.boats[boatId].netValue += grossTotal;
       }
     }
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      switch (bookingSource) {
+        case "agent":
+          target.bookingSource.agent += grossTotal;
+          break;
+        case "website":
+          target.bookingSource.website += grossTotal;
+          break;
+        case "staff":
+          target.bookingSource.staff += grossTotal;
+          break;
+        case "others":
+          target.bookingSource.others += grossTotal;
+          break;
+      }
+    }
+    // add booking count for the each source
+    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      if (!target.bookingCountBySource) {
+        target.bookingCountBySource = {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        };
+      }
+      target.bookingCountBySource[bookingSource] += 1;
+    }
   });
 };
 
@@ -498,6 +563,18 @@ const processMetricsDataBookingDate = (data) => {
         agentBookingUnpaid: 0,
         bookingCount: 0,
         grossTotal: 0,
+        bookingSource: {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        },
+        bookingCountBySource: {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        },
         boats: {
           1: { totalValue: 0, netValue: 0, commission: 0 },
           2: { totalValue: 0, netValue: 0, commission: 0 },
@@ -515,6 +592,18 @@ const processMetricsDataBookingDate = (data) => {
         agentBookingUnpaid: 0,
         bookingCount: 0,
         grossTotal: 0,
+        bookingSource: {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        },
+        bookingCountBySource: {
+          agent: 0,
+          website: 0,
+          staff: 0,
+          others: 0,
+        },
         boats: {
           1: { totalValue: 0, netValue: 0, commission: 0 },
           2: { totalValue: 0, netValue: 0, commission: 0 },
@@ -742,7 +831,9 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
             ),
             "period",
           ],
+          
           [sequelize.col("Booking.gross_total"), "gross_total"],
+          [sequelize.col("Booking.booking_source"), "booking_source"],
           [sequelize.col("Booking.payment_status"), "payment_status"],
           [sequelize.col("Booking.ticket_total"), "ticket_total"],
           [sequelize.col("Booking.agent_id"), "agent_id"],
