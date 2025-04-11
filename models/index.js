@@ -21,6 +21,8 @@ const WaitingList = require('./WaitingList');
 // ... other model imports
 // import transaction 
 const Transaction = require('./Transaction');
+const BulkBookingResult = require('./BulkBookingResult');
+const BulkBookingUpload = require('./BulkBookingUpload');
 
 const models = {
     User,
@@ -40,7 +42,7 @@ const models = {
     AgentCommission,
     Transaction,
     SubScheduleRelation,
-    WaitingList
+    WaitingList,BulkBookingResult,BulkBookingUpload
 };
 
 // Associations
@@ -149,6 +151,10 @@ SeatAvailability.hasMany(WaitingList, {
 // BookingSeatAvailability associations
 BookingSeatAvailability.belongsTo(Booking, { foreignKey: 'booking_id',  });
 BookingSeatAvailability.belongsTo(SeatAvailability, { foreignKey: 'seat_availability_id',});
+
+
+
+
 
 
 models.sequelize = sequelize;

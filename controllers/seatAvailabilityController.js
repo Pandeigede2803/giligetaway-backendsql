@@ -18,6 +18,90 @@ const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, cre
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
+
+// create me controller to create seat availability use the utils
+
+const createOrGetSeatAvailability = async (req, res) => {
+  const { schedule_id, date, subschedule_id, transit_id } = req.body;
+
+  console.log("\n=== createOrGetSeatAvailability ===");
+  console.log("Request Body:", {
+    schedule_id,
+    date,
+    subschedule_id,
+    transit_id,
+  });
+
+  try {
+    // STEP 1: Ensure main schedule seat availability exists (no subschedule/transit)
+    console.log("1. Checking main schedule seat availability...");
+    let mainSeatAvailability = await SeatAvailability.findOne({
+      where: {
+        schedule_id,
+        date,
+        subschedule_id: null,
+        transit_id: null,
+      },
+    });
+
+    if (!mainSeatAvailability) {
+      console.log("2. Main seat not found, creating main schedule seat availability...");
+      const result = await createSeatAvailability({
+        schedule_id,
+        date,
+        subschedule_id: null,
+        transit_id: null,
+        qty: 0,
+      });
+      mainSeatAvailability = result.mainSeatAvailability;
+      console.log("3. Main schedule seat created:", mainSeatAvailability);
+    } else {
+      console.log("2. Main schedule seat already exists");
+    }
+
+    // STEP 2: Now handle requested seat availability (could be same or different if subschedule/transit provided)
+    console.log("4. Checking requested seat availability...");
+    let seatAvailability = await SeatAvailability.findOne({
+      where: {
+        schedule_id,
+        date,
+        subschedule_id: subschedule_id ?? null,
+        transit_id: transit_id ?? null,
+      },
+    });
+
+    if (!seatAvailability) {
+      console.log("5. Requested seat not found, creating...");
+      const result = await createSeatAvailability({
+        schedule_id,
+        date,
+        subschedule_id: subschedule_id ?? null,
+        transit_id: transit_id ?? null,
+        qty: 0,
+      });
+      seatAvailability = result.mainSeatAvailability;
+      console.log("6. Requested seat created:", seatAvailability);
+    } else {
+      console.log("5. Requested seat already exists");
+    }
+
+    // STEP 3: Respond
+    return res.status(200).json({
+      success: true,
+      message: "Seat availability retrieved or created successfully",
+      seat_availability: seatAvailability,
+    });
+
+  } catch (error) {
+    console.error("❌ Error in createOrGetSeatAvailability:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
 const getSeatAvailabilityByMonthYear = async (req, res) => {
   const { year, month } = req.query;
   console.log("Query Params:", { year, month });
@@ -554,6 +638,7 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
 
 module.exports = {
   checkAvailableSeats,
+  createOrGetSeatAvailability,
   checkAllAvailableSeats,
   checkAllAvailableSeatsBookingCount,
   updateSeatAvailability,

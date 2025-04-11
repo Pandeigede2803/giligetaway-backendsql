@@ -4,6 +4,8 @@ const createTransport = async (req, res) => {
     try {
         console.log('Create transport started');
         const transport = await Transport.create(req.body);
+        // console log req body
+        console.log('Request body:', req.body);
         console.log('Create transport success');
         res.status(201).json(transport);
     } catch (error) {

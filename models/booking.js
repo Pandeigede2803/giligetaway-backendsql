@@ -193,6 +193,16 @@ Booking.associate = (models) => {
         foreignKey: 'booking_id',
         as: 'transactions' // Alias for accessing related transactions
     });
+
+
+
+
+    // new
+
+    Booking.hasMany(models.BulkBookingResult, {
+        foreignKey: 'booking_id',
+        as: 'BookingResults'
+    });
 };
 
 module.exports = Booking;

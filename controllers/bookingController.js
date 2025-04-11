@@ -53,6 +53,9 @@ const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabi
 const AgentCommission = require("../models/AgentComission");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
 const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
+
+
+
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
   let { selectedDate } = req.query;
@@ -2552,6 +2555,11 @@ const getBookingByTicketId = async (req, res) => {
         {
           model: Agent,
           as: "Agent",
+        },
+        // add AgentComission tabel
+        {
+          model: AgentCommission,
+          as: "agentCommission",
         },
       ],
     });

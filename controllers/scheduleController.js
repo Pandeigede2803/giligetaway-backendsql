@@ -7,29 +7,25 @@ const {
   Transit,
   SeatAvailability,
   Destination,
+  Passenger,
+  Booking,
   sequelize,
 } = require("../models");
 const { uploadImageToImageKit } = require("../middleware/upload");
-
-const { Op,  literal, QueryTypes } = require('sequelize');
+const { processBookedSeats } = require("../util/seatUtils");
+const { Op, literal, QueryTypes } = require("sequelize");
 const buildSearchConditions = require("../util/buildSearchCondition");
 const { buildRoute, buildRouteFromSchedule } = require("../util/buildRoute");
 const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
-const {calculatePublicCapacity} = require("../util/getCapacityReduction");
-
+const { calculatePublicCapacity } = require("../util/getCapacityReduction");
 const { getScheduleAndSubScheduleByDate } = require("../util/scheduleUtils");
-
 const { fn, col } = require("sequelize");
 const {
   getSchedulesWithSubSchedules2,
-} = require("../util/schedulepassenger/scheduleUtils");;
+} = require("../util/schedulepassenger/scheduleUtils");
 // getAllSchedulesWithSubSchedules.js (Controller)
-
-
-
-
 
 const {
   formatSchedules,
@@ -43,7 +39,8 @@ const {
 } = require("../util/formatUtilsSimple");
 const { getSubScheduleInclude } = require("../util/formattedData2");
 const {
-  getTotalPassengers,getTotalRealPassengersRaw
+  getTotalPassengers,
+  getTotalRealPassengersRaw,
 } = require("../util/schedulepassenger/getTotalPassenger");
 
 // Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
@@ -99,7 +96,7 @@ const getDaysInMonth = (month, year) => {
 
 //     for (const date of daysInMonth) {
 //       console.log(`Processing date: ${date}`);
-    
+
 //       for (const schedule of schedules) {
 //         // Ambil total penumpang dan seat availability ID untuk jadwal utama
 //         const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
@@ -107,7 +104,7 @@ const getDaysInMonth = (month, year) => {
 //           null,
 //           date
 //         );
-    
+
 //         // Tambahkan hasil jadwal utama ke results
 //         results.push({
 //           seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
@@ -118,7 +115,7 @@ const getDaysInMonth = (month, year) => {
 //           route: buildRouteFromSchedule2(schedule, null),
 //           days_of_week: schedule.days_of_week,
 //         });
-    
+
 //         // Iterasi setiap sub-jadwal
 //         for (const subSchedule of schedule.SubSchedules) {
 //           const { totalPassengers, seatAvailabilityIds } = await getTotalPassengers(
@@ -126,7 +123,7 @@ const getDaysInMonth = (month, year) => {
 //             subSchedule.id,
 //             date
 //           );
-    
+
 //           results.push({
 //             seatavailability_id: seatAvailabilityIds.length > 0 ? seatAvailabilityIds[0] : null, // Ambil ID pertama jika ada
 //             date: date,
@@ -139,7 +136,6 @@ const getDaysInMonth = (month, year) => {
 //         }
 //       }
 //     }
-    
 
 //     return res.status(200).json({
 //       success: true,
@@ -289,7 +285,6 @@ const getDaysInMonth = (month, year) => {
 //   }
 // };
 
-
 // const getAllSchedulesWithSubSchedules = async (req, res) => {
 //   const { month, year, boat_id } = req.query;
 //   console.log("boatID" ,boat_id);
@@ -333,7 +328,6 @@ const getDaysInMonth = (month, year) => {
 
 //     // Iterasi setiap tanggal
 //     for (const date of daysInMonth) {
-   
 
 //       // Iterasi setiap schedule
 //       for (const schedule of schedules) {
@@ -397,7 +391,6 @@ const getDaysInMonth = (month, year) => {
 //   }
 // };
 
-
 const getAllSchedulesWithSubSchedules = async (req, res) => {
   const { month, year, boat_id } = req.query;
   console.log("boatID", boat_id);
@@ -405,7 +398,8 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
   if (!month || !year || !boat_id) {
     return res.status(400).json({
       success: false,
-      message: "Please provide month, year, and boat_id in the query parameters.",
+      message:
+        "Please provide month, year, and boat_id in the query parameters.",
     });
   }
 
@@ -423,10 +417,21 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
 
     // =============== STEP 1: Fetch all relevant schedules and subschedules ===============
     const boatFilter = boatIdInt === 0 ? {} : { boat_id: boatIdInt };
-    console.log("Fetching schedules for:", { month, year, boatIdInt, boatFilter });
+    console.log("Fetching schedules for:", {
+      month,
+      year,
+      boatIdInt,
+      boatFilter,
+    });
 
     const schedules = await Schedule.findAll({
-      attributes: ['id', 'boat_id', 'days_of_week', 'destination_from_id', 'destination_to_id'],
+      attributes: [
+        "id",
+        "boat_id",
+        "days_of_week",
+        "destination_from_id",
+        "destination_to_id",
+      ],
       where: {
         availability: true,
         ...boatFilter,
@@ -441,7 +446,19 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
         {
           model: SubSchedule,
           as: "SubSchedules",
-          attributes: ['id', 'schedule_id', 'days_of_week', 'destination_from_schedule_id', 'destination_to_schedule_id', 'transit_from_id', 'transit_to_id', 'transit_1', 'transit_2', 'transit_3', 'transit_4'],
+          attributes: [
+            "id",
+            "schedule_id",
+            "days_of_week",
+            "destination_from_schedule_id",
+            "destination_to_schedule_id",
+            "transit_from_id",
+            "transit_to_id",
+            "transit_1",
+            "transit_2",
+            "transit_3",
+            "transit_4",
+          ],
           where: {
             availability: true,
             [Op.or]: [
@@ -541,7 +558,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
           attributes: ["boat_name", "capacity"],
         },
       ],
-      raw: false // Ensure we get model instances, not just plain objects
+      raw: false, // Ensure we get model instances, not just plain objects
     });
 
     if (!schedules || schedules.length === 0) {
@@ -555,10 +572,11 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     console.log("Schedules Found:", schedules.length);
 
     // =============== STEP 2: Extract schedule and subschedule IDs ===============
-    const scheduleIds = schedules.map(schedule => schedule.id);
-    
+    const scheduleIds = schedules.map((schedule) => schedule.id);
+
     // =============== STEP 3: Get SeatAvailability and passenger data ===============
-    const seatAvailabilityData = await sequelize.query(`
+    const seatAvailabilityData = await sequelize.query(
+      `
       SELECT 
         sa.id as seat_availability_id,
         sa.schedule_id,
@@ -573,17 +591,20 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
         AND sa.date BETWEEN :startDate AND :endDate
       GROUP BY 
         sa.id, sa.schedule_id, sa.subschedule_id, sa.date
-    `, {
-      replacements: { 
-        scheduleIds: scheduleIds, 
-        startDate: firstDate,
-        endDate: lastDate
-      },
-      type: QueryTypes.SELECT
-    });
+    `,
+      {
+        replacements: {
+          scheduleIds: scheduleIds,
+          startDate: firstDate,
+          endDate: lastDate,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
 
     // =============== STEP 4: Get Booking data for total_real_passengers ===============
-    const bookingData = await sequelize.query(`
+    const bookingData = await sequelize.query(
+      `
       SELECT 
         schedule_id,
         subschedule_id,
@@ -596,14 +617,16 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
         AND payment_status IN ('paid', 'invoiced', 'unpaid')
       GROUP BY 
         schedule_id, subschedule_id, DATE(booking_date)
-    `, {
-      replacements: { 
-        scheduleIds: scheduleIds, 
-        startDate: firstDate,
-        endDate: lastDate
-      },
-      type: QueryTypes.SELECT
-    });
+    `,
+      {
+        replacements: {
+          scheduleIds: scheduleIds,
+          startDate: firstDate,
+          endDate: lastDate,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
 
     // =============== STEP 5: Process data into maps for easy lookup ===============
     const results = [];
@@ -611,22 +634,24 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     const realPassengerMap = {};
 
     // Map SeatAvailability data
-    seatAvailabilityData.forEach(sa => {
-      const key = `${sa.schedule_id}_${sa.subschedule_id || 'null'}_${sa.date}`;
-      
+    seatAvailabilityData.forEach((sa) => {
+      const key = `${sa.schedule_id}_${sa.subschedule_id || "null"}_${sa.date}`;
+
       if (!seatAvailabilityMap[key]) {
         seatAvailabilityMap[key] = [];
       }
-      
+
       seatAvailabilityMap[key].push({
         id: sa.seat_availability_id,
-        total_passengers: parseInt(sa.total_passengers) || 0
+        total_passengers: parseInt(sa.total_passengers) || 0,
       });
     });
 
     // Map Booking data
-    bookingData.forEach(booking => {
-      const key = `${booking.schedule_id}_${booking.subschedule_id || 'null'}_${booking.date}`;
+    bookingData.forEach((booking) => {
+      const key = `${booking.schedule_id}_${booking.subschedule_id || "null"}_${
+        booking.date
+      }`;
       realPassengerMap[key] = parseInt(booking.total_real_passengers) || 0;
     });
 
@@ -635,50 +660,50 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
       const seatAvailabilities = seatAvailabilityMap[key] || [];
       let bestId = null;
       let maxPassengers = -1;
-      
-      seatAvailabilities.forEach(sa => {
+
+      seatAvailabilities.forEach((sa) => {
         if (sa.total_passengers > maxPassengers) {
           maxPassengers = sa.total_passengers;
           bestId = sa.id;
         }
       });
-      
+
       // If no SeatAvailability with passengers, use the first one
       if (bestId === null && seatAvailabilities.length > 0) {
         bestId = seatAvailabilities[0].id;
       }
-      
+
       return {
         id: bestId,
-        total_passengers: maxPassengers > 0 ? maxPassengers : 0
+        total_passengers: maxPassengers > 0 ? maxPassengers : 0,
       };
     };
 
     // Adjust the buildRouteFromSchedule2 function to be more flexible with data structures
     const buildRouteFromSchedule2Adjusted = (schedule, subSchedule) => {
-      let route = '';
-      
+      let route = "";
+
       // Ensure that schedule is available
       if (!schedule) {
-        return 'Unknown route';
+        return "Unknown route";
       }
-      
+
       // Check if we're working with a raw object or a Sequelize model instance
       const isModelInstance = (obj) => {
-        return obj && typeof obj === 'object' && obj.dataValues !== undefined;
+        return obj && typeof obj === "object" && obj.dataValues !== undefined;
       };
-      
+
       // Helper function to safely get values from either model instances or plain objects
       const getValue = (obj, path) => {
         if (!obj) return null;
-        
+
         // Handle path like "FromDestination.name"
-        const parts = path.split('.');
+        const parts = path.split(".");
         let current = obj;
-        
+
         for (const part of parts) {
           if (!current) return null;
-          
+
           // If it's a model instance, use dataValues
           if (isModelInstance(current)) {
             current = current.dataValues[part] || current[part];
@@ -686,54 +711,66 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
             current = current[part];
           }
         }
-        
+
         return current;
       };
-      
+
       // Handle Schedule Only Case (no SubSchedule)
       if (!subSchedule) {
-        const destinationFrom = getValue(schedule, 'DestinationFrom.name') || 'Unknown';
-        const transits = Array.isArray(getValue(schedule, 'Transits')) 
-          ? getValue(schedule, 'Transits').map(t => getValue(t, 'Destination.name')).filter(Boolean) 
+        const destinationFrom =
+          getValue(schedule, "DestinationFrom.name") || "Unknown";
+        const transits = Array.isArray(getValue(schedule, "Transits"))
+          ? getValue(schedule, "Transits")
+              .map((t) => getValue(t, "Destination.name"))
+              .filter(Boolean)
           : [];
-        const destinationTo = getValue(schedule, 'DestinationTo.name') || 'Unknown';
-        
+        const destinationTo =
+          getValue(schedule, "DestinationTo.name") || "Unknown";
+
         // Build the route
-        route = `${destinationFrom} - ${transits.length > 0 ? transits.join(' - ') + ' - ' : ''}${destinationTo}`;
+        route = `${destinationFrom} - ${
+          transits.length > 0 ? transits.join(" - ") + " - " : ""
+        }${destinationTo}`;
       }
-      
+
       // Handle SubSchedule Case
       else {
-        const destinationFromSchedule = getValue(subSchedule, 'DestinationFrom.name') || 'Unknown';
-        const transitFrom = getValue(subSchedule, 'TransitFrom.Destination.name') || 'Unknown';
-        
+        const destinationFromSchedule =
+          getValue(subSchedule, "DestinationFrom.name") || "Unknown";
+        const transitFrom =
+          getValue(subSchedule, "TransitFrom.Destination.name") || "Unknown";
+
         // Collect all transit points
         const transits = [
-          getValue(subSchedule, 'Transit1.Destination.name'),
-          getValue(subSchedule, 'Transit2.Destination.name'),
-          getValue(subSchedule, 'Transit3.Destination.name'),
-          getValue(subSchedule, 'Transit4.Destination.name')
+          getValue(subSchedule, "Transit1.Destination.name"),
+          getValue(subSchedule, "Transit2.Destination.name"),
+          getValue(subSchedule, "Transit3.Destination.name"),
+          getValue(subSchedule, "Transit4.Destination.name"),
         ].filter(Boolean);
-        
-        const transitTo = getValue(subSchedule, 'TransitTo.Destination.name') || 'Unknown';
-        const destinationToSchedule = getValue(subSchedule, 'DestinationTo.name') || 'Unknown';
-        
+
+        const transitTo =
+          getValue(subSchedule, "TransitTo.Destination.name") || "Unknown";
+        const destinationToSchedule =
+          getValue(subSchedule, "DestinationTo.name") || "Unknown";
+
         // Build the route
-        route = `${destinationFromSchedule} - ${transitFrom} - ${transits.length > 0 ? transits.join(' - ') + ' - ' : ''}${transitTo} - ${destinationToSchedule}`;
+        route = `${destinationFromSchedule} - ${transitFrom} - ${
+          transits.length > 0 ? transits.join(" - ") + " - " : ""
+        }${transitTo} - ${destinationToSchedule}`;
       }
-      
+
       return route;
     };
 
     // =============== STEP 6: Generate final results ===============
     // Generate results for each schedule
-    schedules.forEach(schedule => {
+    schedules.forEach((schedule) => {
       // Process main schedule for each date
-      daysInMonth.forEach(date => {
+      daysInMonth.forEach((date) => {
         const key = `${schedule.id}_null_${date}`;
         const seatAvailability = getBestSeatAvailability(key);
         const total_real_passengers = realPassengerMap[key] || 0;
-        
+
         results.push({
           date,
           schedule_id: schedule.id,
@@ -743,19 +780,19 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
           seatavailability_id: seatAvailability.id,
           route: buildRouteFromSchedule2Adjusted(schedule, null),
           days_of_week: schedule.days_of_week,
-          boat_name: schedule.Boat?.boat_name || '',
-          capacity: schedule.Boat?.capacity || 0
+          boat_name: schedule.Boat?.boat_name || "",
+          capacity: schedule.Boat?.capacity || 0,
         });
       });
 
       // Process sub-schedules for each date
       if (schedule.SubSchedules && schedule.SubSchedules.length > 0) {
-        schedule.SubSchedules.forEach(subSchedule => {
-          daysInMonth.forEach(date => {
+        schedule.SubSchedules.forEach((subSchedule) => {
+          daysInMonth.forEach((date) => {
             const key = `${schedule.id}_${subSchedule.id}_${date}`;
             const seatAvailability = getBestSeatAvailability(key);
             const total_real_passengers = realPassengerMap[key] || 0;
-            
+
             results.push({
               date,
               schedule_id: schedule.id,
@@ -765,8 +802,8 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
               seatavailability_id: seatAvailability.id,
               route: buildRouteFromSchedule2Adjusted(schedule, subSchedule),
               days_of_week: subSchedule.days_of_week,
-              boat_name: schedule.Boat?.boat_name || '',
-              capacity: schedule.Boat?.capacity || 0
+              boat_name: schedule.Boat?.boat_name || "",
+              capacity: schedule.Boat?.capacity || 0,
             });
           });
         });
@@ -782,15 +819,13 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch schedules for the specified month and boat.",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
 //  * Helper function to get all days in a month
 //  */
-
-
 
 const getScheduleSubschedule = async (req, res) => {
   const { boat_id } = req.query;
@@ -867,7 +902,7 @@ const getScheduleSubschedule = async (req, res) => {
 
     // Fetch related sub-schedules
     const subSchedules = await SubSchedule.findAll({
-      where: { 
+      where: {
         schedule_id: scheduleIds,
         availability: true,
       },
@@ -875,23 +910,31 @@ const getScheduleSubschedule = async (req, res) => {
       // logging: console.log,
     });
 
-    const formatDate = (dateStr)=> {
+    const formatDate = (dateStr) => {
       if (!dateStr) return "Invalid Date"; // atau bisa juga return "N/A"
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return "Invalid Date";
-    
-      const day = String(date.getDate()).padStart(2, '0');
+
+      const day = String(date.getDate()).padStart(2, "0");
       const monthNames = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
       ];
       const month = monthNames[date.getMonth()];
       const year = date.getFullYear();
-    
+
       return `${day} ${month} ${year}`;
     };
-    
-    
 
     const calculateJourneyTime = (departure, arrival) => {
       if (departure && arrival) {
@@ -944,8 +987,9 @@ const getScheduleSubschedule = async (req, res) => {
         low_season_price: schedule.low_season_price || "N/A",
         high_season_price: schedule.high_season_price || "N/A",
         peak_season_price: schedule.peak_season_price || "N/A",
-        validity: `${formatDate(schedule.validity_start)} to ${formatDate(schedule.validity_end)}`,
-
+        validity: `${formatDate(schedule.validity_start)} to ${formatDate(
+          schedule.validity_end
+        )}`,
       };
 
       // Filter subSchedules related to this schedule
@@ -1304,19 +1348,21 @@ const getScheduleFormatted = async (req, res) => {
   }
 };
 
-
 const createSeatAvailability = async (schedule, subschedule, date) => {
   try {
     // Get relevant boat and calculate public capacity
     const relevantBoat = schedule ? schedule.Boat : subschedule.Schedule.Boat;
     const publicCapacity = calculatePublicCapacity(relevantBoat);
 
-    console.log('\n=== CREATE SEAT AVAILABILITY ===');
-    console.log('Source:', schedule ? 'Direct Schedule' : 'SubSchedule');
-    console.log('Schedule ID:', schedule ? schedule.id : subschedule.Schedule.id);
-    console.log('SubSchedule ID:', subschedule ? subschedule.id : null);
-    console.log('Date:', date);
-    console.log('Public Capacity:', publicCapacity);
+    console.log("\n=== CREATE SEAT AVAILABILITY ===");
+    console.log("Source:", schedule ? "Direct Schedule" : "SubSchedule");
+    console.log(
+      "Schedule ID:",
+      schedule ? schedule.id : subschedule.Schedule.id
+    );
+    console.log("SubSchedule ID:", subschedule ? subschedule.id : null);
+    console.log("Date:", date);
+    console.log("Public Capacity:", publicCapacity);
 
     // Create the seat availability record
     const newSeatAvailability = await SeatAvailability.create({
@@ -1325,28 +1371,25 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
       available_seats: publicCapacity, // Using calculated public capacity
       availability: true,
       date: date,
-      boost:false
-
-      
+      boost: false,
     });
 
-    console.log('Created Seat Availability:', {
+    console.log("Created Seat Availability:", {
       id: newSeatAvailability.id,
       available_seats: newSeatAvailability.available_seats,
       schedule_id: newSeatAvailability.schedule_id,
       subschedule_id: newSeatAvailability.subschedule_id,
-      
     });
-    console.log('=== END CREATE SEAT AVAILABILITY ===\n');
+    console.log("=== END CREATE SEAT AVAILABILITY ===\n");
 
     return newSeatAvailability;
   } catch (error) {
-    console.error('\n=== ERROR CREATING SEAT AVAILABILITY ===');
-    console.error('Error Details:', {
+    console.error("\n=== ERROR CREATING SEAT AVAILABILITY ===");
+    console.error("Error Details:", {
       schedule_id: schedule ? schedule.id : subschedule?.Schedule?.id || "null",
       subschedule_id: subschedule ? subschedule.id : "null",
       date: date,
-      error: error.message
+      error: error.message,
     });
     throw new Error("Failed to create seat availability");
   }
@@ -1589,7 +1632,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           schedule_id: schedule.id,
           date: selectedDate,
           availability: 1,
-          available_seats: { [Op.gte]: passengers_total },
+          // available_seats: { [Op.gte]: passengers_total },
         },
       });
 
@@ -1622,10 +1665,11 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           subschedule_id: subSchedule.id,
           date: selectedDate,
           availability: true,
-          available_seats: { [Op.gte]: passengers_total },
-          
+        
         },
       });
+      console.log("🧠seat availability",seatAvailability)
+      
 
       // Create SeatAvailability if not found
       if (!seatAvailability) {
@@ -1896,6 +1940,12 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
       ],
     });
 
+    // Array untuk menyimpan semua ID SeatAvailability
+    const seatAvailabilityIds = [];
+    
+    // Maps untuk memetakan SeatAvailability ID ke data terkait
+    const seatAvailabilityData = new Map();
+
     // Process seat availability for schedules
     for (const schedule of schedules) {
       let seatAvailability = await SeatAvailability.findOne({
@@ -1914,6 +1964,16 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           selectedDate
         );
       }
+
+      // Simpan ID dan tambahkan ke schedule
+      seatAvailabilityIds.push(seatAvailability.id);
+      
+      // Simpan data terkait untuk digunakan nanti
+      seatAvailabilityData.set(seatAvailability.id, {
+        boatData: schedule.Boat,
+        boost: seatAvailability.boost,
+        type: 'schedule'
+      });
 
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
@@ -1941,6 +2001,16 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         );
       }
 
+      // Simpan ID dan tambahkan ke subSchedule
+      seatAvailabilityIds.push(seatAvailability.id);
+      
+      // Simpan data terkait untuk digunakan nanti
+      seatAvailabilityData.set(seatAvailability.id, {
+        boatData: subSchedule.Schedule?.Boat,
+        boost: seatAvailability.boost,
+        type: 'subSchedule'
+      });
+
       subSchedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
@@ -1948,21 +2018,223 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
       };
     }
 
-    // Format schedules and subSchedules
+    if (seatAvailabilityIds.length > 0) {
+      // Inisialisasi objek untuk menyimpan nomor kursi berdasarkan seat_availability_id
+      const bookedSeatsByAvailabilityId = {};
+      const processedBookedSeatsByAvailabilityId = {};
+
+      // Inisialisasi array kosong untuk setiap seat_availability_id
+      seatAvailabilityIds.forEach((id) => {
+        bookedSeatsByAvailabilityId[id] = [];
+        processedBookedSeatsByAvailabilityId[id] = [];
+      });
+
+      try {
+        // Query untuk mendapatkan booking dengan seat number
+        const bookings = await Booking.findAll({
+          attributes: ["id"],
+          where: {
+            payment_status: ["paid", "invoiced", "pending", "unpaid"],
+          },
+          include: [
+            {
+              model: SeatAvailability,
+              as: "seatAvailabilities",
+              required: true,
+              where: {
+                id: { [Op.in]: seatAvailabilityIds },
+              },
+              attributes: ["id"],
+              through: { attributes: [] },
+            },
+            {
+              model: Passenger,
+              as: "passengers",
+              attributes: ["id", "seat_number"],
+              where: {
+                seat_number: { [Op.ne]: null },
+              },
+            },
+          ],
+        });
+        console.log(
+          "Bookings with seat numbers:",
+          JSON.stringify(bookings, null, 2)
+        );
+
+        console.log(`Found ${bookings.length} bookings with seat numbers`);
+
+        // Proses setiap booking untuk mengekstrak seat number
+        bookings.forEach((booking) => {
+          // Untuk setiap booking, lihat semua seat availability terkait
+          booking.seatAvailabilities.forEach((seatAvail) => {
+            // Untuk setiap seat availability, tambahkan seat number dari semua penumpang
+            booking.passengers.forEach((passenger) => {
+              if (passenger.seat_number) {
+                // Pastikan array sudah diinisialisasi
+                if (!bookedSeatsByAvailabilityId[seatAvail.id]) {
+                  bookedSeatsByAvailabilityId[seatAvail.id] = [];
+                }
+                // Tambahkan seat number ke array
+                bookedSeatsByAvailabilityId[seatAvail.id].push(
+                  passenger.seat_number
+                );
+              }
+            });
+          });
+        });
+
+        // Log hasil untuk memastikan data telah diproses dengan benar
+        console.log(
+          "Booked seats by availability ID before processing:",
+          Object.fromEntries(
+            Object.entries(bookedSeatsByAvailabilityId).map(([key, value]) => [
+              key,
+              `[${value.join(", ")}]`,
+            ])
+          )
+        );
+
+        // Proses booked seats untuk mempertimbangkan kursi yang saling berhubungan
+        for (const seatAvailId of seatAvailabilityIds) {
+          const bookedSeats = bookedSeatsByAvailabilityId[seatAvailId] || [];
+          const seatData = seatAvailabilityData.get(seatAvailId);
+          
+          if (seatData) {
+            // Proses booked seats dengan fungsi processBookedSeats
+            const processedSeats = processBookedSeats(
+              new Set(bookedSeats),
+              seatData.boost,
+              seatData.boatData
+            );
+            
+            // Simpan hasil pemrosesan
+            processedBookedSeatsByAvailabilityId[seatAvailId] = processedSeats;
+          } else {
+            // Jika tidak ada data terkait, gunakan booked seats asli
+            processedBookedSeatsByAvailabilityId[seatAvailId] = bookedSeats;
+          }
+        }
+
+        // Log hasil pemrosesan
+        console.log(
+          "Processed booked seats by availability ID:",
+          Object.fromEntries(
+            Object.entries(processedBookedSeatsByAvailabilityId).map(([key, value]) => [
+              key,
+              `[${value.join(", ")}]`,
+            ])
+          )
+        );
+
+        // Tambahkan processedBookedSeatNumbers ke setiap schedule
+        for (const schedule of schedules) {
+          const seatAvailId = schedule.dataValues.seatAvailability.id;
+          schedule.dataValues.seatAvailability.bookedSeatNumbers =
+            processedBookedSeatsByAvailabilityId[seatAvailId] || [];
+        }
+
+        // Tambahkan processedBookedSeatNumbers ke setiap subSchedule
+        for (const subSchedule of subSchedules) {
+          const seatAvailId = subSchedule.dataValues.seatAvailability.id;
+          subSchedule.dataValues.seatAvailability.bookedSeatNumbers =
+            processedBookedSeatsByAvailabilityId[seatAvailId] || [];
+        }
+
+        // Format schedules
+        let formattedSchedules = formatSchedules(schedules, selectedDate);
+
+        // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
+        formattedSchedules = formattedSchedules.map((formatted) => {
+          // Cari schedule asli yang sesuai berdasarkan ID
+          const originalSchedule = schedules.find((s) => s.id === formatted.id);
+          if (
+            originalSchedule &&
+            originalSchedule.dataValues.seatAvailability
+          ) {
+            const seatAvailId = originalSchedule.dataValues.seatAvailability.id;
+            // Modifikasi objek yang sudah diformat
+            return {
+              ...formatted,
+              seatAvailability: {
+                ...formatted.seatAvailability,
+                bookedSeatNumbers:
+                  processedBookedSeatsByAvailabilityId[seatAvailId] || [],
+              },
+            };
+          }
+          return formatted;
+        });
+
+        // Format subSchedules
+        let formattedSubSchedules = formatSubSchedules(
+          subSchedules,
+          selectedDate
+        );
+
+        // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
+        formattedSubSchedules = formattedSubSchedules.map((formatted) => {
+          // Cari subSchedule asli yang sesuai berdasarkan ID
+          const originalSubSchedule = subSchedules.find(
+            (s) => s.id === formatted.subschedule_id
+          );
+          if (
+            originalSubSchedule &&
+            originalSubSchedule.dataValues.seatAvailability
+          ) {
+            const seatAvailId =
+              originalSubSchedule.dataValues.seatAvailability.id;
+            // Modifikasi objek yang sudah diformat
+            return {
+              ...formatted,
+              seatAvailability: {
+                ...formatted.seatAvailability,
+                bookedSeatNumbers:
+                  processedBookedSeatsByAvailabilityId[seatAvailId] || [],
+              },
+            };
+          }
+          return formatted;
+        });
+
+        // Combine the results into a single array
+        const combinedSchedules = [
+          ...formattedSchedules,
+          ...formattedSubSchedules,
+        ];
+
+        // Return the combined results
+        res.status(200).json({
+          status: "success",
+          data: {
+            schedules: combinedSchedules,
+          },
+        });
+
+        // Jangan lanjutkan ke kode di bawah
+        return;
+      } catch (error) {
+        console.error("Error fetching booked seats:", error.message);
+        // Jika terjadi error, lanjutkan dengan kode format asli
+      }
+    }
+
+    // Kode asli, hanya dijalankan jika tidak ada seatAvailability atau terjadi error
+    // Format schedules dan subSchedules
     const formattedSchedules = formatSchedules(schedules, selectedDate);
-    const formattedSubSchedules = formatSubSchedules(subSchedules, selectedDate);
+    const formattedSubSchedules = formatSubSchedules(
+      subSchedules,
+      selectedDate
+    );
 
     // Combine the results into a single array
-    const combinedSchedules = [
-      ...formattedSchedules,
-      ...formattedSubSchedules
-    ];
+    const combinedSchedules = [...formattedSchedules, ...formattedSubSchedules];
 
     // Return the combined results
     res.status(200).json({
       status: "success",
       data: {
-        schedules: combinedSchedules
+        schedules: combinedSchedules,
       },
     });
   } catch (error) {
@@ -1973,8 +2245,6 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
     });
   }
 };
-
-
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {
@@ -2152,24 +2422,72 @@ const getSchedules = async (req, res) => {
           include: [
             { model: Destination, as: "DestinationFrom", attributes: ["name"] },
             { model: Destination, as: "DestinationTo", attributes: ["name"] },
-            { model: Transit, as: "TransitFrom", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-            { model: Transit, as: "TransitTo", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-            { model: Transit, as: "Transit1", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-            { model: Transit, as: "Transit2", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-            { model: Transit, as: "Transit3", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-            { model: Transit, as: "Transit4", include: { model: Destination, as: "Destination", attributes: ["name"] } },
-          ]
-        }
+            {
+              model: Transit,
+              as: "TransitFrom",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+          ],
+        },
       ],
     });
 
     const response = [];
 
-    schedules.forEach(schedule => {
+    schedules.forEach((schedule) => {
       // Main route: only from and to
       const route = [
         schedule.DestinationFrom?.name,
-        schedule.DestinationTo?.name
+        schedule.DestinationTo?.name,
       ].filter(Boolean);
 
       response.push({
@@ -2180,7 +2498,7 @@ const getSchedules = async (req, res) => {
       });
 
       // SubSchedules: get first & last name only
-      schedule.SubSchedules.forEach(sub => {
+      schedule.SubSchedules.forEach((sub) => {
         const orderedPoints = [
           sub.DestinationFrom?.name,
           sub.TransitFrom?.Destination?.name,
@@ -2194,7 +2512,7 @@ const getSchedules = async (req, res) => {
 
         const subRoute = [
           orderedPoints[0], // first
-          orderedPoints[orderedPoints.length - 1] // last
+          orderedPoints[orderedPoints.length - 1], // last
         ].filter(Boolean);
 
         const subStops = [
@@ -2220,8 +2538,6 @@ const getSchedules = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
-
 
 // Get all schedules with destination and transit details
 const getAllSchedulesWithDetails = async (req, res) => {

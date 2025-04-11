@@ -9,7 +9,7 @@ const {
   checkAllAvailableSeats,
   getFilteredSeatAvailabilityById,
   checkAllAvailableSeatsBookingCount,
-  handleSeatAvailability
+  handleSeatAvailability,createOrGetSeatAvailability
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 const authenticate = require("../middleware/authenticate");
 // Route to check available seats for a specific schedule and date
@@ -18,9 +18,19 @@ const { body } = require("express-validator");
 // const 
 const boostSeatMiddleware = require("../middleware/boostSeatMiddleware");
 const { checkMaximumCapacity,validateSeatAvailabilityDate } = require("../middleware/checkSeatAvailabilityForUpdate");
+const validateSeatAvailability = require("../middleware/validateSeatAvailability");
+
+
+
+
+
+
+
+router.post('/create-or-get',authenticate, validateSeatAvailability, createOrGetSeatAvailability);
 
 router.get("/get-month", authenticate, getSeatAvailabilityByMonthYear);
 router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
+
 
 
 router.get("/check-available", authenticate, checkAvailableSeats);
@@ -39,7 +49,7 @@ router.get(
   "/check-all/booking-count",
   authenticate,
   checkAllAvailableSeatsBookingCount
-);
+);;
 
 // updateseatavailability
 

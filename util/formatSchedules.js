@@ -71,7 +71,7 @@ const formatSchedules = (schedules, selectedDate) => {
     seatAvailability: {
       id: schedule.dataValues.seatAvailability?.id || "N/A",
       available_seats:
-        schedule.dataValues.seatAvailability?.available_seats || "N/A",
+        schedule.dataValues.seatAvailability?.available_seats ,
       date: schedule.dataValues.seatAvailability?.date
         ? new Date(
             schedule.dataValues.seatAvailability.date
@@ -180,7 +180,7 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
       seatAvailability: {
         id: subSchedule.dataValues.seatAvailability?.id || "N/A",
         available_seats:
-          subSchedule.dataValues.seatAvailability?.available_seats || "N/A",
+          subSchedule.dataValues.seatAvailability?.available_seats ,
         date: subSchedule.dataValues.seatAvailability?.date
           ? new Date(
               subSchedule.dataValues.seatAvailability.date

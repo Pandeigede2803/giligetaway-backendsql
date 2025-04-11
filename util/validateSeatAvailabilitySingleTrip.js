@@ -15,6 +15,9 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
       where: {
         schedule_id,
         date: booking_date,
+
+        // Assuming you want to check for availability only for the current date
+        availability: true,
       },
     };
 

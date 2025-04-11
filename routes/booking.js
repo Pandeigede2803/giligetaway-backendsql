@@ -10,6 +10,13 @@ const { checkSeatAvailabilityForUpdate,checkSeatAvailabilityForUpdate2,
     validateBookingDate,validateRoundTripTicket,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
     checkBookingDateUpdate2,checkBookingDateUpdateDirect} = require('../middleware/checkSeatAvailabilityForUpdate');
 const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
+const bulkBookingController = require('../controllers/bulkBookingController');
+const multer = require('multer');
+const path = require('path');
+
+// Setup multer untuk upload file
+
+
 
 // CREATE booking
 router.post('/', bookingController.createBooking);
@@ -18,6 +25,7 @@ router.post('/', bookingController.createBooking);
 router.post('/transit', bookingController.createBookingWithTransit);
 
 // Route for booking with transit
+
 router.post('/transit-queue',authenticate,validateScheduleAndSubSchedule,validateBookingCreation, bookingController.createBookingWithTransitQueue);
 
 
@@ -100,5 +108,52 @@ router.get('/contact/details', authenticate, bookingController.getBookingContact
 
 // // Route for booking without transit
 // router.post('/createBookingWithoutTransit', createBookingWithoutTransit);
+
+
+
+
+// BULK BOOKING
+
+router.post('/bulk-multi-csv', (req, res, next) => {
+    bulkBookingController.bulkBookingFromMultiCSV(req, res, next);
+  });
+
+  // Route untuk bulk booking dengan CSV
+
+  // Route untuk mendapatkan history bulk booking
+  router.get(
+    '/bulk-booking/history',
+    authenticate,
+    bulkBookingController.getBulkBookingHistory
+  );
+  
+  // Route untuk mendapatkan detail bulk booking
+  router.get(
+    '/bulk-details/:id',
+    authenticate,
+    bulkBookingController.getBulkBookingDetails
+  );
+  
+  // Routes untuk mendapatkan template CSV
+  router.get(
+    '/templates/bookings',
+    authenticate,
+    bulkBookingController.getBookingsTemplate
+  );
+  
+  router.get(
+    '/templates/passengers',
+    authenticate,
+    bulkBookingController.getPassengersTemplate
+  );
+  
+  router.get(
+    '/templates/transports',
+    authenticate,
+    bulkBookingController.getTransportsTemplate
+  );
+  
+  // Route untuk memeriksa status bulk booking
+
 
 module.exports = router;
