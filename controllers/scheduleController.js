@@ -1693,13 +1693,24 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         subSchedule.dataValues.seatAvailability
       );
     }
+    const availableSchedules = schedules.filter(schedule => 
+      schedule.dataValues.seatAvailability && 
+      schedule.dataValues.seatAvailability.available_seats > 0
+    );
+    
+    // Filter subSchedules dengan available_seats > 0
+    const availableSubSchedules = subSchedules.filter(subSchedule => 
+      subSchedule.dataValues.seatAvailability && 
+      subSchedule.dataValues.seatAvailability.available_seats > 0
+    );
+    
 
     // Step 6: Return the combined results with SeatAvailability details
     res.status(200).json({
       status: "success",
       data: {
-        schedules: formatSchedules(schedules, selectedDate),
-        subSchedules: formatSubSchedules(subSchedules, selectedDate),
+        schedules: formatSchedules(availableSchedules, selectedDate),
+        subSchedules: formatSubSchedules(availableSubSchedules, selectedDate),
       },
     });
   } catch (error) {
