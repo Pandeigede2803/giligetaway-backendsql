@@ -393,6 +393,7 @@ const calculateAverageOrderValue = (result) => {
 
 
 const processCommissionDataBookingDate = (commissionData, result) => {
+  console.log("🦷 ini booking data bangsat comission",commissionData)
   // Clear existing commission data yang mungkin sudah diset sebelumnya
   for (const period of ["current", "previous"]) {
     for (const boatId of [1, 2, 3]) {
@@ -548,6 +549,7 @@ const processMetricsDataBookingDate = (data) => {
       passengerData,
       agentCount,
     } = data;
+ 
   
   
     // Inisialisasi struktur data untuk hasil
@@ -663,7 +665,8 @@ const processMetricsDataBookingDate = (data) => {
 
 
   const fetchAllMetricsDataBookingDate = async (dateFilter, previousPeriodFilter) => {
-   
+    console.log("DATE FILTER", dateFilter);
+    console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);   
     try {
       // Queries yang sudah ada
       const bookingsData = await fetchBookingsWithAllDataBookingDate(
@@ -685,6 +688,8 @@ const processMetricsDataBookingDate = (data) => {
         dateFilter,
         previousPeriodFilter
       );
+      console.log("agentComissionData bangsat", commissionData);
+      
   
       return {
         bookingsData,
@@ -711,76 +716,91 @@ const processMetricsDataBookingDate = (data) => {
 //   //
 
 const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodFilter) => {
-    try {
-      // Filter gabungan
-      const combinedFilter = {
-        [Op.or]: [dateFilter, previousPeriodFilter],
-      };
-  
-      // Ekstrak tanggal dengan aman
-      let prevStart, prevEnd;
-      
-      if (previousPeriodFilter.booking_date && previousPeriodFilter.booking_date[Op.between]) {
-        [prevStart, prevEnd] = previousPeriodFilter.booking_date[Op.between];
-      } else if (previousPeriodFilter[Op.between]) {
-        [prevStart, prevEnd] = previousPeriodFilter[Op.between];
-      } else {
-        // Fallback values
-        prevStart = moment().subtract(1, 'month').format('YYYY-MM-DD');
-        prevEnd = moment().format('YYYY-MM-DD');
-        console.warn('Using fallback dates for previous period:', prevStart, prevEnd);
+  try {
+    console.log("fetchAgentCommissionByBoatBookingDate called");
+    console.log("dateFilter:", dateFilter);
+    console.log("previousPeriodFilter:", previousPeriodFilter);
+    
+    // Extract the date ranges directly from the original filters
+    let currentDateRange, previousDateRange;
+    
+    // Check if the Symbol operators exist in the filters
+    for (const key of Object.getOwnPropertySymbols(dateFilter.booking_date || {})) {
+      if (key.toString() === 'Symbol(between)') {
+        currentDateRange = dateFilter.booking_date[key];
       }
-  
-      // Replacements dengan tanggal yang sudah diekstrak dengan aman
-      const replacements = {
-        prevStart,
-        prevEnd,
-      };
-  
-     
-      return await AgentCommission.findAll({
-        attributes: [
-          [
-            sequelize.literal(
-              `CASE WHEN Booking.booking_date BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
-            ),
-            "period",
-          ],
-          [sequelize.col("Booking.schedule.boat_id"), "boat_id"],
-          [
-            sequelize.fn("SUM", sequelize.col("AgentCommission.amount")),
-            "commission_total",
-          ],
-        ],
-        include: [
-          {
-            model: Booking,
-            attributes: [],
-            required: true,
-            where: {
-              payment_status: ["invoiced", "paid",],
-              booking_date: combinedFilter,
-            },
-            include: [
-              {
-                model: Schedule,
-                as: "schedule",
-                attributes: [],
-                required: true,
-              },
-            ],
-          },
-        ],
-        group: ["period", "Booking.schedule.boat_id"],
-        replacements,
-        raw: true,
-      });
-    } catch (error) {
-      console.error("Error fetching agent commission data:", error);
+    }
+    
+    for (const key of Object.getOwnPropertySymbols(previousPeriodFilter.booking_date || {})) {
+      if (key.toString() === 'Symbol(between)') {
+        previousDateRange = previousPeriodFilter.booking_date[key];
+      }
+    }
+    
+    if (!currentDateRange || !previousDateRange) {
+      console.error("Could not find date ranges in filters");
       return [];
     }
-  };
-  
+    
+    const [prevStart, prevEnd] = previousDateRange;
+    const [currentStart, currentEnd] = currentDateRange;
+    
+    console.log("Date ranges extracted:", { 
+      current: [currentStart, currentEnd],
+      previous: [prevStart, prevEnd]
+    });
+    
+    // Create a combined where clause for booking dates
+    const bookingDateWhere = {
+      payment_status: ["invoiced", "paid"],
+      [Op.or]: [
+        { booking_date: { [Op.between]: [currentStart, currentEnd] } },
+        { booking_date: { [Op.between]: [prevStart, prevEnd] } }
+      ]
+    };
+    
+    return await AgentCommission.findAll({
+      attributes: [
+        [
+          sequelize.literal(
+            `CASE WHEN Booking.booking_date BETWEEN :prevStart AND :prevEnd THEN 'previous' ELSE 'current' END`
+          ),
+          "period",
+        ],
+        [sequelize.col("Booking.schedule.boat_id"), "boat_id"],
+        [
+          sequelize.fn("SUM", sequelize.col("AgentCommission.amount")),
+          "commission_total",
+        ],
+      ],
+      include: [
+        {
+          model: Booking,
+          attributes: [],
+          required: true,
+          where: bookingDateWhere,
+          include: [
+            {
+              model: Schedule,
+              as: "schedule",
+              attributes: [],
+              required: true,
+            },
+          ],
+        },
+      ],
+      group: ["period", "Booking.schedule.boat_id"],
+      replacements: {
+        prevStart,
+        prevEnd
+      },
+      raw: true,
+    });
+  } catch (error) {
+    console.error("Error fetching agent commission data:", error);
+    return [];
+  }
+};
   const fetchBookingsWithAllDataBookingDate = async (dateFilter, previousPeriodFilter) => {
 
   
