@@ -146,6 +146,303 @@ const createSeatAvailability = async ({ schedule_id, date, qty }) => {
     throw new Error("Failed to create seat availabilities: " + error.message);
   }
 };
+const createSeatAvailability2 = async ({ schedule_id, date, qty, transaction = null }) => {
+
+  console.log(
+    `🔍 Starting creation for Schedule ID: ${schedule_id}, Date: ${date}, Qty: ${qty}`
+  );
+  try {
+    // Menentukan apakah kita perlu membuat transaksi baru
+    const t = transaction || await sequelize.transaction();
+    const needsCommit = !transaction; // Hanya commit jika kita membuat transaksi baru
+    
+    try {
+      // Fetch the main schedule and its boat capacity
+      const schedule = await Schedule.findOne({
+        where: { id: schedule_id },
+        include: [
+          {
+            model: Boat,
+            as: "Boat",
+            attributes: ["id","capacity"],
+          },
+          {
+            model: SubSchedule,
+            as: "SubSchedules",
+          },
+        ],
+        transaction: t
+      });
+
+      if (!schedule || !schedule.Boat) {
+        throw new Error("Schedule or boat not found.");
+      }
+
+      console.log(`===boat===:`, schedule.Boat);
+
+      const boat = schedule.Boat; // Extract the Boat object
+      // Pass the complete Boat object to the calculatePublicCapacity utility
+      const publicCapacity = calculatePublicCapacity(boat);
+
+      // Calculate available seats
+      const availableSeats =
+      publicCapacity + qty <= boat.capacity
+        ? publicCapacity + qty
+        : boat.capacity;
+
+      console.log(
+        `🚤 Boat capacity: ${boat.capacity}, Public capacity: ${publicCapacity}, Calculated seats: ${availableSeats}`
+      );
+
+      // Create or update SeatAvailability for the main schedule
+      let mainSeatAvailability;
+      const mainSeat = await SeatAvailability.findOne({
+        where: {
+          schedule_id,
+          date,
+          subschedule_id: null // Memastikan ini adalah main seat
+        },
+        lock: t.LOCK.UPDATE, // Tambahkan lock untuk mencegah race condition
+        transaction: t
+      });
+
+      if (mainSeat) {
+        console.log(
+          `✅ Main seat availability exists. Updating ID: ${mainSeat.id}`
+        );
+        await mainSeat.update({
+          available_seats: availableSeats
+        }, { transaction: t });
+        
+        mainSeatAvailability = {
+          id: mainSeat.id,
+          available_seats: mainSeat.available_seats,
+          date: mainSeat.date,
+        };
+      } else {
+        console.log(`🚨 Main seat availability does not exist. Creating new.`);
+        const newMainSeatAvailability = await SeatAvailability.create({
+          schedule_id,
+          date,
+          subschedule_id: null, // Eksplisit set null untuk main schedule
+          available_seats: availableSeats,
+          availability: true,
+          boost: false
+        }, { transaction: t });
+        
+        console.log(
+          `✅ Main seat availability created with ID: ${newMainSeatAvailability.id}`
+        );
+        mainSeatAvailability = {
+          id: newMainSeatAvailability.id,
+          available_seats: newMainSeatAvailability.available_seats,
+          date: newMainSeatAvailability.date,
+        };
+      }
+
+      // Process subschedules
+      const subscheduleSeatAvailabilities = [];
+      for (const subschedule of schedule.SubSchedules) {
+        console.log(`🔄 Processing SubSchedule ID: ${subschedule.id}`);
+        
+        const subSeatAvailability = await SeatAvailability.findOne({
+          where: {
+            schedule_id,
+            subschedule_id: subschedule.id,
+            date,
+          },
+          lock: t.LOCK.UPDATE, // Tambahkan lock
+          transaction: t
+        });
+
+        if (subSeatAvailability) {
+          console.log(
+            `✅ SubSchedule seat availability exists. Updating ID: ${subSeatAvailability.id}`
+          );
+          
+          await subSeatAvailability.update({
+            available_seats: availableSeats
+          }, { transaction: t });
+          
+          subscheduleSeatAvailabilities.push({
+            id: subSeatAvailability.id,
+            available_seats: subSeatAvailability.available_seats,
+            date: subSeatAvailability.date,
+          });
+        } else {
+          console.log(
+            `🚨 SubSchedule seat availability does not exist. Creating new.`
+          );
+          
+          const newSubSeatAvailability = await SeatAvailability.create({
+            schedule_id,
+            subschedule_id: subschedule.id,
+            date,
+            available_seats: availableSeats,
+            availability: true,
+            boost: false
+          }, { transaction: t });
+          
+          console.log(
+            `✅ SubSchedule seat availability created with ID: ${newSubSeatAvailability.id}`
+          );
+          
+          subscheduleSeatAvailabilities.push({
+            id: newSubSeatAvailability.id,
+            available_seats: newSubSeatAvailability.available_seats,
+            date: newSubSeatAvailability.date,
+          });
+        }
+      }
+
+      // Commit transaksi jika kita yang membuatnya
+      if (needsCommit) {
+        await t.commit();
+      }
+
+      console.log("✅ All seat availabilities processed successfully.");
+      return {
+        mainSeatAvailability,
+        subscheduleSeatAvailabilities,
+      };
+    } catch (error) {
+      // Rollback transaksi jika kita yang membuatnya dan terjadi error
+      if (needsCommit) {
+        await t.rollback();
+      }
+      throw error; // Re-throw untuk ditangani di blok catch luar
+    }
+  } catch (error) {
+    console.error("❌ Failed to create seat availabilities:", error.message);
+    throw new Error("Failed to create seat availabilities: " + error.message);
+  }
+};
+// Improved createSeatAvailability function with better error handling and atomic operations
+const createSeatAvailabilityBulk = async ({ schedule_id, date, qty, subschedule_id = null, transaction = null }) => {
+  console.log(
+    `🔍 Starting creation for Schedule ID: ${schedule_id}, Date: ${date}, Qty: ${qty}, SubSchedule ID: ${subschedule_id || 'None'}`
+  );
+  
+  // Use the provided transaction or create a new one if needed
+  const t = transaction || await sequelize.transaction();
+  const needsCommit = !transaction; // Only commit if we created the transaction
+  
+  try {
+    // First, check if the seat availability already exists using a FOR UPDATE lock to prevent race conditions
+    let seatAvailability = await SeatAvailability.findOne({
+      where: {
+        schedule_id,
+        date,
+        subschedule_id: subschedule_id || null
+      },
+      lock: t.LOCK.UPDATE, // Add a row-level lock
+      transaction: t
+    });
+    
+    // If the record exists, we'll update it; otherwise, we'll create a new one
+    if (seatAvailability) {
+      console.log(`✅ Seat availability exists for schedule ${schedule_id}, date ${date}, subschedule ${subschedule_id || 'None'}. Updating...`);
+      return seatAvailability;
+    }
+    
+    // We need to fetch the schedule info to calculate capacity
+    const schedule = await Schedule.findOne({
+      where: { id: schedule_id },
+      include: [
+        {
+          model: Boat,
+          as: "Boat",
+          attributes: ["id", "capacity"],
+        },
+        {
+          model: SubSchedule,
+          as: "SubSchedules",
+        },
+      ],
+      transaction: t
+    });
+
+    if (!schedule || !schedule.Boat) {
+      throw new Error("Schedule or boat not found.");
+    }
+
+    const boat = schedule.Boat;
+    const publicCapacity = calculatePublicCapacity(boat);
+
+    // Calculate available seats
+    const availableSeats =
+      publicCapacity + qty <= boat.capacity
+        ? publicCapacity + qty
+        : boat.capacity;
+
+    console.log(
+      `🚤 Boat capacity: ${boat.capacity}, Public capacity: ${publicCapacity}, Calculated seats: ${availableSeats}`
+    );
+
+    // Create the seat availability record with the transaction
+    const newSeatAvailability = await SeatAvailability.create({
+      schedule_id,
+      date,
+      subschedule_id: subschedule_id || null,
+      available_seats: availableSeats,
+      availability: true,
+      boost: false
+    }, { transaction: t });
+
+    console.log(`✅ Seat availability created with ID: ${newSeatAvailability.id}`);
+    
+    // If we're creating a main schedule seat availability, also create for all subschedules
+    if (!subschedule_id && schedule.SubSchedules && schedule.SubSchedules.length > 0) {
+      for (const subschedule of schedule.SubSchedules) {
+        console.log(`🔄 Processing SubSchedule ID: ${subschedule.id}`);
+        
+        // Check if seat availability already exists for this subschedule
+        const subSeatAvailability = await SeatAvailability.findOne({
+          where: {
+            schedule_id,
+            subschedule_id: subschedule.id,
+            date,
+          },
+          transaction: t
+        });
+
+        if (subSeatAvailability) {
+          console.log(`✅ SubSchedule seat availability exists. Updating ID: ${subSeatAvailability.id}`);
+          await subSeatAvailability.update({
+            available_seats: availableSeats
+          }, { transaction: t });
+        } else {
+          console.log(`🚨 SubSchedule seat availability does not exist. Creating new.`);
+          await SeatAvailability.create({
+            schedule_id,
+            subschedule_id: subschedule.id,
+            date,
+            available_seats: availableSeats,
+            availability: true,
+            boost: false
+          }, { transaction: t });
+        }
+      }
+    }
+
+    // Commit the transaction if we created it
+    if (needsCommit) {
+      await t.commit();
+    }
+    
+    return newSeatAvailability;
+  } catch (error) {
+    // Rollback the transaction if we created it and an error occurred
+    if (needsCommit) {
+      await t.rollback();
+    }
+    console.error("❌ Failed to create seat availabilities:", error.message);
+    throw new Error("Failed to create seat availabilities: " + error.message);
+  }
+};
+
+// Improved processBooking function with better concurrency handling
+
 
 
 const createSeatAvailabilityMax = async ({ schedule_id, date }) => {
@@ -523,6 +820,8 @@ const fetchSeatAvailability = async ({ date, schedule_id, sub_schedule_id }) => 
 
 module.exports = {
   createSeatAvailability,
+  createSeatAvailability2,
+  createSeatAvailabilityBulk,
   createSeatAvailabilityMax,
   fetchSeatAvailability,
   boostSeatAvailability,

@@ -31,6 +31,11 @@ const formidable = require("formidable");
 const fs = require("fs");
 const path = require("path");
 const csv = require("csv-parser");
+const {
+  updateAgentCommission,
+  updateAgentCommissionBulk,
+} = require("../util/updateAgentComission");
+
 const { createSeatAvailability } = require("../util/seatAvailabilityUtils");
 
 // Disable default body parser for file uploads
@@ -328,96 +333,96 @@ console.log("CSV booking data:", bookingsData);
 
 // Validate CSV data format and relations
 const validateMultiCSVData = (bookings, passengers, transports) => {
-  // Validate basic booking data
-  for (const booking of bookings) {
-    if (
-      !booking.ticket_id ||
-      !booking.schedule_id ||
-      !booking.booking_date ||
-      !booking.total_passengers
-    ) {
-      return {
-        isValid: false,
-        error:
-          "Booking data missing required fields (ticket_id, schedule_id, booking_date, total_passengers)",
-      };
-    }
-
-    // Validate passenger counts
-    const adultCount = parseInt(booking.adult_passengers) || 0;
-    const childCount = parseInt(booking.child_passengers) || 0;
-    const totalPassengers = parseInt(booking.total_passengers);
-
-    if (adultCount + childCount !== totalPassengers) {
-      return {
-        isValid: false,
-        error: `Passenger count mismatch for ticket ${booking.ticket_id}. Sum of adult (${adultCount}), child (${childCount}) passengers does not match total (${totalPassengers})`,
-      };
-    }
-  }
-
-  // Validate passenger data
-  const ticketIds = new Set(bookings.map((b) => b.ticket_id));
-  const passengerCounts = {};
-
-  for (const passenger of passengers) {
-    if (!passenger.ticket_id || !passenger.name || !passenger.passenger_type) {
-      return {
-        isValid: false,
-        error:
-          "Passenger data missing required fields (ticket_id, name, passenger_type)",
-      };
-    }
-
-    if (!ticketIds.has(passenger.ticket_id)) {
-      return {
-        isValid: false,
-        error: `Passenger with ticket_id ${passenger.ticket_id} does not match any booking`,
-      };
-    }
-
-    // Count passengers per booking
-    passengerCounts[passenger.ticket_id] =
-      (passengerCounts[passenger.ticket_id] || 0) + 1;
-  }
-
-  // Validate passenger counts match total_passengers in bookings
-  for (const booking of bookings) {
-    const expectedPassengers = parseInt(booking.total_passengers);
-    const actualPassengers = passengerCounts[booking.ticket_id] || 0;
-
-    if (actualPassengers !== expectedPassengers) {
-      return {
-        isValid: false,
-        error: `Passenger count mismatch for ticket ${booking.ticket_id}: expected ${expectedPassengers}, found ${actualPassengers}`,
-      };
-    }
-  }
-
-  // Validate transport data if provided
-  if (transports && transports.length > 0) {
-    for (const transport of transports) {
+    // Validate basic booking data
+    for (const booking of bookings) {
       if (
-        !transport.ticket_id ||
-        !transport.transport_id ||
-        !transport.transport_price ||
-        !transport.transport_type
+        !booking.ticket_id ||
+        !booking.schedule_id ||
+        !booking.booking_date ||
+        !booking.total_passengers
       ) {
         return {
           isValid: false,
           error:
-            "Transport data missing required fields (ticket_id, transport_id, transport_price, transport_type)",
+            "Booking data missing required fields (ticket_id, schedule_id, booking_date, total_passengers)",
         };
       }
 
-      if (!ticketIds.has(transport.ticket_id)) {
+      // Validate passenger counts
+      const adultCount = parseInt(booking.adult_passengers) || 0;
+      const childCount = parseInt(booking.child_passengers) || 0;
+      const totalPassengers = parseInt(booking.total_passengers);
+
+      if (adultCount + childCount !== totalPassengers) {
         return {
           isValid: false,
-          error: `Transport with ticket_id ${transport.ticket_id} does not match any booking`,
+          error: `Passenger count mismatch for ticket ${booking.ticket_id}. Sum of adult (${adultCount}), child (${childCount}) passengers does not match total (${totalPassengers})`,
         };
       }
     }
-  }
+
+    // Validate passenger data
+    const ticketIds = new Set(bookings.map((b) => b.ticket_id));
+    const passengerCounts = {};
+
+    for (const passenger of passengers) {
+      if (!passenger.ticket_id || !passenger.name || !passenger.passenger_type) {
+        return {
+          isValid: false,
+          error:
+            "Passenger data missing required fields (ticket_id, name, passenger_type)",
+        };
+      }
+
+      if (!ticketIds.has(passenger.ticket_id)) {
+        return {
+          isValid: false,
+          error: `Passenger with ticket_id ${passenger.ticket_id} does not match any booking`,
+        };
+      }
+
+      // Count passengers per booking
+      passengerCounts[passenger.ticket_id] =
+        (passengerCounts[passenger.ticket_id] || 0) + 1;
+    }
+
+    // Validate passenger counts match total_passengers in bookings
+    for (const booking of bookings) {
+      const expectedPassengers = parseInt(booking.total_passengers);
+      const actualPassengers = passengerCounts[booking.ticket_id] || 0;
+
+      if (actualPassengers !== expectedPassengers) {
+        return {
+          isValid: false,
+          error: `Passenger count mismatch for ticket ${booking.ticket_id}: expected ${expectedPassengers}, found ${actualPassengers}`,
+        };
+      }
+    }
+
+    // Validate transport data if provided
+    if (transports && transports.length > 0) {
+      for (const transport of transports) {
+        if (
+          !transport.ticket_id ||
+          !transport.transport_id ||
+          !transport.transport_price ||
+          !transport.transport_type
+        ) {
+          return {
+            isValid: false,
+            error:
+              "Transport data missing required fields (ticket_id, transport_id, transport_price, transport_type)",
+          };
+        }
+
+        if (!ticketIds.has(transport.ticket_id)) {
+          return {
+            isValid: false,
+            error: `Transport with ticket_id ${transport.ticket_id} does not match any booking`,
+          };
+        }
+      }
+    }
 
   return { isValid: true };
 };
@@ -462,6 +467,7 @@ const assembleBookingData = (bookings, passengers, transports) => {
     booking_date: booking.booking_date,
     agent_id: parseInt(booking.agent_id),
     ticket_total: parseFloat(booking.ticket_total),
+    gross_total: parseFloat(booking.gross_total),
     payment_status: booking.payment_status,
     contact_name: booking.contact_name,
     contact_phone: booking.contact_phone,
@@ -483,7 +489,8 @@ const assembleBookingData = (bookings, passengers, transports) => {
 
 
 const processBooking = async (bookingData) => {
-  console.log("Processing booking data:");
+  console.log("Processing booking data:", bookingData);
+  
   return await sequelize.transaction(async (t) => {
     try {
       const {
@@ -494,6 +501,7 @@ const processBooking = async (bookingData) => {
         passengers,
         agent_id,
         ticket_total,
+        gross_total,
         payment_status,
         transports,
         contact_name,
@@ -513,61 +521,48 @@ const processBooking = async (bookingData) => {
       console.log(`🚀 Processing booking: ${ticket_id}`);
 
       // Check for duplicate ticket
-      const existingBooking = await Booking.findOne({ where: { ticket_id } });
+      const existingBooking = await Booking.findOne({ 
+        where: { ticket_id },
+        transaction: t
+      });
+      
       if (existingBooking) {
         console.warn(`The ticket ID '${ticket_id}' is already in use.`);
         throw new Error(`The ticket ID '${ticket_id}' is already in use.`);
       }
 
-      // Step 1: Check if SeatAvailability exists
+      // Step 1: Get SeatAvailability with lock
       const seatAvailabilityFilter = {
         schedule_id,
         date: booking_date,
         ...(subschedule_id ? { subschedule_id } : { subschedule_id: null }),
       };
 
-      let seatAvailability = await SeatAvailability.findOne({
+      // Mencari seat availability dengan lock untuk mencegah race condition
+      const seatAvailability = await SeatAvailability.findOne({
         where: seatAvailabilityFilter,
+        lock: t.LOCK.UPDATE, // Tambahkan lock untuk mencegah race condition
         transaction: t,
       });
 
-      if (seatAvailability) {
-        console.log(`✅ SeatAvailability exists with ID: ${seatAvailability.id}`);
-      }
-
-      // Step 2: Create SeatAvailability if it doesn't exist
+      // Jika tidak ditemukan, itu adalah error (seat harusnya sudah dibuat di validasi)
       if (!seatAvailability) {
-        console.log("🚨 SeatAvailability not found, creating...");
-        await createSeatAvailability({
-          schedule_id,
-          date: booking_date,
-          subschedule_id,
-          transit_id: null,
-          qty: 0,
-        });
-
-        // Fetch again after creating
-        seatAvailability = await SeatAvailability.findOne({
-          where: seatAvailabilityFilter,
-          transaction: t,
-        });
-
-        if (!seatAvailability) {
-          throw new Error("SeatAvailability could not be created.");
-        }
+        throw new Error("SeatAvailability not found. Please ensure validation process has been run.");
       }
 
-      // Step 3: Validate available seats
+      console.log(`✅ Working with SeatAvailability ID: ${seatAvailability.id}`);
+
+      // Step 2: Validate available seats
       if (seatAvailability.available_seats < total_passengers) {
         throw new Error(`Not enough seats available. Required: ${total_passengers}, Available: ${seatAvailability.available_seats}`);
       }
 
-      // Step 4: Reduce available seats
+      // Step 3: Reduce available seats
       await seatAvailability.update({
         available_seats: seatAvailability.available_seats - total_passengers
       }, { transaction: t });
 
-      // Step 5: Calculate transport total
+      // Step 4: Calculate transport total
       const transportTotal = Array.isArray(transports)
         ? transports.reduce((total, transport) =>
             total + parseFloat(transport.transport_price) * transport.quantity
@@ -576,7 +571,7 @@ const processBooking = async (bookingData) => {
 
       const totalAmount = parseFloat(ticket_total) + transportTotal;
 
-      // Step 6: Create booking
+      // Step 5: Create booking
       const booking = await Booking.create({
         schedule_id,
         subschedule_id,
@@ -584,7 +579,7 @@ const processBooking = async (bookingData) => {
         booking_date,
         agent_id,
         bank_fee: 0,
-        gross_total: totalAmount,
+        gross_total: gross_total,
         ticket_total: parseFloat(ticket_total),
         payment_status,
         contact_name,
@@ -599,27 +594,82 @@ const processBooking = async (bookingData) => {
         infant_passengers,
         ticket_id,
         note,
-        expiration_time: new Date(Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000),
       }, { transaction: t });
 
-      console.log("start booking queueue");
-      // Step 7: Add to queue (optional)
+      // Step 6: Process agent commission directly
+      if (agent_id && (payment_status === 'paid' || payment_status === 'invoiced')) {
+        console.log(`💰 Processing commission for booking ${booking.id}, agent ${agent_id}`);
+        try {
+          const commissionResult = await updateAgentCommission(
+            agent_id,
+            gross_total,
+            total_passengers,
+            payment_status,
+            schedule_id,
+            subschedule_id,
+            booking.id,
+            t, // Pass transaction to ensure everything is in one transaction
+            transports
+          );
+          console.log(`💰 Commission result for booking ${booking.id}:`, commissionResult);
+        } catch (commissionError) {
+          console.error(`❌ Error processing commission for booking ${booking.id}:`, commissionError.message);
+          // We still continue even if commission processing fails
+        }
+      } else {
+        console.log(`⚠️ Skipping commission - agent_id: ${agent_id}, payment_status: ${payment_status}`);
+      }
+      
+      // Step 7: Process transport bookings directly
+      if (Array.isArray(transports) && transports.length > 0) {
+        console.log(`🚗 Processing transport bookings for booking ${booking.id}`);
+        try {
+          // Create transport bookings directly
+          const transportRecords = [];
+          
+          for (const transport of transports) {
+            const transportRecord = await TransportBooking.create({
+              booking_id: booking.id,
+              transport_id: parseInt(transport.transport_id),
+              transport_price: parseFloat(transport.transport_price),
+              quantity: parseInt(transport.quantity || 1),
+              transport_type: transport.transport_type,
+              note: transport.note || null,
+              total: parseFloat(transport.transport_price) * parseInt(transport.quantity || 1)
+            }, { transaction: t });
+            
+            transportRecords.push(transportRecord);
+          }
+          
+          console.log(`✅ Created ${transportRecords.length} transport bookings for booking ${booking.id}`);
+        } catch (transportError) {
+          console.error(`❌ Error processing transport bookings:`, transportError.message);
+          // Continue without failing the entire booking process
+        }
+      } else {
+        console.log(`🚗 No transport bookings to process for booking ${booking.id}`);
+      }
+
+      // Step 8: Add to queue for remaining processes (passengers, seat availability records)
+      console.log("Start booking queue for remaining processes");
       bookingQueue.add({
         schedule_id,
         subschedule_id,
         booking_date,
         total_passengers,
         passengers,
-        transports,
+        transports: [], // No need to process transports again in queue
         booking_id: booking.id,
         agent_id,
-        gross_total: totalAmount,
+        gross_total: gross_total,
         payment_status,
+        commission_processed: true, // Flag to indicate commission was already processed
+        transport_processed: true // Flag to indicate transports were already processed
       });
 
       console.log("✅ Booking created:", booking.id);
+      
       return { booking };
-
     } catch (error) {
       console.error("❌ Error in processBooking:", error.message);
       throw error;
@@ -708,9 +758,9 @@ const getBulkBookingDetails = async (req, res) => {
 // Export CSV template controllers
 const getBookingsTemplate = (req, res) => {
   const headers =
-    "schedule_id,subschedule_id,total_passengers,booking_date,agent_id,ticket_total,payment_status,contact_name,contact_phone,contact_passport_id,contact_nationality,contact_email,payment_method,booking_source,adult_passengers,child_passengers,infant_passengers,ticket_id,note";
+    "schedule_id,subschedule_id,total_passengers,booking_date,agent_id,ticket_total,gross_total,payment_status,contact_name,contact_phone,contact_passport_id,contact_nationality,contact_email,payment_method,booking_source,adult_passengers,child_passengers,infant_passengers,ticket_id,note";
   const sampleRow =
-    "37,40,3,2024-01-20,1,270000.00,pending,John Doe,1234567890,A12345678,USA,john.doe@example.com,paypal,website,2,1,0,GG-OW-382037,Sample booking";
+    "37,40,3,2024-01-20,1,270000.00,500000,pending,John Doe,1234567890,A12345678,USA,john.doe@example.com,paypal,website,2,1,0,GG-OW-382037,Sample booking";
 
   const csvContent = `${headers}\n${sampleRow}`;
 

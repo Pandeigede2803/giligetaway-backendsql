@@ -45,6 +45,31 @@ const addTransportBookings = async (transports, booking_id, total_passengers, tr
     await TransportBooking.bulkCreate(transportData, { transaction });
 };
 
+const addTransportBookings2 = async (transports, booking_id, total_passengers, transaction) => {
+    if (!transports || !Array.isArray(transports) || transports.length === 0) {
+        console.log('No transport bookings to add');
+        return []; // Return empty array if no transports
+    }
+
+    console.log('Adding transport bookings:', transports);
+    
+    const transportData = transports.map((transport) => ({
+        booking_id,
+        transport_id: transport.transport_id,
+        transport_price: transport.transport_price || 0, // Assign a default value of 0 if not provided
+        quantity: transport.quantity || total_passengers,
+        transport_type: transport.transport_type,
+        note: transport.note
+    }));
+    
+    // Buat booking dan simpan hasilnya
+    const createdTransports = await TransportBooking.bulkCreate(transportData, { transaction });
+    console.log(`Created ${createdTransports.length} transport bookings`);
+    
+    // Penting: kembalikan hasil pembuatan transport
+    return createdTransports;
+};
+
 const updateAgentMetrics = async (agent_id, gross_total, total_passengers, payment_status, transaction) => {
     console.log('Updating agent metrics. Agent ID:', agent_id, 'Gross Total:', gross_total, 'Total Passengers:', total_passengers, 'Payment Status:', payment_status);
     const agentMetrics = await AgentMetrics.findOne({ where: { agent_id }, transaction });
@@ -86,5 +111,6 @@ module.exports = {
     updateScheduleSeats,
     addPassengers,
     addTransportBookings,
+    addTransportBookings2,
     updateAgentMetrics
 }
