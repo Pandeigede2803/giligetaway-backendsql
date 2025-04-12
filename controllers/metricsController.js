@@ -1005,7 +1005,23 @@ const bookingCountBySourceChange = {
     }
   };
 };
-
+const calculatePreviousPeriod = (fromDate, toDate) => {
+  // Parse dates
+  const fromMoment = moment(fromDate);
+  const toMoment = moment(toDate);
+  
+  // Calculate duration in days
+  const durationDays = toMoment.diff(fromMoment, 'days') + 1;
+  
+  // Calculate the previous period by going back exactly one period length
+  const previousFrom = fromMoment.clone().subtract(durationDays, 'days').startOf('day');
+  const previousTo = toMoment.clone().subtract(durationDays, 'days').endOf('day');
+  
+  return {
+    fromDate: previousFrom.format('YYYY-MM-DD HH:mm:ss'),
+    toDate: previousTo.format('YYYY-MM-DD HH:mm:ss')
+  };
+};
 const buildDateFilter = ({ from, to, month, year, day }) => {
   // For from and to dates
   // Untuk filter from-to
@@ -1448,11 +1464,11 @@ const getMetricsBookingDate = async (req, res) => {
       const fromMoment = moment(from);
       const toMoment = moment(to);
 
-      // Periksa jika bulan penuh
+      // Periksa jika bulan penuh - improved check for last day of month
       const isFullMonth =
         fromMoment.date() === 1 &&
         toMoment.month() === fromMoment.month() &&
-        toMoment.date() >= 28;
+        toMoment.date() === toMoment.daysInMonth();
 
       if (isFullMonth) {
         // Jika bulan penuh, gunakan bulan sebelumnya sebagai pembanding
@@ -1472,20 +1488,22 @@ const getMetricsBookingDate = async (req, res) => {
           month: prevMonth + 1, // Koreksi untuk API
           year: prevYear,
         });
+        
+        console.log(`Full month detected: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        console.log(`Previous period (month): ${prevMonth + 1}/${prevYear}`);
       } else {
-        // Untuk rentang tanggal biasa
-        const previousFrom = moment(from)
-          .subtract(3, "days")
-          .startOf("day")
-          .format("YYYY-MM-DD HH:mm:ss");
-        const previousTo = moment(to)
-          .subtract(3, "days")
-          .endOf("day")
-          .format("YYYY-MM-DD HH:mm:ss");
+        // For custom date ranges, calculate an equivalent previous period
+        const { fromDate: previousFrom, toDate: previousTo } = calculatePreviousPeriod(from, to);
+        
         // Filter untuk booking_date
         previousPeriodFilter = {
           booking_date: { [Op.between]: [previousFrom, previousTo] },
         };
+        
+        // Log for debugging
+        console.log("Custom date range detected:");
+        console.log(`Current period: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        console.log(`Previous period: ${moment(previousFrom).format('YYYY-MM-DD')} to ${moment(previousTo).format('YYYY-MM-DD')}`);
       }
     } else if (numericYear && !numericMonth && !numericDay) {
       // If only year is provided, use previous year
@@ -1493,6 +1511,9 @@ const getMetricsBookingDate = async (req, res) => {
       previousPeriodFilter = buildBookingDateFilter({
         year: numericYear - 1,
       });
+      
+      console.log(`Year only filter: ${numericYear}`);
+      console.log(`Previous period (year): ${numericYear - 1}`);
     } else {
       // For month/day combinations
       // Gunakan buildBookingDateFilter untuk booking_date
@@ -1506,11 +1527,14 @@ const getMetricsBookingDate = async (req, res) => {
           numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear,
         day,
       });
+      
+      console.log(`Month/day filter: Month=${numericMonth}, Year=${numericYear}, Day=${numericDay}`);
+      console.log(`Previous period: Month=${numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : 'undefined'}, Year=${numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear}`);
     }
 
-    // // Log filters untuk debugging
-    // console.log("Current period filter:", dateFilter);
-    // console.log("Previous period filter:", previousPeriodFilter);
+    // Log filters untuk debugging
+    console.log("DATE FILTER", dateFilter);
+    console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);
 
     // Gunakan fungsi fetchAllMetricsDataBookingDate untuk query booking_date
     const metricsData = await fetchAllMetricsDataBookingDate(
