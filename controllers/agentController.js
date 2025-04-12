@@ -73,75 +73,75 @@ exports.createAgent = async (req, res) => {
     console.log("✅ Agent Created: ID =", agent.id);
 
     // ✅ Mengirim email dengan kredensial login
-    // const mailOptions = {
-    //   from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
-    //   to: agent.email,
-    //   subject: 'Your Gili Getaway Agent Account Details',
-    //   html: `
-    //     <!DOCTYPE html>
-    //     <html lang="en">
-    //     <head>
-    //       <meta charset="UTF-8">
-    //       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    //       <title>Welcome to Gili Getaway</title>
-    //     </head>
-    //     <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
-    //       <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    const mailOptions = {
+      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
+      to: agent.email,
+      subject: 'Your Gili Getaway Agent Account Details',
+      html: `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Welcome to Gili Getaway</title>
+        </head>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
+          <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
             
-    //         <!-- Header -->
-    //         <div style="background: linear-gradient(135deg, #165297, #134782); padding: 30px 20px; text-align: center;">
-    //           <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
-    //           <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Welcome to the Gili Getaway Team!</h1>
-    //         </div>
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #165297, #134782); padding: 30px 20px; text-align: center;">
+              <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
+              <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Welcome to the Gili Getaway Team!</h1>
+            </div>
         
-    //         <!-- Body -->
-    //         <div style="padding: 30px 20px;">
-    //           <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
+            <!-- Body -->
+            <div style="padding: 30px 20px;">
+              <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
         
-    //           <p style="font-size: 16px; line-height: 1.5;">
-    //             Congratulations! Your agent account has been successfully created, and you're now officially part of the Gili Getaway family.
-    //           </p>
+              <p style="font-size: 16px; line-height: 1.5;">
+                Congratulations! Your agent account has been successfully created, and you're now officially part of the Gili Getaway family.
+              </p>
         
-    //           <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
-    //             <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
-    //             <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
-    //             <p style="font-size: 16px; margin: 5px 0;"><strong>Temporary Password:</strong> ${randomPassword}</p>
-    //           </div>
+              <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
+                <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
+                <p style="font-size: 16px; margin: 5px 0;"><strong>Temporary Password:</strong> ${randomPassword}</p>
+              </div>
               
-    //           <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
-    //             <p style="font-size: 16px; margin: 0;">
-    //               <strong>🔒 IMPORTANT:</strong> Please log in and change your password immediately for security purposes.
-    //             </p>
-    //           </div>
+              <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
+                <p style="font-size: 16px; margin: 0;">
+                  <strong>🔒 IMPORTANT:</strong> Please log in and change your password immediately for security purposes.
+                </p>
+              </div>
         
-    //           <!-- Call to Action Button -->
-    //           <div style="text-align: center; margin: 35px 0;">
-    //             <a href="https://giligetaway-widget.my.id/agent" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Log In to Your Account</a>
-    //           </div>
+              <!-- Call to Action Button -->
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="https://giligetaway-widget.my.id/agent" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Log In to Your Account</a>
+              </div>
         
-    //           <p style="font-size: 16px; line-height: 1.5;">
-    //             If you have any questions about using the system or need assistance, please don't hesitate to contact our support team.
-    //           </p>
+              <p style="font-size: 16px; line-height: 1.5;">
+                If you have any questions about using the system or need assistance, please don't hesitate to contact our support team.
+              </p>
         
-    //           <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
-    //           <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
-    //           <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
-    //         </div>
+              <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
+              <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
+              <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
+            </div>
         
-    //         <!-- Footer -->
-    //         <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-    //           <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ info@giligetaway.com</p>
-    //           <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Access Your Agent Dashboard</a></p>
-    //           <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
-    //           <p style="margin: 6px 0; font-size: 12px;">This is an automated message. For support, please contact our team directly.</p>
-    //         </div>
-    //       </div>
-    //     </body>
-    //     </html>
-    //   `
-    // };
+            <!-- Footer -->
+            <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+              <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ info@giligetaway.com</p>
+              <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Access Your Agent Dashboard</a></p>
+              <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
+              <p style="margin: 6px 0; font-size: 12px;">This is an automated message. For support, please contact our team directly.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
 
-    // await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
     // console.log("✅ Email sent successfully to:", agent.email);
 
     // Commit transaksi setelah agen dibuat dan email berhasil dikirim
