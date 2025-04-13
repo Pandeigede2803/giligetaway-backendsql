@@ -19,165 +19,227 @@ const { Resend } = require("resend");
 
 
 
-// Configure Nodemailer
-// const transporter = nodemailer.createTransport({
-//   host: process.env.EMAIL_HOST, // SMTP Server (e.g., smtp.gmail.com)
-//   port: 465, // Use port 465 for SSL
-//   secure: true, // Use SSL
-//   auth: {
-//     user: process.env.EMAIL_USER, // Your email
-//     pass: process.env.EMAIL_PASSWORD, // Your email password or app password
-//   },
-// });
+// Create the HTML email template as a separate function
+// Email template function - moved out for cleaner code
+// Email template function with spam-prevention measures
+const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
+  const currentYear = new Date().getFullYear();
+  
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Gili Getaway</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
+  <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+    
+    <!-- Header -->
+    <div style="background-color: #165297; padding: 25px 20px; text-align: center;">
+      <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
+      <h1 style="color: white; margin: 10px 0 5px; font-size: 22px;">Welcome to the Gili Getaway Team!</h1>
+    </div>
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST_GMAIL, // SMTP Server (e.g., smtp.gmail.com)
-  port: process.env.EMAIL_PORT_GMAIL, // Use port 465 for SSL
-  secure: true, // Use SSL
-  auth: {
-    user: process.env.EMAIL_USER_GMAIL, // Your email
-    pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
-  },
-});
+    <!-- Body -->
+    <div style="padding: 25px 20px;">
+      <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
 
+      <p style="font-size: 16px; line-height: 1.5;">
+        Congratulations! Your agent account has been successfully created, and you're now officially part of the Gili Getaway family.
+      </p>
+
+      <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
+        <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
+        <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
+        <p style="font-size: 16px; margin: 5px 0;"><strong>Temporary Password:</strong> ${randomPassword}</p>
+      </div>
+      
+      <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
+        <p style="font-size: 16px; margin: 0;">
+          <strong>IMPORTANT:</strong> Please log in and change your password immediately for security purposes.
+        </p>
+      </div>
+
+      <!-- Call to Action Button -->
+      <div style="text-align: center; margin: 35px 0;">
+        <a href="https://giligetaway-widget.my.id/agent" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Log In to Your Account</a>
+        <p style="font-size: 14px; color: #666;">Or use this link: https://giligetaway-widget.my.id/agent</p>
+      </div>
+
+      <p style="font-size: 16px; line-height: 1.5;">
+        If you have any questions about using the system or need assistance, please contact our support team at support@giligetaway.com.
+      </p>
+
+      <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
+      <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
+      <p style="font-size: 15px; color: #165297; margin-top: 5px;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+      <p style="margin: 6px 0;">Gili Getaway | Jl. Pantai Gili Trawangan, Lombok, Indonesia</p>
+      <p style="margin: 6px 0;">Contact: (+62) 81138 01717 | giligetaway@ozemail.com.au</p>
+      <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6; text-decoration: underline;">Access Your Agent Dashboard</a></p>
+      <p style="margin: 6px 0;">© ${currentYear} Gili Getaway. All rights reserved.</p>
+      <p style="margin: 6px 0; font-size: 12px;">This is a transactional email regarding your account creation.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+};
+
+// Configure the email transporter
+const configureTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST_GMAIL,
+    port: process.env.EMAIL_PORT_GMAIL,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER_GMAIL,
+      pass: process.env.EMAIL_PASS_GMAIL,
+    },
+  });
+};
+
+// Function to prepare agent data
+const prepareAgentData = async (req) => {
+  // Generate and hash password
+  const randomPassword = generateRandomPassword(12); // Increased to 12 characters
+  const hashedPassword = await bcrypt.hash(randomPassword, 10);
+  
+  // Determine image URL
+  const imageUrl = req.file ? req.file.url : 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558';
+  
+  // Prepare agent data object
+  const agentData = {
+    ...req.body,
+    password: hashedPassword,
+    image_url: imageUrl,
+  };
+  
+  return { agentData, randomPassword };
+};
+
+// Function to format agent response (without sensitive data)
+const formatAgentResponse = (agent) => {
+  return {
+    id: agent.id,
+    name: agent.name,
+    email: agent.email,
+    phone: agent.phone,
+    contact_person: agent.contact_person || "unknown",
+    commission_rate: agent.commission_rate || 0,
+    commission_long: agent.commission_long || 0,
+    commission_short: agent.commission_short || 0,
+    commission_long_transport: agent.commission_long_transport || 0,
+    commission_short_transport: agent.commission_short_transport || 0,
+    address: agent.address,
+    image_url: agent.image_url,
+    created_at: agent.created_at,
+    updated_at: agent.updated_at,
+  };
+};
+
+// Function to send agent welcome email
+const sendAgentWelcomeEmail = async (transporter, agent, randomPassword) => {
+  const mailOptions = {
+    from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
+    to: agent.email,
+    // CC removed to prevent spam triggers
+    subject: 'Welcome to Gili Getaway - Your New Account',
+    html: createAgentWelcomeEmailTemplate(agent, randomPassword)
+  };
+  
+  return transporter.sendMail(mailOptions);
+};
+
+// Main function to create a new agent
 exports.createAgent = async (req, res) => {
-
+  const transporter = configureTransporter();
   const transaction = await sequelize.transaction();
 
   try {
-    // Generate password acak
-    const randomPassword = generateRandomPassword(10);
-    console.log("🔑 Generated Password:", randomPassword);
-
-    // Hash password sebelum disimpan
-    const hashedPassword = await bcrypt.hash(randomPassword, 10);
-    console.log("🔐 Hashed Password:", hashedPassword);
-
-    // Tentukan URL gambar
-    let imageUrl = req.file ? req.file.url : 'https://ik.imagekit.io/m1akscp5q/Person-placeholder.jpg?updatedAt=1732263814558';
-    console.log("🖼️ Image URL:", imageUrl);
-
-    // Membuat data agen
-    const agentData = {
-      ...req.body,
-      password: hashedPassword, // Menyimpan password random , hashed nanti saja
-      image_url: imageUrl, // Menyimpan gambar atau gambar default
-    };
-    console.log("📝 Agent Data:", agentData);
-
-    // Menyimpan agen ke database
+    // Step 1: Prepare agent data with password and image
+    const { agentData, randomPassword } = await prepareAgentData(req);
+    
+    // Step 2: Save agent to database
     const agent = await Agent.create(agentData, { transaction });
     if (!agent) {
-      throw new Error("❌ Failed to create agent");
+      throw new Error("Failed to create agent");
+    }
+    
+    // Step 3: Send welcome email with credentials
+    await sendAgentWelcomeEmail(transporter, agent, randomPassword);
+    
+    // Log email sending (without exposing content or credentials)
+    console.log(`Email sent to ${agent.email} for new account creation`);
+    
+    // Step 4: Commit transaction
+    await transaction.commit();
+    
+    // Step 5: Send response
+    res.status(201).json({
+      agent: formatAgentResponse(agent),
+      message: "Agent created successfully. Login instructions sent via email.",
+    });
+
+  } catch (error) {
+    // Rollback transaction on error
+    await transaction.rollback();
+    console.error("Error creating agent:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+// Main function to create a new agent
+exports.createAgent = async (req, res) => {
+  const transporter = configureTransporter();
+  const transaction = await sequelize.transaction();
+
+  try {
+    // Step 1: Prepare agent data with password and image
+    const { agentData, randomPassword } = await prepareAgentData(req);
+    console.log("📝 Agent Data prepared");
+    
+    // Step 2: Save agent to database
+    const agent = await Agent.create(agentData, { transaction });
+    if (!agent) {
+      throw new Error("Failed to create agent");
     }
     console.log("✅ Agent Created: ID =", agent.id);
-
-    // ✅ Mengirim email dengan kredensial login
+    
+    // Step 3: Send welcome email with credentials
     const mailOptions = {
       from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
       to: agent.email,
+      cc: process.env.EMAIL_USER_GMAIL,
       subject: 'Your Gili Getaway Agent Account Details',
-      cc: process.env.EMAIL_USER_GMAIL, // Added this line
-      html: `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Welcome to Gili Getaway</title>
-        </head>
-        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
-          <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #165297, #134782); padding: 30px 20px; text-align: center;">
-              <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
-              <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Welcome to the Gili Getaway Team!</h1>
-            </div>
-        
-            <!-- Body -->
-            <div style="padding: 30px 20px;">
-              <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
-        
-              <p style="font-size: 16px; line-height: 1.5;">
-                Congratulations! Your agent account has been successfully created, and you're now officially part of the Gili Getaway family.
-              </p>
-        
-              <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
-                <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
-                <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
-                <p style="font-size: 16px; margin: 5px 0;"><strong>Temporary Password:</strong> ${randomPassword}</p>
-              </div>
-              
-              <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
-                <p style="font-size: 16px; margin: 0;">
-                  <strong>🔒 IMPORTANT:</strong> Please log in and change your password immediately for security purposes.
-                </p>
-              </div>
-        
-              <!-- Call to Action Button -->
-              <div style="text-align: center; margin: 35px 0;">
-                <a href="https://giligetaway-widget.my.id/agent" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Log In to Your Account</a>
-              </div>
-        
-              <p style="font-size: 16px; line-height: 1.5;">
-                If you have any questions about using the system or need assistance, please don't hesitate to contact our support team.
-              </p>
-        
-              <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
-              <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
-              <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
-            </div>
-        
-            <!-- Footer -->
-            <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-              <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ info@giligetaway.com</p>
-              <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Access Your Agent Dashboard</a></p>
-              <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
-              <p style="margin: 6px 0; font-size: 12px;">This is an automated message. For support, please contact our team directly.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
+      html: createAgentWelcomeEmailTemplate(agent, randomPassword)
     };
-
+    
     await transporter.sendMail(mailOptions);
-    // console.log("✅ Email sent successfully to:", agent.email);
-
-    // Commit transaksi setelah agen dibuat dan email berhasil dikirim
+    console.log("📧 Email sent to:", agent.email);
+    
+    // Step 4: Commit transaction
     await transaction.commit();
-
-    // Mengembalikan detail agen (tanpa password untuk keamanan)
+    
+    // Step 5: Send response
     res.status(201).json({
-      agent: {
-        id: agent.id,
-        name: agent.name,
-        email: agent.email,
-        phone: agent.phone,
-        contact_person: agent.contact_person || "unknown",
-        commission_rate: agent.commission_rate || 0,
-        commission_long: agent.commission_long || 0,
-        commission_short: agent.commission_short || 0,
-        commission_long_transport: agent.commission_long_transport || 0,
-        commission_short_transport: agent.commission_short_transport || 0,
-        address: agent.address,
-        image_url: agent.image_url,
-        created_at: agent.created_at,
-        updated_at: agent.updated_at,
-      },
+      agent: formatAgentResponse(agent),
       message: "Agent created successfully. Credentials sent via email.",
     });
 
   } catch (error) {
-    // Rollback transaksi jika terjadi error sebelum commit
+    // Rollback transaction on error
     await transaction.rollback();
     console.error("❌ Error creating agent:", error.message);
-
     res.status(500).json({ message: error.message });
   }
-}
-
+};
 
 // exports.createAgent = async (req, res) => {
 //   console.log("req body:", req.body);
