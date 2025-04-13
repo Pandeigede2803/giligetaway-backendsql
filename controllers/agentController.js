@@ -77,6 +77,7 @@ exports.createAgent = async (req, res) => {
       from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
       to: agent.email,
       subject: 'Your Gili Getaway Agent Account Details',
+      cc: process.env.EMAIL_USER_GMAIL, // Added this line
       html: `
         <!DOCTYPE html>
         <html lang="en">
