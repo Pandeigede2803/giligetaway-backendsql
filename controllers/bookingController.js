@@ -2641,6 +2641,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
           as:'transactions'
 
         },
+        {model: AgentCommission, as: "agentCommission"},
         {
           model: Schedule,
           as: "schedule",
@@ -2711,7 +2712,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
           include: [{ model: Transport, as: "transport" }],
         },
         { model: Agent, as: "Agent" },
-        {model: AgentCommission, as: "agentCommission"},
+       
       ],
       order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
       limit: 2, // Ambil maksimum 2 data

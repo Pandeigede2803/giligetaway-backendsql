@@ -8,7 +8,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER_GMAIL, // Your email
     pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
   },
-});
+});;
 
 const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   console.log("Starting to send expired booking email to:", recipientEmail);
@@ -830,61 +830,84 @@ const sendUnpaidReminderEmailToAgent = async (
 const sendCancellationEmail = async (customerEmail, booking) => {
   console.log(`Sending cancellation email to customer ${customerEmail}`);
   const emailUrl = process.env.FRONTEND_URL;
-
+  
   try {
     const subject = "Your Booking Has Been Canceled - Payment Not Received";
-
+    
     // Create email message
     let message = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">${subject}</h2>
-        
-        <p>Dear Customer,</p>
-        
-        <p>We regret to inform you that your booking with the following details has been <strong style="color: red;">automatically canceled</strong> because payment was not received within 24 hours:</p>
-        
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          <h3 style="margin-top: 0; color: #333;">Booking Details:</h3>
-          <p><strong>Ticket ID:</strong> ${booking.ticket_id}</p>
-     <p><strong>Departure Date:</strong> ${new Intl.DateTimeFormat("en-GB", {
-       day: "2-digit",
-       month: "long",
-       year: "numeric",
-     }).format(new Date(booking.booking_date))}</p>
-           <p><strong>Booking Date:</strong> ${new Intl.DateTimeFormat(
-             "en-GB",
-             { day: "2-digit", month: "long", year: "numeric" }
-           ).format(new Date(booking.created_at))}</p>
-
-
-          <p><strong>Total Payment:</strong> ${booking.gross_total} ${
-      booking.currency
-    }</p>
-          <p><strong>Status:</strong> <span style="color: red;">Canceled</span></p>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Booking Cancellation Notice</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+        <!-- Pre-header -->
+        <div style="display:none; font-size:1px; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+          Important: Your Gili Getaway booking #${booking.ticket_id} has been canceled due to non-payment.
         </div>
-        
-        <p>If you still wish to travel, please contact your travel agent to make a new booking.</p>
-        
-        <p>Thank you for your understanding.</p>
-        
-        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
-          <p>This email is sent automatically, please do not reply to this email.</p>
-          <p>© ${new Date().getFullYear()} Your Company Name. All rights reserved.</p>
+
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+          <div style="background-color: #165297; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
+            <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png" 
+                 alt="Gili Getaway" 
+                 style="max-width: 180px; display: inline-block;" 
+                 width="180" height="60">
+            <h1 style="color: white; margin: 10px 0;">Booking Cancellation Notice</h1>
+          </div>
+          
+          <div style="padding: 20px;">
+            <p>Dear Customer,</p>
+            
+            <p>We regret to inform you that your booking with the following details has been <strong style="color: #d32f2f;">automatically canceled</strong> because payment was not received within 24 hours:</p>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <h3 style="margin-top: 0; color: #165297;">Booking Details:</h3>
+              <p><strong>Ticket ID:</strong> ${booking.ticket_id}</p>
+              <p><strong>Departure Date:</strong> ${new Intl.DateTimeFormat("en-GB", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              }).format(new Date(booking.booking_date))}</p>
+              <p><strong>Booking Date:</strong> ${new Intl.DateTimeFormat(
+                "en-GB",
+                { day: "2-digit", month: "long", year: "numeric" }
+              ).format(new Date(booking.created_at))}</p>
+              <p><strong>Total Payment:</strong> ${booking.gross_total} ${booking.currency}</p>
+              <p><strong>Status:</strong> <span style="color: #d32f2f;">Canceled</span></p>
+            </div>
+            
+            <p>If you still wish to travel, please make a new booking through our website or contact our customer service.</p>
+            
+            <p>Thank you for your understanding.</p>
+            
+            <p>Best regards,<br>
+            The Gili Getaway Team</p>
+          </div>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #e9ecef; border-radius: 0 0 5px 5px;">
+            <p style="margin: 5px 0;">Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
+            <p style="margin: 5px 0;">Contact: +62 812 3456 7890 | officebali1@gmail.com</p>
+            <p style="margin: 5px 0;"><a href="https://www.giligetaway.com" style="color: #165297;">www.giligetaway.com</a></p>
+            <p style="margin: 5px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
+            <p style="margin: 5px 0;">This is an automated transactional email regarding your booking with Gili Getaway.</p>
+          </div>
         </div>
-      </div>
+      </body>
+      </html>
     `;
-
+    
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
       to: customerEmail,
       subject: subject,
       html: message,
     };
-
+    
     await transporter.sendMail(mailOptions);
-    console.log(
-      `✅ Cancellation email successfully sent to customer ${customerEmail}`
-    );
+    console.log(`✅ Cancellation email successfully sent to customer ${customerEmail}`);
     return true;
   } catch (error) {
     console.error("❌ Failed to send cancellation email to customer:", error);

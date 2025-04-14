@@ -34,11 +34,19 @@ const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
   <title>Welcome to Gili Getaway</title>
 </head>
 <body style="font-family: Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
+  <!-- Pre-header -->
+  <div style="display:none; font-size:1px; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+    Welcome to Gili Getaway! Your agent account has been created successfully. Here are your login credentials.
+  </div>
+
   <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
     
     <!-- Header -->
     <div style="background-color: #165297; padding: 25px 20px; text-align: center;">
-      <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png?updatedAt=1740878261375" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
+      <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png" 
+           alt="Gili Getaway Fast Boat Service" 
+           style="max-width: 180px; margin-bottom: 10px; display: inline-block;" 
+           width="180" height="60" />
       <h1 style="color: white; margin: 10px 0 5px; font-size: 22px;">Welcome to the Gili Getaway Team!</h1>
     </div>
 
@@ -65,23 +73,23 @@ const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
       <!-- Call to Action Button -->
       <div style="text-align: center; margin: 35px 0;">
         <a href="https://giligetaway-widget.my.id/agent" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Log In to Your Account</a>
-        <p style="font-size: 14px; color: #666;">Or use this link: https://giligetaway-widget.my.id/agent</p>
+        <p style="font-size: 14px; color: #666;">Or copy this link: https://giligetaway-widget.my.id/agent</p>
       </div>
 
       <p style="font-size: 16px; line-height: 1.5;">
-        If you have any questions about using the system or need assistance, please contact our support team at support@giligetaway.com.
+        If you have any questions about using the system or need assistance, please contact our support team at <a href="mailto:officebali1@gmail.com" style="color: #165297;">officebali1@gmail.com</a>
       </p>
 
       <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
       <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
-      <p style="font-size: 15px; color: #165297; margin-top: 5px;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
+      <p style="font-size: 15px; color: #165297; margin-top: 5px;">Making island travel simple and reliable.</p>
     </div>
 
     <!-- Footer -->
     <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-      <p style="margin: 6px 0;">Gili Getaway | Jl. Pantai Gili Trawangan, Lombok, Indonesia</p>
-      <p style="margin: 6px 0;">Contact: (+62) 81138 01717 | giligetaway@ozemail.com.au</p>
-      <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6; text-decoration: underline;">Access Your Agent Dashboard</a></p>
+      <p style="margin: 6px 0;">Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
+      <p style="margin: 6px 0;">Contact: (+62) 812 3456 7890 | officebali1@gmail.com</p>
+      <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6;">Access Your Agent Dashboard</a></p>
       <p style="margin: 6px 0;">© ${currentYear} Gili Getaway. All rights reserved.</p>
       <p style="margin: 6px 0; font-size: 12px;">This is a transactional email regarding your account creation.</p>
     </div>
@@ -743,7 +751,7 @@ exports.getAgentById = async (req, res) => {
       res.status(200).json(agent);
     } else {
       console.log("Agent not found:", req.params.id);
-      res.status(404).json({ message: "Agent not found" });
+      res.status(400).json({ message: "Agent not found" });
     }
   } catch (error) {
     console.log("Error retrieving agent:", error.message);

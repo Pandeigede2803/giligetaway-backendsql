@@ -19,6 +19,204 @@ const {
 } = require("../models");
 const { Op } = require("sequelize");
 
+
+const { getSeasonPrice } = require('../util/formatSchedules'); // import di atas
+const { validate } = require("node-cron");
+
+const calculateTransportTotalAndValidate = async (transports, total_passengers) => {
+  if (!Array.isArray(transports)) return 0;
+
+  let total = 0;
+  const tolerance = 1000; // Toleransi 1.000 IDR
+
+  for (const t of transports) {
+    if (!t.transport_id) throw new Error("Transport ID is missing");
+
+    const transportRecord = await Transport.findByPk(t.transport_id);
+    if (!transportRecord) throw new Error(`Transport ID ${t.transport_id} not found`);
+
+    const cost = transportRecord.cost || 0;
+    const quantity = t.quantity || total_passengers;
+    const expectedTotal = cost * quantity;
+    const providedPrice = t.transport_price || 0;
+
+    const difference = Math.abs(providedPrice - expectedTotal);
+    if (difference > tolerance) {
+      throw {
+        message: `Transport price mismatch for transport_id ${t.transport_id}`,
+        details: {
+          transport_id: t.transport_id,
+          expected: expectedTotal,
+          received: providedPrice,
+          cost_per_unit: cost,
+          quantity,
+        },
+      };
+    }
+
+    total += providedPrice;
+  }
+
+  return total;
+};
+
+const getTicketPrice = async (schedule_id, subschedule_id, booking_date) => {
+  if (subschedule_id) {
+    const subschedule = await SubSchedule.findByPk(subschedule_id);
+    if (!subschedule) throw new Error("Invalid Subschedule ID");
+    return getSeasonPrice(
+      booking_date,
+      subschedule.low_season_price,
+      subschedule.high_season_price,
+      subschedule.peak_season_price
+    );
+  } else {
+    const schedule = await Schedule.findByPk(schedule_id);
+    if (!schedule) throw new Error("Invalid Schedule ID");
+    return getSeasonPrice(
+      booking_date,
+      schedule.low_season_price,
+      schedule.high_season_price,
+      schedule.peak_season_price
+    );
+  }
+};
+
+
+
+const validateSingleBookingGrossTotal = async (req, res, next) => {
+  console.log("\n=== Validating Gross Total for Single Booking (with Season + Transport Price Check) ===");
+
+  const {
+    schedule_id,
+    subschedule_id,
+    total_passengers,
+    transports = [],
+    bank_fee = 0,
+    discount = 0,
+    gross_total: clientGrossTotal,
+    booking_date,
+  } = req.body;
+
+  try {
+    if (!schedule_id && !subschedule_id) {
+      return res.status(400).json({ error: "Schedule ID or Subschedule ID is required" });
+    }
+
+    if (!total_passengers || total_passengers <= 0) {
+      return res.status(400).json({ error: "Total passengers must be greater than zero" });
+    }
+
+    const ticketPrice = await getTicketPrice(schedule_id, subschedule_id, booking_date);
+    const ticket_total = ticketPrice * total_passengers;
+
+    const transport_total = await calculateTransportTotalAndValidate(transports, total_passengers);
+
+    const expectedGrossTotal = ticket_total + transport_total - discount + bank_fee;
+    const difference = Math.abs(expectedGrossTotal - clientGrossTotal);
+    const tolerance = 1;
+
+    if (difference > tolerance) {
+      return res.status(400).json({
+        error: "Gross total mismatch",
+        message: `Expected gross total (${expectedGrossTotal}) does not match provided gross total (${clientGrossTotal})`,
+        breakdown: {
+          total_passengers,
+          ticket_price: ticketPrice,
+          ticket_total,
+          transport_total,
+          discount,
+          bank_fee,
+          expectedGrossTotal,
+        },
+      });
+    }
+
+    console.log(`✅ Gross total valid: ${expectedGrossTotal}`);
+    next();
+  } catch (error) {
+    console.error("❌ Error validating gross total:", error);
+    return res.status(400).json({
+      error: "Validation failed",
+      message: error.message || error,
+      ...(error.details && { breakdown: error.details }),
+    });
+  }
+};
+
+const validateGrossTotalForSegment = async (segment, type) => {
+  const {
+    schedule_id,
+    subschedule_id,
+    total_passengers,
+    transports = [],
+    discount = 0,
+    bank_fee = 0,
+    gross_total,
+    booking_date
+  } = segment;
+
+  if (!schedule_id && !subschedule_id) throw new Error(`[${type}] schedule_id or subschedule_id is required`);
+  if (!total_passengers || total_passengers <= 0) throw new Error(`[${type}] Invalid total_passengers`);
+
+  const ticketPrice = await getTicketPrice(schedule_id, subschedule_id, booking_date);
+  const ticket_total = ticketPrice * total_passengers;
+
+  const transport_total = await calculateTransportTotalAndValidate(transports, total_passengers, type);
+
+  const expectedGross = ticket_total + transport_total - discount + bank_fee;
+
+  const difference = Math.abs(expectedGross - gross_total);
+  const tolerance = 1;
+
+  if (difference > tolerance) {
+    throw {
+      message: `[${type}] Gross total mismatch`,
+      breakdown: {
+        total_passengers,
+        booking_date,
+        ticket_price: ticketPrice,
+        ticket_total,
+        transport_total,
+        discount,
+        bank_fee,
+        expected: expectedGross,
+        received: gross_total
+      }
+    };
+  }
+
+  return true;
+};
+
+const validateRoundTripGrossTotal = async (req, res, next) => {
+  console.log("\n=== Validating Round Trip Gross Total (with Season Pricing) ===");
+
+  try {
+    const { departure, return: returnBooking } = req.body;
+
+    if (!departure || !returnBooking) {
+      return res.status(400).json({ error: "Both departure and return data must be provided" });
+    }
+
+    await validateGrossTotalForSegment(departure, "departure");
+    await validateGrossTotalForSegment(returnBooking, "return");
+
+    console.log("✅ Gross total validated for both departure and return");
+    next();
+  } catch (err) {
+    console.error("❌ Gross total validation error:", err);
+    return res.status(400).json({
+      error: "Gross total validation failed",
+      details: err.message || err,
+      ...(err.breakdown && { breakdown: err.breakdown }),
+    });
+  }
+};
+
+
+
+
 const validateBookingCreation = async (req, res, next) => {
   console.log("\n=== Starting Booking Creation Validation ===");
 
@@ -560,5 +758,7 @@ const validateMultipleBookingCreation = async (req, res, next) => {
 module.exports = {
   validateBookingCreation,
   validateMultipleBookingCreation,
-  validateRoundTripBookingPost
+  validateSingleBookingGrossTotal,
+  validateRoundTripBookingPost, validateRoundTripGrossTotal
+
 };

@@ -1631,10 +1631,11 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         where: {
           schedule_id: schedule.id,
           date: selectedDate,
-          availability: 1,
+          // availability: 1,
           // available_seats: { [Op.gte]: passengers_total },
         },
       });
+      console.log("🧠seat availability MAIN",seatAvailability)
 
       // Create SeatAvailability if not found
       if (!seatAvailability) {
@@ -1664,11 +1665,11 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         where: {
           subschedule_id: subSchedule.id,
           date: selectedDate,
-          availability: true,
+          // availability: true,
         
         },
       });
-      console.log("🧠seat availability",seatAvailability)
+      console.log("🧠seat availability SUB",seatAvailability)
       
 
       // Create SeatAvailability if not found
@@ -1695,22 +1696,27 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     }
     const availableSchedules = schedules.filter(schedule => 
       schedule.dataValues.seatAvailability && 
-      schedule.dataValues.seatAvailability.available_seats > 0
+      schedule.dataValues.seatAvailability.available_seats > 0 
+      // schedule.dataValues.seatAvailability.availability === true
     );
+
+    console.log("🫁Available Schedules:", availableSchedules);
     
     // Filter subSchedules dengan available_seats > 0
     const availableSubSchedules = subSchedules.filter(subSchedule => 
       subSchedule.dataValues.seatAvailability && 
-      subSchedule.dataValues.seatAvailability.available_seats > 0
+      subSchedule.dataValues.seatAvailability.available_seats > 0 
+      // subSchedule.dataValues.seatAvailability.availability === true
     );
+    console.log("🫁Available Schedules:", availableSubSchedules);
     
 
     // Step 6: Return the combined results with SeatAvailability details
     res.status(200).json({
       status: "success",
       data: {
-        schedules: formatSchedules(availableSchedules, selectedDate),
-        subSchedules: formatSubSchedules(availableSubSchedules, selectedDate),
+        schedules: formatSchedules(schedules, selectedDate),
+        subSchedules: formatSubSchedules(subSchedules, selectedDate),
       },
     });
   } catch (error) {
@@ -1963,8 +1969,8 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         where: {
           schedule_id: schedule.id,
           date: selectedDate,
-          availability: 1,
-          available_seats: { [Op.gte]: passengers_total },
+          // availability: 1,
+          // available_seats: { [Op.gte]: passengers_total },
         },
       });
 
@@ -1990,6 +1996,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
+        availability:seatAvailability.availability
       };
     }
 
@@ -1999,8 +2006,8 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         where: {
           subschedule_id: subSchedule.id,
           date: selectedDate,
-          availability: true,
-          available_seats: { [Op.gte]: passengers_total },
+          // availability: true,
+          // available_seats: { [Op.gte]: passengers_total },
         },
       });
 
@@ -2026,6 +2033,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
+        availability:seatAvailability.availability
       };
     }
 
@@ -2152,8 +2160,22 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
             processedBookedSeatsByAvailabilityId[seatAvailId] || [];
         }
 
+        const availableSchedules = schedules.filter(schedule => 
+          schedule.dataValues.seatAvailability && 
+          schedule.dataValues.seatAvailability.available_seats > 0 &&
+          schedule.dataValues.seatAvailability.availability === 1 // <-- Tambahkan filter untuk availability
+        );
+        
+        // Filter subSchedules berdasarkan availability dan available_seats
+        const availableSubSchedules = subSchedules.filter(subSchedule => 
+          subSchedule.dataValues.seatAvailability && 
+          subSchedule.dataValues.seatAvailability.available_seats > 0 &&
+          subSchedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
+        );
+        
+
         // Format schedules
-        let formattedSchedules = formatSchedules(schedules, selectedDate);
+        let formattedSchedules = formatSchedules(availableSchedules, selectedDate);
 
         // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
         formattedSchedules = formattedSchedules.map((formatted) => {
@@ -2177,9 +2199,11 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           return formatted;
         });
 
+        
+
         // Format subSchedules
         let formattedSubSchedules = formatSubSchedules(
-          subSchedules,
+          availableSubSchedules,
           selectedDate
         );
 
@@ -2230,11 +2254,34 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
       }
     }
 
+
+    let availableSchedules, availableSubSchedules;
+
+// Redefine if not already defined
+if (!availableSchedules) {
+  availableSchedules = schedules.filter(schedule => 
+    schedule.dataValues.seatAvailability && 
+    schedule.dataValues.seatAvailability.available_seats > 0 &&
+    schedule.dataValues.seatAvailability.availability === 1
+  );
+}
+
+if (!availableSubSchedules) {
+  availableSubSchedules = subSchedules.filter(subSchedule => 
+    subSchedule.dataValues.seatAvailability && 
+    subSchedule.dataValues.seatAvailability.available_seats > 0 &&
+    subSchedule.dataValues.seatAvailability.availability === true
+  );
+}
+
+
+    
+
     // Kode asli, hanya dijalankan jika tidak ada seatAvailability atau terjadi error
     // Format schedules dan subSchedules
-    const formattedSchedules = formatSchedules(schedules, selectedDate);
+    const formattedSchedules = formatSchedules(availableSchedules, selectedDate);
     const formattedSubSchedules = formatSubSchedules(
-      subSchedules,
+      availableSubSchedules,
       selectedDate
     );
 
