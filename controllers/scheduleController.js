@@ -1421,6 +1421,12 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           attributes: ["id", "name", "port_map_url", "image_url"],
         },
         {
+          model:SeatAvailability,
+          as: "SeatAvailabilities",
+        
+
+        },
+        {
           model: Destination,
           as: "ToDestination",
           attributes: ["id", "name", "port_map_url", "image_url"],
@@ -1605,6 +1611,10 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           },
         },
         {
+          model:SeatAvailability,
+          as: "SeatAvailabilities",
+        },
+        {
           model: Schedule,
           as: "Schedule",
           attributes: [
@@ -1685,6 +1695,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       subSchedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
+        availability: seatAvailability.availability,
         date: selectedDate,
       };
 
@@ -1708,15 +1719,15 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       subSchedule.dataValues.seatAvailability.available_seats > 0 
       // subSchedule.dataValues.seatAvailability.availability === true
     );
-    console.log("🫁Available Schedules:", availableSubSchedules);
+    // console.log("🫁Available SubSchedules:", JSON.stringify(availableSubSchedules.SeatAvailabilities, null, 2));
     
 
     // Step 6: Return the combined results with SeatAvailability details
     res.status(200).json({
       status: "success",
       data: {
-        schedules: formatSchedules(schedules, selectedDate),
-        subSchedules: formatSubSchedules(subSchedules, selectedDate),
+        schedules: formatSchedules(availableSchedules, selectedDate),
+        subSchedules: formatSubSchedules(availableSubSchedules, selectedDate),
       },
     });
   } catch (error) {

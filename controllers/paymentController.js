@@ -12,7 +12,8 @@ const fetch = require('node-fetch');
 // controllers/paymentController.js
 const { broadcast } = require('../config/websocket'); // Mengimpor broadcast dari websocket.js
 const { create } = require("handlebars");
-
+const Booking = require("../models/booking");
+const Transaction = require("../models/Transaction"); // Pastikan path ini benar sesuai struktur proyek Anda
 // Controller to Generate Midtrans Payment Link
 
 // Controller to
@@ -133,57 +134,205 @@ const handleWebhook = async (req, res) => {
 
 
 
+const handleMidtransSettlement = require('../util/handleMidtransSettlement');
+const { CoreApi } = require('midtrans-client');
+
+const midtrans = new CoreApi({
+  isProduction: false,
+  serverKey: process.env.MIDTRANS_SERVER_KEY,
+  clientKey: process.env.MIDTRANS_CLIENT_KEY,
+});
 const handleMidtransNotification = async (req, res) => {
   try {
     const notification = req.body;
 
-    console.log('Notifikasi dari Midtrans:');
-    console.log('Status transaksi:', notification.transaction_status);
-    console.log('Transaction ID:', notification.transaction_id);
-    console.log('Order ID:', notification.order_id);
-    console.log('Jumlah total:', notification.gross_amount);
+    // 🔍 Ambil status resmi dari Midtrans
+    const statusResponse = await midtrans.transaction.notification(notification);
+    const {
+      transaction_status,
+      transaction_id,
+      order_id,
+      gross_amount,
+      payment_type,
+    } = statusResponse;
 
-    // Proses status transaksi
-    let message;
-    switch (notification.transaction_status) {
+    console.log('🤛 NOTIFIKASI DARI MIDTRANS:');
+    console.log('Status transaksi:', transaction_status);
+    console.log('Transaction ID:', transaction_id);
+    console.log('Order ID:', order_id);
+    console.log('Jumlah total:', gross_amount);
+
+    // 🔍 Ambil base transaction ID dari order_id
+    const baseTransactionId = order_id.split('-').slice(0, 2).join('-');
+
+    // ✅ Cari transaction dari database
+    const tx = await Transaction.findOne({
+      where: { transaction_id: baseTransactionId },
+      include: [{ model: Booking, as: 'booking' }]
+    });
+
+    if (!tx) {
+      console.warn(`⚠️ Transaction not found for ID ${baseTransactionId}`);
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    let message = '';
+
+    switch (transaction_status) {
       case 'settlement':
-        message = `Transaksi dengan Order ID: ${notification.order_id} berhasil.`;
+        message = `Transaksi dengan Order ID: ${order_id} berhasil.`;
         console.log(message);
-        break;
+
+        // ✅ Update transaction
+        await tx.update({
+          // status: 'paid',
+          payment_order_id: order_id,
+          // transaction_id: transaction_id,
+          // payment_method: payment_type,
+          // amount: parseFloat(gross_amount),
+          // paid_at: new Date(),
+        });
+
+        // ✅ Update booking jika belum paid
+        // if (tx.booking && tx.booking.payment_status !== 'paid') {
+        //   await tx.booking.update({
+        //     payment_status: 'paid',
+        //     payment_method: payment_type,
+        //     expiration_time: null,
+        //   });
+
+        //   // ✅ Kirim email sukses bayar
+        //   await sendPaymentSuccessEmail(tx.booking.contact_email, tx.booking);
+        // }
+        break;;
+
       case 'pending':
-        message = `Transaksi dengan Order ID: ${notification.order_id} masih menunggu.`;
+        message = `Transaksi dengan Order ID: ${order_id} masih menunggu.`;
         console.log(message);
         break;
+
       case 'cancel':
       case 'expire':
-        message = `Transaksi dengan Order ID: ${notification.order_id} dibatalkan atau kadaluarsa.`;
+        message = `Transaksi dengan Order ID: ${order_id} dibatalkan atau kadaluarsa.`;
         console.log(message);
         break;
+
       case 'deny':
-        message = `Transaksi dengan Order ID: ${notification.order_id} ditolak.`;
+        message = `Transaksi dengan Order ID: ${order_id} ditolak.`;
         console.log(message);
         break;
+
       default:
-        message = `Status transaksi tidak dikenal: ${notification.transaction_status}`;
+        message = `Status transaksi tidak dikenal: ${transaction_status}`;
         console.log(message);
     }
 
-    // Kirim notifikasi ke klien melalui WebSocket
-    broadcast({
-      orderId: notification.order_id,
-      transactionStatus: notification.transaction_status,
-      transactionId: notification.transaction_id,
-      grossAmount: notification.gross_amount,
-      message,
-    });
+    // 📢 Broadcast status update ke frontend (optional)
+    if (typeof broadcast === 'function') {
+      broadcast({
+        orderId: order_id,
+        transactionStatus: transaction_status,
+        transactionId: transaction_id,
+        grossAmount: gross_amount,
+        message,
+      });
+    }
 
-    // Kirim respons sukses ke Midtrans
-    res.status(200).json({ message: 'Notifikasi diterima', transactionId: notification.transaction_id });
+    return res.status(200).json({
+      message: 'Notifikasi diterima',
+      transactionId: transaction_id,
+    });
   } catch (error) {
-    console.error('Error menangani notifikasi Midtrans:', error);
-    res.status(500).json({ message: 'Terjadi kesalahan saat memproses notifikasi', error: error.message });
+    console.error('❌ Error menangani notifikasi Midtrans:', error);
+    return res.status(500).json({
+      message: 'Terjadi kesalahan saat memproses notifikasi',
+      error: error.message,
+    });
   }
 };
+
+// const handleMidtransNotification = async (req, res) => {
+//   try {
+//     const notification = req.body;
+
+//     // 🔍 Ambil data resmi dari Midtrans
+//     const statusResponse = await midtrans.transaction.notification(notification);
+//     const {
+//       transaction_status,
+//       transaction_id,
+//       order_id,
+//       gross_amount,
+//       payment_type,
+//     } = statusResponse;
+
+//     console.log('🤛NOTIFIKASI DARI MIDTRANS:');
+//     console.log('Status transaksi:', transaction_status);
+//     console.log('Transaction ID:', transaction_id);
+//     console.log('Order ID:', order_id);
+//     console.log('Jumlah total:', gross_amount);
+
+//     let message = '';
+//     switch (transaction_status) {
+//       case 'settlement':
+//         message = `Transaksi dengan Order ID: ${order_id} berhasil.`;
+//         console.log(message);
+
+//         // ✅ Panggil handler untuk update DB + kirim email
+//         // await handleMidtransSettlement(order_id, {
+//         //   transaction_id,
+//         //   gross_amount,
+//         //   payment_type,
+//         // });
+//         break;
+
+//       case 'pending':
+//         message = `Transaksi dengan Order ID: ${order_id} masih menunggu.`;
+//         console.log(message);
+//         break;
+
+//       case 'cancel':
+//       case 'expire':
+//         message = `Transaksi dengan Order ID: ${order_id} dibatalkan atau kadaluarsa.`;
+//         console.log(message);
+//         // kamu bisa tambahkan handler expire di sini kalau mau
+//         break;
+
+//       case 'deny':
+//         message = `Transaksi dengan Order ID: ${order_id} ditolak.`;
+//         console.log(message);
+//         break;
+
+//       default:
+//         message = `Status transaksi tidak dikenal: ${transaction_status}`;
+//         console.log(message);
+//     }
+
+//     // 📢 Kirim notifikasi ke frontend (optional, via WebSocket)
+//     if (typeof broadcast === 'function') {
+//       broadcast({
+//         orderId: order_id,
+//         transactionStatus: transaction_status,
+//         transactionId: transaction_id,
+//         grossAmount: gross_amount,
+//         message,
+//       });
+//     }
+
+//     return res.status(200).json({
+//       message: 'Notifikasi diterima',
+//       transactionId: transaction_id,
+//     });
+//   } catch (error) {
+//     console.error('❌ Error menangani notifikasi Midtrans:', error);
+//     return res.status(500).json({
+//       message: 'Terjadi kesalahan saat memproses notifikasi',
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+
 // const generateSingleMidtransLink = async (req, res) => {
 //   try {
 //       const { bookings, transactions, transports } = req.body;
@@ -674,13 +823,16 @@ const generateMidtransLink = async (req, res) => {
 // MidTrans Payment Token Controller
 const createMidtransTransaction = async (req, res) => {
   try {
-    const { booking, transports } = req.body; // Destructure booking and transports from the request body
+    const { booking, transports,transaction } = req.body; // Destructure booking and transports from the request body
+    console.log("😻transaction:",transaction);
+    const transactionId = transaction.transaction_id;
+    console.log("😻😿transactionId:", transactionId);
 
     // Merge transports into booking details
     const bookingDetails = { ...booking, transports }; // Add transports into bookingDetails
-    console.log("bookingDetails:", bookingDetails);
-    // Generate MidTrans transaction token
-    const transactionToken = await generateMidtransToken(bookingDetails);
+    // console.log("bookingDetails:", bookingDetails);
+    // // Generate MidTrans transaction token
+    const transactionToken = await generateMidtransToken(bookingDetails,transactionId);
 
     // Send the transaction token back to the client
     res.status(200).json({
@@ -700,7 +852,8 @@ const createMidtransTransaction = async (req, res) => {
 
 const createMidtransTransactionMulti = async (req, res) => {
   try {
-    let { bookings, transports } = req.body; // Destructure bookings and transports from the request body
+    let { bookings, transports,transactions } = req.body; // Destructure bookings and transports from the request body
+    console.log("😻transaction:",transactions);
 
     // Jika bookings bukan array, konversi objek menjadi array
     if (!Array.isArray(bookings)) {
@@ -710,10 +863,10 @@ const createMidtransTransactionMulti = async (req, res) => {
     // Gabungkan transports ke bookingDetails
     const bookingDetails = { bookings, transports }; // Keep bookings as an array and add transports
 
-    console.log("bookingDetails:", bookingDetails);
+    // console.log("bookingDetails:", bookingDetails);
 
     // Generate MidTrans transaction token
-    const transactionToken = await generateMidtransTokenMulti(bookingDetails);
+    const transactionToken = await generateMidtransTokenMulti(bookingDetails,transactions);
 
     // Send the transaction token back to the client
     res.status(200).json({

@@ -83,8 +83,9 @@ const snap = new midtransClient.Snap({
 // };
 
 
-const generateMidtransToken = async (bookingDetails) => {
+const generateMidtransToken = async (bookingDetails,transactionId) => {
   console.log("Booking details FROM BODY:", bookingDetails);
+  console.log("🙀Transaction ID:", transactionId);
 
   try {
     // Mengambil `ticket_total` dari bookingDetails
@@ -130,10 +131,11 @@ const generateMidtransToken = async (bookingDetails) => {
       passenger_details: bookingDetails.passengers, // Jika dibutuhkan, tambahkan detail penumpang
     };
 
+    const uniqueSuffix = Date.now(); // atau bisa nanoid/uuid pendek
     // Persiapkan parameter transaksi untuk MidTrans
     const parameter = {
       transaction_details: {
-        order_id: `ORDER-${Date.now()}`, // Pastikan order ID unik
+        order_id : `${transactionId}-${uniqueSuffix}`,
         gross_amount: grossAmount, // Total transaksi dihitung langsung
       },
       item_details: [
@@ -266,9 +268,14 @@ const truncateString = (str, maxLength) => {
   return str.length > maxLength ? `${str.substring(0, maxLength - 3)}...` : str;
 };
 
-const generateMidtransTokenMulti = async (data) => {
+const generateMidtransTokenMulti = async (data,transactions) => {
   try {
     let { bookings, transports } = data;
+
+   
+
+    const transactionIdFirst = transactions[0].transaction_id;
+    console.log("😼Transaction ID:", transactionIdFirst);
 
     // Ensure bookings and transports are arrays
     if (!Array.isArray(bookings)) {
@@ -320,9 +327,10 @@ const generateMidtransTokenMulti = async (data) => {
     };
 
     // Prepare transaction parameters for MidTrans
+     const uniqueSuffix = Date.now(); // atau bisa nanoid/uuid pendek
     const parameter = {
       transaction_details: {
-        order_id: `ORDER-${Date.now()}`,
+        order_id : `${transactionIdFirst}-${uniqueSuffix}`,
         gross_amount: totalGrossAmount,
       },
       item_details: itemDetails, // Use generated itemDetails array

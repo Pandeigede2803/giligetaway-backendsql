@@ -70,6 +70,12 @@ const Transaction = sequelize.define('Transaction', {
         allowNull: true,
         field: 'refund_reason'
     },
+    // add payment_order_id
+    payment_order_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'payment_order_id'
+    },
     booking_id: {
         type: DataTypes.INTEGER,
         references: {

@@ -92,6 +92,7 @@ const formatSchedules = (schedules, selectedDate) => {
  * @returns {Array} - Formatted subschedules.
  */
 const formatSubSchedules = (subSchedules, selectedDate) => {
+  // console.log("😹SubSchedules:", JSON.stringify(subSchedules, null, 2));
   return subSchedules.map((subSchedule) => {
     // Check if there's a TransitFrom or TransitTo
     const hasTransitFrom = !!subSchedule.TransitFrom;
@@ -181,6 +182,9 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
         id: subSchedule.dataValues.seatAvailability?.id || "N/A",
         available_seats:
           subSchedule.dataValues.seatAvailability?.available_seats ,
+          availability:
+          subSchedule.dataValues.seatAvailability?.availability || "N/A",
+          
         date: subSchedule.dataValues.seatAvailability?.date
           ? new Date(
               subSchedule.dataValues.seatAvailability.date

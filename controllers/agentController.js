@@ -62,7 +62,7 @@ const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
         <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
         <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
         <p style="font-size: 16px; margin: 5px 0;"><strong>Temporary Password:</strong> ${randomPassword}</p>
-      </div>
+      </div>n
       
       <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
         <p style="font-size: 16px; margin: 0;">

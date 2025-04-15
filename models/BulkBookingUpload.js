@@ -49,7 +49,7 @@ const BulkBookingUpload = sequelize.define('BulkBookingUpload', {
         defaultValue: DataTypes.NOW
     }
 }, {
-    tableName: 'bulk_booking_uploads',
+    tableName: 'BulkBookingUploads',
     timestamps: false
 });
 

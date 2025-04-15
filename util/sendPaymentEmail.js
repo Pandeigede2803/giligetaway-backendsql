@@ -100,6 +100,342 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   }
 };
 
+
+
+const sendPaymentSuccessEmail = async (recipientEmail, booking,pairBooking) => {
+  console.log("📤 Sending PAYMENT SUCCESS email to:", recipientEmail);
+  const emailUrl = process.env.FRONTEND_URL;
+  const year = new Date().getFullYear();
+
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+  const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
+
+  try {
+    const subject = "🎉 Booking Confirmed! You're All Set for Gili ";
+   
+    const message = `
+     <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Booking Confirmation & Ticket</title>
+      <meta name="x-apple-disable-message-reformatting">
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+      <!-- Preview text -->
+      <meta name="description" content="Your Gili Getaway booking confirmation for ${booking.ticket_id} - Thank you for booking with us!">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          color: #333;
+          line-height: 1.5;
+          margin: 0;
+          padding: 0;
+        }
+        .download-button {
+          display: inline-block;
+          background-color: #165297;
+          color: white !important;
+          text-align: center;
+          padding: 10px 15px;
+          margin: 10px 10px 20px 0;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: bold;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #165297;
+          color: white;
+          padding: 20px;
+          text-align: center;
+        }
+        .content {
+          padding: 20px;
+          background-color: #ffffff;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 15px;
+          text-align: center;
+          font-size: 14px;
+          color: #6c757d;
+          border-top: 1px solid #e9ecef;
+        }
+        .info-box {
+          background-color: #f0f7ff;
+          border-left: 4px solid #165297;
+          padding: 15px;
+          margin: 20px 0;
+        }
+        h1, h2, h3 {
+          color: #165297;
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Pre-header for email clients -->
+      <div style="display:none; font-size:1px; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+        Your Gili Getaway booking confirmation for ${booking.ticket_id} - Thank you for booking with us!
+      </div>
+    
+      <div class="container">
+        <div class="header">
+          <!-- Perbaikan pada tag gambar -->
+          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png" 
+               alt="Gili Getaway Fast Boat Service" 
+               style="max-width: 180px; display: inline-block;" 
+               width="180" height="60">
+          <h1 style="color: white; margin: 10px 0;">Booking Confirmation & Ticket</h1>
+        </div>
+            
+        <div class="content">
+          <p>Hi ${booking.contact_name},</p>
+              
+          <p>Your booking has been successfully arranged – we're looking forward to welcoming you aboard.</p>
+              
+          <p>Attached you'll find your travel confirmation with all the key details. Here's a quick summary for your convenience:</p>
+              
+          <div class="info-box">
+            <h3 style="margin-top: 0;">Before You Go:</h3>
+            <ul style="padding-left: 20px; margin: 10px 0;">
+              <li>Please check in at least 30 minutes before departure.</li>
+              <li>Show this email or the attached document at the counter.</li>
+              <li>Each guest is allowed up to 25kg of luggage.</li>
+            </ul>
+          </div>
+              
+          <!-- Download Links -->
+          <div style="margin: 25px 0; text-align: center;">
+              <a href="${invoiceDownloadUrl}" class="download-button">View/Download Invoice</a>
+               <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceDownloadUrl}</p>
+          
+            <a href="${ticketDownloadUrl}" class="download-button">View/Download Ticket</a>
+            <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketDownloadUrl}</p>
+            
+          </div>
+              
+          <hr style="margin: 20px 0;">
+        
+              
+          <p>Need to make a change? Please email us at <a href="mailto:officebali1@gmail.com" style="color: #165297;">officebali1@gmail.com</a></p>
+              
+          <p>Thanks for choosing Gili Getaway – we'll see you by the water!</p>
+              
+          <p>Warmly,<br>
+          The Gili Getaway Team<br>
+          <span style="color: #165297; font-style: italic;">Making island travel simple and reliable.</span></p>
+        </div>
+            
+        <div class="footer">
+          <p>Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
+          <p>Contact: +6281337074147| officebali1@gmail.com</p>
+          <p><a href="https://www.giligetaway.com" style="color: #2991D6;">www.giligetaway.com</a></p>
+          <p>© ${year} Gili Getaway. All rights reserved.</p>
+          <p>This is a transactional email regarding your booking with Gili Getaway.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER_GMAIL,
+        pass: process.env.EMAIL_PASS_GMAIL,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER_GMAIL,
+      to: recipientEmail,
+      subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Payment success email sent to ${recipientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send payment success email:", error);
+    return false;
+  }
+};
+
+const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBooking) => {
+  console.log("📤 Sending PAYMENT SUCCESS email to:", recipientEmail);
+  const emailUrl = process.env.FRONTEND_URL;
+  const year = new Date().getFullYear();
+
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+  const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
+
+  try {
+    const subject = "🎉 Booking Confirmed! You're All Set for Gili ";
+   
+    const message = `
+     <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Booking Confirmation & Ticket</title>
+      <meta name="x-apple-disable-message-reformatting">
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+      <!-- Preview text -->
+      <meta name="description" content="Your Gili Getaway booking confirmation for ${booking.ticket_id} and ${pairBooking.ticket_id} - Thank you for booking with us!">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          color: #333;
+          line-height: 1.5;
+          margin: 0;
+          padding: 0;
+        }
+        .download-button {
+          display: inline-block;
+          background-color: #165297;
+          color: white !important;
+          text-align: center;
+          padding: 10px 15px;
+          margin: 10px 10px 20px 0;
+          text-decoration: none;
+          border-radius: 6px;
+          font-weight: bold;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+        .header {
+          background-color: #165297;
+          color: white;
+          padding: 20px;
+          text-align: center;
+        }
+        .content {
+          padding: 20px;
+          background-color: #ffffff;
+        }
+        .footer {
+          background-color: #f8f9fa;
+          padding: 15px;
+          text-align: center;
+          font-size: 14px;
+          color: #6c757d;
+          border-top: 1px solid #e9ecef;
+        }
+        .info-box {
+          background-color: #f0f7ff;
+          border-left: 4px solid #165297;
+          padding: 15px;
+          margin: 20px 0;
+        }
+        h1, h2, h3 {
+          color: #165297;
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Pre-header for email clients -->
+      <div style="display:none; font-size:1px; line-height:1px; max-height:0px; max-width:0px; opacity:0; overflow:hidden;">
+        Your Gili Getaway booking confirmation for ${booking.ticket_id}-${pairBooking.ticket_id} - Thank you for booking with us!
+      </div>
+    
+      <div class="container">
+        <div class="header">
+          <!-- Perbaikan pada tag gambar -->
+          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/giligetawayinverted.png" 
+               alt="Gili Getaway Fast Boat Service" 
+               style="max-width: 180px; display: inline-block;" 
+               width="180" height="60">
+          <h1 style="color: white; margin: 10px 0;">Booking Confirmation & Ticket</h1>
+        </div>
+            
+        <div class="content">
+          <p>Hi ${booking.contact_name},</p>
+              
+          <p>Your booking has been successfully arranged – we're looking forward to welcoming you aboard.</p>
+              
+          <p>Attached you'll find your travel confirmation with all the key details. Here's a quick summary for your convenience:</p>
+              
+          <div class="info-box">
+            <h3 style="margin-top: 0;">Before You Go:</h3>
+            <ul style="padding-left: 20px; margin: 10px 0;">
+              <li>Please check in at least 30 minutes before departure.</li>
+              <li>Show this email or the attached document at the counter.</li>
+              <li>Each guest is allowed up to 25kg of luggage.</li>
+            </ul>
+          </div>
+              
+          <!-- Download Links -->
+          <div style="margin: 25px 0; text-align: center;">
+              <a href="${invoiceDownloadUrl}" class="download-button">View/Download Invoice</a>
+               <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceDownloadUrl}</p>
+          
+            <a href="${ticketDownloadUrl}" class="download-button">View/Download Ticket</a>
+            <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketDownloadUrl}</p>
+            
+          </div>
+              
+          <hr style="margin: 20px 0;">
+        
+              
+          <p>Need to make a change? Please email us at <a href="mailto:officebali1@gmail.com" style="color: #165297;">officebali1@gmail.com</a></p>
+              
+          <p>Thanks for choosing Gili Getaway – we'll see you by the water!</p>
+              
+          <p>Warmly,<br>
+          The Gili Getaway Team<br>
+          <span style="color: #165297; font-style: italic;">Making island travel simple and reliable.</span></p>
+        </div>
+            
+        <div class="footer">
+          <p>Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
+          <p>Contact: +6281337074147| officebali1@gmail.com</p>
+          <p><a href="https://www.giligetaway.com" style="color: #2991D6;">www.giligetaway.com</a></p>
+          <p>© ${year} Gili Getaway. All rights reserved.</p>
+          <p>This is a transactional email regarding your booking with Gili Getaway.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER_GMAIL,
+        pass: process.env.EMAIL_PASS_GMAIL,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER_GMAIL,
+      to: recipientEmail,
+      subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Payment success email sent to ${recipientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send payment success email:", error);
+    return false;
+  }
+};
+
+
+
 const sendPaymentEmail = async (
   recipientEmail,
   booking,
@@ -1137,4 +1473,6 @@ module.exports = {
   sendAdminNotificationEmail,
   sendWaitingListConfirmationEmail,
   sendExpiredBookingEmail,
+  sendPaymentSuccessEmail,
+  sendPaymentSuccessEmailRoundTrip
 };

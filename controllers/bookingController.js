@@ -18,6 +18,8 @@ const {
 } = require("../models");
 const { fn, col } = require("sequelize");
 const nodemailer = require("nodemailer");
+const { v4: uuidv4 } = require('uuid');
+
 
 const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
@@ -1208,10 +1210,11 @@ const createBookingWithTransitQueue = async (req, res) => {
       );
 
       console.log(`Booking created with ID: ${booking.id}`);
+      const shortTransactionId = uuidv4().replace(/-/g, '').substring(0, 16);
 
       const transactionEntry = await createTransaction(
         {
-          transaction_id: `TRANS-${Date.now()}`,
+          transaction_id: `TRANS-${shortTransactionId}`,
           payment_method,
           payment_gateway: null,
           amount: gross_total,

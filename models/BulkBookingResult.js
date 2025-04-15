@@ -45,7 +45,7 @@ const BulkBookingResult = sequelize.define('BulkBookingResult', {
         defaultValue: DataTypes.NOW
     }
 }, {
-    tableName: 'bulk_booking_results',
+    tableName: 'BulkBookingResults',
     timestamps: false
 });
 
