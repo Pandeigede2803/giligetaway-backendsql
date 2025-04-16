@@ -19,7 +19,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   
 
   try {
-    const subject = " Almost There! Let’s Get You to the Gili Islands 🌴";
+    const subject = " Almost There! Let’s Get You to the Gili Islands ";
 
     const message = `
     <!DOCTYPE html>

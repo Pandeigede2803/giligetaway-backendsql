@@ -1137,6 +1137,7 @@ const createBookingWithTransitQueue = async (req, res) => {
     gross_total_in_usd,
     exchange_rate,
     note,
+    final_state
   } = req.body;
 
   console.log("Received request body:", req.body);
@@ -1201,6 +1202,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           child_passengers,
           infant_passengers,
           ticket_id,
+          final_state,
           note,
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
