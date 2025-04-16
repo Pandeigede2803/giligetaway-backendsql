@@ -128,6 +128,11 @@ const Booking = sequelize.define('Booking', {
         allowNull: true,
         comment: 'Additional notes for the booking'
     },
+    final_state: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Final state of the booking after all processes'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

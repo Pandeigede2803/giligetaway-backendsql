@@ -70,6 +70,8 @@ const formatSchedules = (schedules, selectedDate) => {
     ), // Get the correct price based on the season
     seatAvailability: {
       id: schedule.dataValues.seatAvailability?.id || "N/A",
+      availability:
+        schedule.dataValues.seatAvailability?.availability || "N/A",
       available_seats:
         schedule.dataValues.seatAvailability?.available_seats ,
       date: schedule.dataValues.seatAvailability?.date

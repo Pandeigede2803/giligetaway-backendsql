@@ -809,6 +809,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           gross_total_in_usd,
           exchange_rate,
           note,
+          final_state
         } = data;
 
         console.log("note from frontend type", type, note);
@@ -905,6 +906,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             gross_total_in_usd,
             exchange_rate,
             note,
+            final_state,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ), // Default 30 minutes
@@ -1140,7 +1142,14 @@ const createBookingWithTransitQueue = async (req, res) => {
     final_state
   } = req.body;
 
-  console.log("Received request body:", req.body);
+  console.log("🙀REQUEST FROM BODY:", req.body,final_state);
+  // Validasi final_state kalau diperlukan
+if (typeof final_state !== 'object' || final_state === null) {
+  return res.status(400).json({
+    error: "Invalid final_state",
+    message: "final_state must be a valid JSON object",
+  });
+}
 
   try {
     const result = await sequelize.transaction(async (t) => {
@@ -1151,7 +1160,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           message: `The ticket ID '${ticket_id}' is already in use. Please provide a unique ticket ID.`,
         });
       }
-
+      console.log("🚀 final_state typeof:", typeof final_state);
       // Step 1: Validate seat availability for the single trip
       const seatAvailabilityResult = await validateSeatAvailabilitySingleTrip(
         schedule_id,

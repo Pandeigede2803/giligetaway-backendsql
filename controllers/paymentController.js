@@ -192,6 +192,7 @@ const handleMidtransNotification = async (req, res) => {
           // amount: parseFloat(gross_amount),
           // paid_at: new Date(),
         });
+        console.log(`Transaction ${tx.transaction_id} updated.`);
 
         // ✅ Update booking jika belum paid
         // if (tx.booking && tx.booking.payment_status !== 'paid') {

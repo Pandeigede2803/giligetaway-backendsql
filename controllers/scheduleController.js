@@ -913,7 +913,7 @@ const getScheduleSubschedule = async (req, res) => {
     const formatDate = (dateStr) => {
       if (!dateStr) return "Invalid Date"; // atau bisa juga return "N/A"
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return "Invalid Date";
+      if (isNaN(date.getTime())) return "Invalid Date";;
 
       const day = String(date.getDate()).padStart(2, "0");
       const monthNames = [
@@ -1066,7 +1066,7 @@ const getScheduleSubschedule = async (req, res) => {
                 low_season_price: subSchedule.low_season_price || "N/A",
                 high_season_price: subSchedule.high_season_price || "N/A",
                 peak_season_price: subSchedule.peak_season_price || "N/A",
-                validity: `${subSchedule.validity_start} to ${subSchedule.validity_end}`,
+                validity: `${formatDate(subSchedule.validity_start)} to ${formatDate(subSchedule.validity_end)}`,
               };
             })
           : []; // No sub-schedules found for this schedule
@@ -1423,8 +1423,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         {
           model:SeatAvailability,
           as: "SeatAvailabilities",
-        
-
         },
         {
           model: Destination,
@@ -1659,6 +1657,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
+        availability: seatAvailability.availability,
         date: selectedDate,
       };
 
@@ -1708,16 +1707,24 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     const availableSchedules = schedules.filter(schedule => 
       schedule.dataValues.seatAvailability && 
       schedule.dataValues.seatAvailability.available_seats > 0 
-      // schedule.dataValues.seatAvailability.availability === true
+      &&
+      schedule.dataValues.seatAvailability.availability === false
     );
 
-    console.log("🫁Available Schedules:", availableSchedules);
+    console.log(
+      "🫁Available Schedules Jancuk:",
+      availableSchedules.map((schedule) => ({
+        id: schedule.id,
+        seatAvailability: schedule.dataValues.seatAvailability,
+      }))
+    );
     
     // Filter subSchedules dengan available_seats > 0
     const availableSubSchedules = subSchedules.filter(subSchedule => 
       subSchedule.dataValues.seatAvailability && 
       subSchedule.dataValues.seatAvailability.available_seats > 0 
-      // subSchedule.dataValues.seatAvailability.availability === true
+      &&
+      subSchedule.dataValues.seatAvailability.availability === true
     );
     // console.log("🫁Available SubSchedules:", JSON.stringify(availableSubSchedules.SeatAvailabilities, null, 2));
     
@@ -1763,6 +1770,12 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           model: Destination,
           as: "FromDestination",
           attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model:SeatAvailability,
+          as: "SeatAvailabilities",
+        
+
         },
         {
           model: Destination,
@@ -1838,6 +1851,10 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           model: Destination,
           as: "DestinationFrom",
           attributes: ["id", "name", "port_map_url", "image_url"],
+        },
+        {
+          model:SeatAvailability,
+          as: "SeatAvailabilities",
         },
         {
           model: Destination,
@@ -2087,10 +2104,10 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
             },
           ],
         });
-        console.log(
-          "Bookings with seat numbers:",
-          JSON.stringify(bookings, null, 2)
-        );
+        // console.log(
+        //   "Bookings with seat numbers:",
+        //   JSON.stringify(bookings, null, 2)
+        // );
 
         console.log(`Found ${bookings.length} bookings with seat numbers`);
 
@@ -2115,15 +2132,15 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         });
 
         // Log hasil untuk memastikan data telah diproses dengan benar
-        console.log(
-          "Booked seats by availability ID before processing:",
-          Object.fromEntries(
-            Object.entries(bookedSeatsByAvailabilityId).map(([key, value]) => [
-              key,
-              `[${value.join(", ")}]`,
-            ])
-          )
-        );
+        // console.log(
+        //   "Booked seats by availability ID before processing:",
+        //   Object.fromEntries(
+        //     Object.entries(bookedSeatsByAvailabilityId).map(([key, value]) => [
+        //       key,
+        //       `[${value.join(", ")}]`,
+        //     ])
+        //   )
+        // );
 
         // Proses booked seats untuk mempertimbangkan kursi yang saling berhubungan
         for (const seatAvailId of seatAvailabilityIds) {
@@ -2147,15 +2164,15 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         }
 
         // Log hasil pemrosesan
-        console.log(
-          "Processed booked seats by availability ID:",
-          Object.fromEntries(
-            Object.entries(processedBookedSeatsByAvailabilityId).map(([key, value]) => [
-              key,
-              `[${value.join(", ")}]`,
-            ])
-          )
-        );
+        // console.log(
+        //   "Processed booked seats by availability ID:",
+        //   Object.fromEntries(
+        //     Object.entries(processedBookedSeatsByAvailabilityId).map(([key, value]) => [
+        //       key,
+        //       `[${value.join(", ")}]`,
+        //     ])
+        //   )
+        // );
 
         // Tambahkan processedBookedSeatNumbers ke setiap schedule
         for (const schedule of schedules) {
@@ -2174,8 +2191,11 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         const availableSchedules = schedules.filter(schedule => 
           schedule.dataValues.seatAvailability && 
           schedule.dataValues.seatAvailability.available_seats > 0 &&
-          schedule.dataValues.seatAvailability.availability === 1 // <-- Tambahkan filter untuk availability
+          schedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
         );
+
+        console.log("🫁Available Schedules:", availableSchedules);
+        
         
         // Filter subSchedules berdasarkan availability dan available_seats
         const availableSubSchedules = subSchedules.filter(subSchedule => 
@@ -2183,7 +2203,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           subSchedule.dataValues.seatAvailability.available_seats > 0 &&
           subSchedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
         );
-        
+        console.log("🫁Available Schedules:", availableSubSchedules);
 
         // Format schedules
         let formattedSchedules = formatSchedules(availableSchedules, selectedDate);
@@ -2276,7 +2296,7 @@ if (!availableSchedules) {
     schedule.dataValues.seatAvailability.availability === 1
   );
 }
-
+console.log("🫁Available Schedules:", availableSchedules);
 if (!availableSubSchedules) {
   availableSubSchedules = subSchedules.filter(subSchedule => 
     subSchedule.dataValues.seatAvailability && 

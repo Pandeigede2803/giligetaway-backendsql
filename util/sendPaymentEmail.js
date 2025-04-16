@@ -268,6 +268,451 @@ const sendPaymentSuccessEmail = async (recipientEmail, booking,pairBooking) => {
   }
 };
 
+const sendTicketEmail = async (recipientEmail, booking) => {
+  console.log("Starting to send ticket email to:", recipientEmail);
+
+  try {
+    // Parse data dari final_state
+    const finalState = JSON.parse(booking.final_state);
+    
+    // Format fungsi helper
+    const formatTime = (time) => time?.split(':').slice(0, 2).join(':');
+    
+    const formatDurationToHour = (duration) => {
+      const hours = Math.floor(duration / 60);
+      const minutes = duration % 60;
+      const formattedHours = hours.toString().padStart(2, '0');
+      const formattedMinutes = minutes.toString().padStart(2, '0');
+      return `${formattedHours}:${formattedMinutes}`;
+    };
+    
+    // Ekstrak data dari finalState
+    const {
+      bookingData,
+      transportStatus,
+      orderDetails,
+      order_Id,
+      order_return_Id,
+      pickupTime,
+      tripType,
+      checkinTimedeparture,
+      checkinTimereturn,
+      passengersAdult = [],
+      passengersChild = [],
+      passengerunderthree = []
+    } = finalState;
+    
+    // Kalkulasi durasi
+    const { duration } = transportStatus.pickupDetails;
+    const { duration: durationReturn } = transportStatus.dropOffDetails;
+    const formattedDuration = formatDurationToHour(duration);
+    const formattedDurationReturn = formatDurationToHour(durationReturn);
+    
+    // Gabungkan semua penumpang
+    const allPassengers = [
+      ...passengersAdult.map((p, i) => ({ ...p, type: 'Adult', index: i })),
+      ...passengersChild.map((p, i) => ({
+        ...p,
+        type: 'Child',
+        index: i + passengersAdult.length
+      })),
+      ...passengerunderthree.map((p, i) => ({
+        ...p,
+        type: 'Under 3',
+        index: i + passengersAdult.length + passengersChild.length
+      }))
+    ].filter(p => p.name !== '');
+    
+    // Buat rows untuk tabel penumpang
+    let passengerRows = '';
+    allPassengers.forEach((passenger, index) => {
+      passengerRows += `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${index + 1}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.name}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.nationality}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.type}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_departure || '-'}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_return || '-'}</td>
+        </tr>
+      `;
+    });
+    
+    // Buat rows untuk journey steps departure
+    let journeyStepsDepartureHtml = '';
+    if (bookingData.journeyStepsDeparture && bookingData.journeyStepsDeparture.length > 0) {
+      bookingData.journeyStepsDeparture.forEach((step, index) => {
+        journeyStepsDepartureHtml += `
+          <div style="margin-top: 15px; padding: 15px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1)">
+            <table style="width: 100%; border-collapse: collapse">
+              <tr>
+                <td style="width: 40%; text-align: center; padding: 10px">
+                  <div style="font-weight: bold">${step.departure}</div>
+                  <div style="color: #2563eb">${formatTime(step.departuretime)}</div>
+                </td>
+                <td style="width: 20%; text-align: center; color: #2563eb; font-size: 24px">→</td>
+                <td style="width: 40%; text-align: center; padding: 10px">
+                  <div style="font-weight: bold">${step.arrived}</div>
+                  <div style="color: #2563eb">${formatTime(step.timearrived)}</div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `;
+      });
+    }
+    
+    // Buat rows untuk journey steps return
+    let journeyStepsReturnHtml = '';
+    if (bookingData.journeyStepsReturn && bookingData.journeyStepsReturn.length > 0) {
+      bookingData.journeyStepsReturn.forEach((step, index) => {
+        journeyStepsReturnHtml += `
+          <div style="margin-top: 15px; padding: 15px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1)">
+            <table style="width: 100%; border-collapse: collapse">
+              <tr>
+                <td style="width: 40%; text-align: center; padding: 10px">
+                  <div style="font-weight: bold">${step.departure}</div>
+                  <div style="color: #2563eb">${formatTime(step.departuretime)}</div>
+                </td>
+                <td style="width: 20%; text-align: center; color: #2563eb; font-size: 24px">→</td>
+                <td style="width: 40%; text-align: center; padding: 10px">
+                  <div style="font-weight: bold">${step.arrived}</div>
+                  <div style="color: #2563eb">${formatTime(step.timearrived)}</div>
+                </td>
+              </tr>
+            </table>
+          </div>
+        `;
+      });
+    }
+    
+    // Buat html untuk transport details
+    let transportDetailsHtml = '';
+    const showTransportDetails = !(
+      transportStatus.pickupDetails.description === 'Own Transport' &&
+      transportStatus.dropOffDetails.description === 'Own Transport'
+    );
+    
+    if (showTransportDetails) {
+      transportDetailsHtml = `
+        <div style="padding: 0 20px 30px">
+          <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+            Transport Details
+          </div>
+          
+          ${transportStatus.pickupDetails.description && transportStatus.pickupDetails.description !== 'Own Transport' ? `
+            <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
+              PICK UP TIME: ${formatTime(pickupTime)}
+            </div>
+          ` : ''}
+          
+          <table style="width: 100%; border-collapse: collapse">
+            <thead>
+              <tr>
+                <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Type</th>
+                <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Area</th>
+                <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Journey Time</th>
+                <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transportStatus && 
+                transportStatus.pickupDetails && 
+                transportStatus.pickupDetails.transport_type && 
+                transportStatus.pickupDetails.description && 
+                transportStatus.pickupDetails.description !== '' && 
+                transportStatus.pickupDetails.description !== 'Own Transport' ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">Pickup: ${transportStatus.pickupDetails.transport_type}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.pickupDetails.area}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${formattedDuration} hours</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.pickupDetails.note}</td>
+                </tr>
+              ` : ''}
+              
+              ${transportStatus && 
+                transportStatus.dropOffDetails && 
+                transportStatus.dropOffDetails.transport_type && 
+                transportStatus.dropOffDetails.description && 
+                transportStatus.dropOffDetails.description !== '' && 
+                transportStatus.dropOffDetails.description !== 'Own Transport' ? `
+                <tr>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">Drop-off: ${transportStatus.dropOffDetails.transport_type}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.dropOffDetails.area}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${formattedDurationReturn} hours</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.dropOffDetails.note}</td>
+                </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    
+    // Buat location maps html
+    let locationMapsHtml = '';
+    if (bookingData.mapUrlDeparture || bookingData.mapUrlReturn) {
+      let departureMapHtml = '';
+      let returnMapHtml = '';
+      
+      if (bookingData.mapUrlDeparture) {
+        const [mapLink, imageLink] = bookingData.mapUrlDeparture.split("###");
+        departureMapHtml = `
+          <div style="margin-bottom: 20px">
+            <div style="font-weight: bold; margin-bottom: 10px">Departure Location: ${bookingData.from}</div>
+            <a href="${mapLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; display: block; margin-bottom: 10px">Open Map</a>
+            <img src="${imageLink}" alt="Departure Location Map" style="width: 100%; height: auto; border-radius: 4px">
+          </div>
+        `;
+      }
+      
+      if (bookingData.mapUrlReturn) {
+        const [mapLink, imageLink] = bookingData.mapUrlReturn.split("###");
+        returnMapHtml = `
+          <div style="margin-top: 20px">
+            <div style="font-weight: bold; margin-bottom: 10px">Return Location: ${bookingData.to}</div>
+            <a href="${mapLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline; display: block; margin-bottom: 10px">Open Map</a>
+            <img src="${imageLink}" alt="Return Location Map" style="width: 100%; height: auto; border-radius: 4px">
+          </div>
+        `;
+      }
+      
+      locationMapsHtml = `
+        <div style="padding: 0 20px 30px">
+          <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+            Location Maps
+          </div>
+          ${departureMapHtml}
+          ${returnMapHtml}
+        </div>
+      `;
+    }
+    
+    // Generate HTML template
+    const htmlTemplate = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Your Gili Getaway E-Ticket</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5">
+          <div style="max-width: 800px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden">
+            <!-- Header -->
+            <div style="background-color: #0f172a; padding: 20px">
+              <table style="width: 100%; border-collapse: collapse">
+                <tr>
+                  <td style="width: 33%; vertical-align: top">
+                    <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1739515682609" width="100" alt="Gili Getaway Logo" style="display: block; margin-bottom: 10px">
+                    <div style="color: white; font-size: 14px; line-height: 1.5">
+                      <div>giligetaway@gmail.com</div>
+                      <div>+62 812-3456-7890</div>
+                    </div>
+                  </td>
+                  <td style="width: 33%; text-align: center">
+                    <div style="padding: 15px; border-radius: 4px">
+                      <div style="color: white; font-size: 24px; font-weight: bold; margin-bottom: 5px">
+                        #${order_Id}
+                      </div>
+                      ${order_return_Id ? `
+                        <div style="color: white; font-size: 24px; font-weight: bold; margin-bottom: 5px">
+                          #${order_return_Id}
+                        </div>
+                      ` : ''}
+                      <div style="color: white">${tripType}</div>
+                    </div>
+                  </td>
+                  <td style="width: 33%; text-align: right">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${encodeURIComponent(JSON.stringify({ order_Id }))}" width="100" height="100" alt="QR Code" style="display: block; margin-left: auto; background-color: white; padding: 4px; border-radius: 4px">
+                    <div style="color: white; font-size: 12px; margin-top: 5px; text-align: right">
+                      Scan for verification
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Order Details -->
+            <div style="padding: 30px 20px">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+                Order Details
+              </div>
+              <table style="width: 100%; border-collapse: collapse">
+                <tr>
+                  <th style="padding: 12px; background-color: #f8f9fa; text-align: left; width: 20%">Name</th>
+                  <td style="padding: 12px">${orderDetails.name}</td>
+                </tr>
+                <tr>
+                  <th style="padding: 12px; background-color: #f8f9fa; text-align: left">Email</th>
+                  <td style="padding: 12px">${orderDetails.email}</td>
+                </tr>
+                <tr>
+                  <th style="padding: 12px; background-color: #f8f9fa; text-align: left">Phone</th>
+                  <td style="padding: 12px">${orderDetails.phone}</td>
+                </tr>
+                <tr>
+                  <th style="padding: 12px; background-color: #f8f9fa; text-align: left">Passport ID</th>
+                  <td style="padding: 12px">${orderDetails.passportId}</td>
+                </tr>
+                <tr>
+                  <th style="padding: 12px; background-color: #f8f9fa; text-align: left">Nationality</th>
+                  <td style="padding: 12px">${orderDetails.nationality}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Departure Details -->
+            <div style="padding: 0 20px 30px">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+                Departure
+              </div>
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px">
+                <div style="font-size: 18px; margin-bottom: 15px">
+                  ${bookingData.from} / ${bookingData.to}
+                  ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(bookingData.departureDate))} (${bookingData.boatName})
+                </div>
+                <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
+                  CHECK IN TIME: ${formatTime(checkinTimedeparture)}
+                </div>
+                <div style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 4px">
+                  Note: Please arrive at least 45 minutes before departure time.
+                </div>
+              </div>
+              
+              ${journeyStepsDepartureHtml}
+            </div>
+
+            <!-- Return Details -->
+            <div style="padding: 0 20px 30px">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+                Return
+              </div>
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px">
+                <div style="font-size: 18px; margin-bottom: 15px">
+                  ${bookingData.to} / ${bookingData.from}
+                  ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(bookingData.returnDate))} (${bookingData.boatNameReturn})
+                </div>
+                <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
+                  CHECK IN TIME: ${formatTime(checkinTimereturn)}
+                </div>
+                <div style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 4px">
+                  Note: Please arrive at least 45 minutes before departure time.
+                </div>
+              </div>
+              
+              ${journeyStepsReturnHtml}
+            </div>
+
+            <!-- Passenger Details -->
+            <div style="padding: 0 20px 30px">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+                Passenger Details
+              </div>
+              <table style="width: 100%; border-collapse: collapse">
+                <thead>
+                  <tr>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">No.</th>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Passenger(s)</th>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Nationality</th>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Type</th>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Seat Number Departure</th>
+                    <th style="padding: 12px; background-color: #f8f9fa; text-align: left; border-bottom: 1px solid #eee">Seat Number Return</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${passengerRows}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Transport Details -->
+            ${transportDetailsHtml}
+
+            <!-- Route Images -->
+            <div style="padding: 0 20px 30px">
+              <table style="width: 100%; border-collapse: collapse">
+                <tr>
+                  <td style="width: 50%; padding-right: 10px">
+                    <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px">
+                      Route Image Departure
+                    </div>
+                    <img src="${bookingData.imageUrl}" alt="Route Map Departure" style="width: 100%; height: auto; border-radius: 4px">
+                  </td>
+                  <td style="width: 50%; padding-left: 10px">
+                    <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 15px">
+                      Route Image Return
+                    </div>
+                    <img src="${bookingData.imageUrlReturn}" alt="Route Map Return" style="width: 100%; height: auto; border-radius: 4px">
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Location Maps -->
+            ${locationMapsHtml}
+
+            <!-- Terms and Conditions -->
+            <div style="padding: 0 20px 30px">
+              <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
+                Terms and Conditions
+              </div>
+
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Gili Getaway endeavor to transport all customers to their destinations at these times. All travel itineraries are subject to weather conditions. Gili Getaway reserves the right to change and/or cancel schedules in the interest of passenger's safety and well being.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Cancellations and delays The company reserves the right to vary the service in any way whatsoever without liability to the passenger. The company shall not be liable for any loss, damage or injury which may arise in the event of cancellation or delay in service.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                The company shall not be liable in any way for the cost of any accommodation or any alternative travel which may arise through cancellation or delays. Any additional expenses so arising shall be the sole liability and responsibility of the passenger.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Refunds by the company In the event of a trip cancellation by the company, the company shall refund any amounts paid by the passenger direct to the company, or any funds already paid by the agent to the company on the passenger's behalf.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Cancellation & No-Show or Late-Arrival Fee: The full ticket price will be charged for any cancellation less than 24 hours prior guest. From 2 to 7 days, a 50% refund. Longer than 7 Days, no charge.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Re-Scheduling Trip: Re-scheduling is based on seat availability and if made prior to 48 hours before guest departure for regular season, and 96 hours prior to guest departure for high season there is no charge, (1 Jul – 30 Sept). Otherwise a Rp100,000 fee per ticket will be charged.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Baggage Allowance: Each passenger is entitled to a maximum of 2 pieces of luggage carried free of charge, not exceeding a total weight of 25 kg.
+              </div>
+              <div style="margin-bottom: 15px; line-height: 1.6; color: #333">
+                Road Transportation in Bali/Gilis & Lombok: Road transportation to/from Serangan harbor is provided free of charge to/from ONE SPECIFIC ADDRESS in designated areas of Bali.
+              </div>
+
+              <div style="font-style: italic; margin-top: 20px; line-height: 1.6; color: #666; background-color: #f8f9fa; padding: 15px; border-radius: 4px">
+                Due to the increasingly serious worldwide problem of plastic pollution and other rubbish in our oceans,
+                Gili Getaway is committed to reducing plastic usage and will no longer offer bottled water onboard.
+                However, please feel free to bring your own bottles which can be refilled free of charge in our offices.
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    // Konfigurasi email
+    const mailOptions = {
+      from: process.env.EMAIL_USER_GMAIL,
+      to: recipientEmail,
+      subject: `Your E-Ticket for Gili Getaway - Order #${order_Id}`,
+      html: htmlTemplate,
+    };
+    
+    // Kirim email
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 E-ticket email sent to ${recipientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send e-ticket email:", error);
+    console.error("Error details:", error.message);
+    return false;
+  }
+};
+
 const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBooking) => {
   console.log("📤 Sending PAYMENT SUCCESS email to:", recipientEmail);
   const emailUrl = process.env.FRONTEND_URL;

@@ -17,6 +17,7 @@ const {
 const { Op } = require("sequelize");
 
 const {sendPaymentSuccessEmail, sendPaymentSuccessEmailRoundTrip} = require("../util/sendPaymentEmail");
+const { sendInvoiceAndTicketEmail } = require("./sendInvoiceAndTicketEmail");
 const handleMidtransSettlement = async (midtransOrderId, midtransPayload) => {
   // ✅ Ambil hanya bagian awal sebelum "-<timestamp>"
   const transactionId = midtransOrderId.split('-').slice(0, 2).join('-'); 
@@ -65,7 +66,8 @@ const handleMidtransSettlement = async (midtransOrderId, midtransPayload) => {
     expiration_time: null,
   });
 
-  await sendPaymentSuccessEmail(booking.contact_email, booking);
+  // await sendPaymentSuccessEmail(booking.contact_email, booking);
+  await sendInvoiceAndTicketEmail(booking.contact_email, booking,midtransOrderId);
 
   console.log(`✅ Booking ${booking.id} updated & email sent.`);
 };
