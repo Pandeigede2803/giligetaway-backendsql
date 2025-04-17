@@ -174,11 +174,7 @@ const handleMidtransSettlementRoundTrip = async (midtransOrderId, midtransPayloa
   }
 
   if (emailFromBooking) {
-    await sendPaymentSuccessEmailRoundTrip(
-      emailFromBooking.contact_email,
-      emailFromBooking,
-      secondBooking
-    );
+  
     await sendInvoiceAndTicketEmailRoundTrip(
       emailFromBooking.contact_email,
       emailFromBooking,
