@@ -150,17 +150,25 @@ const handleMidtransNotification = async (req, res) => {
 
     const { transaction_status, transaction_id, order_id, gross_amount, payment_type } = notification;
 
-    // Ambil baseTransactionId dari order_id
-    const baseTransactionId = order_id.split('-').slice(0, 2).join('-');
+    // Ambil baseTransactionId dari order_id (kalau format sesuai `TRANS-123456-xxx`)
+    const baseTransactionId = order_id?.includes('-') ? order_id.split('-').slice(0, 2).join('-') : null;
 
-    const tx = await Transaction.findOne({
-      where: { transaction_id: baseTransactionId },
-      include: [{ model: Booking, as: 'booking' }],
-    });
+    let tx = null;
+
+    if (baseTransactionId) {
+      tx = await Transaction.findOne({
+        where: { transaction_id: baseTransactionId },
+        include: [{ model: Booking, as: 'booking' }],
+      });
+    }
 
     if (!tx) {
-      console.warn(`⚠️ Transaction not found for ID ${baseTransactionId}`);
-      return res.status(404).json({ error: 'Transaction not found' });
+      console.warn(`⚠️ Transaction not found for ID: ${baseTransactionId || '(unknown format)'}`);
+      // Tetap kirim response sukses ke Midtrans supaya webhook tidak retry
+      return res.status(200).json({
+        message: 'Notifikasi diterima (transaction ID tidak ditemukan)',
+        transactionId: transaction_id,
+      });
     }
 
     let message = '';
@@ -227,6 +235,7 @@ const handleMidtransNotification = async (req, res) => {
     });
   }
 };
+
 
 
 // const handleMidtransNotification = async (req, res) => {
