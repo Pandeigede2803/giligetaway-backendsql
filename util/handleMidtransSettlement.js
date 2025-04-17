@@ -17,7 +17,7 @@ const {
 const { Op } = require("sequelize");
 
 const {sendPaymentSuccessEmail, sendPaymentSuccessEmailRoundTrip} = require("../util/sendPaymentEmail");
-const { sendInvoiceAndTicketEmail } = require("./sendInvoiceAndTicketEmail");
+const { sendInvoiceAndTicketEmail,sendInvoiceAndTicketEmailRoundTrip } = require("./sendInvoiceAndTicketEmail");
 const handleMidtransSettlement = async (midtransOrderId, midtransPayload) => {
   // ✅ Ambil hanya bagian awal sebelum "-<timestamp>"
   const transactionId = midtransOrderId.split('-').slice(0, 2).join('-'); 
@@ -91,26 +91,31 @@ const handleMidtransSettlementRoundTrip = async (midtransOrderId, midtransPayloa
   const currentBooking = transaction.booking;
   const ticketId = currentBooking.ticket_id;
   const ticketNumber = parseInt(ticketId.split('-')[2], 10);
-  const isOdd = ticketNumber % 2 === 1;
-  const pairNumber = isOdd ? ticketNumber + 1 : ticketNumber - 1;
-  const pairTicketId = `GG-RT-${pairNumber}`;
 
-  console.log("🔍 Checking round-trip pair...");
+  // Cari dua kemungkinan pasangan: -1 dan +1
+  const pairTicketIdMinus = `GG-RT-${ticketNumber - 1}`;
+  const pairTicketIdPlus = `GG-RT-${ticketNumber + 1}`;
+
+  console.log("🔍 Checking round-trip pairs...");
   console.log("  current ticket_id:", ticketId);
-  console.log("  expected pair ticket_id:", pairTicketId);
+  console.log("  trying pair ticket_ids:", pairTicketIdMinus, "and", pairTicketIdPlus);
 
-  // 🧩 Ambil booking pasangan
-  const pairBooking = await Booking.findOne({
-    where: { ticket_id: pairTicketId },
+  let pairBooking = await Booking.findOne({
+    where: { ticket_id: pairTicketIdMinus },
     include: [{ model: Transaction, as: 'transactions' }],
   });
 
   if (!pairBooking) {
-    console.warn(`❌ Pair booking not found for: ${pairTicketId}`);
-    const existingTickets = await Booking.findAll({
-      where: { ticket_id: { [Op.like]: 'GG-RT%' } },
+    pairBooking = await Booking.findOne({
+      where: { ticket_id: pairTicketIdPlus },
+      include: [{ model: Transaction, as: 'transactions' }],
     });
-    console.log("🧾 Available GG-RT ticket_ids in DB:", existingTickets.map(b => b.ticket_id));
+  }
+
+  if (pairBooking) {
+    console.log(`✅ Pair booking found: ${pairBooking.ticket_id}`);
+  } else {
+    console.warn(`❌ Pair booking not found for: ${pairTicketIdMinus} or ${pairTicketIdPlus}`);
   }
 
   // ✅ Update transaksi dan booking utama
@@ -150,22 +155,44 @@ const handleMidtransSettlementRoundTrip = async (midtransOrderId, midtransPayloa
     }
   }
 
-  // ✅ Tentukan booking ganjil untuk pengiriman email
-  const emailFromBooking = isOdd ? currentBooking : pairBooking;
+  // Kirim email dari currentBooking (jika tidak ada pasangan), atau dari yang ganjil jika keduanya ada
+  const currentNumberIsOdd = ticketNumber % 2 === 1;
+  let emailFromBooking = currentBooking;
+  let secondBooking = pairBooking;
+
+  if (pairBooking) {
+    const pairNumber = parseInt(pairBooking.ticket_id.split('-')[2], 10);
+    const pairIsOdd = pairNumber % 2 === 1;
+
+    if (currentNumberIsOdd) {
+      emailFromBooking = currentBooking;
+      secondBooking = pairBooking;
+    } else if (pairIsOdd) {
+      emailFromBooking = pairBooking;
+      secondBooking = currentBooking;
+    }
+  }
 
   if (emailFromBooking) {
     await sendPaymentSuccessEmailRoundTrip(
       emailFromBooking.contact_email,
-      isOdd ? currentBooking : pairBooking,
-      isOdd ? pairBooking : currentBooking
+      emailFromBooking,
+      secondBooking
+    );
+    await sendInvoiceAndTicketEmailRoundTrip(
+      emailFromBooking.contact_email,
+      emailFromBooking,
+      secondBooking,
+      midtransOrderId
     );
     console.log(`📧 [RT] Email sent from booking ${emailFromBooking.ticket_id}`);
   } else {
-    console.warn(`⚠️ [RT] Cannot send email: booking ganjil tidak ditemukan`);
+    console.warn(`⚠️ [RT] Cannot send email: no valid booking for email found`);
   }
 
-  console.log(`✅ [RT] Booking ${ticketId} and pair ${pairTicketId} updated.`);
+  console.log(`✅ [RT] Booking ${ticketId} and its pair updated.`);
 };
+
 
 
 

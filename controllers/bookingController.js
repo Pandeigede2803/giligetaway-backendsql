@@ -809,7 +809,8 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           gross_total_in_usd,
           exchange_rate,
           note,
-          final_state
+          final_state,
+          discount_data,
         } = data;
 
         console.log("note from frontend type", type, note);
@@ -906,6 +907,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             gross_total_in_usd,
             exchange_rate,
             note,
+            discount_data,
             final_state,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
@@ -1139,7 +1141,8 @@ const createBookingWithTransitQueue = async (req, res) => {
     gross_total_in_usd,
     exchange_rate,
     note,
-    final_state
+    final_state,
+    discount_data,
   } = req.body;
 
   console.log("🙀REQUEST FROM BODY:", req.body,final_state);
@@ -1212,6 +1215,7 @@ if (typeof final_state !== 'object' || final_state === null) {
           infant_passengers,
           ticket_id,
           final_state,
+          discount_data,
           note,
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
