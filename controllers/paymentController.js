@@ -789,7 +789,7 @@ const generateMidtransLink = async (req, res) => {
       console.log("✅ [SUCCESS]: Midtrans Payment Link Generated:", midtransData.payment_url);
       res.status(200).json({
         message: "Midtrans payment link generated successfully",
-        paymentUrl: midtransData.payment_url,
+        paymentUrl: midtransData.payment_url || midtransData.redirect_url,
       });
     } else {
       console.error("❌ [ERROR]: Midtrans API Error:", midtransData);
