@@ -118,7 +118,7 @@ const updateAgentCommission = async (
       }
     }
 
-    // Komisi transportasi hanya akan mengurangi commissionAmount jika transportasi tidak ada
+    // Komisi transportasi hanya akan mengurangi commissionAmount jika transportasi own trasnport(tidak ada)
     if (transports && transports.length > 0) {
       console.log(
         `Transport data exists, transport commission will not reduce the commission for agent_id ${agent_id}`
@@ -128,7 +128,7 @@ const updateAgentCommission = async (
       console.log(
         `No transport data found, reducing commission with transport commission for agent_id ${agent_id}`
       );
-      commissionAmount -= parseFloat(commission_transport) * total_passengers; // Calculate with total passengers
+      commissionAmount + parseFloat(commission_transport) * total_passengers; // Calculate with total passengers
       console.log(
         `Total commission after reducing transport commission: ${commissionAmount}`
       );
