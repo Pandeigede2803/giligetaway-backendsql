@@ -99,11 +99,10 @@ const truncateString = (str, maxLength) => {
   return str.length > maxLength ? `${str.substring(0, maxLength - 3)}...` : str;
 };
 
-const generateMidtransTokenMulti = async (data,transactions) => {
+const generateMidtransTokenMulti = async (data, transactions) => {
   try {
     let { bookings, transports } = data;
-
-   
+    const MAX_NAME_LENGTH = 50; // Tetapkan nilai konstanta yang belum didefinisikan
 
     const transactionIdFirst = transactions[0].transaction_id;
     console.log("😼Transaction ID:", transactionIdFirst);
@@ -117,6 +116,12 @@ const generateMidtransTokenMulti = async (data,transactions) => {
     if (!Array.isArray(transports)) {
       transports = [];
     }
+
+    // Fungsi untuk memotong string yang tidak terdefinisi sebelumnya
+    const truncateString = (str, maxLength) => {
+      if (!str) return '';
+      return str.length > maxLength ? str.substring(0, maxLength - 3) + '...' : str;
+    };
 
     // Map bookings into item details
     const itemDetails = bookings.map((booking, index) => {
@@ -135,8 +140,8 @@ const generateMidtransTokenMulti = async (data,transactions) => {
       // Truncate the combined description to adhere to MidTrans limits
       const truncatedDescription = truncateString(combinedDescription, MAX_NAME_LENGTH);
 
-      // Use the provided gross_total for price
-      const price = parseFloat(booking.gross_total);
+      // Use the provided gross_total for price and convert to integer
+      const price = Math.floor(parseFloat(booking.gross_total));
 
       return {
         id: `booking_${booking.id}`, // Unique ID for each booking
@@ -147,25 +152,25 @@ const generateMidtransTokenMulti = async (data,transactions) => {
     });
 
     // Calculate total gross amount (sum of all item prices)
-    const totalGrossAmount = itemDetails.reduce((total, item) => total + item.price, 0);
+    const totalGrossAmount = Math.floor(itemDetails.reduce((total, item) => total + item.price, 0));
 
     // Use the first booking's details for customer information
     const customerDetails = {
-      first_name: bookings[0]?.contact_name.split(" ")[0] || "",
-      last_name: bookings[0]?.contact_name.split(" ").slice(1).join(" ") || "",
-      email: bookings[0]?.contact_email || "",
+      first_name: bookings[0]?.contact_name?.split(" ")[0] || "Customer",
+      last_name: bookings[0]?.contact_name?.split(" ").slice(1).join(" ") || "",
+      email: bookings[0]?.contact_email || "guest@example.com",
       phone: bookings[0]?.contact_phone || "",
     };
 
     // Prepare transaction parameters for MidTrans
-     const uniqueSuffix = Date.now(); // atau bisa nanoid/uuid pendek
+    const uniqueSuffix = Date.now();
     const parameter = {
       transaction_details: {
-        order_id : `${transactionIdFirst}-${uniqueSuffix}`,
+        order_id: `${transactionIdFirst}-${uniqueSuffix}`,
         gross_amount: totalGrossAmount,
-        credit_card: {
-          secure: true, // <--- Tambahkan ini
-        },
+      },
+      credit_card: {
+        secure: true, // Dipindahkan ke level yang benar
       },
       item_details: itemDetails, // Use generated itemDetails array
       customer_details: customerDetails,
@@ -180,8 +185,8 @@ const generateMidtransTokenMulti = async (data,transactions) => {
 
     return transactionToken;
   } catch (error) {
-    console.error("Error generating MidTrans token:", error.message);
-    throw new Error("Failed to generate MidTrans transaction token");
+    console.error("Error generating MidTrans token:", error);
+    throw new Error(`Failed to generate MidTrans transaction token: ${error.message}`);
   }
 };
 
