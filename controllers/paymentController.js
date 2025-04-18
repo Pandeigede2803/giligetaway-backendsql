@@ -675,7 +675,7 @@ const generateSingleMidtransLink = async (req, res) => {
       console.log("Midtrans Response Data:", midtransData);
       res.status(200).json({
         message: "Midtrans payment link generated successfully",
-        paymentUrl: midtransData.payment_url,
+        paymentUrl: midtransData.payment_url || midtransData.redirect_url,
       });
     } else {
       console.error("Midtrans API Error:", midtransData);
@@ -1139,7 +1139,7 @@ const createPayPalMultiple = async (req, res) => {
         return_url: `${process.env.PAYPAL_BASE_URL}success-page`,
         cancel_url: `${process.env.PAYPAL_BASE_URL}cancel-order`,
       },
-    };
+    };;
 
     console.log("PayPal Order Details:", JSON.stringify(orderDetails, null, 2));
 
