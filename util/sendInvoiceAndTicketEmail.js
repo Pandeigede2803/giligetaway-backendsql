@@ -30,7 +30,7 @@ const sendInvoiceAndTicketEmail = async (recipientEmail, booking,midtransOrderId
   
       // Kirim request ke API Next.js
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/send-email-customer-express`,
+        `${process.env.FRONTEND_URL}/api/payment/send-email-customer-express`,
         payload,
         {
           headers: {
@@ -82,7 +82,7 @@ const sendInvoiceAndTicketEmail = async (recipientEmail, booking,midtransOrderId
   
       // Kirim request ke API Next.js
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/payment/send-email-round-customer-express`,
+        `${process.env.FRONTEND_URL}/api/payment/send-email-round-customer-express`,
         payload,
         {
           headers: {

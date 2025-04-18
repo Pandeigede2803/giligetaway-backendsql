@@ -886,6 +886,13 @@ const getScheduleSubschedule = async (req, res) => {
               "arrival_time",
               "journey_time",
             ],
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id", "name"],
+              },
+            ],
           },
           {
             model: Destination,
@@ -975,7 +982,15 @@ const getScheduleSubschedule = async (req, res) => {
         schedule_id: schedule.id, // Main schedule has its own ID
         from: schedule.FromDestination?.name || "N/A",
         to: schedule.ToDestination?.name || "N/A",
-        transits: [], // Main schedule has no transits
+        transits: schedule.Transits 
+        ? schedule.Transits.map((transit) => ({
+            destination: transit.Destination?.name || 
+                        (transit.destination_id ? `Destination ${transit.Destination.name}` : "N/A"),
+            departure_time: transit.departure_time || "N/A",
+            arrival_time: transit.arrival_time || "N/A",
+            journey_time: transit.journey_time || "N/A",
+          }))
+        : [],
         route_image: schedule.route_image || "N/A", // Add if schedule has an image
         departure_time: schedule.departure_time || "N/A",
         check_in_time: schedule.check_in_time || "N/A",
@@ -3451,7 +3466,7 @@ const uploadSchedules = async (req, res) => {
           journey_time,
           route_image,
           available_seats,
-        } = row;
+        } = row;;
 
         // Validate IDs
         const user = await User.findByPk(user_id);
