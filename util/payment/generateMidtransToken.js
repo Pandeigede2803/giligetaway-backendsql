@@ -16,6 +16,8 @@ const serverKey = isProduction
   ? process.env.MIDTRANS_PROD_SERVER_KEY // Production server key
   : process.env.MIDTRANS_DEV_SERVER_KEY; // Development server key
 
+  console.log("😻isProduction:", isProduction);
+
 // Initialize Snap instance
 const snap = new midtransClient.Snap({
   isProduction,
