@@ -86,7 +86,7 @@ const generateMidtransPaymentLink = async (bookingDetails, transaction) => {
     const paymentUrl = response.data.redirect_url;
     console.log(`Generated MidTrans Payment Link: ${paymentUrl}`);
 
-    return paymentUrl;
+    return paymentUrl;;
   } catch (error) {
     console.error("Error generating MidTrans payment link:", error);
     if (error.response) {

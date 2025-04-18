@@ -103,7 +103,8 @@ app.use((err, req, res, next) => {
     message: err.message,
   });
 });
-
+const url = process.env.MIDTRANS_API_BASE_URL;
+console.log("  😻   😻 Midtrans API URL:", url);
 
 
 // Inisialisasi server HTTP

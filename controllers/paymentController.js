@@ -653,10 +653,11 @@ const generateSingleMidtransLink = async (req, res) => {
     console.log("Request Parameters:", JSON.stringify(parameter, null, 2));
 
     const url = process.env.MIDTRANS_API_BASE_URL;
+    console.log("  😻   😻 Midtrans API URL:", url);
 
     // Set up fetch options
     const options = {
-      method: "POST",
+   method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",

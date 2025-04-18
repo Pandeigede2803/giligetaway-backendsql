@@ -33,7 +33,7 @@ const fetchMidtransPaymentStatus = async (transactionId) => {
   return {
     paymentStatus: data.transaction_status,
     orderId: data.order_id,
-  };
+  };;
 };
 
 
