@@ -24,60 +24,42 @@ const snap = new midtransClient.Snap({
   serverKey,
 });
 
-const generateMidtransToken = async (bookingDetails,transactionId) => {
-  console.log("Booking details FROM BODY:", bookingDetails);
-  console.log("🙀Transaction ID:", transactionId);
-
+const generateMidtransToken = async (bookingDetails, transactionId) => {
   try {
-    // Mengambil `ticket_total` dari bookingDetails
-    const ticketTotal = parseFloat(bookingDetails.gross_total
-    );
-
-    // Gabungkan deskripsi tiket
+    // Pastikan gross_amount adalah integer
+    const grossAmount = Math.floor(parseFloat(bookingDetails.gross_total));
+    
+    // Gabungkan deskripsi seperti sebelumnya
     const ticketDescription = `Ticket for ${bookingDetails.total_passengers} Passengers`;
-
-    // Gabungkan deskripsi transportasi
+    
     const transportDescriptions = Array.isArray(bookingDetails.transports)
       ? bookingDetails.transports.map(
-          (transport) =>
-            `${transport.transport_type}  x ${transport.quantity}`
-        ).join(", ") // Gabungkan deskripsi transport
+          (transport) => `${transport.transport_type} x ${transport.quantity}`
+        ).join(", ")
       : "";
-
-    // Gabungkan deskripsi tiket dan transportasi
+    
     const combinedDescription = [ticketDescription, transportDescriptions]
-      .filter(Boolean) // Hapus nilai kosong
-      .join("; "); // Gabungkan dengan pemisah "; "
-
-    // Hitung gross amount langsung dari tiket dan transportasi
-    const transportTotal = Array.isArray(bookingDetails.transports)
-      ? bookingDetails.transports.reduce(
-          (total, transport) =>
-            total + parseFloat(transport.transport_price) * transport.quantity,
-          0
-        )
-      : 0;
-
-    const grossAmount = bookingDetails.gross_total;
-
-    console.log("Combined description:", combinedDescription);
-    console.log("Gross amount:", grossAmount);
-
+      .filter(Boolean)
+      .join("; ");
+    
     // Persiapkan customer details
     const customerDetails = {
       first_name: bookingDetails.contact_name.split(" ")[0],
-      last_name: bookingDetails.contact_name.split(" ").slice(1).join(" "),
-      email: bookingDetails.contact_email || "Guest",
+      last_name: bookingDetails.contact_name.split(" ").slice(1).join(" ") || "customer",
+      email: bookingDetails.contact_email || "guest@example.com",
       phone: bookingDetails.contact_phone || "081238266915",
-      passenger_details: bookingDetails.passengers, // Jika dibutuhkan, tambahkan detail penumpang
     };
-
-    const uniqueSuffix = Date.now(); // atau bisa nanoid/uuid pendek
-    // Persiapkan parameter transaksi untuk MidTrans
+    
+    const uniqueSuffix = Date.now();
+    
+    // Perbaiki parameter transaksi
     const parameter = {
       transaction_details: {
         order_id: `${transactionId}-${uniqueSuffix}`,
-        gross_amount: grossAmount,
+        gross_amount: grossAmount, // Integer (tanpa desimal)
+      },
+      credit_card: {
+        secure: true,
       },
       item_details: [
         {
@@ -88,43 +70,22 @@ const generateMidtransToken = async (bookingDetails,transactionId) => {
         },
       ],
       customer_details: customerDetails,
-      enabled_payments: ["credit_card"],
-      credit_card: {
-        secure: true,
-        save_card: true,
-        channel: "migs",
-        bank: "maybank",
-        installment: {
-          required: false,
-          terms: {
-            bni: [3, 6, 12],
-            mandiri: [3, 6, 12],
-            cimb: [3],
-            bca: [3, 6, 12],
-            offline: [6, 12],
-          },
-        },
-        whitelist_bins: ["48111111", "41111111", "bni"],
-        dynamic_descriptor: {
-          merchant_name: "Fuji Apple Inc",
-          city_name: "Jakarta",
-          country_code: "ID",
-        },
-      },
       custom_field1: `Booking on ${bookingDetails.booking_date}`,
     };
-
-
+    
+    // Tambahkan konfigurasi untuk metode pembayaran tertentu jika diperlukan
+    // contoh: parameter.enable_payments = ["credit_card", "gopay", "shopeepay"];
+    
     console.log("Parameter transaksi ke MidTrans:", parameter);
-
-    // Menghasilkan token transaksi menggunakan MidTrans Snap API
+    
+    // Generate token
     const transactionToken = await snap.createTransactionToken(parameter);
     console.log(`Generated MidTrans Transaction Token: ${transactionToken}`);
-
+    
     return transactionToken;
   } catch (error) {
-    console.error("Error generating MidTrans token:", error.message);
-    throw new Error("Failed to generate MidTrans transaction token");
+    console.error("Error generating MidTrans token:", error);
+    throw new Error(`Failed to generate MidTrans transaction token: ${error.message}`);
   }
 };
 
