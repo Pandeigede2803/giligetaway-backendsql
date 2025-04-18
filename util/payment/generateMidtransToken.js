@@ -76,23 +76,44 @@ const generateMidtransToken = async (bookingDetails,transactionId) => {
     // Persiapkan parameter transaksi untuk MidTrans
     const parameter = {
       transaction_details: {
-        order_id : `${transactionId}-${uniqueSuffix}`,
-        gross_amount: grossAmount, // Total transaksi dihitung langsung
-        credit_card: {
-          secure: true, // <--- Tambahkan ini
-        },
+        order_id: `${transactionId}-${uniqueSuffix}`,
+        gross_amount: grossAmount,
       },
       item_details: [
         {
-          id: "combined_items", // ID gabungan
-          price: grossAmount, // Total harga
-          quantity: 1, // Selalu 1
-          name: combinedDescription, // Gabungan deskripsi
+          id: "combined_items",
+          price: grossAmount,
+          quantity: 1,
+          name: combinedDescription,
         },
       ],
       customer_details: customerDetails,
+      enabled_payments: ["credit_card"],
+      credit_card: {
+        secure: true,
+        save_card: true,
+        channel: "migs",
+        bank: "maybank",
+        installment: {
+          required: false,
+          terms: {
+            bni: [3, 6, 12],
+            mandiri: [3, 6, 12],
+            cimb: [3],
+            bca: [3, 6, 12],
+            offline: [6, 12],
+          },
+        },
+        whitelist_bins: ["48111111", "41111111", "bni"],
+        dynamic_descriptor: {
+          merchant_name: "Fuji Apple Inc",
+          city_name: "Jakarta",
+          country_code: "ID",
+        },
+      },
       custom_field1: `Booking on ${bookingDetails.booking_date}`,
     };
+
 
     console.log("Parameter transaksi ke MidTrans:", parameter);
 
