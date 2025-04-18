@@ -67,8 +67,8 @@ const generateMidtransToken = async (bookingDetails,transactionId) => {
     const customerDetails = {
       first_name: bookingDetails.contact_name.split(" ")[0],
       last_name: bookingDetails.contact_name.split(" ").slice(1).join(" "),
-      email: bookingDetails.contact_email,
-      phone: bookingDetails.contact_phone,
+      email: bookingDetails.contact_email || "Guest",
+      phone: bookingDetails.contact_phone || "081238266915",
       passenger_details: bookingDetails.passengers, // Jika dibutuhkan, tambahkan detail penumpang
     };
 
@@ -78,6 +78,9 @@ const generateMidtransToken = async (bookingDetails,transactionId) => {
       transaction_details: {
         order_id : `${transactionId}-${uniqueSuffix}`,
         gross_amount: grossAmount, // Total transaksi dihitung langsung
+        credit_card: {
+          secure: true, // <--- Tambahkan ini
+        },
       },
       item_details: [
         {
@@ -178,6 +181,9 @@ const generateMidtransTokenMulti = async (data,transactions) => {
       transaction_details: {
         order_id : `${transactionIdFirst}-${uniqueSuffix}`,
         gross_amount: totalGrossAmount,
+        credit_card: {
+          secure: true, // <--- Tambahkan ini
+        },
       },
       item_details: itemDetails, // Use generated itemDetails array
       customer_details: customerDetails,
