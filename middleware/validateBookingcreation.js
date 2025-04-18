@@ -284,17 +284,20 @@ const validateBookingCreation = async (req, res, next) => {
       console.log(`🔍 Validating passenger at index ${i}:`, passenger);
 
       // Validate required passenger fields
-      if (!passenger.name || !passenger.passenger_type || !passenger.nationality ) {
-        console.log(
-          `❌ Passenger validation failed at index ${i}: Missing required fields.`,
-          passenger
-        );
-        return res.status(400).json({
-          error: "Invalid passenger data",
-          message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
-          passenger,
-        });
-      }
+      // if (!passenger.name ||
+      //    !passenger.passenger_type ||
+      //    !passenger.nationality 
+      //   ) {
+      //   console.log(
+      //     `❌ Passenger validation failed at index ${i}: Missing required fields.`,
+      //     passenger
+      //   );
+      //   return res.status(400).json({
+      //     error: "Invalid passenger data",
+      //     message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
+      //     passenger,
+      //   });
+      // }
 
       // Validate seat number if provided
       if (passenger.passenger_type !== 'infant' && passenger.seat_number) {
@@ -328,6 +331,7 @@ const validateBookingCreation = async (req, res, next) => {
 
         console.log(`✅ Seat number ${passenger.seat_number} is available.`);
       }
+
     }
 
     console.log("✅ All validations passed.");
@@ -645,13 +649,13 @@ const validateMultipleBookingCreation = async (req, res, next) => {
       const p = passengers[i];
 
       // Cek field wajib: name, passenger_type, nationality, dan passport_id
-      if (!p.name || !p.passenger_type || !p.nationality || !p.passport_id) {
-        return res.status(400).json({
-          error: "Invalid passenger data",
-          message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
-          passenger: p,
-        });
-      }
+      // if (!p.name || !p.passenger_type || !p.nationality || !p.passport_id) {
+      //   return res.status(400).json({
+      //     error: "Invalid passenger data",
+      //     message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
+      //     passenger: p,
+      //   });
+      // }
 
       // Validasi passenger_type harus salah satu dari 'adult', 'child', atau 'infant'
       if (!validPassengerTypes.includes(p.passenger_type)) {
@@ -671,23 +675,23 @@ const validateMultipleBookingCreation = async (req, res, next) => {
 
     // Validate email format
     console.log("📧 Validating email format...");
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(contact_email)) {
-      return res.status(400).json({
-        error: "Invalid email format",
-      });
-    }
+    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // if (!emailRegex.test(contact_email)) {
+    //   return res.status(400).json({
+    //     error: "Invalid email format",
+    //   });
+    // }
 
     // Validate phone number format
     console.log("📱 Validating phone number...");
-    const phoneRegex = /^[+]?[\d\s-]{8,}$/;
-    if (!phoneRegex.test(contact_phone)) {
-      return res.status(400).json({
-        error: "Invalid phone number format",
-        message:
-          "Phone number should contain at least 8 digits and may include +, spaces, or hyphens",
-      });
-    }
+    // const phoneRegex = /^[+]?[\d\s-]{8,}$/;
+    // if (!phoneRegex.test(contact_phone)) {
+    //   return res.status(400).json({
+    //     error: "Invalid phone number format",
+    //     message:
+    //       "Phone number should contain at least 8 digits and may include +, spaces, or hyphens",
+    //   });
+    // }
 
     // Validate currency if provided
     if (currency) {
