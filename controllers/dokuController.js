@@ -26,26 +26,7 @@ exports.getPaymentChannels = async (req, res) => {
   }
 };
 
-// Membuat pembayaran
-// exports.createPayment = async (req, res) => {
-//   try {
-//     const paymentData = req.body;
 
-//     const response = await dokuApi.post("/checkout/v1/payment", paymentData);
-//     res.status(200).json({
-//       success: true,
-//       message: "Payment created successfully",
-//       data: response.data,
-//     });
-//   } catch (error) {
-//     console.error("Error creating payment:", error.response?.data || error.message);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to create payment",
-//       error: error.message,
-//     });
-//   }
-// };
 
 // Fungsi untuk membuat pembayaran di DOKU
 exports.createPayment = async (req, res) => {
@@ -105,6 +86,35 @@ exports.createPayment = async (req, res) => {
   }
 };
 exports.handleNotification = async (req, res) => {
+  // | 😻Notifikasi diterima dari DOKU: {
+  //   1|giligetaway-backendsql  |   service: { id: 'VIRTUAL_ACCOUNT' },
+  //   1|giligetaway-backendsql  |   acquirer: { id: 'BCA' },
+  //   1|giligetaway-backendsql  |   channel: { id: 'VIRTUAL_ACCOUNT_BCA' },
+  //   1|giligetaway-backendsql  |   order: { invoice_number: 'INV-23334-123', amount: 100000 },
+  //   1|giligetaway-backendsql  |   virtual_account_info: { virtual_account_number: '1900800000156957' },
+  //   1|giligetaway-backendsql  |   virtual_account_payment: {
+  //   1|giligetaway-backendsql  |     date: '20250419081124',
+  //   1|giligetaway-backendsql  |     systrace_number: '83679',
+  //   1|giligetaway-backendsql  |     reference_number: '69398',
+  //   1|giligetaway-backendsql  |     channel_code: '',
+  //   1|giligetaway-backendsql  |     request_id: '505593',
+  //   1|giligetaway-backendsql  |     identifier: [ [Object], [Object], [Object] ]
+  //   1|giligetaway-backendsql  |   },
+  //   1|giligetaway-backendsql  |   transaction: {
+  //   1|giligetaway-backendsql  |     status: 'SUCCESS',
+  //   1|giligetaway-backendsql  |     date: '2025-04-19T01:11:24Z',
+  //   1|giligetaway-backendsql  |     original_request_id: '5a11e414-a473-4275-b2cd-2a978ab3ecce'
+  //   1|giligetaway-backendsql  |   },
+  //   1|giligetaway-backendsql  |   additional_info: {
+  //   1|giligetaway-backendsql  |     origin: {
+  //   1|giligetaway-backendsql  |       source: 'direct',
+  //   1|giligetaway-backendsql  |       system: 'mid-jokul-checkout-system',
+  //   1|giligetaway-backendsql  |       product: 'CHECKOUT',
+  //   1|giligetaway-backendsql  |       apiFormat: 'JOKUL'
+  //   1|giligetaway-backendsql  |     }
+  //   1|giligetaway-backendsql  |   }
+  //   1|giligetaway-backendsql  | }
+  //   1|giligetaway-backendsql  | Update status pembayaran untuk Invoice INV-23334-123 ke SUCCESS
     try {
       const notificationData = req.body;
   
