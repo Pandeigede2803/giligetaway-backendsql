@@ -299,39 +299,6 @@ const validateBookingCreation = async (req, res, next) => {
       //   });
       // }
 
-      // Validate seat number if provided
-      if (passenger.passenger_type !== 'infant' && passenger.seat_number) {
-        console.log(`🔍 Validating seat number for passenger at index ${i}: ${passenger.seat_number}`);
-
-        const occupiedSeat = await Booking.findOne({
-          where: {
-            schedule_id,
-            booking_date : booking_date,
-            payment_status: ['paid', 'invoiced', 'unpaid'],
-          },
-          include: [
-            {
-              model: Passenger,
-              as: "passengers",
-              where: { seat_number: passenger.seat_number },
-            },
-          ],
-        });
-
-        if (occupiedSeat) {
-          console.log(
-            `❌ Seat validation failed for seat number ${passenger.seat_number}. Seat is already occupied.  from bookingid :${occupiedSeat.id} and ticket id :${occupiedSeat.ticket_id}`
-          );
-          return res.status(400).json({
-            error: "Seat number unavailable",
-            message: `Seat number ${passenger.seat_number} is already occupied. from bookingid :${occupiedSeat.id} and ticket id :${occupiedSeat.ticket_id}`,
-            passenger,
-          });
-        }
-
-        console.log(`✅ Seat number ${passenger.seat_number} is available.`);
-      }
-
     }
 
     console.log("✅ All validations passed.");
@@ -399,31 +366,31 @@ const validateRoundTripBookingPost = async (req, res, next) => {
           continue;
         }
     
-        // 2. Cari apakah seat_number tersebut sudah ditempati di booking lain
-        const occupiedSeat = await Booking.findOne({
-          where: {
-            // Mencari booking dengan schedule_id dan booking_date yang sama
-            schedule_id: scheduleId,
-            booking_date,
-          },
-          include: [
-            {
-              // Kita include relasi ke tabel Passenger (as: "passengers")
-              model: Passenger,
-              as: "passengers",
-              // 3. Filter passenger pada Booking yang punya seat_number sama
-              where: { seat_number: passenger.seat_number },
-            },
-          ],
-        });
+        // // 2. Cari apakah seat_number tersebut sudah ditempati di booking lain
+        // const occupiedSeat = await Booking.findOne({
+        //   where: {
+        //     // Mencari booking dengan schedule_id dan booking_date yang sama
+        //     schedule_id: scheduleId,
+        //     booking_date,
+        //   },
+        //   include: [
+        //     {
+        //       // Kita include relasi ke tabel Passenger (as: "passengers")
+        //       model: Passenger,
+        //       as: "passengers",
+        //       // 3. Filter passenger pada Booking yang punya seat_number sama
+        //       where: { seat_number: passenger.seat_number },
+        //     },
+        //   ],
+        // });
     
-        // 4. Jika ketemu, berarti seat_number sudah dipakai
-        if (occupiedSeat) {
-          throw {
-            status: "error",
-            message: `Seat number ${passenger.seat_number} is already occupied in ${type} booking.`,
-          };
-        }
+        // // 4. Jika ketemu, berarti seat_number sudah dipakai
+        // if (occupiedSeat) {
+        //   throw {
+        //     status: "error",
+        //     message: `Seat number ${passenger.seat_number} is already occupied in ${type} booking.`,
+        //   };
+        // }
     
         console.log(`✅ Seat number ${passenger.seat_number} is available.`);
       }
