@@ -3,6 +3,24 @@ const crypto = require("crypto");
 const { generateSignature } = require("../config/doku");
 const { broadcast } = require('../config/websocket'); 
 
+const { Op, literal, col } = require("sequelize");
+const {
+  Agent,
+  Boat,
+  AgentMetrics,
+  Booking,
+  sequelize,
+  Destination,
+  Schedule,
+  SubSchedule,
+  Transport,
+  Passenger,
+  Transit,
+  TransportBooking,
+  AgentCommission,
+  Transaction,
+} = require("../models"); // Pastikan jalur impor benar
+
 const DOKU_BASE_URL = process.env.DOKU_BASE_URL;
 const CLIENT_ID = process.env.DOKU_CLIENT_ID;
 // Mendapatkan daftar payment channels
@@ -144,76 +162,77 @@ exports.createPayment = async (req, res) => {
 
 
 exports.handleNotification = async (req, res) => {
-  // | 😻Notifikasi diterima dari DOKU: {
-  //   1|giligetaway-backendsql  |   service: { id: 'VIRTUAL_ACCOUNT' },
-  //   1|giligetaway-backendsql  |   acquirer: { id: 'BCA' },
-  //   1|giligetaway-backendsql  |   channel: { id: 'VIRTUAL_ACCOUNT_BCA' },
-  //   1|giligetaway-backendsql  |   order: { invoice_number: 'INV-23334-123', amount: 100000 },
-  //   1|giligetaway-backendsql  |   virtual_account_info: { virtual_account_number: '1900800000156957' },
-  //   1|giligetaway-backendsql  |   virtual_account_payment: {
-  //   1|giligetaway-backendsql  |     date: '20250419081124',
-  //   1|giligetaway-backendsql  |     systrace_number: '83679',
-  //   1|giligetaway-backendsql  |     reference_number: '69398',
-  //   1|giligetaway-backendsql  |     channel_code: '',
-  //   1|giligetaway-backendsql  |     request_id: '505593',
-  //   1|giligetaway-backendsql  |     identifier: [ [Object], [Object], [Object] ]
-  //   1|giligetaway-backendsql  |   },
-  //   1|giligetaway-backendsql  |   transaction: {
-  //   1|giligetaway-backendsql  |     status: 'SUCCESS',
-  //   1|giligetaway-backendsql  |     date: '2025-04-19T01:11:24Z',
-  //   1|giligetaway-backendsql  |     original_request_id: '5a11e414-a473-4275-b2cd-2a978ab3ecce'
-  //   1|giligetaway-backendsql  |   },
-  //   1|giligetaway-backendsql  |   additional_info: {
-  //   1|giligetaway-backendsql  |     origin: {
-  //   1|giligetaway-backendsql  |       source: 'direct',
-  //   1|giligetaway-backendsql  |       system: 'mid-jokul-checkout-system',
-  //   1|giligetaway-backendsql  |       product: 'CHECKOUT',
-  //   1|giligetaway-backendsql  |       apiFormat: 'JOKUL'
-  //   1|giligetaway-backendsql  |     }
-  //   1|giligetaway-backendsql  |   }
-  //   1|giligetaway-backendsql  | }
-  //   1|giligetaway-backendsql  | Update status pembayaran untuk Invoice INV-23334-123 ke SUCCESS
-    try {
-      const notificationData = req.body;
-  
-      // Log data notifikasi untuk debugging
-      console.log("😻Notifikasi diterima dari DOKU:", notificationData);
-  
-      // Proses data notifikasi sesuai kebutuhan
-      if (notificationData.order && notificationData.order.invoice_number) {
-        const invoiceNumber = notificationData.order.invoice_number;
-        const paymentStatus =
-          notificationData.transaction && notificationData.transaction.status;
-        const transactionId =
-          notificationData.transaction && notificationData.transaction.id;
-        const grossAmount =
-          notificationData.order && notificationData.order.amount;
-  
-        console.log(
-          `Update status pembayaran untuk Invoice ${invoiceNumber} ke ${paymentStatus}`
-        );
-  
-        // Lakukan pembaruan ke database Anda di sini
-  
+  try {
+    const notificationData = req.body;
+
+    // Log notifikasi untuk debugging
+    console.log("😻Notifikasi diterima dari DOKU:", notificationData);
+
+    // Ekstrak data penting dari notifikasi
+    if (notificationData.order && notificationData.order.invoice_number) {
+      const invoiceNumber = notificationData.order.invoice_number;
+      const paymentStatus = notificationData.transaction?.status || "UNKNOWN";
+      
+      console.log(`Update status pembayaran untuk Invoice ${invoiceNumber} ke ${paymentStatus}`);
+
+      // Cari transaksi yang sesuai dengan invoice number (TRANS format)
+      const transaction = await Transaction.findOne({
+        where: {
+          transaction_id: invoiceNumber
+        }
+      });
+
+      if (transaction) {
+        // Update status transaksi dan simpan data notifikasi
+        await transaction.update({
+          status: paymentStatus.toLowerCase(),
+          payment_data: notificationData // Sequelize akan mengonversi objek ke JSON
+        });
+
+        console.log(`Transaction ${transaction.id} updated with payment data`);
+
+        // Jika pembayaran berhasil, update status booking
+        if (paymentStatus === 'SUCCESS') {
+          const booking = await Booking.findByPk(transaction.booking_id);
+          
+          if (booking) {
+            await booking.update({
+              payment_status: 'paid'
+            });
+            
+            console.log(`Booking ${booking.id} marked as paid`);
+          } else {
+            console.error(`Booking not found for transaction: ${transaction.id}`);
+          }
+        }
+
         // Kirim notifikasi ke klien melalui WebSocket
         broadcast({
           orderId: invoiceNumber,
           transactionStatus: paymentStatus,
-          transactionId,
-          grossAmount,
-          notificationData,
-          message: `Status pembayaran untuk Invoice ${invoiceNumber} diperbarui menjadi ${paymentStatus}`,
+          grossAmount: notificationData.order?.amount,
+          message: `Status pembayaran untuk Invoice ${invoiceNumber} diperbarui menjadi ${paymentStatus}`
         });
+      } else {
+        console.error(`Transaction not found for invoice number: ${invoiceNumber}`);
       }
-  
-      // Kirim respons sukses ke DOKU
-      res.status(200).send("OK");
-    } catch (error) {
-      console.error("Error memproses notifikasi:", error.message);
-      res.status(500).json({ message: "Gagal memproses notifikasi" });
+    } else {
+      console.error("Invalid notification data: missing order or invoice_number");
     }
-  };
 
+    // Selalu kirim respons sukses ke DOKU untuk menghentikan percobaan ulang
+    res.status(200).send("OK");
+  } catch (error) {
+    console.error("Error memproses notifikasi:", error.message);
+    
+    // Log stack trace untuk debugging
+    console.error(error.stack);
+    
+    // Tetap kirim response 200 OK untuk mencegah DOKU mengirim ulang notifikasi
+    // Ini adalah praktik umum untuk webhook, bahkan jika terjadi error
+    res.status(200).send("OK");
+  }
+};
 
 exports.createSnapToken = async (req, res) => {
     try {

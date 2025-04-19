@@ -85,6 +85,11 @@ const Transaction = sequelize.define('Transaction', {
         allowNull: false,
         field: 'booking_id'
     },
+    payment_data: {
+        type: DataTypes.JSON, // atau TEXT
+        allowNull: true
+      },
+      
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
