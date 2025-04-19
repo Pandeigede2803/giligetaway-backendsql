@@ -20,7 +20,7 @@ const updateAgentCommission = async (
 ) => {
   try {
     console.log("🟡 Step 1: Check existing commission");
-    console.log("🙌🏻TRANSPORT ",booking_id,transports)
+    console.log("🙌🏻TRANSPORT ",transports)
 
     // ❌ FIXED: Typo: `agent_idsaya` → seharusnya `agent_id`
     const existingCommission = await AgentCommission.findOne({
@@ -99,8 +99,8 @@ const updateAgentCommission = async (
 
     // Step 4: Check for transport commissions
     if (!transports || transports.length === 0) {
-      commissionAmount -= parseFloat(commission_transport) * total_passengers;
-      console.log(`🟡 No transport: added transport commission, final commission: ${commissionAmount}`);
+      commissionAmount += parseFloat(commission_transport) * total_passengers;
+      console.log(`🟡 No transport: added transport commission , final commission: ${commissionAmount}`);
     } else {
       console.log(`✅ Transport exists: no transport commission added.`);
     }

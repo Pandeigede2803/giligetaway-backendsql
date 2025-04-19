@@ -30,61 +30,119 @@ exports.getPaymentChannels = async (req, res) => {
 
 // Fungsi untuk membuat pembayaran di DOKU
 exports.createPayment = async (req, res) => {
+  console.log("=== PAYMENT REQUEST STARTED ===");
+  console.log("Request body:", JSON.stringify(req.body, null, 2));
+  
   try {
-    // Langkah 1: Buat Request-Id (harus unik untuk setiap permintaan)
+    // Step 1: Create Request-Id (must be unique for each request)
     const requestId = crypto.randomUUID();
-
-    // Langkah 2: Buat Request-Timestamp dalam format ISO-8601 tanpa millisecond
+    console.log("Generated Request-Id:", requestId);
+    
+    // Step 2: Create Request-Timestamp in ISO-8601 format without milliseconds
     const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-
-    // Langkah 3: Tentukan Request-Target (endpoint tujuan di DOKU)
+    console.log("Generated Timestamp:", timestamp);
+    
+    // Step 3: Define Request-Target (DOKU endpoint)
     const requestTarget = "/checkout/v1/payment";
-
-    // Langkah 4: Ambil body dari permintaan yang masuk
+    console.log("Request-Target:", requestTarget);
+    
+    // Step 4: Get body from incoming request
     const body = req.body;
-
-    // Langkah 5: Buat Signature untuk permintaan
+    
+    // Log the specific fields that DOKU requires
+    console.log("Invoice Number:", body.order?.invoice_number);
+    console.log("Amount:", body.order?.amount);
+    console.log("Currency:", body.order?.currency);
+    
+    // Step 5: Create Signature for the request
     const signature = generateSignature(
       body,
       requestId,
       timestamp,
       requestTarget
     );
-
-    // Langkah 6: Kirim permintaan ke API DOKU
+    console.log("Signature generated successfully");
+    
+    // Log the complete request that will be sent to DOKU
+    console.log("Full DOKU API request:", {
+      url: `${DOKU_BASE_URL}${requestTarget}`,
+      headers: {
+        "Client-Id": CLIENT_ID,
+        "Request-Id": requestId,
+        "Request-Timestamp": timestamp,
+        "Content-Type": "application/json"
+      },
+      body: body
+    });
+    
+    // Step 6: Send request to DOKU API
+    console.log("Sending request to DOKU...");
     const response = await axios.post(
       `${DOKU_BASE_URL}${requestTarget}`,
       body,
       {
         headers: {
-          "Client-Id": CLIENT_ID, // Client ID dari DOKU
-          "Request-Id": requestId, // ID unik untuk permintaan ini
-          "Request-Timestamp": timestamp, // Waktu saat permintaan dibuat
-          Signature: signature, // Signature untuk validasi keamanan
-          "Content-Type": "application/json", // Format konten yang dikirim (JSON)
+          "Client-Id": CLIENT_ID,
+          "Request-Id": requestId,
+          "Request-Timestamp": timestamp,
+          Signature: signature,
+          "Content-Type": "application/json",
         },
       }
     );
-
-    // Jika berhasil, kirim respons dengan URL pembayaran ke frontend
+    
+    // Log the complete response from DOKU
+    console.log("DOKU API Response Status:", response.status);
+    console.log("DOKU API Response Headers:", JSON.stringify(response.headers, null, 2));
+    console.log("DOKU API Response Data:", JSON.stringify(response.data, null, 2));
+    
+    // Check if the response contains payment_url
+    if (response.data && response.data.payment_url) {
+      console.log("Payment URL received successfully:", response.data.payment_url);
+    } else {
+      console.warn("No payment_url in DOKU response:", response.data);
+    }
+    
+    // Send response back to frontend
+    console.log("Sending success response to client");
     res.status(200).json({
       success: true,
       message: "Payment created successfully",
-      data: response.data, // Data dari API DOKU (termasuk URL pembayaran)
+      data: response.data,
     });
+    
   } catch (error) {
-    // Jika ada error, log error dan kirim respons gagal
-    console.error(
-      "Error creating payment:",
-      error.response?.data || error.message
-    );
+    // Enhanced error logging
+    console.error("=== PAYMENT ERROR OCCURRED ===");
+    console.error("Error creating payment");
+    
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("Error Status:", error.response.status);
+      console.error("Error Headers:", JSON.stringify(error.response.headers, null, 2));
+      console.error("Error Data:", JSON.stringify(error.response.data, null, 2));
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error("No response received from DOKU API");
+      console.error("Request details:", error.request);
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error("Error message:", error.message);
+    }
+    
+    // Send error response to client
     res.status(500).json({
       success: false,
       message: "Failed to create payment",
       error: error.response?.data || error.message,
     });
   }
+  
+  console.log("=== PAYMENT REQUEST COMPLETED ===");
 };
+
+
 exports.handleNotification = async (req, res) => {
   // | 😻Notifikasi diterima dari DOKU: {
   //   1|giligetaway-backendsql  |   service: { id: 'VIRTUAL_ACCOUNT' },

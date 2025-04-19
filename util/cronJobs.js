@@ -24,7 +24,7 @@ const axios = require('axios');
 
 
 const checkAndHandleMidtransSettlements = async () => {
-  console.log("😻 Running Midtrans settlement fallback check...");
+  // console.log("😻 Running Midtrans settlement fallback check...");
 
   try {
     const bookings = await Booking.findAll({
