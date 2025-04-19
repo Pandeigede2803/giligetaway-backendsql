@@ -653,29 +653,29 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
           );;
           
           // Send email notification to agent when status is paid and commission is calculated (even if skipped)
-          if (status === "paid" && booking.Agent && booking.Agent.email && booking.contact_email) {
-            try {
-              // Use Booking.contact_email as the recipient email
-              const recipientEmail = booking.contact_email;
-              const agentEmail = booking.Agent.email;
+          // if (status === "paid" && booking.Agent && booking.Agent.email && booking.contact_email) {
+          //   try {
+          //     // Use Booking.contact_email as the recipient email
+          //     const recipientEmail = booking.contact_email;
+          //     const agentEmail = booking.Agent.email;
               
-              console.log(`Sending email notification to: ${recipientEmail}, agent: ${agentEmail}`);
-              await sendEmailNotificationAgent(
-                recipientEmail,
-                agentEmail,
-                payment_method || booking.payment_method,
-                status,
-                booking.ticket_id // Using actual ticket_id or generating a fallback
-              );
-              console.log(`Email notification sent successfully to: ${recipientEmail}, agent: ${agentEmail}`);
-              emailSent = true;
-            } catch (emailError) {
-              console.error(`Error sending email notification to: ${booking.contact_email}, agent: ${booking.Agent.email}`, emailError);
-              // Don't fail the transaction if email sending fails
-            }
-          } else {
-            console.log(`Skipping email notification for booking ID: ${booking.id}. Missing contact_email or agent email.`);
-          }
+          //     console.log(`Sending email notification to: ${recipientEmail}, agent: ${agentEmail}`);
+          //     await sendEmailNotificationAgent(
+          //       recipientEmail,
+          //       agentEmail,
+          //       payment_method || booking.payment_method,
+          //       status,
+          //       booking.ticket_id // Using actual ticket_id or generating a fallback
+          //     );
+          //     console.log(`Email notification sent successfully to: ${recipientEmail}, agent: ${agentEmail}`);
+          //     emailSent = true;
+          //   } catch (emailError) {
+          //     console.error(`Error sending email notification to: ${booking.contact_email}, agent: ${booking.Agent.email}`, emailError);
+          //     // Don't fail the transaction if email sending fails
+          //   }
+          // } else {
+          //   console.log(`Skipping email notification for booking ID: ${booking.id}. Missing contact_email or agent email.`);
+          // }
         } catch (error) {
           console.error(
             `Error calculating commission for booking ${booking.id}:`,
