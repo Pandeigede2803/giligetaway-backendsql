@@ -20,6 +20,7 @@ const {
   AgentCommission,
   Transaction,
 } = require("../models"); // Pastikan jalur impor benar
+const { sendInvoiceAndTicketEmail,sendInvoiceAndTicketEmailRoundTrip } = require("../util/sendInvoiceAndTicketEmail");
 
 const DOKU_BASE_URL = process.env.DOKU_BASE_URL;
 const CLIENT_ID = process.env.DOKU_CLIENT_ID;
@@ -161,6 +162,8 @@ exports.createPayment = async (req, res) => {
 };
 
 
+
+
 exports.handleNotification = async (req, res) => {
   try {
     const notificationData = req.body;
@@ -175,46 +178,83 @@ exports.handleNotification = async (req, res) => {
       
       console.log(`Update status pembayaran untuk Invoice ${invoiceNumber} ke ${paymentStatus}`);
 
-      // Cari transaksi yang sesuai dengan invoice number (TRANS format)
+      // Cari transaksi yang sesuai dengan invoice number
       const transaction = await Transaction.findOne({
         where: {
           transaction_id: invoiceNumber
-        }
+        },
+        include: [
+          {
+            model: Booking,
+            as: 'booking',
+          },
+        ],
       });
 
-      if (transaction) {
-        // Update status transaksi dan simpan data notifikasi
-        await transaction.update({
-          status: paymentStatus.toLowerCase(),
-          payment_data: notificationData // Sequelize akan mengonversi objek ke JSON
+      if (!transaction) {
+        console.error(`Transaction not found for invoice number: ${invoiceNumber}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      const booking = transaction.booking;
+
+      if (!booking) {
+        console.error(`Booking not found for transaction: ${transaction.id}`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      // Jika booking sudah paid, skip update
+      if (booking.payment_status === 'paid') {
+        console.log(`ℹ️ Booking ${booking.id} sudah paid, skip update`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      // Update status transaksi dan simpan data notifikasi
+      await transaction.update({
+        status: paymentStatus.toLowerCase(),
+        payment_data: notificationData,
+        payment_method: notificationData.service?.id || 'DOKU',
+        paid_at: new Date()
+      });
+
+      console.log(`Transaction ${transaction.id} updated with payment data`);
+
+      // Jika pembayaran berhasil, update status booking dan kirim email
+      if (paymentStatus === 'SUCCESS') {
+        await booking.update({
+          payment_status: 'paid',
+          payment_method: notificationData.service?.id || 'DOKU',
+          expiration_time: null,
         });
+        
+        console.log(`Booking ${booking.id} marked as paid`);
 
-        console.log(`Transaction ${transaction.id} updated with payment data`);
-
-        // Jika pembayaran berhasil, update status booking
-        if (paymentStatus === 'SUCCESS') {
-          const booking = await Booking.findByPk(transaction.booking_id);
-          
-          if (booking) {
-            await booking.update({
-              payment_status: 'paid'
-            });
-            
-            console.log(`Booking ${booking.id} marked as paid`);
-          } else {
-            console.error(`Booking not found for transaction: ${transaction.id}`);
+        // Cek apakah ini round trip ticket
+        if (booking.ticket_id && booking.ticket_id.includes('GG-RT-')) {
+          console.log(`🔄 Processing round trip booking: ${booking.ticket_id}`);
+          await handleRoundTripBooking(booking, invoiceNumber);
+        } else {
+          // Regular one-way booking - just pass the email, booking, and invoiceNumber
+          try {
+            await sendInvoiceAndTicketEmail(booking.contact_email, booking, invoiceNumber);
+            console.log(`📧 Email sent for booking ${booking.id}`);
+          } catch (emailError) {
+            console.error(`Error sending email for booking ${booking.id}:`, emailError.message);
           }
         }
+      }
 
-        // Kirim notifikasi ke klien melalui WebSocket
+      // Kirim notifikasi ke klien melalui WebSocket
+      if (typeof broadcast === 'function') {
         broadcast({
           orderId: invoiceNumber,
           transactionStatus: paymentStatus,
           grossAmount: notificationData.order?.amount,
           message: `Status pembayaran untuk Invoice ${invoiceNumber} diperbarui menjadi ${paymentStatus}`
         });
-      } else {
-        console.error(`Transaction not found for invoice number: ${invoiceNumber}`);
       }
     } else {
       console.error("Invalid notification data: missing order or invoice_number");
@@ -224,15 +264,94 @@ exports.handleNotification = async (req, res) => {
     res.status(200).send("OK");
   } catch (error) {
     console.error("Error memproses notifikasi:", error.message);
-    
-    // Log stack trace untuk debugging
     console.error(error.stack);
     
     // Tetap kirim response 200 OK untuk mencegah DOKU mengirim ulang notifikasi
-    // Ini adalah praktik umum untuk webhook, bahkan jika terjadi error
     res.status(200).send("OK");
   }
 };
+
+// Helper untuk menangani round trip booking
+async function handleRoundTripBooking(currentBooking, invoiceNumber) {
+  try {
+    const ticketId = currentBooking.ticket_id;
+    const ticketNumber = parseInt(ticketId.split('-')[2], 10);
+
+    // Cari dua kemungkinan pasangan: -1 dan +1
+    const pairTicketIdMinus = `GG-RT-${ticketNumber - 1}`;
+    const pairTicketIdPlus = `GG-RT-${ticketNumber + 1}`;
+
+    console.log("🔍 Checking round-trip pairs...");
+    console.log("  current ticket_id:", ticketId);
+    console.log("  trying pair ticket_ids:", pairTicketIdMinus, "and", pairTicketIdPlus);
+
+    let pairBooking = await Booking.findOne({
+      where: { ticket_id: pairTicketIdMinus },
+      include: [{ model: Transaction, as: 'transactions' }],
+    });
+
+    if (!pairBooking) {
+      pairBooking = await Booking.findOne({
+        where: { ticket_id: pairTicketIdPlus },
+        include: [{ model: Transaction, as: 'transactions' }],
+      });
+    }
+
+    if (pairBooking) {
+      console.log(`✅ Pair booking found: ${pairBooking.ticket_id}`);
+      
+      // Update booking pasangan
+      await pairBooking.update({
+        payment_status: 'paid',
+        payment_method: currentBooking.payment_method,
+        expiration_time: null,
+      });
+
+      const pairTx = pairBooking.transactions?.[0];
+      if (pairTx) {
+        await pairTx.update({
+          status: 'paid',
+          paid_at: new Date(),
+        });
+      }
+
+      // Kirim email dari booking yang ganjil jika keduanya ada
+      const currentNumberIsOdd = ticketNumber % 2 === 1;
+      let emailFromBooking = currentBooking;
+      let secondBooking = pairBooking;
+
+      if (pairBooking) {
+        const pairNumber = parseInt(pairBooking.ticket_id.split('-')[2], 10);
+        const pairIsOdd = pairNumber % 2 === 1;
+
+        if (currentNumberIsOdd) {
+          emailFromBooking = currentBooking;
+          secondBooking = pairBooking;
+        } else if (pairIsOdd) {
+          emailFromBooking = pairBooking;
+          secondBooking = currentBooking;
+        }
+      }
+
+      // Simply pass the email, bookings, and invoiceNumber to your existing util
+      await sendInvoiceAndTicketEmailRoundTrip(
+        emailFromBooking.contact_email,
+        emailFromBooking,
+        secondBooking,
+        invoiceNumber
+      );
+      console.log(`📧 [RT] Email sent from booking ${emailFromBooking.ticket_id}`);
+    } else {
+      console.warn(`❌ Pair booking not found. Sending single booking email.`);
+      // Jika tidak ada pasangan, kirim email untuk single booking
+      await sendInvoiceAndTicketEmail(currentBooking.contact_email, currentBooking, invoiceNumber);
+    }
+  } catch (error) {
+    console.error("Error handling round trip booking:", error.message);
+    console.error(error.stack);
+    throw error;
+  }
+}
 
 exports.createSnapToken = async (req, res) => {
     try {
