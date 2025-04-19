@@ -8,7 +8,7 @@ const {
 
 const {  SubSchedule, Schedule } = require("../models");
 
-const { Agent, AgentCommission, Schedule, SubSchedule, TransportBooking } = require("../models");
+const { Agent,   TransportBooking } = require("../models");
 
 const updateAgentCommission = async (
   agent_id,
