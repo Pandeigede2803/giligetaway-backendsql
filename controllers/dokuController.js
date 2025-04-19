@@ -108,7 +108,7 @@ exports.handleNotification = async (req, res) => {
       const notificationData = req.body;
   
       // Log data notifikasi untuk debugging
-      console.log("Notifikasi diterima dari DOKU:", notificationData);
+      console.log("😻Notifikasi diterima dari DOKU:", notificationData);
   
       // Proses data notifikasi sesuai kebutuhan
       if (notificationData.order && notificationData.order.invoice_number) {

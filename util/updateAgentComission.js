@@ -99,7 +99,7 @@ const updateAgentCommission = async (
 
     // Step 4: Check for transport commissions
     if (!transports || transports.length === 0) {
-      commissionAmount -= parseFloat(commission_transport) * total_passengers;
+      commissionAmount += parseFloat(commission_transport) * total_passengers;
       console.log(`🟡 No transport: added transport commission, final commission: ${commissionAmount}`);
     } else {
       console.log(`✅ Transport exists: no transport commission added.`);
