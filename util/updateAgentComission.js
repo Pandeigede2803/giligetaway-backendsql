@@ -98,12 +98,16 @@ const updateAgentCommission = async (
     }
 
     // Step 4: Check for transport commissions
-    if (!transports || transports.length === 0) {
+    const hasTransport = Array.isArray(transports) && transports.some(t => t.type === 'pickup' || t.type === 'dropoff');
+
+    if (!hasTransport) {
+      // Berarti booking ini memang tidak punya layanan transport
       commissionAmount += parseFloat(commission_transport) * total_passengers;
-      console.log(`🟡 No transport: added transport commission , final commission: ${commissionAmount}`);
+      console.log(`🟡 No transport detected (pickup/dropoff missing), added commission: ${commissionAmount}`);
     } else {
-      console.log(`✅ Transport exists: no transport commission added.`);
+      console.log(`✅ Transport exists, no extra transport commission.`);
     }
+    
 
     // Step 5: Insert into AgentCommission table
     console.log(`🟢 Inserting commission: booking_id=${booking_id}, agent_id=${agent_id}, amount=${commissionAmount}`);
