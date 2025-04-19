@@ -441,9 +441,9 @@ const validateRoundTripBookingPost = async (req, res, next) => {
       await validateSchedule(booking.schedule_id, type);
 
       // Validate passenger seat numbers
-      if (booking.passengers && Array.isArray(booking.passengers)) {
-        await validatePassengerSeats(booking.passengers, booking.schedule_id,booking.booking_date, type);
-      }
+      // if (booking.passengers && Array.isArray(booking.passengers)) {
+      //   await validatePassengerSeats(booking.passengers, booking.schedule_id,booking.booking_date, type);
+      // }
     };
 
     // Validate both bookings
