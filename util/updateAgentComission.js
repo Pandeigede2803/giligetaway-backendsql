@@ -98,8 +98,11 @@ const updateAgentCommission = async (
     }
 
     // Step 4: Check for transport commissions
-    const hasTransport = Array.isArray(transports) && transports.some(t => t.type === 'pickup' || t.type === 'dropoff');
-    console.log("hasTransport", hasTransport);
+  // Step 4: Check for transport commissions
+const hasTransport = Array.isArray(transports) && transports.some(
+  t => t.transport_type === 'pickup' || t.transport_type === 'dropoff'
+);
+console.log("hasTransport", hasTransport);
 
     if (!hasTransport) {
       // Berarti booking ini memang tidak punya layanan transport
