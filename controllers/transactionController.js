@@ -1132,6 +1132,7 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
       include: [{ model: TransportBooking, as: "transportBookings" }],
       transaction,
     });
+    console.log("😻Related booking found:", booking);
 
     if (!booking) {
       throw new Error(
