@@ -99,6 +99,8 @@ const updateAgentCommission = async (
       transaction,
     });
 
+    console.log("transports:", transports);
+
     const hasTransport = Array.isArray(transports) && transports.some(
       t => ['pickup', 'dropoff'].includes(t?.transport_type)
     );
