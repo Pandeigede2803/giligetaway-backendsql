@@ -7,6 +7,8 @@ const {
 
 const { Agent, SubSchedule, Schedule } = require("../models");
 
+const { Agent, AgentCommission, Schedule, SubSchedule, TransportBooking } = require("../models");
+
 const updateAgentCommission = async (
   agent_id,
   gross_total,
@@ -15,14 +17,11 @@ const updateAgentCommission = async (
   schedule_id,
   subschedule_id,
   booking_id,
-  transaction,
-  transports
+  transaction
 ) => {
   try {
     console.log("🟡 Step 1: Check existing commission");
-    console.log("🙌🏻TRANSPORT ",transports)
 
-    // ❌ FIXED: Typo: `agent_idsaya` → seharusnya `agent_id`
     const existingCommission = await AgentCommission.findOne({
       where: { booking_id, agent_id },
       transaction,
@@ -35,8 +34,6 @@ const updateAgentCommission = async (
         commission: existingCommission.amount,
       };
     }
-
-    // console.log("gross_total CUK:", gross_total);
 
     // Step 2: Get trip type
     let tripType;
@@ -52,9 +49,7 @@ const updateAgentCommission = async (
       console.log(`Trip type from Schedule: ${tripType}`);
     }
 
-    if (!tripType) {
-      throw new Error("❌ Trip type not found");
-    }
+    if (!tripType) throw new Error("❌ Trip type not found");
 
     console.log(`✅ Trip type determined: ${tripType}`);
 
@@ -97,23 +92,26 @@ const updateAgentCommission = async (
       console.log(`✅ Fixed commission for trip type '${tripType}': ${commissionAmount}`);
     }
 
-    // Step 4: Check for transport commissions
-  // Step 4: Check for transport commissions
-const hasTransport = Array.isArray(transports) && transports.some(
-  t => t.transport_type === 'pickup' || t.transport_type === 'dropoff'
-);
-console.log("hasTransport", hasTransport);
+    // Step 4: Fetch transport directly from DB and check
+    const transports = await TransportBooking.findAll({
+      where: { booking_id },
+      transaction,
+    });
+
+    const hasTransport = Array.isArray(transports) && transports.some(
+      t => ['pickup', 'dropoff'].includes(t?.transport_type)
+    );
+
+    console.log("hasTransport:", hasTransport);
 
     if (!hasTransport) {
-      // Berarti booking ini memang tidak punya layanan transport
       commissionAmount += parseFloat(commission_transport) * total_passengers;
       console.log(`🟡 No transport detected (pickup/dropoff missing), added commission: ${commissionAmount}`);
     } else {
       console.log(`✅ Transport exists, no extra transport commission.`);
     }
-    
 
-    // Step 5: Insert into AgentCommission table
+    // Step 5: Save commission
     console.log(`🟢 Inserting commission: booking_id=${booking_id}, agent_id=${agent_id}, amount=${commissionAmount}`);
 
     await AgentCommission.create(
@@ -136,6 +134,9 @@ console.log("hasTransport", hasTransport);
     throw error;
   }
 };
+
+
+
 
 
 const updateAgentCommissionBulk = async (
