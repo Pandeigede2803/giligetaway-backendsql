@@ -165,42 +165,42 @@ const sendAgentWelcomeEmail = async (transporter, agent, randomPassword) => {
 };
 
 // Main function to create a new agent
-exports.createAgent = async (req, res) => {
-  const transporter = configureTransporter();
-  const transaction = await sequelize.transaction();
+// exports.createAgent = async (req, res) => {
+//   const transporter = configureTransporter();
+//   const transaction = await sequelize.transaction();
 
-  try {
-    // Step 1: Prepare agent data with password and image
-    const { agentData, randomPassword } = await prepareAgentData(req);
+//   try {
+//     // Step 1: Prepare agent data with password and image
+//     const { agentData, randomPassword } = await prepareAgentData(req);
     
-    // Step 2: Save agent to database
-    const agent = await Agent.create(agentData, { transaction });
-    if (!agent) {
-      throw new Error("Failed to create agent");
-    }
+//     // Step 2: Save agent to database
+//     const agent = await Agent.create(agentData, { transaction });
+//     if (!agent) {
+//       throw new Error("Failed to create agent");
+//     }
     
-    // // Step 3: Send welcome email with credentials
-    // await sendAgentWelcomeEmail(transporter, agent, randomPassword);
+//     // // Step 3: Send welcome email with credentials
+//     // await sendAgentWelcomeEmail(transporter, agent, randomPassword);
     
-    // // Log email sending (without exposing content or credentials)
-    // console.log(`Email sent to ${agent.email} for new account creation`);
+//     // // Log email sending (without exposing content or credentials)
+//     // console.log(`Email sent to ${agent.email} for new account creation`);
     
-    // Step 4: Commit transaction
-    await transaction.commit();
+//     // Step 4: Commit transaction
+//     await transaction.commit();
     
-    // Step 5: Send response
-    res.status(201).json({
-      agent: formatAgentResponse(agent),
-      message: "Agent created successfully. Login instructions sent via email.",
-    });
+//     // Step 5: Send response
+//     res.status(201).json({
+//       agent: formatAgentResponse(agent),
+//       message: "Agent created successfully. Login instructions sent via email.",
+//     });
 
-  } catch (error) {
-    // Rollback transaction on error
-    await transaction.rollback();
-    console.error("Error creating agent:", error.message);
-    res.status(500).json({ message: error.message });
-  }
-};
+//   } catch (error) {
+//     // Rollback transaction on error
+//     await transaction.rollback();
+//     console.error("Error creating agent:", error.message);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 // create controller to send the agent email invitation to login in to their account
 // base on the agent id parameter
@@ -350,8 +350,8 @@ exports.createAgent = async (req, res) => {
       html: createAgentWelcomeEmailTemplate(agent, randomPassword)
     };
     
-    await transporter.sendMail(mailOptions);
-    console.log("📧 Email sent to:", agent.email);
+    // await transporter.sendMail(mailOptions);
+    // console.log("📧 Email sent to:", agent.email);
     
     // Step 4: Commit transaction
     await transaction.commit();
