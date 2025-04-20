@@ -179,11 +179,11 @@ exports.createAgent = async (req, res) => {
       throw new Error("Failed to create agent");
     }
     
-    // Step 3: Send welcome email with credentials
-    await sendAgentWelcomeEmail(transporter, agent, randomPassword);
+    // // Step 3: Send welcome email with credentials
+    // await sendAgentWelcomeEmail(transporter, agent, randomPassword);
     
-    // Log email sending (without exposing content or credentials)
-    console.log(`Email sent to ${agent.email} for new account creation`);
+    // // Log email sending (without exposing content or credentials)
+    // console.log(`Email sent to ${agent.email} for new account creation`);
     
     // Step 4: Commit transaction
     await transaction.commit();
@@ -272,17 +272,57 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
 };
 
 
-exports.sendAgentInvitationEmail = async (transporter, agent, randomPassword) => {
-  const mailOptions = {
-    from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
-    to: agent.email,  
-    subject: 'Welcome to Gili Getaway - Your New Account',
-    html: createAgentInvitationEmailTemplate(agent, randomPassword)
-  };
+exports.sendAgentInvitationEmail = async (req, res) => {
+  try {
+    const { agentId } = req.body;
+    console.log("😹Sending agent invitation email... with id:", agentId);
+    
+    // Check if agentId is valid
+    if (!agentId || typeof agentId === 'object') {
+      console.error("Invalid agentId provided:", agentId);
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid agent ID format: ${typeof agentId}` 
+      });
+    }
 
-  return transporter.sendMail(mailOptions);
+    // Find agent details by ID
+    const agent = await Agent.findByPk(agentId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: `Agent with ID ${agentId} not found`
+      });
+    }
+    
+    console.log("Agent found:", agent);
+
+    // Create the transporter using your configuration function
+    const transporter = configureTransporter();
+
+    const mailOptions = {
+      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
+      to: agent.email,
+      subject: 'Welcome to Gili Getaway - Your New Account',
+      html: createAgentInvitationEmailTemplate(agent),
+    };
+
+    await transporter.sendMail(mailOptions);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Invitation email sent successfully'
+    });
+    
+  } catch (error) {
+    console.error("Error sending agent invitation email:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send invitation email',
+      error: error.message
+    });
+  }
 };
-
 
 // Main function to create a new agent
 exports.createAgent = async (req, res) => {

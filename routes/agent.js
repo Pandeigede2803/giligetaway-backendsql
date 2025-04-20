@@ -30,6 +30,7 @@ router.get('/:id', agentController.getAgentById);
 const uploadImageUrl = createUploadMiddleware('image_url'); // Assuming 'image_url' is the field name for agent images
 
 router.post('/', authenticate, uploadImageUrl, uploadImageToImageKit, validateAgent,agentController.createAgent);
+router.post('/invitation', authenticate, agentController.sendAgentInvitationEmail );;
 
 
 
