@@ -202,6 +202,87 @@ exports.createAgent = async (req, res) => {
   }
 };
 
+// create controller to send the agent email invitation to login in to their account
+// base on the agent id parameter
+
+const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
+  const currentYear = new Date().getFullYear();
+  return `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Invitation</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
+    <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+      
+      <!-- Header -->
+      <div style="background-color: #165297; padding: 25px 20px; text-align: center;">
+        <h1 style="color: white; margin: 10px 0 5px; font-size: 22px;">You're Invited to Join Gili Getaway!</h1>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 25px 20px;">
+        <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
+
+        <p style="font-size: 16px; line-height: 1.5;">
+          We are excited to invite you to join the Gili Getaway team! Your agent account has been created, and you can now access our system using the credentials below.
+        </p>
+
+        <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
+          <p style="font-size: 16px; margin: 0 0 15px 0;"><strong>Your Login Credentials:</strong></p>
+          <p style="font-size: 16px; margin: 5px 0;"><strong>Email:</strong> ${agent.email}</p>
+        
+        </div>
+        
+        <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
+          <p style="font-size: 16px; margin: 0;">
+            <strong>IMPORTANT:</strong> Please click the link below to reset your password first before logging in to your account.
+          </p>
+        </div>
+
+        <!-- Call to Action Button -->
+        <div style="text-align: center; margin: 35px 0;">
+          <a href="https://giligetaway-widget.my.id/agent/reset-password" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Reset Password</a>
+        </div>
+
+        <p style="font-size: 16px; line-height: 1.5;">
+          If you have any questions or need assistance, please contact our support team at <a href="mailto:officebali1@gmail.com" style="color: #165297;">officebali1@gmail.com</a>.
+        </p>
+
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
+        <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
+        <p style="font-size: 15px; color: #165297; margin-top: 5px;">Making island travel simple and reliable.</p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+        <p style="margin: 6px 0;">Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
+        <p style="margin: 6px 0;">Contact: (+62) 812 3456 7890 | officebali1@gmail.com</p>
+        <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6;">Access Your Agent Dashboard</a></p>
+        <p style="margin: 6px 0;">© ${currentYear} Gili Getaway. All rights reserved.</p>
+        <p style="margin: 6px 0; font-size: 12px;">This is a transactional email regarding your account invitation.</p>
+      </div>
+    </div>
+  </body>
+  </html>
+  `;
+};
+
+
+exports.sendAgentInvitationEmail = async (transporter, agent, randomPassword) => {
+  const mailOptions = {
+    from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
+    to: agent.email,  
+    subject: 'Welcome to Gili Getaway - Your New Account',
+    html: createAgentInvitationEmailTemplate(agent, randomPassword)
+  };
+
+  return transporter.sendMail(mailOptions);
+};
+
 
 // Main function to create a new agent
 exports.createAgent = async (req, res) => {
