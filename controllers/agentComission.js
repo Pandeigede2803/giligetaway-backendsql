@@ -1039,6 +1039,41 @@ const AgentCommissionController = {
         .json({ error: "Failed to retrieve commissions (invoiced)" });
     }
   },
+
+
+  async updateCommission(req, res) {
+    try {
+      const { id } = req.params;
+      const { amount } = req.body;
+  
+      if (!id || isNaN(id)) {
+        return res.status(400).json({ error: "Invalid or missing ID parameter" });
+      }
+  
+      const commission = await AgentCommission.findByPk(id);
+  
+      if (!commission) {
+        return res.status(404).json({ error: "AgentCommission not found" });
+      }
+  
+      if (amount === undefined || isNaN(amount)) {
+        return res.status(400).json({ error: "Invalid or missing amount in request body" });
+      }
+  
+      // Update amount
+      commission.amount = parseFloat(amount);
+      await commission.save();
+  
+      return res.status(200).json({
+        message: "AgentCommission updated successfully",
+        data: commission,
+      });
+    } catch (error) {
+      console.error("Error updating AgentCommission:", error);
+      return res.status(500).json({ error: "Failed to update AgentCommission" });
+    }
+  }
+  
 };
 
 module.exports = AgentCommissionController;

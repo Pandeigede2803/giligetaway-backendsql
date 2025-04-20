@@ -10,7 +10,14 @@ const checkAgentExist = require('../middleware/checkAgentExist');
 router.get('/comissions', authenticate, agentCommissionsController.getCommissions);
 router.get('/comissions', authenticate, agentCommissionsController.getAgentSalesReport);
 router.get('/comissions-salesreport', authenticate, checkAgentExist,agentCommissionsController.getAgentSalesReport);
+router.get('/comissions-salesreport', authenticate, checkAgentExist,agentCommissionsController.getAgentSalesReport);
 
+// Route: Update AgentCommission by ID
+router.put(
+    "/comissions/:id",
+    authenticate,
+    agentCommissionsController.updateCommission
+  );
 
 
 module.exports = router;    

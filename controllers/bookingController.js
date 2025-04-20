@@ -3720,15 +3720,13 @@ const deleteBooking = async (req, res) => {
     });
 
     if (!booking) {
-      // If the booking is not found, return a 404 error
       return res.status(404).json({
         success: false,
         message: `Booking with ID ${bookingId} not found.`,
       });
     }
 
-    // Retrieve booking details
-    const { booking_date, transport_id } = booking;
+    const { booking_date, transport_id, payment_status } = booking;
 
     // Step 2: Check and delete related records in Transactions
     console.log("\n🔍 Checking and deleting related Transactions...");
@@ -3737,7 +3735,7 @@ const deleteBooking = async (req, res) => {
     });
 
     if (transactions.length > 0) {
-      const transactionIds = transactions.map((transaction) => transaction.id);
+      const transactionIds = transactions.map((t) => t.id);
       console.log("🔄 Deleting related Transactions records:", transactionIds);
 
       await Transaction.destroy({
@@ -3757,7 +3755,7 @@ const deleteBooking = async (req, res) => {
     });
 
     if (passengers.length > 0) {
-      const passengerIds = passengers.map((passenger) => passenger.id);
+      const passengerIds = passengers.map((p) => p.id);
       console.log("🔄 Deleting related Passengers records:", passengerIds);
 
       await Passenger.destroy({
@@ -3771,40 +3769,37 @@ const deleteBooking = async (req, res) => {
     }
 
     // Step 4: Check and delete related records in BookingSeatAvailability
-    console.log(
-      "\n🔍 Checking and deleting related BookingSeatAvailability..."
-    );
+    console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
     const relatedRecords = await BookingSeatAvailability.findAll({
       where: { booking_id: bookingId },
     });
 
     if (relatedRecords.length > 0) {
-      const relatedIds = relatedRecords.map((record) => record.id);
-      console.log(
-        "🔄 Deleting related BookingSeatAvailability records:",
-        relatedIds
-      );
+      const relatedIds = relatedRecords.map((r) => r.id);
+      console.log("🔄 Deleting related BookingSeatAvailability records:", relatedIds);
 
       await BookingSeatAvailability.destroy({
         where: { booking_id: bookingId },
         transaction,
       });
 
-      console.log(
-        "✅ Successfully deleted related BookingSeatAvailability records."
-      );
+      console.log("✅ Successfully deleted related BookingSeatAvailability records.");
     } else {
       console.log("✅ No related records found in BookingSeatAvailability.");
     }
 
-    // Step 5: Release seats associated with the booking
-    console.log("\n🔄 Releasing seats from current booking date...");
-    try {
-      const releasedSeatIds = await releaseSeats(booking, transaction);
-      console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
-    } catch (error) {
-      console.error("❌ Error releasing seats:", error);
-      throw new Error(`Failed to release seats: ${error.message}`);
+    // Step 5: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
+    if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
+      console.log("\n🔄 Releasing seats from current booking date...");
+      try {
+        const releasedSeatIds = await releaseSeats(booking, transaction);
+        console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
+      } catch (error) {
+        console.error("❌ Error releasing seats:", error);
+        throw new Error(`Failed to release seats: ${error.message}`);
+      }
+    } else {
+      console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
     }
 
     // Step 6: Delete the booking
@@ -3815,7 +3810,6 @@ const deleteBooking = async (req, res) => {
     });
 
     if (deletedBooking) {
-      // Commit transaction if deletion is successful
       await transaction.commit();
 
       return res.status(200).json({
@@ -3823,7 +3817,6 @@ const deleteBooking = async (req, res) => {
         message: `Booking with ID ${bookingId} and associated records have been deleted successfully.`,
       });
     } else {
-      // Rollback transaction if deletion failed
       await transaction.rollback();
 
       return res.status(500).json({
@@ -3832,13 +3825,9 @@ const deleteBooking = async (req, res) => {
       });
     }
   } catch (error) {
-    // Rollback transaction on error
     await transaction.rollback();
 
-    console.error(
-      `Error deleting booking with ID ${req.params.id}:`,
-      error.message
-    );
+    console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
 
     return res.status(500).json({
       success: false,
@@ -3846,6 +3835,7 @@ const deleteBooking = async (req, res) => {
     });
   }
 };
+
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
