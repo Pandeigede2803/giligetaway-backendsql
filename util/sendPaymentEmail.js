@@ -1,12 +1,12 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST_GMAIL, // SMTP Server (e.g., smtp.gmail.com)
-  port: process.env.EMAIL_PORT_GMAIL, // Use port 465 for SSL
+  host: process.env.EMAIL_HOST_BREVO, // SMTP Server (e.g., smtp.gmail.com)
+  port: 465, // Use port 465 for SSL
   secure: true, // Use SSL
   auth: {
-    user: process.env.EMAIL_USER_GMAIL, // Your email
-    pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
+    user: process.env.EMAIL_LOGIN_BREVO, // Your email
+    pass: process.env.EMAIL_PASS_PREVO, // Your email password or app password
   },
 });;
 
@@ -85,7 +85,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -99,6 +99,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     return false;
   }
 };
+
 
 
 
@@ -696,7 +697,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
     
     // Konfigurasi email
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: `Your E-Ticket for Gili Getaway - Order #${order_Id}`,
       html: htmlTemplate,
@@ -856,15 +857,15 @@ const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBook
     `;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: process.env.EMAIL_HOST_BREVO,
       auth: {
-        user: process.env.EMAIL_USER_GMAIL,
-        pass: process.env.EMAIL_PASS_GMAIL,
+        user: process.env.EMAIL_LOGIN_BREVO,
+        pass: process.env.EMAIL_PASS_BREVO,
       },
     });
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject,
       html: message,
@@ -1468,7 +1469,7 @@ const sendUnpaidReminderEmail = async (
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -1586,7 +1587,7 @@ const sendUnpaidReminderEmailToAgent = async (
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: agentEmail,
       subject: subject,
       html: message,
@@ -1681,7 +1682,7 @@ const sendCancellationEmail = async (customerEmail, booking) => {
     `;
     
     const mailOptions = {
-      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
+      from: `Gili Getaway <${process.env.EMAIL_BOOKING}>`,
       to: customerEmail,
       subject: subject,
       html: message,
@@ -1767,7 +1768,7 @@ const sendCancellationEmailToAgent = async (
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER_GMAIL,
+      from: process.env.EMAIL_BOOKING,
       to: agentEmail,
       subject: subject,
       html: message,
@@ -1799,7 +1800,7 @@ const sendWaitingListConfirmationEmail = async (
       : "Selected route";
 
     const mailOptions = {
-      from: `"Gili Getaway" <${process.env.EMAIL_USER_GMAIL}>`,
+      from: `"Gili Getaway" <${process.env.EMAIL_BOOKING}>`,
       to: email,
       subject: "Your Waiting List Confirmation",
       html: `
@@ -1858,10 +1859,10 @@ const sendAdminNotificationEmail = async (
       ? `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}`
       : "Selected route";
 
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER_GMAIL;
+    const adminEmail = process.env.EMAIL_BOOKING;
 
     const mailOptions = {
-      from: `"Gili Getaway System" <${process.env.EMAIL_USER_GMAIL}>`,
+      from: `"Gili Getaway System" <${process.env.EMAIL_BOOKING}>`,
       to: adminEmail,
       subject: "New Waiting List Entry",
       html: `

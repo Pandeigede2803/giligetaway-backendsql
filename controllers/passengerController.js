@@ -1717,6 +1717,7 @@ const getPassengersSeatNumber = async (req, res) => {
 
     // Extract boat details
     const boatData = schedule?.Boat || null; // Ensure Boat data exists
+    console.log("===boatdata===", boatData);
 
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);

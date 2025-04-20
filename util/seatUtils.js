@@ -137,7 +137,7 @@ const addSeatPairBoat2 = (resultSet, seatNumber) => {
 const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
  
   // If boost mode is enabled and boatData.Boat.id is 2, use addSeatPairBoat2
-  if (boost && boatData.Boat.id === 2) {
+  if (boost && boatData.id=== 2) {
     // console.log("🚤 Boost enabled for Boat ID 2. Using addSeatPairBoat2.");
     const resultSet = new Set(bookedSeatsSet);
 
