@@ -1801,7 +1801,7 @@ const sendWaitingListConfirmationEmail = async (
       : "Selected route";
 
     const mailOptions = {
-      from: `bookings@giligetaway.com`,
+      from:  process.env.EMAIL_BOOKING,
       to: email,
       subject: "Your Waiting List Confirmation",
       html: `
@@ -1863,7 +1863,7 @@ const sendAdminNotificationEmail = async (
     const adminEmail = "bookings@giligetaway.com";
 
     const mailOptions = {
-      from: ` <${process.env.EMAIL_BOOKING}>`,
+      from:  process.env.EMAIL_BOOKING,
       to: adminEmail,
       subject: "New Waiting List Entry",
       html: `
