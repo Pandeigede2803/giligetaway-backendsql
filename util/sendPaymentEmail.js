@@ -1825,7 +1825,7 @@ const sendWaitingListConfirmationEmail = async (
           
           <p>We'll do our best to accommodate your request. If seats become available, we'll contact you immediately with instructions on how to complete your booking.</p>
           
-          <p>If you have any questions or need to update your waiting list request, please contact our customer service team at <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a> or call +62 123 456 789.</p>
+          <p>If you have any questions or need to update your waiting list request, please contact our customer service team at <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a> or call +62 8133704147.</p>
           
           <p>Thank you for choosing Gili Getaway for your journey.</p>
           
