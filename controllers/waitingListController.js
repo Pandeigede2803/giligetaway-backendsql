@@ -121,12 +121,12 @@ exports.create = async (req, res) => {
 
     // Set up email transporter
     const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST_GMAIL,
-      port: process.env.EMAIL_PORT_GMAIL,
-      secure: true,
+      host: process.env.EMAIL_HOST_BREVO,
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER_GMAIL,
-        pass: process.env.EMAIL_PASS_GMAIL,
+        user: process.env.EMAIL_LOGIN_BREVO,
+        pass: process.env.EMAIL_PASS_BREVO,
       },
     });
 
