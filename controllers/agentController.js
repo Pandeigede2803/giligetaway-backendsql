@@ -239,13 +239,13 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
         
         <div style="background-color: #fff8e1; border-left: 4px solid #FFBF00; padding: 15px; margin: 25px 0; border-radius: 6px;">
           <p style="font-size: 16px; margin: 0;">
-            <strong>IMPORTANT:</strong> Please click the link below to reset your password first before logging in to your account.
+            <strong>IMPORTANT:</strong> Please click the link below to create your password first before logging in to your account.
           </p>
         </div>
 
         <!-- Call to Action Button -->
         <div style="text-align: center; margin: 35px 0;">
-          <a href="https://giligetaway-widget.my.id/agent/reset-password" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Reset Password</a>
+          <a href="https://giligetaway-widget.my.id/agent/reset-password" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Create Password</a>
         </div>
 
         <p style="font-size: 16px; line-height: 1.5;">
