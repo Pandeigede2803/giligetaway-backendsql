@@ -1801,7 +1801,7 @@ const sendWaitingListConfirmationEmail = async (
       : "Selected route";
 
     const mailOptions = {
-      from: `"Gili Getaway" <${process.env.EMAIL_BOOKING}>`,
+      from: `<${process.env.EMAIL_BOOKING}>`,
       to: email,
       subject: "Your Waiting List Confirmation",
       html: `
@@ -1825,7 +1825,7 @@ const sendWaitingListConfirmationEmail = async (
           
           <p>We'll do our best to accommodate your request. If seats become available, we'll contact you immediately with instructions on how to complete your booking.</p>
           
-          <p>If you have any questions or need to update your waiting list request, please contact our customer service team at <a href="mailto:giligetaway@ozemail.com">giligetaway@ozemail.com</a> or call +62 123 456 789.</p>
+          <p>If you have any questions or need to update your waiting list request, please contact our customer service team at <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a> or call +62 123 456 789.</p>
           
           <p>Thank you for choosing Gili Getaway for your journey.</p>
           
@@ -1860,10 +1860,10 @@ const sendAdminNotificationEmail = async (
       ? `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}`
       : "Selected route";
 
-    const adminEmail = process.env.EMAIL_BOOKING;
+    const adminEmail = "bookings@giligetaway.com";
 
     const mailOptions = {
-      from: `"Gili Getaway System" <${process.env.EMAIL_BOOKING}>`,
+      from: ` <${process.env.EMAIL_BOOKING}>`,
       to: adminEmail,
       subject: "New Waiting List Entry",
       html: `
