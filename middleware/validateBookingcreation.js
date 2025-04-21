@@ -696,12 +696,12 @@ const validateMultipleBookingCreation = async (req, res, next) => {
       });
     }
 
-    if (gross_total && (isNaN(gross_total) || parseFloat(gross_total) <= 0)) {
-      return res.status(400).json({
-        error: "Invalid gross total",
-        message: "Gross total must be a positive number",
-      });
-    }
+    // if (gross_total && (isNaN(gross_total) || parseFloat(gross_total) <= 0)) {
+    //   return res.status(400).json({
+    //     error: "Invalid gross total",
+    //     message: "Gross total must be a positive number",
+    //   });
+    // }
 
     // Validate agent if provided
     if (agent_id) {
