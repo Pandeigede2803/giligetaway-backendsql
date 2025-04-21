@@ -36,7 +36,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #FFFFFFFF, #134782); padding: 30px 20px; text-align: center;">
-          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1745113322565" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 10px;" />
+          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1745113322565" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 0px;" />
           <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your fast boat seats are still waiting – complete your booking now.</h1>
         </div>
     
