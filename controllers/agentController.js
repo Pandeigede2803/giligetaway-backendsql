@@ -103,14 +103,14 @@ const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
 const configureTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST_BREVO,
-    port: 456,
-    secure: true,
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_LOGIN_BREVO,
       pass: process.env.EMAIL_PASS_BREVO,
     },
   });
-};
+};;
 
 // Function to prepare agent data
 const prepareAgentData = async (req) => {
@@ -343,9 +343,9 @@ exports.createAgent = async (req, res) => {
     
     // Step 3: Send welcome email with credentials
     const mailOptions = {
-      from: `<${process.env.EMAIL_AGENT}>`,
+      from: `Gili Getaway <${process.env.EMAIL_USER_GMAIL}>`,
       to: agent.email,
-      cc: process.env.EMAIL_AGENT,
+      cc: process.env.EMAIL_USER_GMAIL,
       subject: 'Your Gili Getaway Agent Account Details',
       html: createAgentWelcomeEmailTemplate(agent, randomPassword)
     };
