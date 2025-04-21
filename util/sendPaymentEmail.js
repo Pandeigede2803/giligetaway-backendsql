@@ -60,7 +60,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
           </div>
     
           <p style="font-size: 16px; line-height: 1.5;">
-            If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:giligetaway@ozemail.au">giligetaway@ozemail.com.au</a>.
+            If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:bookings@giligetaway.co">bookings@giligetaway.co</a>.
           </p>
     
           <p style="font-size: 16px; line-height: 1.5;">Don’t miss the boat – paradise is just a click away. 🌊</p>
@@ -72,7 +72,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     
         <!-- Footer -->
         <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-          <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ info@giligetaway.com</p>
+          <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ bookings@giligetaway.com</p>
           <p style="margin: 6px 0;"><a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Complete Your Booking Now</a></p>
           <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
           <p style="margin: 6px 0; font-size: 12px;">This is an automated message. Please don't reply directly to this email.</p>
@@ -1801,7 +1801,7 @@ const sendWaitingListConfirmationEmail = async (
       : "Selected route";
 
     const mailOptions = {
-      from: `<${process.env.EMAIL_BOOKING}>`,
+      from: `bookings@giligetaway.com`,
       to: email,
       subject: "Your Waiting List Confirmation",
       html: `
