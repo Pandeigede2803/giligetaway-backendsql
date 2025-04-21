@@ -530,7 +530,7 @@ exports.requestPasswordResetLink = async (req, res) => {
 
 
     const mailOptions = {
-      from: "Gili Getaway System <" + process.env.EMAIL_NOREPLY + ">",
+      from: `${process.env.EMAIL_DOMAIN}`,
       to: agent.email,
       subject: "Password Reset Request",
       text: `Please click on the following link to reset your password: ${resetLink}`,
