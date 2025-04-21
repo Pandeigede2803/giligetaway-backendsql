@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   secure: false, // Use SSL
   auth: {
     user: process.env.EMAIL_LOGIN_BREVO, // Your email
-    pass: process.env.EMAIL_PASS_PREVO, // Your email password or app password
+    pass: process.env.EMAIL_PASS_BREVO, // Your email password or app password
   },
 });;
 
