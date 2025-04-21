@@ -20,6 +20,7 @@ router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, a
 // router.get('/', authenticate, agentController.getAllAgents);
 
 router.get('/',  agentController.getAllAgents);
+router.get('/only',  agentController.getAllAgentsOnly);
 // GET agent by id
 router.get('/:id', agentController.getAgentById);
 

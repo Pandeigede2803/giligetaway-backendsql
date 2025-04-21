@@ -15,7 +15,7 @@ const {
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { Resend } = require("resend");
+const { Resend } = require("resend");;
 
 
 
@@ -246,7 +246,10 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
         <!-- Call to Action Button -->
         <div style="text-align: center; margin: 35px 0;">
           <a href="https://giligetaway-widget.my.id/agent/reset-password" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Create Password</a>
+          <p style="margin-top: 10px; font-size: 14px;">Alternatively, copy and paste the following link in your browser:</p>
+          <p style="font-size: 14px; color: #165297;">https://giligetaway-widget.my.id/agent/reset-password</p>
         </div>
+
 
         <p style="font-size: 16px; line-height: 1.5;">
           If you have any questions or need assistance, please contact our support team at <a href="mailto:agentbookings@giligetaway.com" style="color: #165297;">agentbookings@giligetaway.com</a>.
@@ -800,6 +803,61 @@ exports.getAllAgents = async (req, res) => {
             },
           ],
         },
+        {
+          model: AgentMetrics,
+          as: "agentMetrics",
+        },
+      ],
+    });
+    console.log("All agents retrieved:", agents);
+    res.status(200).json(agents);
+  } catch (error) {
+    console.log("Error retrieving agents:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+exports.getAllAgentsOnly = async (req, res) => {
+  try {
+    const agents = await Agent.findAll({
+      include: [
+        // {
+        //   model: Booking,
+        //   as: "bookings",
+        //   include: [
+        //     {
+        //       model: Schedule,
+        //       as: "schedule",
+        //       include: [
+        //         {
+        //           model: Destination,
+        //           as: "FromDestination",
+        //         },
+        //         {
+        //           model: Destination,
+        //           as: "ToDestination",
+        //         },
+        //         {
+        //           model: Boat,
+        //           as: "Boat",
+        //         },
+        //       ],
+        //     },
+        //     {
+        //       model: Passenger,
+        //       as: "passengers",
+        //     },
+        //     {
+        //       model: TransportBooking,
+        //       as: "transportBookings",
+        //       include: [
+        //         {
+        //           model: Transport,
+        //           as: "transport",
+        //         },
+        //       ],
+        //     },
+        //   ],
+        // },
         {
           model: AgentMetrics,
           as: "agentMetrics",
