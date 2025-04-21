@@ -60,7 +60,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
           </div>
     
           <p style="font-size: 16px; line-height: 1.5;">
-            If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:bookings@giligetaway.co">bookings@giligetaway.co</a>.
+            If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:bookings@giligetaway.co">bookings@giligetaway.com</a>.
           </p>
     
           <p style="font-size: 16px; line-height: 1.5;">Don’t miss the boat – paradise is just a click away. 🌊</p>
