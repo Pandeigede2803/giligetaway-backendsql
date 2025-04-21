@@ -249,25 +249,15 @@ const validateBookingCreation = async (req, res, next) => {
       });
     }
 
-    // console.log("👥 Validating passenger counts...");
-    // const calculatedTotal = adult_passengers + child_passengers;
-    // if (calculatedTotal !== total_passengers) {
-    //   console.log("❌ Passenger count validation failed.");
-    //   console.log("total passenger is ", total_passengers)
-    //   console.log("adult passenger is ", adult_passengers)
-    //   console.log("child passenger is ", child_passengers)
-    //   return res.status(400).json({
-    //     error: "Invalid passenger count",
-    //     message:
-    //       "Sum of adult and child passengers must equal total passengers (infants are not counted)",
-    //     provided: {
-    //       total_passengers,
-    //       calculated: calculatedTotal,
-    //       adult_passengers,
-    //       child_passengers,
-    //     },
-    //   });
-    // }
+    // ✅ Add this block to validate ticket_id format
+    if (!/^GG-OW/.test(ticket_id)) {
+      console.log("❌ Invalid ticket_id format:", ticket_id);
+      return res.status(400).json({
+        error: "Invalid ticket_id format",
+        message: "ticket_id must start with 'GG-OW'",
+        provided: ticket_id,
+      });
+    }
 
     console.log("🧳 Validating passengers data...");
     if (!Array.isArray(passengers)) {
@@ -283,22 +273,18 @@ const validateBookingCreation = async (req, res, next) => {
 
       console.log(`🔍 Validating passenger at index ${i}:`, passenger);
 
-      // Validate required passenger fields
-      // if (!passenger.name ||
-      //    !passenger.passenger_type ||
-      //    !passenger.nationality 
-      //   ) {
+      // Optional: Enable this if needed
+      // if (!passenger.name || !passenger.passenger_type || !passenger.nationality) {
       //   console.log(
       //     `❌ Passenger validation failed at index ${i}: Missing required fields.`,
       //     passenger
       //   );
       //   return res.status(400).json({
       //     error: "Invalid passenger data",
-      //     message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality, or passport_id)`,
+      //     message: `Passenger at index ${i} is missing required fields (name, passenger_type, nationality)`,
       //     passenger,
       //   });
       // }
-
     }
 
     console.log("✅ All validations passed.");
@@ -311,6 +297,7 @@ const validateBookingCreation = async (req, res, next) => {
     });
   }
 };
+
 
 const validateRoundTripBookingPost = async (req, res, next) => {
   console.log("\n=== Starting Round Trip Booking Post Validation ===");
@@ -352,7 +339,7 @@ const validateRoundTripBookingPost = async (req, res, next) => {
           message: `Invalid schedule_id in ${type} booking. Schedule ID '${scheduleId}' does not exist.`
         };
       }
-    };
+    };;
 
     // Function to validate passenger seat availability
     // const validatePassengerSeats = async (passengers, booking_date, scheduleId, type) => {
