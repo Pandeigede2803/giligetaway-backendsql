@@ -516,12 +516,12 @@ exports.requestPasswordResetLink = async (req, res) => {
     // Send reset link via email
     console.log("Creating transporter with email host:", process.env.EMAIL_HOST);
     const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: 465,
-      secure: true,
+      host: process.env.EMAIL_HOST_BREVO,
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: process.env.EMAIL_LOGIN_BREVO,
+        pass: process.env.EMAIL_PASS_BREVO,
       },
       logger: true,
       debug: true, // show debug output
@@ -530,7 +530,7 @@ exports.requestPasswordResetLink = async (req, res) => {
 
 
     const mailOptions = {
-      from: "Gili Getaway System <" + process.env.EMAIL_USER + ">",
+      from: "Gili Getaway System <" + process.env.EMAIL_NOREPLY + ">",
       to: agent.email,
       subject: "Password Reset Request",
       text: `Please click on the following link to reset your password: ${resetLink}`,
