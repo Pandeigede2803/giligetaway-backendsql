@@ -228,7 +228,7 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
         <p style="font-size: 16px; line-height: 1.5;">Dear ${agent.name},</p>
 
         <p style="font-size: 16px; line-height: 1.5;">
-          We are excited to invite you to join the Gili Getaway team! Your agent account has been created, and you can now access our system using the credentials below.
+          We are excited to invite you to join as a Gili Getaway Partner! Your agent account has been created, and you can now access our system using the credentials below.
         </p>
 
         <div style="background-color: #f0f7ff; border-left: 4px solid #165297; padding: 20px; margin: 25px 0; border-radius: 6px;">
@@ -249,7 +249,7 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
         </div>
 
         <p style="font-size: 16px; line-height: 1.5;">
-          If you have any questions or need assistance, please contact our support team at <a href="mailto:officebali1@gmail.com" style="color: #165297;">officebali1@gmail.com</a>.
+          If you have any questions or need assistance, please contact our support team at <a href="mailto:agentbookings@giligetaway.com" style="color: #165297;">agentbookings@giligetaway.com</a>.
         </p>
 
         <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
@@ -260,7 +260,7 @@ const createAgentInvitationEmailTemplate = (agent, randomPassword) => {
       <!-- Footer -->
       <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
         <p style="margin: 6px 0;">Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
-        <p style="margin: 6px 0;">Contact: (+62) 812 3456 7890 | officebali1@gmail.com</p>
+        <p style="margin: 6px 0;">Contact: (+62) 81337074147| agentbookings@giligetaway.com</p>
         <p style="margin: 6px 0;"><a href="https://giligetaway-widget.my.id/agent" style="color: #2991D6;">Access Your Agent Dashboard</a></p>
         <p style="margin: 6px 0;">© ${currentYear} Gili Getaway. All rights reserved.</p>
         <p style="margin: 6px 0; font-size: 12px;">This is a transactional email regarding your account invitation.</p>
