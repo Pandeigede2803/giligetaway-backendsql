@@ -214,8 +214,123 @@ const validateRoundTripGrossTotal = async (req, res, next) => {
   }
 };
 
+const validateTransportData = async (req, res, next) => {
+  try {
+    console.log("🚀 Starting transport data validation...");
 
+    const transports = req.body.transports;
 
+    if (!Array.isArray(transports) || transports.length === 0) {
+      console.log("ℹ️ No transports provided or transports array is empty. Skipping validation.");
+      return next(); // allow empty transports if it's optional
+    }
+
+    console.log(`🔍 Validating ${transports.length} transport items...`);
+
+    for (const [index, transportItem] of transports.entries()) {
+      console.log(`📝 Validating transport item at index ${index}:`, transportItem);
+
+      const { transport_id, quantity, transport_price } = transportItem;
+
+      if (!transport_id || !quantity || transport_price === undefined) {
+        console.log(`❌ Missing required fields in transport item at index ${index}.`);
+        return res.status(400).json({
+          success: false,
+          message: `Transport item at index ${index} is missing required fields.`
+        });
+      }
+
+      console.log(`🔍 Fetching transport record for transport_id: ${transport_id}...`);
+      const transport = await Transport.findByPk(transport_id);
+
+      if (!transport) {
+        console.log(`❌ Transport with ID ${transport_id} not found.`);
+        return res.status(404).json({
+          success: false,
+          message: `Transport with ID ${transport_id} not found.`
+        });
+      }
+
+      console.log(`✅ Transport record found:`, transport);
+
+      const expectedPrice = parseFloat(transport.amount) * parseInt(quantity);
+      const givenPrice = parseFloat(transport_price);
+
+      console.log(`🔢 Calculating price for transport item at index ${index}:`);
+      console.log(`   - Expected price: ${expectedPrice}`);
+      console.log(`   - Given price: ${givenPrice}`);
+
+      if (Math.abs(expectedPrice - givenPrice) > 1) {
+        console.log(`❌ Price mismatch for transport item at index ${index}.`);
+        return res.status(400).json({
+          success: false,
+          message: `Transport price mismatch at index ${index}: expected ${expectedPrice}, got ${givenPrice}`
+        });
+      }
+
+      console.log(`✅ Price validation passed for transport item at index ${index}.`);
+    }
+
+    console.log("✅ All transport items validated successfully.");
+    next();
+  } catch (err) {
+    console.error("❌ Transport validation error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error during transport validation."
+    });
+  }
+};
+
+const validateTransportDataRound = async (transports, type) => {
+  if (!Array.isArray(transports)) {
+    console.log(`ℹ️ No transports provided for ${type} booking or transports is not an array.`);
+    return;
+  }
+
+  console.log(`🔍 Validating ${transports.length} transport items for ${type} booking...`);
+
+  for (const [index, transport] of transports.entries()) {
+    console.log(`📝 Validating transport item at index ${index}:`, transport);
+
+    const { transport_id, quantity, transport_price } = transport;
+
+    if (!transport_id || quantity === undefined || transport_price === undefined) {
+      console.log(`❌ Missing required fields in transport item at index ${index}.`);
+      throw new Error(
+        `Missing fields in ${type} transport at index ${index} (id, quantity, or price)`
+      );
+    }
+
+    console.log(`🔍 Fetching transport record for transport_id: ${transport_id}...`);
+    const transportRecord = await Transport.findByPk(transport_id);
+
+    if (!transportRecord) {
+      console.log(`❌ Transport with ID ${transport_id} not found.`);
+      throw new Error(`Transport ID ${transport_id} not found in ${type} booking`);
+    }
+
+    console.log(`✅ Transport record found:`, transportRecord);
+
+    const expectedPrice = parseFloat(transportRecord.amount) * Number(quantity);
+    const givenPrice = parseFloat(transport_price);
+
+    console.log(`🔢 Calculating price for transport item at index ${index}:`);
+    console.log(`   - Expected price: ${expectedPrice}`);
+    console.log(`   - Given price: ${givenPrice}`);
+
+    if (Math.abs(expectedPrice - givenPrice) > 1) {
+      console.log(`❌ Price mismatch for transport item at index ${index}.`);
+      throw new Error(
+        `Transport price mismatch in ${type} booking at index ${index}: expected ${expectedPrice}, got ${givenPrice}`
+      );
+    }
+
+    console.log(`✅ Price validation passed for transport item at index ${index}.`);
+  }
+
+  console.log(`✅ All transport items validated successfully for ${type} booking.`);
+};
 
 const validateBookingCreation = async (req, res, next) => {
   console.log("\n=== Starting Booking Creation Validation ===");
@@ -306,7 +421,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     const { departure, return: returnBooking } = req.body;
     console.log("📝 Validating round trip booking...");
 
-    // First, check if the main objects exist
     if (!departure || !returnBooking) {
       return res.status(400).json({
         status: "error",
@@ -314,7 +428,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
       });
     }
 
-    // ticket total cannot be 0
     if (departure.ticket_total === 0 || returnBooking.ticket_total === 0) {
       return res.status(400).json({
         status: "error",
@@ -322,7 +435,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
       });
     }
 
-    // Check if departure and return are objects
     if (typeof departure !== "object" || typeof returnBooking !== "object") {
       return res.status(400).json({
         status: "error",
@@ -330,7 +442,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
       });
     }
 
-    // Function to validate schedule ID
     const validateSchedule = async (scheduleId, type) => {
       const schedule = await Schedule.findOne({ where: { id: scheduleId } });
       if (!schedule) {
@@ -339,79 +450,52 @@ const validateRoundTripBookingPost = async (req, res, next) => {
           message: `Invalid schedule_id in ${type} booking. Schedule ID '${scheduleId}' does not exist.`
         };
       }
-    };;
+    };
 
-    // Function to validate passenger seat availability
-    // const validatePassengerSeats = async (passengers, booking_date, scheduleId, type) => {
-    //   console.log(`🔍 Validating seat availability for ${type} passengers...`);
-    
-    //   for (const passenger of passengers) {
-    //     // 1. Pastikan passenger punya seat_number
-    //     if (!passenger.seat_number) {
-    //       console.log(`ℹ️ No seat_number specified for passenger ${passenger.name}, skipping validation.`);
-    //       // Kalau seat_number tidak ada, lewati validasi seat (tidak dicek di DB)
-    //       continue;
-    //     }
-    
-    //     // // 2. Cari apakah seat_number tersebut sudah ditempati di booking lain
-    //     // const occupiedSeat = await Booking.findOne({
-    //     //   where: {
-    //     //     // Mencari booking dengan schedule_id dan booking_date yang sama
-    //     //     schedule_id: scheduleId,
-    //     //     booking_date,
-    //     //   },
-    //     //   include: [
-    //     //     {
-    //     //       // Kita include relasi ke tabel Passenger (as: "passengers")
-    //     //       model: Passenger,
-    //     //       as: "passengers",
-    //     //       // 3. Filter passenger pada Booking yang punya seat_number sama
-    //     //       where: { seat_number: passenger.seat_number },
-    //     //     },
-    //     //   ],
-    //     // });
-    
-    //     // // 4. Jika ketemu, berarti seat_number sudah dipakai
-    //     // if (occupiedSeat) {
-    //     //   throw {
-    //     //     status: "error",
-    //     //     message: `Seat number ${passenger.seat_number} is already occupied in ${type} booking.`,
-    //     //   };
-    //     // }
-    
-    //     console.log(`✅ Seat number ${passenger.seat_number} is available.`);
-    //   }
-    // };
-    
-    // Validate Booking Object (Shared for Departure and Return)
+    const validateTransportData = async (transports, type) => {
+      if (!Array.isArray(transports)) return;
+
+      for (const [index, transport] of transports.entries()) {
+        const { transport_id, quantity, transport_price } = transport;
+
+        if (!transport_id || quantity === undefined || transport_price === undefined) {
+          throw {
+            status: "error",
+            message: `Missing fields in ${type} transport at index ${index}`
+          };
+        }
+
+        const transportRecord = await Transport.findByPk(transport_id);
+        if (!transportRecord) {
+          throw {
+            status: "error",
+            message: `Transport ID ${transport_id} not found in ${type} booking`
+          };
+        }
+
+        const expectedPrice = parseFloat(transportRecord.amount) * Number(quantity);
+        const givenPrice = parseFloat(transport_price);
+
+        if (Math.abs(expectedPrice - givenPrice) > 1) {
+          throw {
+            status: "error",
+            message: `Transport price mismatch in ${type} booking at index ${index}: expected ${expectedPrice}, got ${givenPrice}`
+          };
+        }
+      }
+    };
+
     const validateBooking = async (booking, type) => {
       console.log(`📝 Validating ${type} booking...`);
 
-      // Required fields for booking
       const requiredFields = [
-        "schedule_id",
-        "total_passengers",
-        "booking_date",
-   
-        "gross_total",
-        "ticket_total",
-        "payment_status",
-        "contact_name",
-        // "contact_phone",
-        // "contact_email",
-        "adult_passengers",
-        "child_passengers",
-        "infant_passengers",
-        "payment_method",
-        "booking_source",
-        "ticket_id",
-        "bank_fee",
-        "currency",
-        "gross_total_in_usd",
-        "exchange_rate"
+        "schedule_id", "total_passengers", "booking_date", "gross_total",
+        "ticket_total", "payment_status", "contact_name",
+        "adult_passengers", "child_passengers", "infant_passengers",
+        "payment_method", "booking_source", "ticket_id", "bank_fee",
+        "currency", "gross_total_in_usd", "exchange_rate"
       ];
 
-      // Check for missing fields
       const missingFields = requiredFields.filter((field) => {
         const value = booking[field];
         return value === undefined || value === null || value === "";
@@ -424,16 +508,13 @@ const validateRoundTripBookingPost = async (req, res, next) => {
         };
       }
 
-      // Validate schedule ID exists
       await validateSchedule(booking.schedule_id, type);
 
-      // Validate passenger seat numbers
-      // if (booking.passengers && Array.isArray(booking.passengers)) {
-      //   await validatePassengerSeats(booking.passengers, booking.schedule_id,booking.booking_date, type);
-      // }
+      if (booking.transports && booking.transports.length > 0) {
+        await validateTransportData(booking.transports, type);
+      }
     };
 
-    // Validate both bookings
     await validateBooking(departure, "departure");
     await validateBooking(returnBooking, "return");
 
@@ -448,7 +529,6 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     });
   }
 };
-
 
 
 
@@ -716,7 +796,8 @@ const validateMultipleBookingCreation = async (req, res, next) => {
 module.exports = {
   validateBookingCreation,
   validateMultipleBookingCreation,
-  validateSingleBookingGrossTotal,
+  validateTransportData,
+  validateSingleBookingGrossTotal,validateTransportDataRound,
   validateRoundTripBookingPost, validateRoundTripGrossTotal
 
 };

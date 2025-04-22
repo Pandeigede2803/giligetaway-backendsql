@@ -7,9 +7,10 @@ const bookingRateLimiter = require('../middleware/rateLimiter'); // Rate limitin
 const {validateScheduleAndSubSchedule,validateScheduleAndSubScheduleForRoundTrip} = require('../middleware/validateScheduleAndSubschedule');
 const validateTrips = require('../middleware/validateTrips');
 const { checkSeatAvailabilityForUpdate,checkSeatAvailabilityForUpdate2,
-    validateBookingDate,validateRoundTripTicket,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
+    validateBookingDate,
+    validateRoundTripTicket,validateBookingDate2,checkBookingDateUpdate,validatePaymentUpdate,checkAgentPassword, 
     checkBookingDateUpdate2,checkBookingDateUpdateDirect} = require('../middleware/checkSeatAvailabilityForUpdate');
-const { validateBookingCreation ,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
+const { validateBookingCreation ,  validateTransportData,validateMultipleBookingCreation,validateRoundTripBookingPost} = require('../middleware/validateBookingcreation');
 const bulkBookingController = require('../controllers/bulkBookingController');
 const multer = require('multer');
 const path = require('path');
@@ -26,7 +27,7 @@ router.post('/transit', bookingController.createBookingWithTransit);
 
 // Route for booking with transit
 
-router.post('/transit-queue',authenticate,validateScheduleAndSubSchedule,validateBookingCreation, bookingController.createBookingWithTransitQueue);
+router.post('/transit-queue',authenticate,validateScheduleAndSubSchedule,validateBookingCreation,validateTransportData,bookingController.createBookingWithTransitQueue);
 
 
 // Route for booking with transit multiple

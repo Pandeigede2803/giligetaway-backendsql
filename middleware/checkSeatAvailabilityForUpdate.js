@@ -953,6 +953,7 @@ const checkBookingDateUpdate2 = async (req, res, next) => {
 };
   
   const { Op } = require("sequelize");
+const { validateTransportData } = require('./validateBookingcreation');
  
   
   const validateRoundTripTicket = async (req, res, next) => {
@@ -1287,6 +1288,7 @@ module.exports = {
     checkBookingDateUpdate,
     validateRoundTripTicket,
     checkBookingDateUpdate2,
+  
     checkBookingDateUpdateDirect,
     checkAgentPassword
 };
