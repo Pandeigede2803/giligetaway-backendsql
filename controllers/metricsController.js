@@ -177,7 +177,7 @@ const fetchAllMetricsData = async (dateFilter, previousPeriodFilter) => {
       previousPeriodFilter
     );
 
-    console.log("🫦fetchall Metrcis data booking data :", bookingsData);
+    // console.log("🫦fetchall Metrcis data booking data :", bookingsData);
     const transportData = await fetchTransportData(
       dateFilter,
       previousPeriodFilter
@@ -799,7 +799,7 @@ const formatMetricsForResponse = (data, agentCount) => {
     others: calculatePercentageChange(current.bookingSource.others, previous.bookingSource.others),
   };
   // add Booking source count
-console.log("`bookingCountBySource", current.bookingCountBySource);
+// console.log("`bookingCountBySource", current.bookingCountBySource);
 const bookingCountBySourceChange = {
   agent: calculatePercentageChange(current.bookingCountBySource.agent, previous.bookingCountBySource.agent),
   website: calculatePercentageChange(current.bookingCountBySource.website, previous.bookingCountBySource.website),
@@ -1271,8 +1271,8 @@ const getMetrics = async (req, res) => {
           year: prevYear,
         });
         
-        console.log(`Full month detected: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
-        console.log(`Previous period (month): ${prevMonth + 1}/${prevYear}`);
+        // console.log(`Full month detected: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        // console.log(`Previous period (month): ${prevMonth + 1}/${prevYear}`);
       } else {
         // For custom date ranges, calculate an equivalent previous period
         const { fromDate: previousFrom, toDate: previousTo } = calculatePreviousPeriod(from, to);
@@ -1280,10 +1280,10 @@ const getMetrics = async (req, res) => {
         // Create filter with proper previous period
         previousPeriodFilter = { [Op.between]: [previousFrom, previousTo] };
         
-        // Log for debugging
-        console.log("Custom date range detected:");
-        console.log(`Current period: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
-        console.log(`Previous period: ${moment(previousFrom).format('YYYY-MM-DD')} to ${moment(previousTo).format('YYYY-MM-DD')}`);
+        // // Log for debugging
+        // console.log("Custom date range detected:");
+        // console.log(`Current period: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        // console.log(`Previous period: ${moment(previousFrom).format('YYYY-MM-DD')} to ${moment(previousTo).format('YYYY-MM-DD')}`);
       }
     } else if (numericYear && !numericMonth && !numericDay) {
       // If only year is provided, use previous year
@@ -1291,8 +1291,8 @@ const getMetrics = async (req, res) => {
         year: numericYear - 1,
       });
       
-      console.log(`Year only filter: ${numericYear}`);
-      console.log(`Previous period (year): ${numericYear - 1}`);
+      // console.log(`Year only filter: ${numericYear}`);
+      // console.log(`Previous period (year): ${numericYear - 1}`);
     } else {
       // For month/day combinations
       previousPeriodFilter = buildDateFilter({
@@ -1306,8 +1306,8 @@ const getMetrics = async (req, res) => {
         day,
       });
       
-      console.log(`Month/day filter: Month=${numericMonth}, Year=${numericYear}, Day=${numericDay}`);
-      console.log(`Previous period: Month=${numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : 'undefined'}, Year=${numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear}`);
+      // console.log(`Month/day filter: Month=${numericMonth}, Year=${numericYear}, Day=${numericDay}`);
+      // console.log(`Previous period: Month=${numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : 'undefined'}, Year=${numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear}`);
     }
     // Log filters untuk debugging
     // console.log("Current period filter:", dateFilter);
@@ -1339,11 +1339,11 @@ const getMetrics = async (req, res) => {
 
 const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   // Log incoming parameters for debugging
-  console.log("FROM BUILDBOOKINGDATE FILTER:", from);
-  console.log("TO:", to);
-  console.log("MONTH:", month);
-  console.log("YEAR:", year);
-  console.log("DAY:", day);
+  // console.log("FROM BUILDBOOKINGDATE FILTER:", from);
+  // console.log("TO:", to);
+  // console.log("MONTH:", month);
+  // console.log("YEAR:", year);
+  // console.log("DAY:", day);
 
   // Prioritize explicit from and to dates first
   if (from && to) {
@@ -1357,7 +1357,7 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   const numericMonth = month ? parseInt(month) : null;
   const numericDay = day ? parseInt(day) : null;
 
-  console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
+  // console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
 
   // Full date (year, month, day)
   if (numericYear && numericMonth && numericDay) {
@@ -1498,8 +1498,8 @@ const getMetricsBookingDate = async (req, res) => {
           year: prevYear,
         });
         
-        console.log(`Full month detected: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
-        console.log(`Previous period (month): ${prevMonth + 1}/${prevYear}`);
+        // console.log(`Full month detected: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        // console.log(`Previous period (month): ${prevMonth + 1}/${prevYear}`);
       } else {
         // For custom date ranges, calculate an equivalent previous period
         const { fromDate: previousFrom, toDate: previousTo } = calculatePreviousPeriod(from, to);
@@ -1510,9 +1510,9 @@ const getMetricsBookingDate = async (req, res) => {
         };
         
         // Log for debugging
-        console.log("Custom date range detected:");
-        console.log(`Current period: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
-        console.log(`Previous period: ${moment(previousFrom).format('YYYY-MM-DD')} to ${moment(previousTo).format('YYYY-MM-DD')}`);
+        // console.log("Custom date range detected:");
+        // console.log(`Current period: ${fromMoment.format('YYYY-MM-DD')} to ${toMoment.format('YYYY-MM-DD')}`);
+        // console.log(`Previous period: ${moment(previousFrom).format('YYYY-MM-DD')} to ${moment(previousTo).format('YYYY-MM-DD')}`);
       }
     } else if (numericYear && !numericMonth && !numericDay) {
       // If only year is provided, use previous year
@@ -1521,8 +1521,8 @@ const getMetricsBookingDate = async (req, res) => {
         year: numericYear - 1,
       });
       
-      console.log(`Year only filter: ${numericYear}`);
-      console.log(`Previous period (year): ${numericYear - 1}`);
+      // console.log(`Year only filter: ${numericYear}`);
+      // console.log(`Previous period (year): ${numericYear - 1}`);
     } else {
       // For month/day combinations
       // Gunakan buildBookingDateFilter untuk booking_date
@@ -1537,20 +1537,20 @@ const getMetricsBookingDate = async (req, res) => {
         day,
       });
       
-      console.log(`Month/day filter: Month=${numericMonth}, Year=${numericYear}, Day=${numericDay}`);
-      console.log(`Previous period: Month=${numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : 'undefined'}, Year=${numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear}`);
+      // console.log(`Month/day filter: Month=${numericMonth}, Year=${numericYear}, Day=${numericDay}`);
+      // console.log(`Previous period: Month=${numericMonth ? (numericMonth === 1 ? 12 : numericMonth - 1) : 'undefined'}, Year=${numericMonth && numericMonth === 1 ? numericYear - 1 : numericYear}`);
     }
 
-    // Log filters untuk debugging
-    console.log("DATE FILTER", dateFilter);
-    console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);
+    // // Log filters untuk debugging
+    // console.log("DATE FILTER", dateFilter);
+    // console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);
 
     // Gunakan fungsi fetchAllMetricsDataBookingDate untuk query booking_date
     const metricsData = await fetchAllMetricsDataBookingDate(
       dateFilter,
       previousPeriodFilter
     );
-    console.log("Metrics Data:", metricsData);
+    // console.log("Metrics Data:", metricsData);
     // Proses data untuk membentuk respon yang dibutuhkan
     // Pastikan ini menggunakan processMetricsData yang benar
     const metrics = processMetricsDataBookingDate(metricsData);
@@ -1585,8 +1585,8 @@ const getMetricsByAgentId = async (req, res) => {
   const { agent_id } = req.params;
   const { from, to, month, year, day } = req.query;
 
-  console.log("Agent ID:", agent_id);
-  console.log("Date Filters:", { from, to, month, year, day });
+  // console.log("Agent ID:", agent_id);
+  // console.log("Date Filters:", { from, to, month, year, day });
 
   if (!agent_id) {
     return res

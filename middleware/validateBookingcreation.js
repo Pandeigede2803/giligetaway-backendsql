@@ -486,14 +486,14 @@ const validateRoundTripBookingPost = async (req, res, next) => {
     };
 
     const validateBooking = async (booking, type) => {
-      console.log(`📝 Validating ${type} booking...`);
+      console.log(`📝 Validating ${type} booking...`);;
 
       const requiredFields = [
         "schedule_id", "total_passengers", "booking_date", "gross_total",
         "ticket_total", "payment_status", "contact_name",
         "adult_passengers", "child_passengers", "infant_passengers",
         "payment_method", "booking_source", "ticket_id", "bank_fee",
-        "currency", "gross_total_in_usd", "exchange_rate"
+        "currency", "gross_total_in_usd", 
       ];
 
       const missingFields = requiredFields.filter((field) => {

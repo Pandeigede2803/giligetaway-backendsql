@@ -393,7 +393,7 @@ const calculateAverageOrderValue = (result) => {
 
 
 const processCommissionDataBookingDate = (commissionData, result) => {
-  console.log("🦷 ini booking data bangsat comission",commissionData)
+  // console.log("🦷 ini booking data bangsat comission",commissionData)
   // Clear existing commission data yang mungkin sudah diset sebelumnya
   for (const period of ["current", "previous"]) {
     for (const boatId of [1, 2, 3]) {
@@ -688,7 +688,7 @@ const processMetricsDataBookingDate = (data) => {
         dateFilter,
         previousPeriodFilter
       );
-      console.log("agentComissionData bangsat", commissionData);
+      // console.log("agentComissionData bangsat", commissionData);
       
   
       return {
@@ -717,9 +717,9 @@ const processMetricsDataBookingDate = (data) => {
 
 const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodFilter) => {
   try {
-    console.log("fetchAgentCommissionByBoatBookingDate called");
-    console.log("dateFilter:", dateFilter);
-    console.log("previousPeriodFilter:", previousPeriodFilter);
+    // console.log("fetchAgentCommissionByBoatBookingDate called");
+    // console.log("dateFilter:", dateFilter);
+    // console.log("previousPeriodFilter:", previousPeriodFilter);
     
     // Extract the date ranges directly from the original filters
     let currentDateRange, previousDateRange;
@@ -745,10 +745,10 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
     const [prevStart, prevEnd] = previousDateRange;
     const [currentStart, currentEnd] = currentDateRange;
     
-    console.log("Date ranges extracted:", { 
-      current: [currentStart, currentEnd],
-      previous: [prevStart, prevEnd]
-    });
+    // console.log("Date ranges extracted:", { 
+    //   current: [currentStart, currentEnd],
+    //   previous: [prevStart, prevEnd]
+    // });
     
     // Create a combined where clause for booking dates
     const bookingDateWhere = {
