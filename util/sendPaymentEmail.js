@@ -91,7 +91,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
       from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
-      cc: process.env.EMAIL_BOOKING,
+      // cc: process.env.EMAIL_BOOKING,
       html: message,
     };
 
