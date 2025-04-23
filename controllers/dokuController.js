@@ -318,7 +318,7 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber) {
       // Kirim email dari booking yang ganjil jika keduanya ada
       const currentNumberIsOdd = ticketNumber % 2 === 1;
       let emailFromBooking = currentBooking;
-      let secondBooking = pairBooking;
+      let secondBooking = pairBooking;;
 
       if (pairBooking) {
         const pairNumber = parseInt(pairBooking.ticket_id.split('-')[2], 10);

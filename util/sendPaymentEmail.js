@@ -33,52 +33,54 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     </head>
     <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333;">
       <div style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #FFFFFFFF, #134782); padding: 30px 20px; text-align: center;">
+        <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1745113322565" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 0px;" />
+        <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your fast boat seats are still waiting – complete your booking now.</h1>
+      </div>
+    
+      <!-- Body -->
+      <div style="padding: 30px 20px;">
+        <p style="font-size: 16px; line-height: 1.5;">Hi ${booking.contact_name},</p>
+    
+        <p style="font-size: 16px; line-height: 1.5;">
+        We noticed you were about to book your fast boat trip with Gili Getaway, but didn’t make it quite to the finish line. No worries – your seats are still waiting for you for now. However, are not confirmed until you finalize your booking and may be booked very soon!
+        </p>
+    
+        <p style="font-size: 16px; line-height: 1.5;">
+        Whether you're headed to <strong>Gili Trawangan</strong>, <strong>Gili Air</strong>, or <strong>Gili Gede</strong>, we’d love to get you there safely and in comfort aboard our premium fast boats.
+        </p>
+    
+        <!-- Call to Action Buttons -->
+        <div style="text-align: center; margin: 35px 0;">
+        <a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Complete Your Booking Now</a>
+        <br/>
+        <a href="${emailUrl}/" style="display: inline-block; padding: 12px 20px; margin-top: 10px; background-color: #FFBF00; color: #134782; text-decoration: none; border-radius: 6px; font-weight: bold; min-width: 160px; text-align: center; font-size: 16px;">Make a New Booking</a>
+        </div>
+    
+        <p style="font-size: 16px; line-height: 1.5;">
+        If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:bookings@giligetaway.co">bookings@giligetaway.com</a>.
+        </p>
+    
+        <p style="font-size: 16px; line-height: 1.5;">Don’t miss the boat – paradise is just a click away. 🌊</p>
         
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #FFFFFFFF, #134782); padding: 30px 20px; text-align: center;">
-          <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1745113322565" alt="Gili Getaway" style="max-width: 180px; margin-bottom: 0px;" />
-          <h1 style="color: white; margin: 10px 0 5px; font-size: 24px;">Your fast boat seats are still waiting – complete your booking now.</h1>
-        </div>
+        <p style="font-size: 16px; line-height: 1.5; color: #d9534f; font-weight: bold;">Ignore this email if you already paid your booking.</p>
     
-        <!-- Body -->
-        <div style="padding: 30px 20px;">
-          <p style="font-size: 16px; line-height: 1.5;">Hi ${booking.contact_name},</p>
+        <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
+        <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
+        <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
+      </div>
     
-          <p style="font-size: 16px; line-height: 1.5;">
-            We noticed you were about to book your fast boat trip with Gili Getaway, but didn’t make it quite to the finish line. No worries – your seats are still waiting for you for now. However, are not confirmed until you finalize your booking and may be booked very soon!
-          </p>
-    
-          <p style="font-size: 16px; line-height: 1.5;">
-            Whether you're headed to <strong>Gili Trawangan</strong>, <strong>Gili Air</strong>, or <strong>Gili Gede</strong>, we’d love to get you there safely and in comfort aboard our premium fast boats.
-          </p>
-    
-          <!-- Call to Action Buttons -->
-          <div style="text-align: center; margin: 35px 0;">
-            <a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="background-color: #165297; color: white; padding: 14px 26px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 16px;">Complete Your Booking Now</a>
-            <br/>
-            <a href="${emailUrl}/" style="display: inline-block; padding: 12px 20px; margin-top: 10px; background-color: #FFBF00; color: #134782; text-decoration: none; border-radius: 6px; font-weight: bold; min-width: 160px; text-align: center; font-size: 16px;">Make a New Booking</a>
-          </div>
-    
-          <p style="font-size: 16px; line-height: 1.5;">
-            If you had any issues during checkout or have questions about the trip, our team is here to help. Just reply to this email or reach out anytime at <a href="mailto:bookings@giligetaway.co">bookings@giligetaway.com</a>.
-          </p>
-    
-          <p style="font-size: 16px; line-height: 1.5;">Don’t miss the boat – paradise is just a click away. 🌊</p>
-    
-          <p style="font-size: 16px; line-height: 1.5; margin-bottom: 5px;">Warm regards,</p>
-          <p style="font-size: 16px; font-weight: bold; margin-top: 0;">The Gili Getaway Team</p>
-          <p style="font-size: 15px; color: #165297; margin-top: 5px; font-style: italic;">Fast. Safe. Reliable. Island Hopping Made Easy.</p>
-        </div>
-    
-        <!-- Footer -->
-        <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
-          <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ bookings@giligetaway.com</p>
-          <p style="margin: 6px 0;"><a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Complete Your Booking Now</a></p>
-          <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
-          <p style="margin: 6px 0; font-size: 12px;">This is an automated message. Please don't reply directly to this email.</p>
-          
+      <!-- Footer -->
+      <div style="background-color: #f8f9fa; padding: 25px 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+        <p style="margin: 6px 0;">📞 +62 812-3456-7890 | ✉️ bookings@giligetaway.com</p>
+        <p style="margin: 6px 0;"><a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" style="color: #2991D6; text-decoration: underline; font-weight: bold;">Complete Your Booking Now</a></p>
+        <p style="margin: 6px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
+        <p style="margin: 6px 0; font-size: 12px;">This is an automated message. Please don't reply directly to this email.</p>
+        
        
-        </div>
+      </div>
       </div>
     </body>
     </html>
@@ -89,6 +91,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
       from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
+      cc: process.env.EMAIL_BOOKING,
       html: message,
     };
 
