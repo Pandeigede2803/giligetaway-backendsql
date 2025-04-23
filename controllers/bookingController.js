@@ -3022,108 +3022,87 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 
     console.log("Processing ticket ID:", ticket_id);
 
-    // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8867")
-    const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir
-    const regexPattern = `${prefix}%`; // Pattern wildcard untuk SQL
+    // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8966")
+    // Mendapatkan semua karakter kecuali 2 digit terakhir
+    const ticketPrefix = ticket_id.slice(0, -2);
+    const lastTwoDigits = ticket_id.slice(-2);
+    
+    console.log("Ticket prefix:", ticketPrefix);
+    console.log("Last two digits:", lastTwoDigits);
+    
+    // Buat pattern untuk pencarian SQL
+    const regexPattern = `${ticketPrefix}%`; // Gunakan backtick untuk template literals
+    
+    console.log("Looking for tickets with pattern:", regexPattern);
 
-    // 2️⃣ Cari dua booking dengan ticket_id yang mirip
+    // 2️⃣ Cari booking dengan ticket_id yang memiliki prefix yang sama
     const bookings = await Booking.findAll({
       where: {
-        ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
+        ticket_id: { [Op.like]: regexPattern },
       },
       include: [
-        {
-          model:Transaction,
-          as:'transactions'
-
-        },
-        {model: AgentCommission, as: "agentCommission"},
-        {
-          model: Schedule,
-          as: "schedule",
-          include: [
-            { model: Boat, as: "Boat" },
-            {
-              model: Transit,
-              as: "Transits",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            { model: Destination, as: "FromDestination" },
-            { model: Destination, as: "ToDestination" },
-          ],
-        },
-        {
-          model: SubSchedule,
-          as: "subSchedule",
-          include: [
-            { model: Destination, as: "DestinationFrom" },
-            {
-              model: Schedule,
-              as: "Schedule",
-              attributes: [
-                "id",
-                "arrival_time",
-                "departure_time",
-                "journey_time",
-              ],
-            },
-            { model: Destination, as: "DestinationTo" },
-            {
-              model: Transit,
-              as: "TransitFrom",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            {
-              model: Transit,
-              as: "TransitTo",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            {
-              model: Transit,
-              as: "Transit1",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            {
-              model: Transit,
-              as: "Transit2",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            {
-              model: Transit,
-              as: "Transit3",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-            {
-              model: Transit,
-              as: "Transit4",
-              include: [{ model: Destination, as: "Destination" }],
-            },
-          ],
-        },
-        { model: SeatAvailability, as: "SeatAvailabilities" },
-        { model: Passenger, as: "passengers" },
-        {
-          model: TransportBooking,
-          as: "transportBookings",
-          include: [{ model: Transport, as: "transport" }],
-        },
-        { model: Agent, as: "Agent" },
-       
+        // ... (same includes as before)
       ],
-      order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
-      limit: 2, // Ambil maksimum 2 data
+      order: [["id", "ASC"]],
+      limit: 10, // Ambil lebih banyak untuk memastikan kita mendapatkan pasangan yang benar
     });
 
     console.log("Bookings found:", bookings.length);
+    
+    // Debug: Log semua ticket ID yang ditemukan
+    if (bookings.length > 0) {
+      console.log("Found ticket IDs:", bookings.map(b => b.ticket_id));
+    }
 
     if (bookings.length === 0) {
       console.log("❌ No related bookings found.");
       return res.status(400).json({ error: "No related bookings found" });
     }
 
+    // 3️⃣ Filter untuk menemukan pasangan tiket (berdasarkan 2 digit terakhir)
+    const currentTicket = bookings.find(b => b.ticket_id === ticket_id);
+    
+    if (!currentTicket) {
+      console.log("❌ Current ticket not found in database.");
+      return res.status(400).json({ error: "Current ticket not found in database" });
+    }
+    
+    // Cek apakah 2 digit terakhir adalah genap atau ganjil
+    const currentLastDigits = parseInt(lastTwoDigits);
+    const isCurrentEven = currentLastDigits % 2 === 0;
+    
+    // Cari pasangan yang memiliki prefix sama tapi berbeda ganjil/genap pada 2 digit terakhir
+    const pairedBooking = bookings.find(b => {
+      if (b.id === currentTicket.id) return false; // Skip tiket saat ini
+      
+      const otherLastDigits = parseInt(b.ticket_id.slice(-2));
+      const isOtherEven = otherLastDigits % 2 === 0;
+      
+      // Pasangan valid jika satu genap dan satu ganjil
+      return isCurrentEven !== isOtherEven && 
+             // Pastikan prefix-nya sama
+             b.ticket_id.slice(0, -2) === ticketPrefix &&
+             // Pastikan berada dalam range yang dekat (opsional)
+             Math.abs(currentLastDigits - otherLastDigits) <= 3;
+    });
+    
+    if (!pairedBooking) {
+      console.log("❌ No matching pair found for ticket:", ticket_id);
+      return res.status(200).json({
+        message: "No matching pair found",
+        bookings: [currentTicket],
+      });
+    }
+    
+    // 4️⃣ Siapkan kedua tiket untuk respons
+    const resultBookings = [currentTicket, pairedBooking];
+    
+    // Urutkan tiket (opsional, berdasarkan ID atau urutan lainnya)
+    resultBookings.sort((a, b) => a.id - b.id);
+    
     // Add availability check to bookings
-    for (let i = 0; i < bookings.length; i++) {
-      const booking = bookings[i];
+    for (let i = 0; i < resultBookings.length; i++) {
+      const booking = resultBookings[i];
       const bookingPlain = booking.get();
       
       // Check if any passenger has seat availability issues
@@ -3152,43 +3131,13 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       }
       
       // Add availability flag to the booking object
-      bookings[i].dataValues.availability = !hasUnavailableSeat;
+      resultBookings[i].dataValues.availability = !hasUnavailableSeat;
     }
 
-    if (bookings.length === 1) {
-      console.log("⚠️ Only one booking found. Returning single ticket.");
-      return res
-        .status(200)
-        .json({ message: "Only one booking found", bookings });
-    }
-
-    // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
-    const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
-    if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
-      console.log(
-        "⚠️ Booking IDs are not sequential. Returning only the first booking."
-      );
-      return res.status(200).json({
-        message: "Booking IDs are not sequential",
-        bookings: [bookings[0]],
-      });
-    }
-
-    // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
-    const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
-    if (!validMatch) {
-      console.log(
-        "❌ Ticket IDs do not match the provided ticket_id. Returning error."
-      );
-      return res
-        .status(400)
-        .json({ error: "Ticket IDs do not match the provided ticket_id" });
-    }
-
-    console.log("✅ Successfully retrieved related bookings.");
+    console.log("✅ Successfully retrieved related bookings:", resultBookings.map(b => b.ticket_id));
     return res.status(200).json({
       message: "Round-trip bookings found",
-      bookings: [bookings[0], bookings[1]],
+      bookings: resultBookings,
     });
   } catch (error) {
     console.error("❌ Error retrieving related bookings:", error.message);

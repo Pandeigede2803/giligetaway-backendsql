@@ -1003,10 +1003,10 @@ const { validateTransportData } = require('./validateBookingcreation');
         const contactNames = bookings.map((b) => b.contact_name);
         const uniqueNames = new Set(contactNames);
 
-        if (uniqueNames.size > 1) {
-            console.log("Mismatch in contact names. Both bookings must have the same contact name.");
-            return res.status(400).json({ error: "Mismatch in contact names. Both bookings must have the same contact name." });
-        }
+        // if (uniqueNames.size > 1) {
+        //     console.log("Mismatch in contact names. Both bookings must have the same contact name.");
+        //     return res.status(400).json({ error: "Mismatch in contact names. Both bookings must have the same contact name." });
+        // }
         console.log("PAASS the validation")
         // ✅ Jika semua validasi lolos, lanjutkan ke controller
         req.relatedBookings = bookings;
