@@ -3023,15 +3023,14 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     console.log("Processing ticket ID:", ticket_id);
 
     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8966")
-    // Mendapatkan semua karakter kecuali 2 digit terakhir
     const ticketPrefix = ticket_id.slice(0, -2);
     const lastTwoDigits = ticket_id.slice(-2);
     
     console.log("Ticket prefix:", ticketPrefix);
     console.log("Last two digits:", lastTwoDigits);
     
-    // Buat pattern untuk pencarian SQL
-    const regexPattern = `${ticketPrefix}%`; // Gunakan backtick untuk template literals
+    // Buat pattern untuk pencarian SQL dengan sintaks template literal yang benar
+    const regexPattern = `${ticketPrefix}%`;
     
     console.log("Looking for tickets with pattern:", regexPattern);
 
@@ -3041,10 +3040,84 @@ const getRelatedBookingsByTicketId = async (req, res) => {
         ticket_id: { [Op.like]: regexPattern },
       },
       include: [
-        // ... (same includes as before)
+        {
+          model:Transaction,
+          as:'transactions'
+        },
+        {model: AgentCommission, as: "agentCommission"},
+        {
+          model: Schedule,
+          as: "schedule",
+          include: [
+            { model: Boat, as: "Boat" },
+            {
+              model: Transit,
+              as: "Transits",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
+          ],
+        },
+        {
+          model: SubSchedule,
+          as: "subSchedule",
+          include: [
+            { model: Destination, as: "DestinationFrom" },
+            {
+              model: Schedule,
+              as: "Schedule",
+              attributes: [
+                "id",
+                "arrival_time",
+                "departure_time",
+                "journey_time",
+              ],
+            },
+            { model: Destination, as: "DestinationTo" },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+          ],
+        },
+        { model: SeatAvailability, as: "SeatAvailabilities" },
+        { model: Passenger, as: "passengers" },
+        {
+          model: TransportBooking,
+          as: "transportBookings",
+          include: [{ model: Transport, as: "transport" }],
+        },
+        { model: Agent, as: "Agent" },
       ],
       order: [["id", "ASC"]],
-      limit: 10, // Ambil lebih banyak untuk memastikan kita mendapatkan pasangan yang benar
+      limit: 5, // Ambil beberapa data untuk memastikan kita menemukan yang cocok dengan contact_name
     });
 
     console.log("Bookings found:", bookings.length);
@@ -3059,7 +3132,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       return res.status(400).json({ error: "No related bookings found" });
     }
 
-    // 3️⃣ Filter untuk menemukan pasangan tiket (berdasarkan 2 digit terakhir)
+    // 3️⃣ Temukan tiket saat ini
     const currentTicket = bookings.find(b => b.ticket_id === ticket_id);
     
     if (!currentTicket) {
@@ -3067,37 +3140,72 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       return res.status(400).json({ error: "Current ticket not found in database" });
     }
     
-    // Cek apakah 2 digit terakhir adalah genap atau ganjil
+    // Debug: log contact name dari tiket saat ini
+    console.log("Current ticket contact name:", currentTicket.contact_name);
+    
+    if (bookings.length === 1) {
+      console.log("⚠️ Only one booking found. Returning single ticket.");
+      return res
+        .status(200)
+        .json({ message: "Only one booking found", bookings: [currentTicket] });
+    }
+    
+    // 4️⃣ Cari pasangan tiket dengan kriteria:
+    // 1. prefix sama
+    // 2. pola ganjil-genap pada 2 digit terakhir
+    // 3. contact_name sama
     const currentLastDigits = parseInt(lastTwoDigits);
     const isCurrentEven = currentLastDigits % 2 === 0;
     
-    // Cari pasangan yang memiliki prefix sama tapi berbeda ganjil/genap pada 2 digit terakhir
+    // Normalisasi contact_name untuk perbandingan (lowercase dan trim whitespace)
+    const normalizedContactName = (currentTicket.contact_name || "").trim().toLowerCase();
+    
+    // Cari tiket pasangan dengan kriteria yang lengkap
     const pairedBooking = bookings.find(b => {
       if (b.id === currentTicket.id) return false; // Skip tiket saat ini
       
       const otherLastDigits = parseInt(b.ticket_id.slice(-2));
       const isOtherEven = otherLastDigits % 2 === 0;
+      const otherContactName = (b.contact_name || "").trim().toLowerCase();
       
-      // Pasangan valid jika satu genap dan satu ganjil
+      // Debug: log perbandingan contact_name
+      console.log(`Comparing contact names: [${normalizedContactName}] with [${otherContactName}]`);
+      
+      // Pasangan valid jika:
+      // 1. Satu genap dan satu ganjil
+      // 2. Prefix sama
+      // 3. Contact name sama
       return isCurrentEven !== isOtherEven && 
-             // Pastikan prefix-nya sama
              b.ticket_id.slice(0, -2) === ticketPrefix &&
-             // Pastikan berada dalam range yang dekat (opsional)
-             Math.abs(currentLastDigits - otherLastDigits) <= 3;
+             otherContactName === normalizedContactName;
     });
     
     if (!pairedBooking) {
-      console.log("❌ No matching pair found for ticket:", ticket_id);
+      console.log("⚠️ No matching paired booking found with same contact name.");
+      
+      // Coba cari tiket yang cocok hanya berdasarkan pola ganjil-genap sebagai fallback
+      const fallbackPairedBooking = bookings.find(b => {
+        if (b.id === currentTicket.id) return false;
+        const otherLastDigits = parseInt(b.ticket_id.slice(-2));
+        const isOtherEven = otherLastDigits % 2 === 0;
+        return isCurrentEven !== isOtherEven && b.ticket_id.slice(0, -2) === ticketPrefix;
+      });
+      
+      if (fallbackPairedBooking) {
+        console.log("⚠️ Found matching ticket based on even/odd pattern only.");
+        console.log(`Warning: Contact names don't match: [${currentTicket.contact_name}] vs [${fallbackPairedBooking.contact_name}]`);
+      }
+      
       return res.status(200).json({
-        message: "No matching pair found",
+        message: "No paired booking found with matching contact name",
         bookings: [currentTicket],
       });
     }
     
-    // 4️⃣ Siapkan kedua tiket untuk respons
+    // 5️⃣ Siapkan kedua tiket untuk respons
     const resultBookings = [currentTicket, pairedBooking];
     
-    // Urutkan tiket (opsional, berdasarkan ID atau urutan lainnya)
+    // Urutkan tiket berdasarkan ID
     resultBookings.sort((a, b) => a.id - b.id);
     
     // Add availability check to bookings
@@ -3135,6 +3243,8 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     }
 
     console.log("✅ Successfully retrieved related bookings:", resultBookings.map(b => b.ticket_id));
+    console.log("Contact names match:", currentTicket.contact_name === pairedBooking.contact_name);
+    
     return res.status(200).json({
       message: "Round-trip bookings found",
       bookings: resultBookings,
