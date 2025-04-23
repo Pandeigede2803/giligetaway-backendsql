@@ -44,6 +44,9 @@ router.post('/find-related-sub-schedules', bookingController.findRelatedSubSched
 
 
 //ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
+router.get('/filtered-pagination',authenticate, bookingController.getFilteredBookingsPagination);;
+
+//ROUTE FOR BOOKING WITH PAGINATION AND MONTHLY PARAMS 
 router.get('/filtered',authenticate, bookingController.getFilteredBookings);;
 
 
