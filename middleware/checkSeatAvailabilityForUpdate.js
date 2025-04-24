@@ -1054,7 +1054,7 @@ const validatePaymentUpdate = async (req, res, next) => {
             console.log('❌ Booking not found');
             return res.status(404).json({
                 error: "Booking not found"
-            });
+            });;
         }
 
         // Check if booking is already refunded or cancelled
