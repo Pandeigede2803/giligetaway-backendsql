@@ -24,6 +24,8 @@ router.get('/only',  agentController.getAllAgentsOnly);
 // GET agent by id
 router.get('/:id', agentController.getAgentById);
 
+router.get('/single/:id', agentController.getAgentByIdSingle);
+
 // // CREATE new agent
 // router.post('/', authenticate,upload, agentController.createAgent);
 

@@ -2148,7 +2148,9 @@ const getFilteredBookingsPagination = async (req, res) => {
       id,
       payment_status,
       boat,
-      booking_source
+      booking_source,
+      
+      contact_name,
     } = req.query;
 
     // Filter data
@@ -2171,6 +2173,12 @@ const getFilteredBookingsPagination = async (req, res) => {
       // Add booking_source filter if provided
       if (booking_source) {
         whereClause.booking_source = booking_source;
+      }
+      if (contact_name) {
+        // Gunakan ILIKE jika pakai PostgreSQL, atau LIKE untuk MySQL
+        whereClause.contact_name = {
+          [Op.like]: `%${contact_name}%` // Case-insensitive substring match
+        };
       }
       
       // Date filtering - booking_date filters

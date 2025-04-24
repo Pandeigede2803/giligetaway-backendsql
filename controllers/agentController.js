@@ -923,7 +923,73 @@ exports.getAgentById = async (req, res) => {
           as: "agentMetrics",
         },
       ],
-    });
+    });;
+
+    if (agent) {
+      console.log("Agent retrieved:", agent);
+      res.status(200).json(agent);
+    } else {
+      console.log("Agent not found:", req.params.id);
+      res.status(400).json({ message: "Agent not found" });
+    }
+  } catch (error) {
+    console.log("Error retrieving agent:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getAgentByIdSingle = async (req, res) => {
+  try {
+    const agent = await Agent.findByPk(req.params.id, {
+      // include: [
+      //   {
+      //     model: Booking,
+      //     as: "bookings",
+      //     include: [
+      //       {
+      //         model: Schedule,
+      //         as: "schedule",
+      //         include: [
+      //           {
+      //             model: Destination,
+      //             as: "FromDestination",
+      //           },
+      //           {
+      //             model: Destination,
+      //             as: "ToDestination",
+      //           },
+      //           {
+      //             model: Boat,
+      //             as: "Boat",
+      //           },
+      //         ],
+      //       },
+      //       {
+      //         model: Passenger,
+      //         as: "passengers",
+      //       },
+      //       {
+      //         model: TransportBooking,
+      //         as: "transportBookings",
+      //         include: [
+      //           {
+      //             model: Transport,
+      //             as: "transport",
+      //           },
+      //         ],
+      //       },
+      //       {
+      //         model: AgentCommission,
+      //         as: "agentCommission",
+      //       },
+      //     ],
+      //   },
+      //   {
+      //     model: AgentMetrics,
+      //     as: "agentMetrics",
+      //   },
+      // ],
+    });;
 
     if (agent) {
       console.log("Agent retrieved:", agent);
