@@ -953,7 +953,7 @@ const checkBookingDateUpdate2 = async (req, res, next) => {
 };
   
   const { Op } = require("sequelize");
-const { validateTransportData } = require('./validateBookingcreation');
+const { validateTransportData } = require('./validateBookingcreation');;
  
   
   const validateRoundTripTicket = async (req, res, next) => {
@@ -965,7 +965,7 @@ const { validateTransportData } = require('./validateBookingcreation');
         // 1️⃣ Validasi ticket_id harus mengandung "GG-RT"
         if (!ticket_id.includes("GG-RT")) {
             console.log(`Invalid ticket ID format. Must contain 'GG-RT'.`);
-            return res.status(400).json({ error: "Invalid ticket ID format. Must contain 'GG-RT'." });
+            return res.status(400).json({ error: "Invalid ticket ID format. Must contain 'GG-RT'." });;
         }
 
         // 2️⃣ Cek apakah ticket ID yang diberikan benar-benar ada di database
@@ -973,7 +973,7 @@ const { validateTransportData } = require('./validateBookingcreation');
 
         if (!mainBooking) {
             console.log(`Ticket ID ${ticket_id} not found in database.`);
-            return res.status(400).json({ error: "Booking not found" });
+            return res.status(400).json({ error: "Booking not found" });;
         }
 
         // 3️⃣ Ambil prefix dari ticket_id (GG-RT-xxxx)
@@ -1089,6 +1089,7 @@ const validatePaymentUpdate = async (req, res, next) => {
             const validTransitions = {
                 'invoiced': ['paid'],
                 "unpaid": ['paid'],
+                "pending":['paid'],
                 'paid': ['refund_50', 'refund_100', 'cancelled'],
                 'refund_50': [], // No further transitions allowed
                 'refund_100': [], // No further transitions allowed
