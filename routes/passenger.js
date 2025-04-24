@@ -18,8 +18,12 @@ router.get('/coun-by-date', authenticate, passengerController.getPassengerCountB
 // READ passengers count by date
 router.get('/seat-number', authenticate,validatePassengerCriteria, passengerController.getPassengersSeatNumber);
 
+// ✅ GET seat number by booking_id
+router.get('/seat-number/by-booking', authenticate, passengerController.getPassengersSeatNumberByBookingId);
+
 // READ passengers count by date
 router.get('/count-by-month', authenticate, passengerController.getPassengerCountByMonth);
+
 router.get('/count-by-schedule', authenticate, passengerController.getPassengerCountBySchedule);
 
 // READ passengers by schedule and subschedule

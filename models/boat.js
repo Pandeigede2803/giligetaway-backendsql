@@ -26,13 +26,23 @@ const Boat = sequelize.define('Boat', {
     updated_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
+    },
+    inside_seats: {
+        type: DataTypes.JSON,
+        allowNull: true
+    },
+    outside_seats: {
+        type: DataTypes.JSON,
+        allowNull: true
+    },
+    rooftop_seats: {
+        type: DataTypes.JSON,
+        allowNull: true
     }
 }, {
     tableName: 'Boats',
     timestamps: false
-}
-
-);
+});
 
 Boat.associate = (models) => {
     Boat.hasMany(models.Schedule, {
