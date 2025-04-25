@@ -33,7 +33,7 @@ exports.getAllTransportBookings = async (req, res) => {
         },
       ],
     });
-    console.log('Fetched transport bookings:', transportBookings);
+    // console.log('Fetched transport bookings:', transportBookings);
     res.status(200).json(transportBookings);
   } catch (error) {
     console.error('Failed to fetch transport bookings:', error);
