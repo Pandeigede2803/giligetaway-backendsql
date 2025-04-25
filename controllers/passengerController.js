@@ -1096,21 +1096,34 @@ const updateBookingPassengers = async (req, res) => {
   const { booking_id } = req.params;
   const passengersToUpdate = req.body.passengers; // array of passenger data
 
+  console.log("Step 1: Received request to update booking passengers.");
+  console.log("Booking ID:", booking_id);
+  console.log("Passengers to update:", passengersToUpdate);
+
   try {
     // 1. Ambil data Booking
+    console.log("Step 2: Fetching booking data.");
     const booking = await Booking.findByPk(booking_id, {
       include: [{ model: Passenger, as: "passengers" }],
     });
 
     if (!booking) {
+      console.log("Step 3: Booking not found.");
       return res.status(404).json({ message: "Booking not found." });
     }
 
+    console.log("Step 3: Booking found:", booking);
     const currentPassengerCount = booking.passengers.length;
     const newPassengerCount = passengersToUpdate.length;
 
     // 2. Validasi: Tidak boleh melebihi total_passengers
+    console.log("Step 4: Validating passenger count.");
     if (currentPassengerCount + newPassengerCount > booking.total_passengers) {
+      console.log(
+        `Validation failed: Cannot add ${newPassengerCount} passengers. Only ${
+          booking.total_passengers - currentPassengerCount
+        } seat(s) left.`
+      );
       return res.status(400).json({
         message: `Cannot add ${newPassengerCount} passengers. Only ${
           booking.total_passengers - currentPassengerCount
@@ -1118,7 +1131,10 @@ const updateBookingPassengers = async (req, res) => {
       });
     }
 
+    console.log("Step 5: Validation passed. Proceeding to add passengers.");
+
     // 3. Tambahkan passenger baru
+    console.log("Step 6: Creating new passengers.");
     const createdPassengers = await Promise.all(
       passengersToUpdate.map((data) =>
         Passenger.create({
@@ -1127,6 +1143,8 @@ const updateBookingPassengers = async (req, res) => {
         })
       )
     );
+
+    console.log("Step 7: Passengers created successfully:", createdPassengers);
 
     return res.status(200).json({
       message: "Passengers added successfully.",

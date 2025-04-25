@@ -1846,7 +1846,7 @@ const getFilteredBookings = async (req, res) => {
       dateFilter = { ticket_id };
     } else if (booking_month) {
       // Jika `booking_month` ada, filter berdasarkan bulan dari `booking_date`
-      console.log("Filtering by booking_month:", booking_month);
+      // console.log("Filtering by booking_month:", booking_month);
       const [year, month] = booking_month.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
         return res
@@ -1909,7 +1909,7 @@ const getFilteredBookings = async (req, res) => {
       };
     } else if (day) {
       // Filter berdasarkan hari tertentu dari created_at
-      console.log("Filtering by day:", day);
+      // console.log("Filtering by day:", day);
       const [year, month, dayValue] = day.split("-");
       if (
         !year ||
