@@ -965,15 +965,26 @@ const getPassengerById = async (req, res) => {
 };
 
 const updatePassenger = async (req, res) => {
+  console.log("Starting updatePassenger function...");
+  console.log("Request Params:", req.params);
+  console.log("Request Body:", req.body);
+
   try {
+    console.log("Fetching passenger with ID:", req.params.id);
     const passenger = await Passenger.findByPk(req.params.id);
+
     if (passenger) {
+      console.log("Passenger found:", passenger);
+      console.log("Updating passenger with data:", req.body);
       await passenger.update(req.body);
+      console.log("Passenger updated successfully:", passenger);
       res.status(200).json(passenger);
     } else {
+      console.log("Passenger not found with ID:", req.params.id);
       res.status(404).json({ error: "Passenger not found" });
     }
   } catch (error) {
+    console.error("Error updating passenger:", error.message);
     res.status(400).json({ error: error.message });
   }
 };

@@ -34,7 +34,7 @@ router.get('/by', authenticate, passengerController.getPassengersByScheduleAndSu
 router.get('/:id', authenticate, passengerController.getPassengerById);
 
 // UPDATE passenger
-router.put('/:id', authenticate, passengerController.updateBookingPassengers);
+router.put('/:id', authenticate, passengerController.updatePassenger);
 
 // DELETE passenger
 router.delete('/:id', authenticate, passengerController.deletePassenger);
