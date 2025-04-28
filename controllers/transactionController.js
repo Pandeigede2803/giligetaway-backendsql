@@ -14,7 +14,7 @@ const {
 } = require("../util/transactionUtils");
 const { Op } = require("sequelize"); // Import Sequelize operators
 
-const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");
+const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");;
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const { transaction_ids } = req.body; // transaction_ids is now an array of transaction IDs
@@ -529,7 +529,9 @@ const updateMultiTransactionStatusHandler = async (req, res) => {
           refund_reason: refund_reason || null,
         }),
         ...(typeof payment_method !== "undefined" && { payment_method }),
-        ...(typeof payment_gateway !== "undefined" && { payment_gateway }),
+        ...(typeof amount !== "undefined" && { 
+          amount: (amount === 0 && payment_method === 'foc') ? 0 : (amount || null) 
+        }),
         ...(typeof amount !== "undefined" && { amount }),
         ...(typeof amount_in_usd !== "undefined" && {
           amount_in_usd: amount_in_usd ? parseFloat(amount_in_usd) : 0,
@@ -1109,17 +1111,19 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
     }
 
     // Prepare the data to update transaction
-    const updateData = {
-      status: status || "pending",
-      failure_reason: failure_reason || null,
-      refund_reason: refund_reason || null,
-      payment_method: payment_method || null,
-      payment_gateway: payment_gateway || null,
-      amount: amount || null,
-      amount_in_usd: amount_in_usd || 0,
-      exchange_rate: exchange_rate || 0,
-      currency: currency || null,
-    };;
+  // Prepare the data to update transaction
+const updateData = {
+  status: status || "pending",
+  failure_reason: failure_reason || null,
+  refund_reason: refund_reason || null,
+  payment_method: payment_method || null,
+  payment_gateway: payment_gateway || null,
+  // Allow amount to be 0 when payment_method is 'foc'
+  amount: (payment_method === 'foc' && amount === 0) ? 0 : (amount || null),
+  amount_in_usd: amount_in_usd || 0,
+  exchange_rate: exchange_rate || 0,
+  currency: currency || null,
+};
 
     console.log("Updating transaction details:", updateData);
 

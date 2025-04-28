@@ -22,13 +22,13 @@ const getBoats = async (req, res) => {
                     model: Schedule,
                     as: 'Schedules',
                     attributes: ['id'],
-                    include: [
-                        {
-                            model: Booking,
-                            as: 'Bookings',
-                            attributes: ['id']
-                        }
-                    ]
+                    // include: [
+                    //     {
+                    //         model: Booking,
+                    //         as: 'Bookings',
+                    //         attributes: ['id']
+                    //     }
+                    // ]
                 }
             ]
         });
@@ -36,7 +36,7 @@ const getBoats = async (req, res) => {
         const boatsData = boats.map(boat => {
             const boatData = boat.toJSON();
             boatData.scheduleCount = boat.Schedules.length;
-            boatData.bookingCount = boat.Schedules.reduce((total, schedule) => total + schedule.Bookings.length, 0);
+            // boatData.bookingCount = boat.Schedules.reduce((total, schedule) => total + schedule.Bookings.length, 0);
             boatData.publicCapacity = calculatePublicCapacity(boatData);
             return boatData;
         });

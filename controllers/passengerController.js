@@ -14,7 +14,7 @@ const {
   Agent,
   BookingSeatAvailability,
   Boat,
-} = require("../models");
+} = require("../models");;
 const { Op, fn, col } = require("sequelize"); // Import fn and col from Sequelize
 const { calculatePublicCapacity } = require("../util/getCapacityReduction");
 const { sumTotalPassengers } = require("../util/sumTotalPassengers");
