@@ -14,7 +14,7 @@ const {
 } = require("../util/transactionUtils");
 const { Op } = require("sequelize"); // Import Sequelize operators
 
-const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");;
+const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const { transaction_ids } = req.body; // transaction_ids is now an array of transaction IDs

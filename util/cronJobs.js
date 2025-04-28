@@ -7,7 +7,7 @@ const { Op } = require("sequelize");
 const SeatAvailability = require("../models/SeatAvailability");
 const { sendExpiredBookingEmail
 } = require("../util/sendPaymentEmail");
-const { queueExpiredBookingEmail, DEFAULT_EMAIL_DELAY } = require("../util/bullDelayExpiredEmail"); // Adjust the path as needed
+const { queueExpiredBookingEmail,bulkQueueExpiredBookingEmails, DEFAULT_EMAIL_DELAY } = require("../util/bullDelayExpiredEmail"); // Adjust the path as needed
 const {handleMidtransSettlement,handleMidtransSettlementRoundTrip} = require("../util/handleMidtransSettlement");
 
 
@@ -55,14 +55,14 @@ const checkAndHandleMidtransSettlements = async () => {
       try {
         const { paymentStatus, orderId } = await fetchMidtransPaymentStatus(order_id);
 
-        console.log(`🔎 Order ${orderId} → Status: ${paymentStatus}`);
+        // console.log(`🔎 Order ${orderId} → Status: ${paymentStatus}`);
 
         if (paymentStatus === 'settlement') {
-          console.log(`✅ Settlement detected for ${orderId}`);
+          // console.log(`✅ Settlement detected for ${orderId}`);
 
           // ⛳ Kondisi One Way
           if (booking.ticket_id.startsWith('GG-OW')) {
-            console.log(`🎯 One Way Booking ${booking.ticket_id}`);
+            // console.log(`🎯 One Way Booking ${booking.ticket_id}`);
             await handleMidtransSettlement(orderId, {
               transaction_id: tx.transaction_id,
               gross_amount: tx.amount,
@@ -72,7 +72,7 @@ const checkAndHandleMidtransSettlements = async () => {
 
           // ⛳ Kondisi Round Trip
           else if (booking.ticket_id.startsWith('GG-RT')) {
-            console.log(`🎯 Round Trip Booking ${booking.ticket_id}`);
+            // console.log(`🎯 Round Trip Booking ${booking.ticket_id}`);
             await handleMidtransSettlementRoundTrip(orderId, {
               transaction_id: tx.transaction_id,
               gross_amount: tx.amount,
@@ -101,7 +101,7 @@ const releaseSeats = async (booking, transaction) => {
   const { schedule_id, subschedule_id, total_passengers, booking_date } =
     booking;
 
-  console.log(`✅ MEMULAI RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
+  // console.log(`✅ MEMULAI RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
 
   try {
     if (subschedule_id) {
@@ -123,9 +123,9 @@ const releaseSeats = async (booking, transaction) => {
       );
     }
 
-    console.log(
-      `🎉Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}🎉`
-    );
+    // console.log(
+    //   `🎉Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}🎉`
+    // );
   } catch (error) {
     console.error(
       `Gagal melepaskan kursi untuk Booking ID: ${booking.id}`,
@@ -141,94 +141,287 @@ const releaseSeats = async (booking, transaction) => {
 
 
 
+// const handleExpiredBookings = async () => {
+//   const expiredStatus = process.env.EXPIRED_STATUS;
+//   const emailedContacts = new Set();
+
+//   console.log("✅========Checking for expired bookings...====✅");
+
+//   try {
+//     const expiredBookings = await Booking.findAll({
+//       where: {
+//         payment_status: "pending",
+//         expiration_time: {
+//           [Op.lte]: new Date(),
+//         },
+//       },
+//       include: [
+//         {
+//           model: Transaction,
+//           as: "transactions",
+//         },
+//       ],
+//       order: [['contact_email', 'ASC'], ['created_at', 'ASC']], // penting agar urutan booking per email benar
+//     });
+
+//     for (let i = 0; i < expiredBookings.length; i++) {
+//       const booking = expiredBookings[i];
+//       const contactEmail = booking.contact_email;
+
+//       await releaseSeats(booking);
+//       booking.payment_status = expiredStatus;
+//       booking.abandoned = true;
+//       await booking.save();
+
+//       const transaction = await Transaction.findOne({
+//         where: { booking_id: booking.id, status: "pending" },
+//       });
+
+//       if (transaction) {
+//         transaction.status = "cancelled";
+//         await transaction.save();
+//       }
+
+//       let shouldSendEmail = false;
+
+//       // Cek apakah contactEmail sudah dikirim email di proses ini
+//       if (
+//         contactEmail &&
+//         !emailedContacts.has(contactEmail)
+//       ) {
+//         // Cek apakah ada booking lain dengan email sama dan created_at sangat dekat
+//         const recentBookings = expiredBookings.filter((b) =>
+//           b.contact_email === contactEmail &&
+//           b.id !== booking.id &&
+//           Math.abs(new Date(b.created_at).getTime() - new Date(booking.created_at).getTime()) < 10 * 60 * 1000 // < 10 menit
+//         );
+
+//         // Jika tidak ada booking lain yang sangat dekat waktunya, boleh kirim email
+//         if (recentBookings.length === 0) {
+//           if (booking.ticket_id?.startsWith("GG-OW")) {
+//             shouldSendEmail = true;
+//           } else if (booking.ticket_id?.startsWith("GG-RT")) {
+//             const match = booking.ticket_id.match(/GG-RT-(\d+)/);
+//             if (match && parseInt(match[1]) % 2 === 1) {
+//               shouldSendEmail = true;
+//             }
+//           }
+
+//           if (shouldSendEmail) {
+//             const queued = await queueExpiredBookingEmail(contactEmail, booking);
+//             if (queued) {
+//               emailedContacts.add(contactEmail);
+//               console.log(`📧 Expired email sent to ${contactEmail} (Booking ID: ${booking.id})`);
+//             }
+//           }
+//         } else {
+//           console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
+//         }
+//       } else if (!contactEmail) {
+//         console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
+//       } else {
+//         console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
+//       }
+
+//       console.log(`Booking ${booking.id} (ticket ${booking.ticket_id}) expired and cancelled.`);
+//     }
+//   } catch (error) {
+//     console.error("❌ Error handling expired bookings:", error);
+//   }
+// };
+
 const handleExpiredBookings = async () => {
   const expiredStatus = process.env.EXPIRED_STATUS;
   const emailedContacts = new Set();
 
-  console.log("✅========Checking for expired bookings...====✅");
+  console.log("✅========Checking for expired bookings (batched)...====✅");
+
+  let batchSize = 100; // Ambil 100 booking per batch
+  let offset = 0; // Start dari offset 0
+  let hasMore = true; // Untuk kontrol loop
 
   try {
-    const expiredBookings = await Booking.findAll({
-      where: {
-        payment_status: "pending",
-        expiration_time: {
-          [Op.lte]: new Date(),
+    while (hasMore) {
+      const expiredBookings = await Booking.findAll({
+        where: {
+          payment_status: "pending",
+          expiration_time: { [Op.lte]: new Date() },
         },
-      },
-      include: [
-        {
-          model: Transaction,
-          as: "transactions",
-        },
-      ],
-      order: [['contact_email', 'ASC'], ['created_at', 'ASC']], // penting agar urutan booking per email benar
-    });
-
-    for (let i = 0; i < expiredBookings.length; i++) {
-      const booking = expiredBookings[i];
-      const contactEmail = booking.contact_email;
-
-      await releaseSeats(booking);
-      booking.payment_status = expiredStatus;
-      booking.abandoned = true;
-      await booking.save();
-
-      const transaction = await Transaction.findOne({
-        where: { booking_id: booking.id, status: "pending" },
+        include: [{ model: Transaction, as: "transactions" }],
+        order: [['contact_email', 'ASC'], ['created_at', 'ASC']],
+        limit: batchSize,
+        offset: offset,
       });
 
-      if (transaction) {
-        transaction.status = "cancelled";
-        await transaction.save();
+      console.log(`📦 Fetched ${expiredBookings.length} expired bookings (offset: ${offset})`);
+
+      if (expiredBookings.length === 0) {
+        hasMore = false;
+        break;
       }
 
-      let shouldSendEmail = false;
+      for (const booking of expiredBookings) {
+        const contactEmail = booking.contact_email;
 
-      // Cek apakah contactEmail sudah dikirim email di proses ini
-      if (
-        contactEmail &&
-        !emailedContacts.has(contactEmail)
-      ) {
-        // Cek apakah ada booking lain dengan email sama dan created_at sangat dekat
-        const recentBookings = expiredBookings.filter((b) =>
-          b.contact_email === contactEmail &&
-          b.id !== booking.id &&
-          Math.abs(new Date(b.created_at).getTime() - new Date(booking.created_at).getTime()) < 10 * 60 * 1000 // < 10 menit
-        );
+        await releaseSeats(booking);
+        booking.payment_status = expiredStatus;
+        booking.abandoned = true;
+        await booking.save();
 
-        // Jika tidak ada booking lain yang sangat dekat waktunya, boleh kirim email
-        if (recentBookings.length === 0) {
-          if (booking.ticket_id?.startsWith("GG-OW")) {
-            shouldSendEmail = true;
-          } else if (booking.ticket_id?.startsWith("GG-RT")) {
-            const match = booking.ticket_id.match(/GG-RT-(\d+)/);
-            if (match && parseInt(match[1]) % 2 === 1) {
-              shouldSendEmail = true;
-            }
-          }
+        const transaction = await Transaction.findOne({
+          where: { booking_id: booking.id, status: "pending" },
+        });
 
-          if (shouldSendEmail) {
-            const queued = await queueExpiredBookingEmail(contactEmail, booking);
-            if (queued) {
-              emailedContacts.add(contactEmail);
-              console.log(`📧 Expired email sent to ${contactEmail} (Booking ID: ${booking.id})`);
-            }
-          }
-        } else {
-          console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
+        if (transaction) {
+          transaction.status = "cancelled";
+          await transaction.save();
         }
-      } else if (!contactEmail) {
-        console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
-      } else {
-        console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
+
+        let shouldSendEmail = false;
+
+        if (contactEmail && !emailedContacts.has(contactEmail)) {
+          const recentBookings = expiredBookings.filter((b) =>
+            b.contact_email === contactEmail &&
+            b.id !== booking.id &&
+            Math.abs(new Date(b.created_at).getTime() - new Date(booking.created_at).getTime()) < 10 * 60 * 1000 // < 10 menit
+          );
+
+          if (recentBookings.length === 0) {
+            if (booking.ticket_id?.startsWith("GG-OW")) {
+              shouldSendEmail = true;
+            } else if (booking.ticket_id?.startsWith("GG-RT")) {
+              const match = booking.ticket_id.match(/GG-RT-(\d+)/);
+              if (match && parseInt(match[1]) % 2 === 1) {
+                shouldSendEmail = true;
+              }
+            }
+
+            if (shouldSendEmail) {
+              const queued = await queueExpiredBookingEmail(contactEmail, booking);
+              if (queued) {
+                emailedContacts.add(contactEmail);
+                console.log(`📧 Expired email queued for ${contactEmail} (Booking ID: ${booking.id})`);
+              }
+            }
+          } else {
+            console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
+          }
+        } else if (!contactEmail) {
+          console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
+        } else {
+          console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
+        }
+
+        console.log(`✅ Booking ${booking.id} (ticket ${booking.ticket_id}) expired and cancelled.`);
       }
 
-      console.log(`Booking ${booking.id} (ticket ${booking.ticket_id}) expired and cancelled.`);
+      offset += batchSize; // Naikkan offset untuk ambil batch berikutnya
     }
+
+    console.log("🏁 Finished processing all expired bookings.");
   } catch (error) {
     console.error("❌ Error handling expired bookings:", error);
   }
 };
+
+
+// const handleExpiredBookings = async () => {
+//   const expiredStatus = process.env.EXPIRED_STATUS;
+//   const emailedContacts = new Set();
+
+//   console.log("✅========Checking for expired bookings (batched)...====✅");
+
+//   let batchSize = 100;
+//   let offset = 0;
+//   let hasMore = true;
+
+//   try {
+//     while (hasMore) {
+//       const expiredBookings = await Booking.findAll({
+//         where: {
+//           payment_status: "pending",
+//           expiration_time: { [Op.lte]: new Date() },
+//         },
+//         include: [{ model: Transaction, as: "transactions" }],
+//         order: [['contact_email', 'ASC'], ['created_at', 'ASC']],
+//         limit: batchSize,
+//         offset: offset,
+//       });
+
+//       console.log(`📦 Fetched ${expiredBookings.length} expired bookings (offset: ${offset})`);
+
+//       if (expiredBookings.length === 0) {
+//         hasMore = false;
+//         break;
+//       }
+
+//       const emailsToQueue = []; // <<-- Kumpulkan booking yang mau dikirimi email
+
+//       for (const booking of expiredBookings) {
+//         const contactEmail = booking.contact_email;
+
+//         await releaseSeats(booking);
+//         booking.payment_status = expiredStatus;
+//         booking.abandoned = true;
+//         await booking.save();
+
+//         const transaction = await Transaction.findOne({
+//           where: { booking_id: booking.id, status: "pending" },
+//         });
+
+//         if (transaction) {
+//           transaction.status = "cancelled";
+//           await transaction.save();
+//         }
+
+//         let shouldSendEmail = false;
+
+//         if (contactEmail && !emailedContacts.has(contactEmail)) {
+//           const recentBookings = expiredBookings.filter((b) =>
+//             b.contact_email === contactEmail &&
+//             b.id !== booking.id &&
+//             Math.abs(new Date(b.created_at).getTime() - new Date(booking.created_at).getTime()) < 10 * 60 * 1000
+//           );
+
+//           if (recentBookings.length === 0) {
+//             if (booking.ticket_id?.startsWith("GG-OW")) {
+//               shouldSendEmail = true;
+//             } else if (booking.ticket_id?.startsWith("GG-RT")) {
+//               const match = booking.ticket_id.match(/GG-RT-(\d+)/);
+//               if (match && parseInt(match[1]) % 2 === 1) {
+//                 shouldSendEmail = true;
+//               }
+//             }
+
+//             if (shouldSendEmail) {
+//               emailsToQueue.push(booking); // <<-- Tambahkan booking ke array
+//               emailedContacts.add(contactEmail);
+//             }
+//           } else {
+//             console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
+//           }
+//         } else if (!contactEmail) {
+//           console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
+//         } else {
+//           console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
+//         }
+
+//         console.log(`✅ Booking ${booking.id} (ticket ${booking.ticket_id}) expired and cancelled.`);
+//       }
+
+//       // 🔥 Setelah selesai proses semua expiredBooking batch ini, baru sekali bulk add
+//       if (emailsToQueue.length > 0) {
+//         await bulkQueueExpiredBookingEmails(emailsToQueue); // <<-- Bulk Queue disini
+//       }
+
+//       offset += batchSize;
+//     }
+
+//     console.log("🏁 Finished processing all expired bookings.");
+//   } catch (error) {
+//     console.error("❌ Error handling expired bookings:", error);
+//   }
+// };
 
 
 // Ambil frekuensi cron dari variabel environment, dengan default setiap 15 menit

@@ -1658,7 +1658,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
           // available_seats: { [Op.gte]: passengers_total },
         },
       });
-      console.log("🧠seat availability MAIN",seatAvailability)
+      // console.log("🧠seat availability MAIN",seatAvailability)
 
       // Create SeatAvailability if not found
       if (!seatAvailability) {
@@ -1677,10 +1677,10 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       };
 
       // Debugging log for schedules
-      console.log(
-        `Schedule ID: ${schedule.id}, Seat Availability:`,
-        schedule.dataValues.seatAvailability
-      );
+      // console.log(
+      //   `Schedule ID: ${schedule.id}, Seat Availability:`,
+      //   schedule.dataValues.seatAvailability
+      // );
     }
 
     // Check Seat Availability for SubSchedules
@@ -1693,7 +1693,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         
         },
       });
-      console.log("🧠seat availability SUB",seatAvailability)
+      // console.log("🧠seat availability SUB",seatAvailability)
       
 
       // Create SeatAvailability if not found
@@ -1714,10 +1714,10 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       };
 
       // Debugging log for subschedules
-      console.log(
-        `SubSchedule ID: ${subSchedule.id}, Seat Availability:`,
-        subSchedule.dataValues.seatAvailability
-      );
+      // console.log(
+      //   `SubSchedule ID: ${subSchedule.id}, Seat Availability:`,
+      //   subSchedule.dataValues.seatAvailability
+      // );
     }
     const availableSchedules = schedules.filter(schedule => 
       schedule.dataValues.seatAvailability && 
@@ -1726,13 +1726,13 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       schedule.dataValues.seatAvailability.availability === true
     );
 
-    console.log(
-      "🫁Available Schedules Jancuk:",
-      availableSchedules.map((schedule) => ({
-        id: schedule.id,
-        seatAvailability: schedule.dataValues.seatAvailability,
-      }))
-    );
+    // console.log(
+    //   "🫁Available Schedules Jancuk:",
+    //   availableSchedules.map((schedule) => ({
+    //     id: schedule.id,
+    //     seatAvailability: schedule.dataValues.seatAvailability,
+    //   }))
+    // );
     
     // Filter subSchedules dengan available_seats > 0
     const availableSubSchedules = subSchedules.filter(subSchedule => 
@@ -2124,7 +2124,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         //   JSON.stringify(bookings, null, 2)
         // );
 
-        console.log(`Found ${bookings.length} bookings with seat numbers`);
+        // console.log(`Found ${bookings.length} bookings with seat numbers`);
 
         // Proses setiap booking untuk mengekstrak seat number
         bookings.forEach((booking) => {
@@ -2209,7 +2209,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           schedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
         );
 
-        console.log("🫁Available Schedules:", availableSchedules);
+        // console.log("🫁Available Schedules:", availableSchedules);
         
         
         // Filter subSchedules berdasarkan availability dan available_seats
@@ -2218,7 +2218,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           subSchedule.dataValues.seatAvailability.available_seats > 0 &&
           subSchedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
         );
-        console.log("🫁Available Schedules:", availableSubSchedules);
+        // console.log("🫁Available Schedules:", availableSubSchedules);
 
         // Format schedules
         let formattedSchedules = formatSchedules(availableSchedules, selectedDate);
@@ -2311,7 +2311,7 @@ if (!availableSchedules) {
     schedule.dataValues.seatAvailability.availability === 1
   );
 }
-console.log("🫁Available Schedules:", availableSchedules);
+// console.log("🫁Available Schedules:", availableSchedules);
 if (!availableSubSchedules) {
   availableSubSchedules = subSchedules.filter(subSchedule => 
     subSchedule.dataValues.seatAvailability && 
@@ -2377,7 +2377,7 @@ const createScheduleWithTransit = async (req, res) => {
       trip_type,
     } = req.body;
 
-    console.log("Received schedule data:", req.body);
+    // console.log("Received schedule data:", req.body);
 
     // Call the upload middleware to handle image upload
     await uploadImageToImageKit(req, res, async () => {
@@ -2412,7 +2412,7 @@ const createScheduleWithTransit = async (req, res) => {
         { transaction: t }
       );
 
-      console.log("Created schedule:", schedule);
+      // console.log("Created schedule:", schedule);
 
       // Create the transits
       const createdTransits = [];
@@ -2426,7 +2426,7 @@ const createScheduleWithTransit = async (req, res) => {
             journey_time,
           } = transit;
 
-          console.log("Processing transit:", transit);
+          // console.log("Processing transit:", transit);
 
           // Validate destination_id
           const destination = await Destination.findByPk(destination_id, {
@@ -2448,7 +2448,7 @@ const createScheduleWithTransit = async (req, res) => {
             { transaction: t }
           );
 
-          console.log("Created transit:", createdTransit);
+          // console.log("Created transit:", createdTransit);
 
           // Include destination details
           const transitWithDestination = await Transit.findByPk(
@@ -2462,10 +2462,10 @@ const createScheduleWithTransit = async (req, res) => {
             }
           );
 
-          console.log(
-            "Transit with destination details:",
-            transitWithDestination
-          );
+          // console.log(
+          //   "Transit with destination details:",
+          //   transitWithDestination
+          // );
 
           createdTransits.push(transitWithDestination);
         }
@@ -3129,7 +3129,7 @@ const updateSchedule = async (req, res) => {
     const scheduleId = req.params.id;
     const scheduleData = req.body;
 
-    console.log("DATA BODY YNG DITERMIMA`:", scheduleData);
+    // console.log("DATA BODY YNG DITERMIMA`:", scheduleData);
 
     const schedule = await Schedule.findByPk(scheduleId, {
       transaction: t,

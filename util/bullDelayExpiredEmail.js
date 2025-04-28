@@ -56,6 +56,44 @@ const queueExpiredBookingEmail = async (email, booking, delay = DEFAULT_EMAIL_DE
   }
 };
 
+const bulkQueueExpiredBookingEmails = async (bookingList, delay = DEFAULT_EMAIL_DELAY) => {
+  try {
+    const jobs = bookingList.map((booking) => {
+      const email = booking.contact_email;
+      return {
+        name: `expired-email-${booking.id}-${Date.now()}`, // optional: job name
+        data: {
+          email,
+          booking: {
+            id: booking.id,
+            ticket_id: booking.ticket_id,
+            contact_name: booking.contact_name,
+            payment_method: booking.payment_method,
+            currency: booking.currency,
+            amount: booking.amount
+          },
+          queuedAt: new Date().toISOString()
+        },
+        opts: {
+          delay: delay
+        }
+      };
+    });
+
+    if (jobs.length > 0) {
+      await expiredEmailQueue.addBulk(jobs);
+      console.log(`📦 Successfully queued ${jobs.length} expired booking emails in bulk`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to bulk queue expired booking emails:', error);
+    return false;
+  }
+};
+
+
+
 // Process jobs from the queue
 expiredEmailQueue.process(async (job) => {
   const { email, booking } = job.data;
@@ -102,5 +140,6 @@ const startEmailQueueProcessor = () => {
 module.exports = {
   queueExpiredBookingEmail,
   startEmailQueueProcessor,
+  bulkQueueExpiredBookingEmails,
   DEFAULT_EMAIL_DELAY
 };

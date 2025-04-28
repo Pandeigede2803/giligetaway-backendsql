@@ -232,11 +232,11 @@ const validateTransportData = async (req, res, next) => {
 
       const { transport_id, quantity, transport_price } = transportItem;
 
-      if (!transport_id || !quantity || transport_price === undefined) {
-        console.log(`❌ Missing required fields in transport item at index ${index}.`);
+      if (!transport_id || transport_price === undefined) {
+        console.log(`❌ Transport item at index ${index} has invalid quantity (0) or missing required fields.`);
         return res.status(400).json({
           success: false,
-          message: `Transport item at index ${index} is missing required fields.`
+          message: `Transport item at index ${index} has invalid quantity (0) or missing required fields.`
         });
       }
 
