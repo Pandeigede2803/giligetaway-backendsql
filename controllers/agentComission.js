@@ -14,7 +14,7 @@ const {
   TransportBooking,
   AgentCommission,
   Transaction,
-} = require("../models");; // Pastikan jalur impor benar
+} = require("../models"); // Pastikan jalur impor benar
 
 function formatDateDDMMYYYY(dateObj) {
   if (!dateObj) return null;
@@ -399,6 +399,169 @@ const AgentCommissionController = {
       res.status(500).json({ error: "Failed to retrieve commissions" });
     }
   },
+
+  async getCommissionsPagination(req, res) {
+    try {
+      console.log("Received query parameters:", req.query);
+      console.log("START AGENT GET COMMISSION DATA");
+  
+      const {
+        agent_id,
+        year,
+        month,
+        day,
+        from_date,
+        to_date,
+        yearBooking,
+        monthBooking,
+        dayBooking,
+        from_booking_date,
+        to_booking_date,
+        page = 1,
+        limit = 100,
+      } = req.query;
+  
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const offset = (pageNum - 1) * limitNum;
+  
+      // AgentCommission filter
+      const whereConditions = {};
+      if (agent_id) whereConditions.agent_id = parseInt(agent_id, 10);
+  
+      if (from_date && to_date) {
+        whereConditions.created_at = {
+          [Op.gte]: new Date(from_date),
+          [Op.lte]: new Date(to_date),
+        };
+      } else if (day) {
+        const y = parseInt(year, 10);
+        const m = parseInt(month, 10);
+        const d = parseInt(day, 10);
+        whereConditions.created_at = {
+          [Op.gte]: new Date(y, m - 1, d),
+          [Op.lte]: new Date(y, m - 1, d, 23, 59, 59),
+        };
+      } else if (year) {
+        const y = parseInt(year, 10);
+        const m = month ? parseInt(month, 10) : null;
+        const start = m ? new Date(y, m - 1, 1) : new Date(y, 0, 1);
+        const end = m ? new Date(y, m, 0, 23, 59, 59) : new Date(y, 11, 31, 23, 59, 59);
+        whereConditions.created_at = { [Op.gte]: start, [Op.lte]: end };
+      }
+  
+      // Booking filter
+      const bookingWhereConditions = {};
+      if (from_booking_date && to_booking_date) {
+        bookingWhereConditions.booking_date = {
+          [Op.gte]: new Date(from_booking_date),
+          [Op.lte]: new Date(to_booking_date),
+        };
+      } else if (dayBooking) {
+        const yb = parseInt(yearBooking, 10);
+        const mb = parseInt(monthBooking, 10);
+        const db = parseInt(dayBooking, 10);
+        bookingWhereConditions.booking_date = {
+          [Op.gte]: new Date(yb, mb - 1, db),
+          [Op.lte]: new Date(yb, mb - 1, db, 23, 59, 59),
+        };
+      } else if (yearBooking) {
+        const yb = parseInt(yearBooking, 10);
+        const mb = monthBooking ? parseInt(monthBooking, 10) : null;
+        const start = mb ? new Date(yb, mb - 1, 1) : new Date(yb, 0, 1);
+        const end = mb ? new Date(yb, mb, 0, 23, 59, 59) : new Date(yb, 11, 31, 23, 59, 59);
+        bookingWhereConditions.booking_date = { [Op.gte]: start, [Op.lte]: end };
+      }
+  
+      console.log("📝 whereConditions:", whereConditions);
+      console.log("📝 bookingWhereConditions:", bookingWhereConditions);
+  
+      const { count, rows: commissions } = await AgentCommission.findAndCountAll({
+        where: whereConditions,
+        limit: limitNum,
+        offset,
+        distinct: true, // 🔧 fix overcounting
+        include: {
+          model: Booking,
+          as: "Booking",
+          where: bookingWhereConditions,
+          include: [
+            { model: Transaction, as: "transactions" },
+            { model: Agent, as: "Agent" },
+            { model: Passenger, as: "passengers" },
+            {
+              model: Schedule,
+              as: "schedule",
+              attributes: ["id", "boat_id", "availability", "arrival_time", "journey_time", "route_image", "departure_time", "check_in_time", "schedule_type", "days_of_week", "trip_type"],
+              include: [
+                { model: Destination, as: "FromDestination" },
+                { model: Destination, as: "ToDestination" },
+                { model: Boat, as: "Boat" },
+                { model: Transit, include: { model: Destination, as: "Destination" } },
+              ],
+            },
+            {
+              model: SubSchedule,
+              as: "subSchedule",
+              attributes: ["id", "destination_from_schedule_id", "destination_to_schedule_id", "transit_from_id", "transit_to_id", "transit_1", "transit_2", "transit_3", "transit_4"],
+              include: [
+                { model: Destination, as: "DestinationFrom" },
+                { model: Destination, as: "DestinationTo" },
+                { model: Transit, as: "TransitFrom", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+                { model: Transit, as: "TransitTo", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+                { model: Transit, as: "Transit1", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+                { model: Transit, as: "Transit2", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+                { model: Transit, as: "Transit3", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+                { model: Transit, as: "Transit4", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
+              ],
+            },
+            {
+              model: TransportBooking,
+              as: "transportBookings",
+              include: [{ model: Transport, as: "Transport" }],
+            },
+          ],
+        },
+      });
+  
+      // Post-processing
+      const processedCommissions = commissions.map((commission) => {
+        const booking = commission.Booking;
+        let route = "";
+        if (booking?.subSchedule) {
+          route = [
+            booking.subSchedule.DestinationFrom?.name,
+            booking.subSchedule.TransitFrom?.Destination?.name,
+            booking.subSchedule.Transit1?.Destination?.name,
+            booking.subSchedule.Transit2?.Destination?.name,
+            booking.subSchedule.Transit3?.Destination?.name,
+            booking.subSchedule.Transit4?.Destination?.name,
+            booking.subSchedule.TransitTo?.Destination?.name,
+            booking.subSchedule.DestinationTo?.name,
+          ].filter(Boolean).join(" - ");
+        } else if (booking?.schedule) {
+          route = [
+            booking.schedule.FromDestination?.name,
+            booking.schedule.ToDestination?.name,
+          ].filter(Boolean).join(" - ");
+        }
+        return {
+          ...commission.toJSON(),
+          route,
+        };
+      });
+  
+      res.status(200).json({
+        totalData: count,
+        currentPage: pageNum,
+        perPage: limitNum,
+        data: processedCommissions,
+      });
+    } catch (error) {
+      console.error("Error fetching commissions:", error);
+      res.status(500).json({ error: "Failed to retrieve commissions" });
+    }
+  },  
 
 
   

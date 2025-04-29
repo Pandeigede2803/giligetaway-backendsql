@@ -2153,6 +2153,8 @@ const getFilteredBookingsPagination = async (req, res) => {
       contact_name,
     } = req.query;
 
+    console.log("req query",req.query)
+
     // Filter data
     let whereClause = {};
     
@@ -2468,6 +2470,7 @@ const getFilteredBookingsPagination = async (req, res) => {
       totalItems: totalCount,
       totalChunks: Math.ceil(totalCount / chunkSize),
       currentChunk: chunk,
+      itemsInCurrentChunk: enrichedBookings.length, // Add this to be explicit
       chunkSize: chunkSize,
       filters: {
         id,
@@ -2492,6 +2495,94 @@ const getFilteredBookingsPagination = async (req, res) => {
       .json({ error: "An error occurred while fetching bookings." });
   }
 };
+
+
+// const getFilteredBookingsPagination = async (req, res) => {
+//   try {
+//     // Pagination parameters
+//     const page = parseInt(req.query.page) || 1;
+//     const pageSize = parseInt(req.query.pageSize) || 100;
+//     const offset = (page - 1) * pageSize;
+    
+//     // Get filters from query parameters
+//     const { payment_status, booking_date } = req.query;
+    
+//     // Build where clause
+//     let whereClause = {};
+    
+//     // Add payment status filter if provided
+//     if (payment_status) {
+//       whereClause.payment_status = payment_status;
+//     }
+    
+//     // Add booking date filter if provided
+//     if (booking_date) {
+//       const bookingDateObj = new Date(booking_date);
+      
+//       // Create start and end of the day
+//       const startDate = new Date(bookingDateObj.setHours(0, 0, 0, 0));
+//       const endDate = new Date(bookingDateObj.setHours(23, 59, 59, 999));
+      
+//       whereClause.booking_date = {
+//         [Op.between]: [startDate, endDate]
+//       };
+//     }
+    
+//     // Using a single query with subqueries for count
+//     const { count, rows } = await Booking.findAndCountAll({
+//       where: whereClause,
+//       include: [
+//         {
+//           model: Schedule,
+//           as: "schedule",
+//           required: false,
+//           include: [
+//             { model: Destination, as: "FromDestination", required: false },
+//             { model: Destination, as: "ToDestination", required: false }
+//           ]
+//         },
+//         { model: Passenger, as: "passengers", required: false },
+//         { model: Agent, as: "Agent", required: false }
+//       ],
+//       distinct: true, // Important! Ensures accurate count with associations
+//       limit: pageSize,
+//       offset: offset,
+//       order: [['created_at', 'DESC']]
+//     });
+
+//     // Use eager loading to avoid N+1 queries
+//     const processedBookings = rows.map(booking => {
+//       // All data is already loaded, no additional queries needed
+//       return {
+//         ...booking.dataValues,
+//         route: booking.schedule ? 
+//           `${booking.schedule.FromDestination?.name || ''} → ${booking.schedule.ToDestination?.name || ''}` : 
+//           null
+//       };
+//     });
+
+//     // Send response with pagination info
+//     res.status(200).json({
+//       success: true,
+//       data: processedBookings,
+//       pagination: {
+//         totalItems: count,
+//         totalPages: Math.ceil(count / pageSize),
+//         currentPage: page,
+//         pageSize: pageSize,
+//         hasNextPage: page < Math.ceil(count / pageSize),
+//         hasPrevPage: page > 1
+//       }
+//     });
+    
+//   } catch (error) {
+//     console.error("Error retrieving bookings:", error);
+//     res.status(500).json({ 
+//       success: false, 
+//       error: "Failed to fetch bookings data" 
+//     });
+//   }
+// };
 
 const getAbandonedPayments = async (req, res) => {
   try {

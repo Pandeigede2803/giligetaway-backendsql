@@ -20,10 +20,9 @@ const fetchAndValidateSeatAvailability = async (
     total_passengers,
     transaction
 ) => {
-
-
     console.log(`✅ RELEASE MAIN SCHEDULE MULAI: ${schedule_id}`);
     console.log(`🗺️Fetching SeatAvailability for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
+
     const seatAvailability = await SeatAvailability.findOne({
         where: {
             schedule_id,
@@ -37,13 +36,17 @@ const fetchAndValidateSeatAvailability = async (
         throw new Error(`🗺️Seat availability not found for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
     }
 
-    // Validate boat capacity
+    // Log warning if returning seats would exceed capacity, but do not throw
     if (seatAvailability.available_seats + total_passengers > boatCapacity) {
-        throw new Error(`✅Returning seats exceeds boat capacity for SubSchedule ID: ${subschedule_id || 'Main Schedule'}`);
+        console.warn(
+            `⚠️ Returning ${total_passengers} seats will exceed boat capacity (${boatCapacity}) for SubSchedule ID: ${subschedule_id || 'Main Schedule'}. Will cap later in update.`
+        );
+        // No throw — allow continuation
     }
 
     return seatAvailability;
 };
+
 
 const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passengers, transaction) => {
     const releasedSeatIds = []; // Track updated SeatAvailability IDs
@@ -78,11 +81,15 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
         );
 
         // Update seat availability for Main Schedule
-        mainScheduleSeatAvailability.available_seats += total_passengers;
-        await mainScheduleSeatAvailability.save({ transaction });
-        releasedSeatIds.push(mainScheduleSeatAvailability.id);
-
-        console.log(`Successfully returned ${total_passengers} seats for Main Schedule ID: ${schedule_id}.`);
+      // Update seat availability for Main Schedule (safe update)
+mainScheduleSeatAvailability.available_seats = Math.min(
+    mainScheduleSeatAvailability.available_seats + total_passengers,
+    boatCapacity
+  );
+  await mainScheduleSeatAvailability.save({ transaction });
+  releasedSeatIds.push(mainScheduleSeatAvailability.id);
+  
+  console.log(`✅Returned seats for Main Schedule ID: ${schedule_id} (Capped to capacity if exceeded).`);
 
         // Fetch related SubSchedules
         console.log(`Fetching related SubSchedules for Main Schedule ID: ${schedule_id}`);

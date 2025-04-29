@@ -643,7 +643,7 @@ const validateMultipleBookingCreation = async (req, res, next) => {
     if (transports && transports.length > 0) {
       console.log("🚗 Validating transport details...");
       for (const transport of transports) {
-        if (!transport.transport_price || !transport.quantity) {
+        if (!transport.transport_price ) {
           return res.status(400).json({
             error: "Invalid transport details",
             message: "Each transport must have price and quantity",

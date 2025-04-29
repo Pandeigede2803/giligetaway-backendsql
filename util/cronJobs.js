@@ -20,7 +20,7 @@ const {fetchMidtransPaymentStatus} = require("../util/fetchMidtransPaymentStatus
  * @param {Booking} booking Pemesanan yang akan dihapus
  */
 
-const axios = require('axios');
+const axios = require('axios');;
 
 
 const checkAndHandleMidtransSettlements = async () => {
