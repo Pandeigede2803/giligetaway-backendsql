@@ -1235,8 +1235,66 @@ const AgentCommissionController = {
       console.error("Error updating AgentCommission:", error);
       return res.status(500).json({ error: "Failed to update AgentCommission" });
     }
+  },
+
+ 
+
+  async createAgentComission(req, res) {
+    console.log("start to add agent comission")
+    console.log("BODY RECEIVED:", req.body);
+
+    try {
+      const { booking_id, agent_id, amount } = req.body;
+
+      if (!booking_id || isNaN(booking_id)) {
+        return res.status(400).json({ error: "Invalid or missing booking_id in request body" });
+      }
+
+      if (!agent_id || isNaN(agent_id)) {
+        return res.status(400).json({ error: "Invalid or missing agent_id in request body" });
+      }
+
+      if (amount === undefined || isNaN(amount)) {
+        return res.status(400).json({ error: "Invalid or missing amount in request body" });
+      }
+
+      const booking = await Booking.findByPk(booking_id);
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      const agent = await Agent.findByPk(agent_id);
+      if (!agent) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+
+      const existingCommission = await AgentCommission.findOne({
+        where: { booking_id, agent_id },
+      });
+
+      if (existingCommission) {
+        return res.status(409).json({ error: "AgentCommission already exists" });
+      }
+
+      await booking.update({ agent_id });
+
+      const commission = await AgentCommission.create({
+        booking_id,
+        agent_id,
+        amount,
+      });
+
+      return res.status(201).json({ message: "AgentCommission created successfully", data: commission });
+    } catch (error) {
+      console.error("Error creating AgentCommission:", error);
+      return res.status(500).json({ error: "Failed to create AgentCommission" });
+    }
   }
   
 };
+
+// create update agent comission base on booking id that givin and the req body will be agent id and amount
+
+
 
 module.exports = AgentCommissionController;

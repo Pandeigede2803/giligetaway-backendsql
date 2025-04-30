@@ -44,7 +44,7 @@ const fetchAndValidateSeatAvailability = async (
         // No throw — allow continuation
     }
 
-    return seatAvailability;
+    return seatAvailability;;
 };
 
 

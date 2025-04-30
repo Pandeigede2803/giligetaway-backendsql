@@ -20,6 +20,13 @@ router.put(
     agentCommissionsController.updateCommission
   );
 
+// add agent comission
+router.post(
+    "/comissions",
+    authenticate,
+    agentCommissionsController.createAgentComission
+  );
+
 
 module.exports = router;;
 
