@@ -1160,7 +1160,7 @@ if (typeof final_state !== 'object' || final_state === null) {
       if (existingBooking) {
         return res.status(400).json({
           error: "Ticket ID already exists",
-          message: `The ticket ID '${ticket_id}' is already in use. Please provide a unique ticket ID.`,
+          message: `The ticket ID '${ticket_id}' is already in use. Click try again.`,
         });
       }
       console.log("🚀 final_state typeof:", typeof final_state);
@@ -3216,7 +3216,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
         { model: Agent, as: "Agent" },
       ],
       order: [["id", "ASC"]],
-      limit: 5, // Ambil beberapa data untuk memastikan kita menemukan yang cocok dengan contact_name
+      limit: 10, // Ambil beberapa data untuk memastikan kita menemukan yang cocok dengan contact_name
     });
 
     console.log("Bookings found:", bookings.length);
