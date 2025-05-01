@@ -20,7 +20,8 @@ router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesW
 router.get('/search',authenticate, scheduleController.getSchedulesByMultipleParams);
 
 //multiple params
-router.get('/search/v2',authenticate, scheduleController.searchSchedulesAndSubSchedules);
+router.get('/search/v2',authenticate, 
+    scheduleController.searchSchedulesAndSubSchedules);
 // multiple params agent
 router.get('/search/v3',authenticate, scheduleController.searchSchedulesAndSubSchedulesAgent);
 

@@ -411,7 +411,7 @@ const validateBookingCreation = async (req, res, next) => {
       details: error.message,
     });
   }
-};
+};;
 
 
 // const validateRoundTripBookingPost = async (req, res, next) => {

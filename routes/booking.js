@@ -14,6 +14,9 @@ const { validateBookingCreation ,  validateTransportData,validateMultipleBooking
 const bulkBookingController = require('../controllers/bulkBookingController');
 const multer = require('multer');
 const path = require('path');
+const { generateOneWayTicketId } = require('../controllers/bookingController');
+const { generateRoundTripTicketIds } = require('../controllers/bookingController');
+
 
 // Setup multer untuk upload file
 
@@ -57,6 +60,9 @@ router.get('/',authenticate, bookingController.getBookings);
 router.get('/abandoned-payments',authenticate, bookingController.getAbandonedPayments);
 
 router.get('abandoned-payments/:id',authenticate, bookingController.getAbandonedPaymentById);
+
+router.get('/generate-id/oneway', generateOneWayTicketId);
+router.get('/generate-id/roundtrip', generateRoundTripTicketIds);
 
 
 

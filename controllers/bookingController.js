@@ -1724,7 +1724,86 @@ const createBookingWithTransit2 = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+// controllers/generateOneWayTicketId.js
 
+
+const generateOneWayTicketId = async (req, res) => {
+  try {
+    const now = new Date();
+
+    const hours = now.getHours().toString().padStart(2, '0');   // e.g. "14"
+    const minutes = now.getMinutes().toString().padStart(2, '0'); // e.g. "37"
+
+    const timePrefix = `${hours}${minutes}`; // e.g. "1437"
+
+    let counter = 0;
+    let ticketId = '';
+
+    while (true) {
+      const counterStr = counter.toString().padStart(2, '0'); // "00" to "99"
+      const numberPart = `${timePrefix}${counterStr}`; // "143700", "143701", ...
+      ticketId = `GG-OW-${numberPart}`;
+
+      const existing = await Booking.findOne({
+        where: { ticket_id: ticketId }
+      });
+
+      if (!existing) break;
+
+      counter++;
+
+      // Prevent infinite loop
+      if (counter > 99) {
+        return res.status(500).json({ error: 'Too many ticket IDs generated for this minute.' });
+      }
+    }
+
+    return res.json({ ticket_id: ticketId });
+  } catch (error) {
+    console.error('❌ Error generating one-way ticket ID:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+const generateRoundTripTicketIds = async (req, res) => {
+  try {
+    let baseNumber = 1;
+    let ticketIdDeparture = '';
+    let ticketIdReturn = '';
+
+    while (true) {
+      // Ensure baseNumber is always odd
+      if (baseNumber % 2 === 0) baseNumber++;
+
+      const paddedDeparture = baseNumber.toString().padStart(6, '0');
+      const paddedReturn = (baseNumber + 1).toString().padStart(6, '0');
+
+      ticketIdDeparture = `GG-RT-${paddedDeparture}`;
+      ticketIdReturn = `GG-RT-${paddedReturn}`;
+
+      const existing = await Booking.findAll({
+        where: {
+          ticket_id: {
+            [Op.in]: [ticketIdDeparture, ticketIdReturn]
+          }
+        }
+      });
+
+      if (existing.length === 0) break;
+
+      baseNumber += 2;
+    }
+
+    return res.json({
+      ticket_id_departure: ticketIdDeparture,
+      ticket_id_return: ticketIdReturn
+    });
+  } catch (error) {
+    console.error('❌ Error generating round-trip ticket IDs:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
 const getBookings = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
@@ -5152,6 +5231,8 @@ module.exports = {
   sendPaymentReminder,
   getAbandonedPaymentById,
   getFilteredBookingsPagination,
+  generateOneWayTicketId,
+  generateRoundTripTicketIds,
 
   updateBookingNotes,
   createBookingMultiple,

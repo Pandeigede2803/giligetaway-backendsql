@@ -1364,6 +1364,8 @@ const getScheduleFormatted = async (req, res) => {
 };
 
 const createSeatAvailability = async (schedule, subschedule, date) => {
+
+  console.log("start query", schedule, subschedule, date);
   try {
     // Get relevant boat and calculate public capacity
     const relevantBoat = schedule ? schedule.Boat : subschedule.Schedule.Boat;
