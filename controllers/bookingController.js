@@ -1914,6 +1914,7 @@ const getFilteredBookings = async (req, res) => {
       ticket_id,
       id,
     } = req.query;
+    console.log("req query",req.query)
 
     // Filter data
     let dateFilter = {};
@@ -2045,6 +2046,7 @@ const getFilteredBookings = async (req, res) => {
         },
       };
     }
+    console.log("DATE FILTER FUCK",dateFilter)
 
     // Query semua data booking sesuai filter
     const bookings = await Booking.findAll({
@@ -2276,6 +2278,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             new Date(year, month - 1, 1), // Awal bulan
             new Date(year, month, 0, 23, 59, 59), // Akhir bulan
           ],
+          
         };
       } else if (booking_day) {
         const [year, month, dayValue] = booking_day.split("-");
@@ -2329,6 +2332,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             new Date(year, month - 1, 1), // Awal bulan
             new Date(year, month, 0, 23, 59, 59), // Akhir bulan
           ],
+        
         };
       } else if (day) {
         const [year, month, dayValue] = day.split("-");
