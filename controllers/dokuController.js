@@ -278,8 +278,11 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber) {
     const ticketNumber = parseInt(ticketId.split('-')[2], 10);
 
     // Cari dua kemungkinan pasangan: -1 dan +1
-    const pairTicketIdMinus = `GG-RT-${ticketNumber - 1}`;
-    const pairTicketIdPlus = `GG-RT-${ticketNumber + 1}`;
+    // const pairTicketIdMinus = `GG-RT-${ticketNumber - 1}`;
+    // const pairTicketIdPlus = `GG-RT-${ticketNumber + 1}`;
+
+    const pairTicketIdMinus = `GG-RT-${String(ticketNumber - 1).padStart(6, '0')}`;
+const pairTicketIdPlus  = `GG-RT-${String(ticketNumber + 1).padStart(6, '0')}`;
 
     console.log("🔍 Checking round-trip pairs...");
     console.log("  current ticket_id:", ticketId);
