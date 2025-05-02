@@ -1768,20 +1768,36 @@ const generateOneWayTicketId = async (req, res) => {
 
 const generateRoundTripTicketIds = async (req, res) => {
   try {
-    let baseNumber = 1;
+    // Dapatkan timestamp saat ini
+    const now = Date.now();
+    
+    // Fungsi untuk menghasilkan 6 digit acak yang unik
+    const generateRandomSixDigits = () => {
+      // Angka acak antara 100000-999999
+      const randomNum = 100000 + Math.floor(Math.random() * 900000);
+      // Pastikan angka ganjil untuk tiket keberangkatan
+      return (randomNum % 2 === 0) ? randomNum + 1 : randomNum;
+    };
+    
+    let baseNumber = generateRandomSixDigits();
     let ticketIdDeparture = '';
     let ticketIdReturn = '';
-
-    while (true) {
-      // Ensure baseNumber is always odd
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      
+      // Pastikan baseNumber selalu ganjil
       if (baseNumber % 2 === 0) baseNumber++;
-
-      const paddedDeparture = baseNumber.toString().padStart(6, '0');
-      const paddedReturn = (baseNumber + 1).toString().padStart(6, '0');
-
-      ticketIdDeparture = `GG-RT-${paddedDeparture}`;
-      ticketIdReturn = `GG-RT-${paddedReturn}`;
-
+      
+      // Buat ticket ID dengan format: GG-RT-XXXXXX
+      ticketIdDeparture = `GG-RT-${baseNumber}`;
+      ticketIdReturn = `GG-RT-${baseNumber + 1}`;
+      
+      console.log(`🔄 Mencoba pasangan ID ke-${attempts}: ${ticketIdDeparture} dan ${ticketIdReturn}`);
+      
+      // Cek apakah ID sudah ada di database
       const existing = await Booking.findAll({
         where: {
           ticket_id: {
@@ -1789,21 +1805,41 @@ const generateRoundTripTicketIds = async (req, res) => {
           }
         }
       });
-
-      if (existing.length === 0) break;
-
-      baseNumber += 2;
+      
+      // Jika tidak ada yang sama, keluar dari loop
+      if (existing.length === 0) {
+        console.log(`✅ Menemukan pasangan ID yang tersedia: ${ticketIdDeparture} dan ${ticketIdReturn}`);
+        break;
+      }
+      
+      console.log(`⚠️ ID sudah digunakan, mencoba pasangan berikutnya...`);
+      
+      // Jika terjadi konflik, buat nomor acak baru sepenuhnya
+      baseNumber = generateRandomSixDigits();
     }
-
+    
+    // Jika mencapai batas percobaan, beri tahu pengguna
+    if (attempts >= maxAttempts) {
+      return res.status(500).json({
+        error: 'Could not generate unique ticket IDs',
+        message: 'Reached maximum attempts'
+      });
+    }
+    
     return res.json({
       ticket_id_departure: ticketIdDeparture,
-      ticket_id_return: ticketIdReturn
+      ticket_id_return: ticketIdReturn,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('❌ Error generating round-trip ticket IDs:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
   }
 };
+
 const getBookings = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
