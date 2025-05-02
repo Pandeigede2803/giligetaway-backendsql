@@ -1087,13 +1087,14 @@ const validatePaymentUpdate = async (req, res, next) => {
 
             // Define valid status transitions
             const validTransitions = {
-                'invoiced': ['paid'],
-                "unpaid": ['paid'],
-                "pending":['paid'],
-                'paid': ['refund_50', 'refund_100', 'cancelled'],
+                'invoiced': ['paid', 'abandoned'],
+                'unpaid': ['paid', 'abandoned'],
+                'pending': ['paid', 'abandoned'],
+                'paid': ['refund_50', 'refund_100', 'cancelled', 'abandoned'],
                 'refund_50': [], // No further transitions allowed
                 'refund_100': [], // No further transitions allowed
-                'cancelled': []   // No further transitions allowed
+                'cancelled': [],  // No further transitions allowed
+                'abandoned': []   // No further transitions allowed
             };
 
             // Check if current status exists in valid transitions
