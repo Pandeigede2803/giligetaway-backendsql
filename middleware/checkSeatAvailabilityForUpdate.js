@@ -1069,7 +1069,7 @@ const validatePaymentUpdate = async (req, res, next) => {
 
         // Validate payment method if provided
         if (payment_method) {
-            const validPaymentMethods = ['credit_card','invoiced', 'bank_transfer', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card", 'cash_gili_trawangan', 'cash_gili_gede', 'credit_card_doku_edc','midtrans',"CREDIT_CARD","CASH","CREDIT_CARD_DOKU_EDC","PREPAID_CARD","PREPAID_DOKU","CASH_BALI","CASH_GILI_TRAWANGAN","CASH_GILI_GEDDE"];
+            const validPaymentMethods = ['credit_card','invoiced', 'bank_transfer','doku', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card", 'cash_gili_trawangan', 'cash_gili_gede', 'credit_card_doku_edc','midtrans',"CREDIT_CARD","CASH","CREDIT_CARD_DOKU_EDC","PREPAID_CARD","PREPAID_DOKU","CASH_BALI","CASH_GILI_TRAWANGAN","CASH_GILI_GEDDE"];
             if (!validPaymentMethods.includes(payment_method)) {
                 console.log('❌ Invalid payment method:', payment_method);
                 return res.status(400).json({
@@ -1094,7 +1094,7 @@ const validatePaymentUpdate = async (req, res, next) => {
                 'refund_50': [], // No further transitions allowed
                 'refund_100': [], // No further transitions allowed
                 'cancelled': [],  // No further transitions allowed
-                'abandoned': []   // No further transitions allowed
+                'abandoned': ['paid']   // Allow transition from abandoned to paid
             };
 
             // Check if current status exists in valid transitions

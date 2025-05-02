@@ -276,81 +276,174 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber) {
   try {
     const ticketId = currentBooking.ticket_id;
     const ticketNumber = parseInt(ticketId.split('-')[2], 10);
-
-    // Cari dua kemungkinan pasangan: -1 dan +1
-    // const pairTicketIdMinus = `GG-RT-${ticketNumber - 1}`;
-    // const pairTicketIdPlus = `GG-RT-${ticketNumber + 1}`;
-
+    
+    // Format nomor tiket dengan zero-padding yang konsisten
     const pairTicketIdMinus = `GG-RT-${String(ticketNumber - 1).padStart(6, '0')}`;
-const pairTicketIdPlus  = `GG-RT-${String(ticketNumber + 1).padStart(6, '0')}`;
-
-    console.log("🔍 Checking round-trip pairs...");
-    console.log("  current ticket_id:", ticketId);
-    console.log("  trying pair ticket_ids:", pairTicketIdMinus, "and", pairTicketIdPlus);
-
+    const pairTicketIdPlus = `GG-RT-${String(ticketNumber + 1).padStart(6, '0')}`;
+    
+    console.log("🔍 Memeriksa pasangan round-trip...");
+    console.log("  Tiket saat ini:", ticketId);
+    console.log("  Mencoba pasangan tiket:", pairTicketIdMinus, "dan", pairTicketIdPlus);
+    
+    // Gunakan Sequelize Op.or untuk lebih efisien dan lebih jelas
+    const { Op } = require('sequelize');
+    
     let pairBooking = await Booking.findOne({
-      where: { ticket_id: pairTicketIdMinus },
+      where: { 
+        ticket_id: {
+          [Op.or]: [pairTicketIdMinus, pairTicketIdPlus]
+        }
+      },
       include: [{ model: Transaction, as: 'transactions' }],
     });
-
-    if (!pairBooking) {
-      pairBooking = await Booking.findOne({
-        where: { ticket_id: pairTicketIdPlus },
+    
+    if (pairBooking) {
+      console.log(`✅ Pasangan booking ditemukan: ${pairBooking.ticket_id}`);
+      console.log("Detail booking saat ini:", {
+        id: currentBooking.ticket_id,
+        status: currentBooking.payment_status,
+        transaksi: currentBooking.transactions ? currentBooking.transactions.length : 0
+      });
+      console.log("Detail booking pasangan:", {
+        id: pairBooking.ticket_id,
+        status: pairBooking.payment_status,
+        transaksi: pairBooking.transactions ? pairBooking.transactions.length : 0
+      });
+      
+      // Update booking satu per satu, tidak menggunakan Promise.all
+      try {
+        console.log(`🔄 Memperbarui booking saat ini: ${currentBooking.ticket_id}`);
+        await currentBooking.update({
+          payment_status: 'paid',
+          payment_method: currentBooking.payment_method,
+          expiration_time: null,
+        });
+        console.log(`✅ Booking saat ini berhasil diperbarui: ${currentBooking.ticket_id}`);
+      } catch (error) {
+        console.error(`❌ Gagal memperbarui booking saat ini: ${currentBooking.ticket_id}`, error);
+        throw error; // Hentikan eksekusi jika gagal
+      }
+      
+      try {
+        console.log(`🔄 Memperbarui booking pasangan: ${pairBooking.ticket_id}`);
+        await pairBooking.update({
+          payment_status: 'paid',
+          payment_method: currentBooking.payment_method,
+          expiration_time: null,
+        });
+        console.log(`✅ Booking pasangan berhasil diperbarui: ${pairBooking.ticket_id}`);
+      } catch (error) {
+        console.error(`❌ Gagal memperbarui booking pasangan: ${pairBooking.ticket_id}`, error);
+        throw error; // Hentikan eksekusi jika gagal
+      }
+      
+      // Update transaksi secara individual dengan pengecekan keberadaan
+      if (currentBooking.transactions && currentBooking.transactions.length > 0) {
+        try {
+          console.log(`🔄 Memperbarui transaksi untuk booking saat ini: ${currentBooking.ticket_id}`);
+          await currentBooking.transactions[0].update({
+            status: 'paid',
+            paid_at: new Date(),
+          });
+          console.log(`✅ Transaksi booking saat ini berhasil diperbarui`);
+        } catch (error) {
+          console.error(`❌ Gagal memperbarui transaksi booking saat ini: ${currentBooking.ticket_id}`, error);
+          throw error;
+        }
+      } else {
+        console.warn(`⚠️ Tidak ada transaksi untuk booking saat ini: ${currentBooking.ticket_id}`);
+      }
+      
+      if (pairBooking.transactions && pairBooking.transactions.length > 0) {
+        try {
+          console.log(`🔄 Memperbarui transaksi untuk booking pasangan: ${pairBooking.ticket_id}`);
+          await pairBooking.transactions[0].update({
+            status: 'paid',
+            paid_at: new Date(),
+          });
+          console.log(`✅ Transaksi booking pasangan berhasil diperbarui`);
+        } catch (error) {
+          console.error(`❌ Gagal memperbarui transaksi booking pasangan: ${pairBooking.ticket_id}`, error);
+          throw error;
+        }
+      } else {
+        console.warn(`⚠️ Tidak ada transaksi untuk booking pasangan: ${pairBooking.ticket_id}`);
+      }
+      
+      // Verifikasi hasil pembaruan
+      const updatedCurrent = await Booking.findOne({
+        where: { ticket_id: currentBooking.ticket_id },
         include: [{ model: Transaction, as: 'transactions' }],
       });
-    }
-
-    if (pairBooking) {
-      console.log(`✅ Pair booking found: ${pairBooking.ticket_id}`);
       
-      // Update booking pasangan
-      await pairBooking.update({
-        payment_status: 'paid',
-        payment_method: currentBooking.payment_method,
-        expiration_time: null,
+      const updatedPair = await Booking.findOne({
+        where: { ticket_id: pairBooking.ticket_id },
+        include: [{ model: Transaction, as: 'transactions' }],
       });
-
-      const pairTx = pairBooking.transactions?.[0];
-      if (pairTx) {
-        await pairTx.update({
-          status: 'paid',
-          paid_at: new Date(),
-        });
-      }
-
+      
+      console.log("📊 Hasil akhir pembaruan:");
+      console.log("  Current booking:", {
+        id: updatedCurrent.ticket_id,
+        status: updatedCurrent.payment_status,
+        transaksiStatus: updatedCurrent.transactions && updatedCurrent.transactions.length > 0 
+          ? updatedCurrent.transactions[0].status 
+          : "N/A"
+      });
+      console.log("  Pair booking:", {
+        id: updatedPair.ticket_id,
+        status: updatedPair.payment_status,
+        transaksiStatus: updatedPair.transactions && updatedPair.transactions.length > 0 
+          ? updatedPair.transactions[0].status 
+          : "N/A"
+      });
+      
       // Kirim email dari booking yang ganjil jika keduanya ada
       const currentNumberIsOdd = ticketNumber % 2 === 1;
       let emailFromBooking = currentBooking;
-      let secondBooking = pairBooking;;
-
+      let secondBooking = pairBooking;
+      
       if (pairBooking) {
         const pairNumber = parseInt(pairBooking.ticket_id.split('-')[2], 10);
         const pairIsOdd = pairNumber % 2 === 1;
-
+        
+        console.log("📧 Info pengiriman email:", {
+          currentNumber: ticketNumber,
+          currentIsOdd: currentNumberIsOdd,
+          pairNumber: pairNumber,
+          pairIsOdd: pairIsOdd
+        });
+        
         if (currentNumberIsOdd) {
           emailFromBooking = currentBooking;
           secondBooking = pairBooking;
+          console.log(`  Mengirim email dari booking saat ini: ${emailFromBooking.ticket_id}`);
         } else if (pairIsOdd) {
           emailFromBooking = pairBooking;
           secondBooking = currentBooking;
+          console.log(`  Mengirim email dari booking pasangan: ${emailFromBooking.ticket_id}`);
         }
       }
-
-      // Simply pass the email, bookings, and invoiceNumber to your existing util
-      await sendInvoiceAndTicketEmailRoundTrip(
-        emailFromBooking.contact_email,
-        emailFromBooking,
-        secondBooking,
-        invoiceNumber
-      );
-      console.log(`📧 [RT] Email sent from booking ${emailFromBooking.ticket_id}`);
+      
+      try {
+        // Kirim email
+        await sendInvoiceAndTicketEmailRoundTrip(
+          emailFromBooking.contact_email,
+          emailFromBooking,
+          secondBooking,
+          invoiceNumber
+        );
+        console.log(`📧 [RT] Email berhasil dikirim dari booking ${emailFromBooking.ticket_id}`);
+      } catch (error) {
+        console.error("❌ Gagal mengirim email:", error);
+        throw error;
+      }
     } else {
-      console.warn(`❌ Pair booking not found. Sending single booking email.`);
+      console.warn(`❌ Pasangan booking tidak ditemukan untuk ${currentBooking.ticket_id}. Mengirim email single booking.`);
       // Jika tidak ada pasangan, kirim email untuk single booking
       await sendInvoiceAndTicketEmail(currentBooking.contact_email, currentBooking, invoiceNumber);
     }
   } catch (error) {
-    console.error("Error handling round trip booking:", error.message);
+    console.error("❌ Error menangani round trip booking:", error.message);
     console.error(error.stack);
     throw error;
   }
