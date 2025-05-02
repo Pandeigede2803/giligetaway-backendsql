@@ -3299,7 +3299,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
         { model: Agent, as: "Agent" },
       ],
       order: [["id", "ASC"]],
-      limit: 10, // Ambil beberapa data untuk memastikan kita menemukan yang cocok dengan contact_name
+      // limit: 10, // Ambil beberapa data untuk memastikan kita menemukan yang cocok dengan contact_name
     });
 
     console.log("Bookings found:", bookings.length);
