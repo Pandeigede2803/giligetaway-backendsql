@@ -6,6 +6,8 @@ const authenticate = require('../middleware/authenticate');
 // Get all transport bookings
 router.get('/',authenticate, transportBookingController.getAllTransportBookings);
 
+router.get('/review',authenticate, transportBookingController.getAllTransportBookingsReview);
+
 // Create new transport booking
 router.post('/',authenticate, transportBookingController.addTransportBooking);
 

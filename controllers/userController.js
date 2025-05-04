@@ -109,25 +109,100 @@ const forgotPassword = async (req, res) => {
 };
 
 
+// const loginUser = async (req, res) => {
+//     const { email, password } = req.body;
+//     try {
+//         const user = await User.findOne({ where: { email } });
+//         if (!user || !(await bcrypt.compare(password, user.password))) {
+//             return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+//         console.log('Generating token for user:', user.email);
+//         const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
+//         console.log('Token generated:', token);
+      
+//         res.status(200).json({ 
+//             message: 'Login successful', 
+//             token, 
+//             user: { id: user.id, name: user.name, email: user.email, role: user.role } 
+//         });
+//     } catch (error) {
+//         console.error('Error logging in:', error.message);
+//         res.status(400).json({ message: 'Error logging in', error });
+//     }
+// };
+
+// Global token cache at backend
+const tokenCache = new Map();
+
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
+        // Check if token exists in cache and is still valid
+        const cachedTokenData = tokenCache.get(email);
+        if (cachedTokenData) {
+            // Decode token to check expiry
+            try {
+                const decoded = jwt.verify(cachedTokenData.token, process.env.JWT_SECRET);
+                const currentTime = Math.floor(Date.now() / 1000);
+                
+                // If token is still valid (not expired)
+                if (decoded.exp > currentTime) {
+                    console.log(`Using cached token for: ${email}`);
+                    console.log(`Token will expire in: ${(decoded.exp - currentTime) / 60} minutes`);
+                    
+                    // Verify password first for security
+                    const user = await User.findOne({ where: { email } });
+                    if (!user || !(await bcrypt.compare(password, user.password))) {
+                        return res.status(401).json({ message: 'Invalid email or password' });
+                    }
+                    
+                    return res.status(200).json({ 
+                        message: 'Login successful (cached token)', 
+                        token: cachedTokenData.token, 
+                        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+                        fromCache: true
+                    });
+                } else {
+                    // Token has expired, remove from cache
+                    console.log(`Cached token expired for: ${email}, removing from cache`);
+                    tokenCache.delete(email);
+                }
+            } catch (err) {
+                // Token is invalid or verification error
+                console.log(`Error verifying cached token: ${err.message}`);
+                tokenCache.delete(email);
+            }
+        }
+        
+        // If no token in cache or token expired, perform normal login
         const user = await User.findOne({ where: { email } });
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
+        
+        console.log('Generating new token for user:', user.email);
         const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '24h' });
-      
+        console.log('New token generated:', token);
+        
+        // Save new token in cache
+        tokenCache.set(email, {
+            token,
+            createdAt: Date.now()
+        });
+        console.log(`Token successfully stored in cache for: ${email}`);
+        
         res.status(200).json({ 
             message: 'Login successful', 
             token, 
-            user: { id: user.id, name: user.name, email: user.email, role: user.role } 
+            user: { id: user.id, name: user.name, email: user.email, role: user.role },
+            fromCache: false
         });
     } catch (error) {
-        console.error('Error logging in:', error.message);
-        res.status(400).json({ message: 'Error logging in', error });
+        console.error('Error during login process:', error.message);
+        res.status(400).json({ message: 'Login error', error });
     }
 };
+
 
 
 const changePassword = async (req, res) => {

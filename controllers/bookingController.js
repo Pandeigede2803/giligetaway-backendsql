@@ -15,7 +15,7 @@ const {
   Agent,
   BookingSeatAvailability,
   Boat,
-} = require("../models");
+} = require("../models");;
 const { fn, col } = require("sequelize");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require('uuid');
@@ -1537,85 +1537,189 @@ const findRelatedSubSchedulesGet = async (req, res) => {
 
 const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findByPk(req.params.id, {
-      include: [
-        {
-          model: Schedule,
-          as: "schedule",
-          include: [
-            {
-              model: Transit,
-              as: "Transits",
-              include: [
-                {
-                  model: Destination,
-                  as: "Destination",
-                },
-              ],
-            },
-            {
-              model: Destination,
-              as: "FromDestination",
-            },
-            {
-              model: Destination,
-              as: "ToDestination",
-            },
-          ],
-        },
-        {
-          model: SeatAvailability,
-          as: "SeatAvailabilities",
-          // include: [
-          //     {
-          //         model: BookingSeatAvailability,
-          //         as: 'bookingSeatAvailability'
-          //     }
-          // ]
-        },
-        // {
-        //     model: BookingSeatAvailability,
-        //     as: 'bookingSeatAvailability'
-
-        // },
-        {
-          model: Passenger,
-          as: "passengers",
-        },
-        {
-          model: TransportBooking,
-          as: "transportBookings",
-          include: [
-            {
-              model: Transport,
-              as: "transport",
-            },
-          ],
-        },
-        {
-          model: Agent,
-          as: "Agent",
-          // include: [
-          //     {
-          //         model: AgentMetrics,
-          //         as: 'agentMetrics'
-          //     }
-          // ]
-        },
-      ],
-    });
-    if (booking) {
-      console.log("Booking retrieved:", booking);
-      res.status(200).json(booking);
-    } else {
-      console.log("Booking not found:", req.params.id);
-      res.status(404).json({ error: "Booking not found" });
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: "Booking ID is required" });
     }
+    
+    // Include clause dengan detail lengkap yang dibutuhkan
+    const includeClause = [
+      {
+        model: Schedule,
+        as: "schedule",
+        attributes: [
+          "id", "boat_id", "availability", "arrival_time", "journey_time",
+          "route_image", "departure_time", "check_in_time", "schedule_type",
+          "days_of_week", "trip_type",
+        ],
+        include: [
+          {
+            model: Transit,
+            as: "Transits",
+            attributes: ["id"],
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+          { model: Destination, as: "FromDestination", attributes: ["name"] },
+          { model: Destination, as: "ToDestination", attributes: ["name"] },
+        ],
+      },
+      { 
+        model: AgentCommission, 
+        as: "agentCommission",
+        attributes: ["id", "agent_id", "amount"]
+      },
+      {
+        model: SubSchedule,
+        as: "subSchedule",
+        attributes: [
+          "id",
+          "destination_from_schedule_id",
+          "destination_to_schedule_id",
+          "transit_from_id",
+          "transit_to_id",
+          "transit_1",
+          "transit_2",
+          "transit_3",
+          "transit_4",
+        ],
+        include: [
+          { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+          { model: Destination, as: "DestinationTo", attributes: ["name"] },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit1",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit2",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit3",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit4",
+            attributes: ["id", "departure_time", "arrival_time"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+        ],
+      },
+      {
+        model: SeatAvailability,
+        as: "SeatAvailabilities",
+        attributes: ["id"],
+        through: {
+          model: BookingSeatAvailability,
+          attributes: ["id"],
+        },
+      },
+      { 
+        model: Passenger, 
+        as: "passengers",
+  
+      },
+      {
+        model: TransportBooking,
+        as: "transportBookings",
+        include: [{ 
+          model: Transport, 
+          as: "transport",
+          attributes: [
+            "id", "pickup_area", "duration", "cost", 
+            "interval_time", "description"
+          ]
+        }],
+      },
+      { 
+        model: Agent, 
+        as: "Agent",
+     
+      },
+      {
+        model: Transaction,
+        as: "transactions",
+        attributes: ["id", "transaction_id"]
+      }
+    ];
+
+    // Fetch booking by ID
+    const booking = await Booking.findByPk(id, {
+      include: includeClause
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // Process additional data for response
+    const schedule = booking.schedule || null;
+    const subSchedule = booking.subSchedule || null;
+
+    // Calculate times
+    const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+
+    // Build route
+    const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+
+    // Prepare response
+    const enrichedBooking = {
+      ...booking.dataValues,
+      route,
+      departure_time: times.departure_time,
+      arrival_time: times.arrival_time
+    };
+
+    res.status(200).json({
+      booking: enrichedBooking
+    });
   } catch (error) {
-    console.log("Error retrieving booking:", error.message);
-    res.status(400).json({ error: error.message });
+    console.error("Error retrieving booking details:", error);
+    res.status(500).json({ 
+      error: "An error occurred while fetching the booking details.",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
+
+
 const createBookingWithTransit2 = async (req, res) => {
   const {
     schedule_id,
@@ -1843,6 +1947,8 @@ const generateRoundTripTicketIds = async (req, res) => {
 const getBookings = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
+      limit: 10,
+      order: [['created_at', 'DESC']],
       include: [
         {
           model: Schedule,
@@ -1913,7 +2019,6 @@ const getBookings = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 
 
   // Helper to build filters object
@@ -2248,7 +2353,7 @@ const getFilteredBookingsPagination = async (req, res) => {
   try {
     // Get chunk pagination parameters
     const chunk = parseInt(req.query.chunk) || 1;
-    const chunkSize = parseInt(req.query.chunkSize) || 100; // 100 records per chunk
+    const chunkSize = parseInt(req.query.chunkSize) || 50; // 100 records per chunk
     const offset = (chunk - 1) * chunkSize;
     
     // Ambil query parameter
@@ -2413,9 +2518,7 @@ const getFilteredBookingsPagination = async (req, res) => {
         model: Schedule,
         as: "schedule",
         attributes: [
-          "id", "boat_id", "availability", "arrival_time", "journey_time",
-          "route_image", "departure_time", "check_in_time", "schedule_type",
-          "days_of_week", "trip_type",
+          "id","boat_id"
         ],
         include: [
           {
@@ -2430,24 +2533,19 @@ const getFilteredBookingsPagination = async (req, res) => {
               },
             ],
           },
-          { model: Destination, as: "FromDestination" },
-          { model: Destination, as: "ToDestination" },
+          { model: Destination, as: "FromDestination", attributes: ["name"] },
+          { model: Destination, as: "ToDestination", attributes: ["name"] },
         ],
       },
-      { model: AgentCommission, as: "agentCommission" },
+      { model: AgentCommission, as: "agentCommission",
+    attributes: ["id", "agent_id", "amount"]
+
+       },
       {
         model: SubSchedule,
         as: "subSchedule",
         attributes: [
-          "id",
-          "destination_from_schedule_id",
-          "destination_to_schedule_id",
-          "transit_from_id",
-          "transit_to_id",
-          "transit_1",
-          "transit_2",
-          "transit_3",
-          "transit_4",
+          
         ],
         include: [
           { model: Destination, as: "DestinationFrom", attributes: ["name"] },
@@ -2455,7 +2553,7 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "TransitFrom",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
@@ -2463,7 +2561,7 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "TransitTo",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
@@ -2471,7 +2569,7 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "Transit1",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
@@ -2479,7 +2577,7 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "Transit2",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
@@ -2487,7 +2585,7 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "Transit3",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
@@ -2495,29 +2593,66 @@ const getFilteredBookingsPagination = async (req, res) => {
           {
             model: Transit,
             as: "Transit4",
-            attributes: ["id", "departure_time", "arrival_time"],
+            attributes: ["id"],
             include: [
               { model: Destination, as: "Destination", attributes: ["name"] },
             ],
           },
         ],
       },
-      {
-        model: SeatAvailability,
-        as: "SeatAvailabilities",
-        attributes: ["id"],
-        through: {
-          model: BookingSeatAvailability,
-          attributes: ["id"],
-        },
-      },
-      { model: Passenger, as: "passengers" },
+      // {
+      //   model: SeatAvailability,
+      //   as: "SeatAvailabilities",
+      //   attributes: ["id"],
+      //   through: {
+      //     model: BookingSeatAvailability,
+      //     attributes: ["id"],
+      //   },
+      // },
+      // { model: Passenger, as: "passengers" },
       {
         model: TransportBooking,
         as: "transportBookings",
-        include: [{ model: Transport, as: "transport" }],
+        include: [{ model: Transport, as: "transport" ,
+          attributes: [
+            "id",
+            "pickup_area",
+           
+   
+            "duration",
+            "cost",
+            "interval_time",
+            "description",
+       
+          ],
+
+        }],
+
+      //   "transport": {
+      //     "id": 85,
+      //     "pickup_area": "Kuta",
+      //     "pickup_time": "00:00:00",
+      //     "duration": 30,
+      //     "check_in_time": null,
+      //     "pickup_time_2": null,
+      //     "check_in_time_2": null,
+      //     "pickup_time_3": null,
+      //     "check_in_time_3": null,
+      //     "pickup_time_4": null,
+      //     "check_in_time_4": null,
+      //     "cost": "0.00",
+      //     "interval_time": 30,
+      //     "description": "FREE Sharing",
+      //     "created_at": "2025-04-10T03:01:29.000Z",
+      //     "updated_at": "2025-04-10T03:15:15.000Z",
+      //     "availability": true
+      // }
       },
       { model: Agent, as: "Agent" },
+      {model:Transaction,as:"transactions",
+        attributes:["id","transaction_id"]
+
+      }
     ];
     
     // Add boat filter if provided
@@ -2554,6 +2689,36 @@ const getFilteredBookingsPagination = async (req, res) => {
 
     // Then get the actual paginated data
     const bookings = await Booking.findAll({
+      attributes:[
+        'id',
+        'contact_name',
+        'contact_phone',
+        'contact_passport_id',
+        'contact_nationality',
+        'contact_email',
+        'schedule_id',
+        'subschedule_id',
+        'agent_id',
+        'payment_method',
+        'gross_total',
+        'currency',
+        'gross_total_in_usd',
+        'exchange_rate',
+        'ticket_total',
+        'total_passengers',
+        'adult_passengers',
+        'child_passengers',
+        'infant_passengers',
+        'payment_status',
+        'booking_source',
+        'booking_date',
+        'expiration_time',
+        'ticket_id',
+        'bank_fee',
+        'abandoned',
+        'created_at',
+        'note'
+      ],
       where: whereClause,
       include: includeClause,
       limit: chunkSize,
@@ -2567,7 +2732,7 @@ const getFilteredBookingsPagination = async (req, res) => {
       const subSchedule = booking.subSchedule || null;
 
       // Tentukan departure_time dan arrival_time menggunakan fungsi
-      const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+      // const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
       // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
       const route = schedule
@@ -2578,8 +2743,8 @@ const getFilteredBookingsPagination = async (req, res) => {
       return {
         ...booking.dataValues,
         route,
-        departure_time: times.departure_time,
-        arrival_time: times.arrival_time,
+        // departure_time: times.departure_time,
+        // arrival_time: times.arrival_time,
       };
     });
 
@@ -2703,9 +2868,10 @@ const getFilteredBookingsPagination = async (req, res) => {
 //   }
 // };
 
+
 const getAbandonedPayments = async (req, res) => {
   try {
-    // Ambil query parameter untuk filtering tambahan
+    // Get query parameters for additional filtering
     const {
       monthly,
       fromDate,
@@ -2717,28 +2883,43 @@ const getAbandonedPayments = async (req, res) => {
       booking_day,
       ticket_id,
       id,
+      // Pagination parameters
+      page = 1,
+      limit = 10
     } = req.query;
 
-    // Base filter untuk abandoned payments
-    // Memodifikasi filter utama untuk menyertakan payment_status: 'abandoned' ATAU (payment_status: 'pending' dan abandoned: true)
+    // Calculate offset for pagination
+    const offset = (page - 1) * limit;
+
+    // Base filter for abandoned payments
+    // Modified to include payment_status: 'abandoned' OR (abandoned: true) with any payment_status
     let paymentFilter = {
       [Op.or]: [
-        { payment_status: 'abandoned' }, // Filter untuk status abandoned
-        { abandoned: true }  
+        { payment_status: 'abandoned' }, // Filter for abandoned status
+        { 
+          [Op.and]: [
+            { abandoned: true },
+            { 
+              payment_status: { 
+                [Op.in]: ['pending', 'cancelled', 'paid'] 
+              } 
+            }
+          ]
+        }
       ]
     };
 
-    // Filter tambahan berdasarkan tanggal
+    // Additional date filter
     let dateFilter = {};
     
-    // Prioritaskan filter berdasarkan `id` jika tersedia
+    // Prioritize filter based on `id` if available
     if (id) {
-      dateFilter = { id }; // Filter berdasarkan `id`
+      dateFilter = { id }; // Filter by `id`
     } else if (ticket_id) {
-      // Jika `ticket_id` ada, abaikan filter lainnya
+      // If `ticket_id` exists, ignore other filters
       dateFilter = { ticket_id };
     } else if (booking_month) {
-      // Filter berdasarkan bulan dari `booking_date`
+      // Filter by month from `booking_date`
       const [year, month] = booking_month.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
         return res
@@ -2749,13 +2930,13 @@ const getAbandonedPayments = async (req, res) => {
       dateFilter = {
         booking_date: {
           [Op.between]: [
-            new Date(year, month - 1, 1), // Awal bulan
-            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+            new Date(year, month - 1, 1), // Start of month
+            new Date(year, month, 0, 23, 59, 59), // End of month
           ],
         },
       };
     } else if (booking_day) {
-      // Filter berdasarkan hari tertentu dari booking_date
+      // Filter by specific day from booking_date
       const [year, month, day] = booking_day.split("-");
       if (
         !year ||
@@ -2775,13 +2956,13 @@ const getAbandonedPayments = async (req, res) => {
       dateFilter = {
         booking_date: {
           [Op.between]: [
-            new Date(year, month - 1, day), // Awal hari
-            new Date(year, month - 1, day, 23, 59, 59), // Akhir hari
+            new Date(year, month - 1, day), // Start of day
+            new Date(year, month - 1, day, 23, 59, 59), // End of day
           ],
         },
       };
     } else if (monthly) {
-      // Filter berdasarkan bulan dari `created_at`
+      // Filter by month from `created_at`
       const [year, month] = monthly.split("-");
       if (!year || !month || isNaN(year) || isNaN(month)) {
         return res
@@ -2792,13 +2973,13 @@ const getAbandonedPayments = async (req, res) => {
       dateFilter = {
         created_at: {
           [Op.between]: [
-            new Date(year, month - 1, 1), // Awal bulan
-            new Date(year, month, 0, 23, 59, 59), // Akhir bulan
+            new Date(year, month - 1, 1), // Start of month
+            new Date(year, month, 0, 23, 59, 59), // End of month
           ],
         },
       };
     } else if (day) {
-      // Filter berdasarkan hari dari created_at
+      // Filter by day from created_at
       const [year, month, dayValue] = day.split("-");
       if (
         !year ||
@@ -2816,13 +2997,13 @@ const getAbandonedPayments = async (req, res) => {
       dateFilter = {
         created_at: {
           [Op.between]: [
-            new Date(year, month - 1, dayValue), // Awal hari
-            new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
+            new Date(year, month - 1, dayValue), // Start of day
+            new Date(year, month - 1, dayValue, 23, 59, 59), // End of day
           ],
         },
       };
     } else if (fromDate && toDate) {
-      // Filter range created_at
+      // Filter created_at range
       const fromDateObj = new Date(fromDate);
       const toDateObj = new Date(toDate);
 
@@ -2838,7 +3019,7 @@ const getAbandonedPayments = async (req, res) => {
         },
       };
     } else if (fromBookingDate && toBookingDate) {
-      // Filter range booking_date
+      // Filter booking_date range
       const fromDateObj = new Date(fromBookingDate);
       const toDateObj = new Date(toBookingDate);
 
@@ -2855,15 +3036,53 @@ const getAbandonedPayments = async (req, res) => {
       };
     }
 
-    // Gabungkan filter payment status dengan filter tanggal
+    // Combine payment status filter with date filter
     const combinedFilter = {
       ...paymentFilter,
       ...dateFilter
     };
 
-    // Query abandoned bookings sesuai filter
+    // Get total count without fetching all records
+    const totalCount = await Booking.count({
+      where: combinedFilter
+    });
+
+    // Query for calculating gross total
+   // Query for calculating gross total
+const grossTotalResult = await Booking.findOne({
+  attributes: [
+    [sequelize.fn('SUM', sequelize.col('gross_total')), 'total']
+  ],
+  where: combinedFilter
+});
+
+// Get the gross total or default to 0 if null
+const grossTotal = grossTotalResult.dataValues.total || 0;
+    
+
+
+    // Query specifically for different payment statuses with abandoned:true
+    const cancelledAbandonedCount = await Booking.count({
+      where: {
+        ...dateFilter,
+        abandoned: true,
+        payment_status: 'cancelled'
+      }
+    });
+    
+    const paidAbandonedCount = await Booking.count({
+      where: {
+        ...dateFilter,
+        abandoned: true,
+        payment_status: 'paid'
+      }
+    });
+
+    // Query abandoned bookings with pagination
     const abandonedBookings = await Booking.findAll({
       where: combinedFilter,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
       include: [
         {
           model: Schedule,
@@ -2983,23 +3202,23 @@ const getAbandonedPayments = async (req, res) => {
         },
         { model: Agent, as: "Agent" },
       ],
-      order: [['created_at', 'DESC']], // Sorting abandoned bookings by creation date, newest first
+      order: [['created_at', 'DESC']], // Sort abandoned bookings by creation date, newest first
     });
 
-    // Tambahkan route ke masing-masing booking
+    // Add route to each booking
     const enrichedBookings = abandonedBookings.map((booking) => {
       const schedule = booking.schedule || null;
       const subSchedule = booking.subSchedule || null;
 
-      // Tentukan departure_time dan arrival_time menggunakan fungsi
+      // Calculate departure_time and arrival_time using function
       const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
-      // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
+      // Use `buildRouteFromSchedule` function to build route
       const route = schedule
         ? buildRouteFromSchedule(schedule, subSchedule)
         : null;
 
-      // Tambahkan route ke hasil booking
+      // Add route to booking result
       return {
         ...booking.dataValues,
         route,
@@ -3008,12 +3227,22 @@ const getAbandonedPayments = async (req, res) => {
       };
     });
 
-    // Respons data
+    // Response data with pagination info
     res.status(200).json({
       abandonedBookings: enrichedBookings,
-      totalItems: enrichedBookings.length,
-      id, // Jika tersedia, kirim kembali ke frontend
-      ticket_id, // Jika tersedia, kirim kembali ke frontend
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / limit),
+        limit: parseInt(limit),
+        totalItems: totalCount
+      },
+      statistics: {
+        grossTotal,
+        cancelledAbandonedCount,
+        paidAbandonedCount
+      },
+      id, // If available, send back to frontend
+      ticket_id, // If available, send back to frontend
     });
   } catch (error) {
     console.error("Error retrieving abandoned payments:", error);
@@ -3671,22 +3900,27 @@ const enhanceBookingWithAvailability = async (booking) => {
 // };
 
 const updateBookingNotes = async (req, res) => {
+  console.log("start to updated note");
   try {
     const { id } = req.params;
     const { note } = req.body;
     const booking = await Booking.findByPk(id);
     if (!booking) {
+      console.error(`Booking with ID ${id} not found`);
       return res.status(404).json({ error: "Booking not found" });
     }
     await booking.update({ note });
-    return res
-      .status(200)
-      .json({ message: "Booking notes updated successfully" });
+    console.log(`Booking notes updated successfully for booking ID: ${id}`);
+    return res.status(200).json({
+      message: "Booking notes updated successfully",
+      note: booking.note,
+    });
   } catch (error) {
     console.error("Error updating booking notes:", error);
     return res.status(500).json({ error: "Failed to update booking notes" });
   }
 };
+
 
 const createBooking = async (req, res) => {
   try {

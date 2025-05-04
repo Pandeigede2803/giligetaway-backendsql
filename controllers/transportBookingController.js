@@ -15,21 +15,62 @@ exports.getAllTransportBookings = async (req, res) => {
         },
         {
           model: Booking,
-          attributes: ['id', 'booking_source', 'booking_date', 'created_at', 'updated_at','payment_status'],
+          attributes: ['id','ticket_id', 'booking_source','contact_email','contact_phone','contact_name' ,'booking_date', 'created_at', 'updated_at','payment_status'],
           // where: {
           //   payment_status: {
           //     [Op.in]: ['paid', 'invoiced']
           //   }
           // },
-          attributes: [
-            'id', 'contact_name', 'contact_phone', 'contact_passport_id', 'contact_nationality', 'contact_email', 'schedule_id', 'agent_id', 'payment_method', 'gross_total', 'total_passengers', 'adult_passengers', 'child_passengers', 'infant_passengers', 'payment_status', 'booking_source', 'booking_date', 'ticket_id', 'created_at', 'updated_at'
-          ],
+          // attributes: [
+          //   'id', 'contact_name', 'contact_phone', 'contact_passport_id', 'contact_nationality', 'contact_email', 'schedule_id', 'agent_id', 'payment_method', 'gross_total', 'total_passengers', 'adult_passengers', 'child_passengers', 'infant_passengers', 'payment_status', 'booking_source', 'booking_date', 'ticket_id', 'created_at', 'updated_at'
+          // ],
           include: [
             {
             model: Passenger,
             as: 'passengers',
           }
           ]
+        },
+      ],
+    });
+    // console.log('Fetched transport bookings:', transportBookings);
+    res.status(200).json(transportBookings);
+  } catch (error) {
+    console.error('Failed to fetch transport bookings:', error);
+    res.status(500).json({ message: 'Failed to fetch transport bookings', error });
+  }
+};
+
+
+exports.getAllTransportBookingsReview = async (req, res) => {
+  try {
+    console.log('Fetching all transport bookings...');
+    const transportBookings = await TransportBooking.findAll({
+      limit: 10,
+      order: [['created_at', 'DESC']],
+      include: [
+        {
+          model: Transport,
+          as: 'Transport', // alias untuk asosiasi
+          attributes: ['id', 'pickup_area', 'pickup_time', 'duration', 'check_in_time', 'pickup_time_2', 'check_in_time_2', 'cost', 'interval_time', 'description'], // pilih atribut yang ingin diambil dari model Transport
+        },
+        {
+          model: Booking,
+          attributes: ['id','ticket_id'],
+          // where: {
+          //   payment_status: {
+          //     [Op.in]: ['paid', 'invoiced']
+          //   }
+          // },
+          // attributes: [
+          //   'id', 'contact_name', 'contact_phone', 'contact_passport_id', 'contact_nationality', 'contact_email', 'schedule_id', 'agent_id', 'payment_method', 'gross_total', 'total_passengers', 'adult_passengers', 'child_passengers', 'infant_passengers', 'payment_status', 'booking_source', 'booking_date', 'ticket_id', 'created_at', 'updated_at'
+          // ],
+          // include: [
+          //   {
+          //   model: Passenger,
+          //   as: 'passengers',
+          // }
+          // ]
         },
       ],
     });;
@@ -70,15 +111,15 @@ const { sequelize } = require('../models'); // Import sequelize instance if not 
 exports.updateTransportBooking = async (req, res) => {
   const { id } = req.params;
   const { booking_id, transport_id, quantity, transport_type, note, payment_method, payment_status, transport_price } = req.body;
-  console.log("start to updated the transportBooking 🫦")
+  // console.log("start to updated the transportBooking 🫦")
 
-  console.log("payment method", payment_method)
-  console.log("payment status", payment_status)
-  console.log("transport_price from body", transport_price)
+  // console.log("payment method", payment_method)
+  // console.log("payment status", payment_status)
+  // console.log("transport_price from body", transport_price)
 
-  console.log("transportBooking")
+  // console.log("transportBooking")
 
-  console.log(`Updating transport booking ID ${id} with data:`, req.body);
+  // console.log(`Updating transport booking ID ${id} with data:`, req.body);
 
   if (!id) {
     return res.status(400).json({ message: 'Transport booking ID is required' });
