@@ -17,7 +17,7 @@ const authenticate = async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid token' });
         }
 
-        console.log('Token successfully used by user:', req.user.email);
+        // console.log('Token successfully used by user:', req.user.email);
         next();
     } catch (error) {
         console.error('Error authenticating token:', error.message);

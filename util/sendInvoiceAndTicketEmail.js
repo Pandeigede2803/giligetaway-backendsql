@@ -37,7 +37,7 @@ const sendInvoiceAndTicketEmail = async (recipientEmail, booking, transactionId)
         },
         timeout: 30000 // 30 seconds timeout
       }
-    );
+    );;
     
     console.log("Email API Response:", emailResponse.data);
     

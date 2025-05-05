@@ -2,6 +2,7 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule, SubSchedule,Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
 const { findRelatedSubSchedules } = require('./handleSubScheduleBooking');
+const { calculatePublicCapacity } = require('./getCapacityReduction');
 
 /**
  * Mengembalikan kursi yang sebelumnya telah dipesan untuk SubSchedule dan SubSchedules terkait,
@@ -394,12 +395,262 @@ const fetchAndValidateSeatAvailability = async (
 //         throw error;
 //     }
 // };
+
+
+// const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
+//     try {
+//         // Tambahkan array untuk melacak semua release
+//         const releasedSeats = [];
+        
+//         console.log(`✅ RELEASE SUB SCHEDULE MULAI: ${subschedule_id}`);
+//         console.log(`✅ Fetching SubSchedule with ID: ${subschedule_id}`);
+//         const subSchedule = await SubSchedule.findByPk(subschedule_id, {
+//             include: [
+//                 {
+//                     model: Transit,
+//                     as: "TransitFrom",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     model: Transit,
+//                     as: "TransitTo",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     model: Transit,
+//                     as: "Transit1",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     model: Transit,
+//                     as: "Transit2",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     model: Transit,
+//                     as: "Transit3",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//                 {
+//                     model: Transit,
+//                     as: "Transit4",
+//                     include: [
+//                         {
+//                             model: Destination,
+//                             as: "Destination",
+//                             attributes: ["id"],
+//                         },
+//                     ],
+//                 },
+//             ],
+//             transaction,
+//         });
+
+//         console.log("subschedule", JSON.stringify(subSchedule, null, 2));
+
+//         // Jika SubSchedule tidak ditemukan, lemparkan error
+//         if (!subSchedule) {
+//             throw new Error('✅ SubSchedule tidak ditemukan');
+//         }
+
+//         // Cari SubSchedule yang terkait menggunakan fungsi findRelatedSubSchedules
+//         console.log(`✅ Fetching related SubSchedules for Schedule ID: ${schedule_id}`);
+//         const relatedSubSchedules = await findRelatedSubSchedules(schedule_id, subSchedule, transaction);
+//         const updatedSubSchedules = new Set(); // Set untuk melacak sub-schedule yang sudah diperbarui
+
+//         // Loop melalui SubSchedule terkait untuk mengembalikan kursi
+//         for (const relatedSubSchedule of relatedSubSchedules) {
+//             if (updatedSubSchedules.has(relatedSubSchedule.id) || relatedSubSchedule.id === subschedule_id) {
+//                 console.log(`✅ Skipping already updated or selected SubSchedule with ID: ${relatedSubSchedule.id} `);
+//                 continue; // Hindari update dua kali atau jika sudah diperbarui
+//             }
+
+//             // Cari SeatAvailability untuk SubSchedule terkait
+//             console.log(`Fetching SeatAvailability for related SubSchedule ID: ${relatedSubSchedule.id}`);
+//             let relatedSeatAvailability = await SeatAvailability.findOne({
+//                 where: {
+//                     schedule_id: schedule_id,
+//                     subschedule_id: relatedSubSchedule.id,
+//                     date: booking_date
+//                 },
+//                 transaction
+//             });
+
+//             console.log("relatedSeatAvailability:", relatedSeatAvailability.id);
+
+//             if (!relatedSeatAvailability) {
+//                 throw new Error(`✅ Seat availability tidak ditemukan untuk SubSchedule ID: ${relatedSubSchedule.id}`);
+//             }
+
+//             // Log available seats sebelum diupdate
+//             console.log(`✅ Current available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${relatedSeatAvailability.id} = ${relatedSeatAvailability.available_seats}`);
+            
+//             // Tambahkan kembali kursi yang telah dipesan
+//             console.log(`✅ Returning ${total_passengers} seats to related SubSchedule ID: ${relatedSubSchedule.id}`);
+//             relatedSeatAvailability.available_seats += total_passengers;
+//             await relatedSeatAvailability.save({ transaction }); // Simpan perubahan ke database
+            
+//             // Log available seats setelah diupdate
+//             console.log(`✅ Updated available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${relatedSeatAvailability.id} = ${relatedSeatAvailability.available_seats}`);
+            
+//             // Tambahkan ke array tracking
+//             releasedSeats.push({
+//                 subschedule_id: relatedSubSchedule.id,
+//                 seat_availability_id: relatedSeatAvailability.id,
+//                 seats_returned: total_passengers,
+//                 available_seats_after: relatedSeatAvailability.available_seats
+//             });
+
+//             // Tambahkan SubSchedule ke Set yang diperbarui
+//             updatedSubSchedules.add(relatedSubSchedule.id);
+//         }
+
+//         // Tangani SubSchedule yang dipilih secara spesifik jika belum diperbarui di loop sebelumnya
+//         if (!updatedSubSchedules.has(subschedule_id)) {
+//             console.log(`✅ Fetching SeatAvailability for selected SubSchedule ID: ${subschedule_id}`);
+//             let selectedSubScheduleSeatAvailability = await SeatAvailability.findOne({
+//                 where: {
+//                     schedule_id: schedule_id,
+//                     subschedule_id: subschedule_id,
+//                     date: booking_date
+//                 },
+//                 transaction
+//             });
+
+//             if (!selectedSubScheduleSeatAvailability) {
+//                 throw new Error('❌ Seat availability tidak ditemukan untuk SubSchedule yang dipilih');
+//             }
+
+//             // Log available seats sebelum diupdate
+//             console.log(`✅ Current available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${selectedSubScheduleSeatAvailability.id} = ${selectedSubScheduleSeatAvailability.available_seats}`);
+            
+//             // Tambahkan kembali kursi yang telah dipesan untuk SubSchedule yang dipilih
+//             console.log(`✅ Returning ${total_passengers} seats to selected SubSchedule ID: ${subschedule_id}`);
+//             selectedSubScheduleSeatAvailability.available_seats += total_passengers;
+//             await selectedSubScheduleSeatAvailability.save({ transaction });
+            
+//             // Log available seats setelah diupdate
+//             console.log(`✅ Updated available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${selectedSubScheduleSeatAvailability.id} = ${selectedSubScheduleSeatAvailability.available_seats}`);
+            
+//             // Tambahkan ke array tracking
+//             releasedSeats.push({
+//                 subschedule_id: subschedule_id,
+//                 seat_availability_id: selectedSubScheduleSeatAvailability.id,
+//                 seats_returned: total_passengers,
+//                 available_seats_after: selectedSubScheduleSeatAvailability.available_seats
+//             });
+
+//             updatedSubSchedules.add(subschedule_id);
+//         }
+
+//         console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk SubSchedule ID: ${subschedule_id}`);
+
+//         // ===================== Tambahkan Logika untuk Main Schedule ===================== //
+
+//         // Cari SeatAvailability untuk Main Schedule (subschedule_id = null)
+//         console.log(`✅ Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
+//         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
+//             where: {
+//                 schedule_id: schedule_id,
+//                 subschedule_id: null, // Main Schedule tidak memiliki subschedule_id
+//                 date: booking_date
+//             },
+//             transaction
+//         });
+
+//         if (!mainScheduleSeatAvailability) {
+//             throw new Error('Seat availability tidak ditemukan untuk Main Schedule.');
+//         }
+
+//         // Log available seats sebelum diupdate
+//         console.log(`✅ Current available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${mainScheduleSeatAvailability.id} = ${mainScheduleSeatAvailability.available_seats}`);
+        
+//         // Tambahkan kembali kursi yang telah dipesan untuk Main Schedule
+//         console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
+//         mainScheduleSeatAvailability.available_seats += total_passengers;
+//         await mainScheduleSeatAvailability.save({ transaction }); // Simpan perubahan ke database
+        
+//         // Log available seats setelah diupdate
+//         console.log(`✅ Updated available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${mainScheduleSeatAvailability.id} = ${mainScheduleSeatAvailability.available_seats}`);
+        
+//         // Tambahkan main schedule ke array tracking
+//         releasedSeats.push({
+//             subschedule_id: "MAIN_SCHEDULE",
+//             seat_availability_id: mainScheduleSeatAvailability.id,
+//             seats_returned: total_passengers,
+//             available_seats_after: mainScheduleSeatAvailability.available_seats
+//         });
+
+//         console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk Main Schedule ID: ${schedule_id}.`);
+
+//         // Tambahkan log ringkasan seluruh seat yang telah direlease
+//         console.log("✅ RELEASE SUMMARY - ALL RELEASED SEATS:", JSON.stringify(releasedSeats, null, 2));
+
+//         // ============================================================================= //
+
+//         return updatedSubSchedules; // Kembalikan Set yang berisi SubSchedule yang telah diperbarui
+//     } catch (error) {
+//         // Log error dan lemparkan kembali jika terjadi masalah
+//         console.error(`❌Gagal melepaskan kursi untuk SubSchedule ID: ${subschedule_id}`, error);
+//         throw error;
+//     }
+// };
+
 const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     try {
         // Tambahkan array untuk melacak semua release
         const releasedSeats = [];
         
         console.log(`✅ RELEASE SUB SCHEDULE MULAI: ${subschedule_id}`);
+        
+        // Fetch boat data first
+        const schedule = await Schedule.findByPk(schedule_id, {
+            include: [
+                {
+                    model: Boat,
+                    as: "Boat"
+                }
+            ],
+            transaction
+        });
+
+        if (!schedule || !schedule.Boat) {
+            throw new Error('Schedule or Boat data not found');
+        }
+        
+        const boat = schedule.Boat;
+        console.log(`✅ Boat info: ID=${boat.id}, Capacity=${boat.capacity}`);
+
         console.log(`✅ Fetching SubSchedule with ID: ${subschedule_id}`);
         const subSchedule = await SubSchedule.findByPk(subschedule_id, {
             include: [
@@ -465,7 +716,7 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
                         {
                             model: Destination,
                             as: "Destination",
-                            attributes: ["id"],
+                            attributes: ["id"], 
                         },
                     ],
                 },
@@ -473,7 +724,7 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
             transaction,
         });
 
-        console.log("subschedule", JSON.stringify(subSchedule, null, 2));
+        // console.log("subschedule", JSON.stringify(subSchedule, null, 2));
 
         // Jika SubSchedule tidak ditemukan, lemparkan error
         if (!subSchedule) {
@@ -492,123 +743,143 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
                 continue; // Hindari update dua kali atau jika sudah diperbarui
             }
 
-            // Cari SeatAvailability untuk SubSchedule terkait
-            console.log(`Fetching SeatAvailability for related SubSchedule ID: ${relatedSubSchedule.id}`);
-            let relatedSeatAvailability = await SeatAvailability.findOne({
-                where: {
-                    schedule_id: schedule_id,
+            try {
+                // Gunakan fungsi fetchAndValidateSeatAvailability
+                console.log(`Fetching and validating SeatAvailability for related SubSchedule ID: ${relatedSubSchedule.id}`);
+                const { id, seatAvailability } = await fetchAndValidateSeatAvailability(
+                    schedule_id,
+                    relatedSubSchedule.id,
+                    booking_date,
+                    boat,
+                    total_passengers,
+                    transaction
+                );
+            
+                // Log available seats sebelum diupdate
+                console.log(`✅ Current available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+                
+                // Tentukan kapasitas maksimum berdasarkan boost status
+                const maxCapacity = seatAvailability.boost 
+                    ? boat.capacity 
+                    : calculatePublicCapacity(boat);
+                
+                // Hitung jumlah kursi yang baru
+                const newSeats = seatAvailability.available_seats + total_passengers;
+                
+                // Tambahkan kembali kursi yang telah dipesan
+                console.log(`✅ Returning ${total_passengers} seats to related SubSchedule ID: ${relatedSubSchedule.id}`);
+                
+                // Cek apakah melebihi kapasitas
+                if (newSeats > maxCapacity) {
+                    console.log(`⚠️ WARNING: New seats count (${newSeats}) would exceed max capacity (${maxCapacity})`);
+                    console.log(`⚠️ Setting available seats to maximum capacity`);
+                    seatAvailability.available_seats = maxCapacity;
+                } else {
+                    seatAvailability.available_seats = newSeats;
+                }
+                
+                await seatAvailability.save({ transaction }); // Simpan perubahan ke database
+                
+                // Log available seats setelah diupdate
+                console.log(`✅ Updated available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+                
+                // Tambahkan ke array tracking
+                releasedSeats.push({
                     subschedule_id: relatedSubSchedule.id,
-                    date: booking_date
-                },
-                transaction
-            });
-
-            console.log("relatedSeatAvailability:", relatedSeatAvailability.id);
-
-            if (!relatedSeatAvailability) {
-                throw new Error(`✅ Seat availability tidak ditemukan untuk SubSchedule ID: ${relatedSubSchedule.id}`);
+                    seat_availability_id: seatAvailability.id,
+                    seats_returned: total_passengers,
+                    available_seats_after: seatAvailability.available_seats,
+                    max_capacity: maxCapacity // Tambahkan info max capacity
+                });
+            
+                // Tambahkan SubSchedule ke Set yang diperbarui
+                updatedSubSchedules.add(relatedSubSchedule.id);
+            } catch (error) {
+                console.log(`⚠️ Error processing SubSchedule ${relatedSubSchedule.id}: ${error.message}`);
+                // Continue with other sub-schedules rather than failing completely
             }
-
-            // Log available seats sebelum diupdate
-            console.log(`✅ Current available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${relatedSeatAvailability.id} = ${relatedSeatAvailability.available_seats}`);
-            
-            // Tambahkan kembali kursi yang telah dipesan
-            console.log(`✅ Returning ${total_passengers} seats to related SubSchedule ID: ${relatedSubSchedule.id}`);
-            relatedSeatAvailability.available_seats += total_passengers;
-            await relatedSeatAvailability.save({ transaction }); // Simpan perubahan ke database
-            
-            // Log available seats setelah diupdate
-            console.log(`✅ Updated available seats for SubSchedule ID: ${relatedSubSchedule.id}, SeatAvailability ID: ${relatedSeatAvailability.id} = ${relatedSeatAvailability.available_seats}`);
-            
-            // Tambahkan ke array tracking
-            releasedSeats.push({
-                subschedule_id: relatedSubSchedule.id,
-                seat_availability_id: relatedSeatAvailability.id,
-                seats_returned: total_passengers,
-                available_seats_after: relatedSeatAvailability.available_seats
-            });
-
-            // Tambahkan SubSchedule ke Set yang diperbarui
-            updatedSubSchedules.add(relatedSubSchedule.id);
         }
 
         // Tangani SubSchedule yang dipilih secara spesifik jika belum diperbarui di loop sebelumnya
         if (!updatedSubSchedules.has(subschedule_id)) {
-            console.log(`✅ Fetching SeatAvailability for selected SubSchedule ID: ${subschedule_id}`);
-            let selectedSubScheduleSeatAvailability = await SeatAvailability.findOne({
-                where: {
-                    schedule_id: schedule_id,
+            try {
+                // Gunakan fungsi fetchAndValidateSeatAvailability
+                console.log(`Fetching and validating SeatAvailability for selected SubSchedule ID: ${subschedule_id}`);
+                const { id, seatAvailability } = await fetchAndValidateSeatAvailability(
+                    schedule_id,
+                    subschedule_id,
+                    booking_date,
+                    boat,
+                    total_passengers,
+                    transaction
+                );
+
+                // Log available seats sebelum diupdate
+                console.log(`✅ Current available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+                
+                // Tambahkan kembali kursi yang telah dipesan untuk SubSchedule yang dipilih
+                console.log(`✅ Returning ${total_passengers} seats to selected SubSchedule ID: ${subschedule_id}`);
+                seatAvailability.available_seats += total_passengers;
+                await seatAvailability.save({ transaction });
+                
+                // Log available seats setelah diupdate
+                console.log(`✅ Updated available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+                
+                // Tambahkan ke array tracking
+                releasedSeats.push({
                     subschedule_id: subschedule_id,
-                    date: booking_date
-                },
-                transaction
-            });
+                    seat_availability_id: seatAvailability.id,
+                    seats_returned: total_passengers,
+                    available_seats_after: seatAvailability.available_seats
+                });
 
-            if (!selectedSubScheduleSeatAvailability) {
-                throw new Error('❌ Seat availability tidak ditemukan untuk SubSchedule yang dipilih');
+                updatedSubSchedules.add(subschedule_id);
+                
+            } catch (error) {
+                console.log(`⚠️ Error processing selected SubSchedule ${subschedule_id}: ${error.message}`);
+                // Continue with main schedule rather than failing completely
             }
-
-            // Log available seats sebelum diupdate
-            console.log(`✅ Current available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${selectedSubScheduleSeatAvailability.id} = ${selectedSubScheduleSeatAvailability.available_seats}`);
-            
-            // Tambahkan kembali kursi yang telah dipesan untuk SubSchedule yang dipilih
-            console.log(`✅ Returning ${total_passengers} seats to selected SubSchedule ID: ${subschedule_id}`);
-            selectedSubScheduleSeatAvailability.available_seats += total_passengers;
-            await selectedSubScheduleSeatAvailability.save({ transaction });
-            
-            // Log available seats setelah diupdate
-            console.log(`✅ Updated available seats for selected SubSchedule ID: ${subschedule_id}, SeatAvailability ID: ${selectedSubScheduleSeatAvailability.id} = ${selectedSubScheduleSeatAvailability.available_seats}`);
-            
-            // Tambahkan ke array tracking
-            releasedSeats.push({
-                subschedule_id: subschedule_id,
-                seat_availability_id: selectedSubScheduleSeatAvailability.id,
-                seats_returned: total_passengers,
-                available_seats_after: selectedSubScheduleSeatAvailability.available_seats
-            });
-
-            updatedSubSchedules.add(subschedule_id);
         }
 
-        console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk SubSchedule ID: ${subschedule_id}`);
+        console.log(`✅ Berhasil mengembalikan kursi untuk SubSchedule ID: ${subschedule_id}`);
 
         // ===================== Tambahkan Logika untuk Main Schedule ===================== //
 
-        // Cari SeatAvailability untuk Main Schedule (subschedule_id = null)
-        console.log(`✅ Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
-        let mainScheduleSeatAvailability = await SeatAvailability.findOne({
-            where: {
-                schedule_id: schedule_id,
-                subschedule_id: null, // Main Schedule tidak memiliki subschedule_id
-                date: booking_date
-            },
-            transaction
-        });
+        try {
+            // Gunakan fungsi fetchAndValidateSeatAvailability for Main Schedule
+            console.log(`Fetching and validating SeatAvailability for Main Schedule ID: ${schedule_id}`);
+            const { id, seatAvailability } = await fetchAndValidateSeatAvailability(
+                schedule_id,
+                null, // Main Schedule tidak memiliki subschedule_id
+                booking_date,
+                boat,
+                total_passengers,
+                transaction
+            );
 
-        if (!mainScheduleSeatAvailability) {
-            throw new Error('Seat availability tidak ditemukan untuk Main Schedule.');
+            // Log available seats sebelum diupdate
+            console.log(`✅ Current available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+            
+            // Tambahkan kembali kursi yang telah dipesan untuk Main Schedule
+            console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
+            seatAvailability.available_seats += total_passengers;
+            await seatAvailability.save({ transaction }); // Simpan perubahan ke database
+            
+            // Log available seats setelah diupdate
+            console.log(`✅ Updated available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${seatAvailability.id} = ${seatAvailability.available_seats}`);
+            
+            // Tambahkan main schedule ke array tracking
+            releasedSeats.push({
+                subschedule_id: "MAIN_SCHEDULE",
+                seat_availability_id: seatAvailability.id,
+                seats_returned: total_passengers,
+                available_seats_after: seatAvailability.available_seats
+            });
+
+        } catch (error) {
+            console.log(`⚠️ Error processing Main Schedule: ${error.message}`);
+            // Continue with returning results rather than failing completely
         }
-
-        // Log available seats sebelum diupdate
-        console.log(`✅ Current available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${mainScheduleSeatAvailability.id} = ${mainScheduleSeatAvailability.available_seats}`);
-        
-        // Tambahkan kembali kursi yang telah dipesan untuk Main Schedule
-        console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
-        mainScheduleSeatAvailability.available_seats += total_passengers;
-        await mainScheduleSeatAvailability.save({ transaction }); // Simpan perubahan ke database
-        
-        // Log available seats setelah diupdate
-        console.log(`✅ Updated available seats for Main Schedule ID: ${schedule_id}, SeatAvailability ID: ${mainScheduleSeatAvailability.id} = ${mainScheduleSeatAvailability.available_seats}`);
-        
-        // Tambahkan main schedule ke array tracking
-        releasedSeats.push({
-            subschedule_id: "MAIN_SCHEDULE",
-            seat_availability_id: mainScheduleSeatAvailability.id,
-            seats_returned: total_passengers,
-            available_seats_after: mainScheduleSeatAvailability.available_seats
-        });
-
-        console.log(`✅ Berhasil mengembalikan ${total_passengers} kursi untuk Main Schedule ID: ${schedule_id}.`);
 
         // Tambahkan log ringkasan seluruh seat yang telah direlease
         console.log("✅ RELEASE SUMMARY - ALL RELEASED SEATS:", JSON.stringify(releasedSeats, null, 2));
@@ -618,12 +889,10 @@ const releaseSubScheduleSeats = async (schedule_id, subschedule_id, booking_date
         return updatedSubSchedules; // Kembalikan Set yang berisi SubSchedule yang telah diperbarui
     } catch (error) {
         // Log error dan lemparkan kembali jika terjadi masalah
-        console.error(`❌Gagal melepaskan kursi untuk SubSchedule ID: ${subschedule_id}`, error);
+        console.error(`❌ Gagal melepaskan kursi untuk SubSchedule ID: ${subschedule_id}`, error);
         throw error;
     }
 };
-
-
 
 
 module.exports = releaseSubScheduleSeats;
