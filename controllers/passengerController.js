@@ -1171,7 +1171,7 @@ const updateBookingPassengers = async (req, res) => {
 
 const getPassengersSeatNumber = async (req, res) => {
   const { date, schedule_id, sub_schedule_id } = req.query;
-  console.log("Query Params:", { date, schedule_id, sub_schedule_id });
+  // console.log("Query Params:", { date, schedule_id, sub_schedule_id });
 
   try {
     // Check SeatAvailability for skenario 1
@@ -1180,10 +1180,10 @@ const getPassengersSeatNumber = async (req, res) => {
       schedule_id,
       sub_schedule_id,
     });
-    console.log(
-      `SeatAvailability found for ${date}, Schedule ID: ${schedule_id}, SubSchedule ID: ${sub_schedule_id}:`,
-      JSON.stringify(seatAvailability, null, 2)
-    );
+    // console.log(
+    //   `SeatAvailability found for ${date}, Schedule ID: ${schedule_id}, SubSchedule ID: ${sub_schedule_id}:`,
+    //   JSON.stringify(seatAvailability, null, 2)
+    // );
 
     // If no SeatAvailability found, handle skenario 2
     if (!seatAvailability) {
@@ -1238,11 +1238,11 @@ const getPassengersSeatNumber = async (req, res) => {
 
     // Extract boat details
     const boatData = schedule?.Boat || null; // Ensure Boat data exists
-    console.log("===boatdata===", boatData);
+    // console.log("===boatdata===", boatData);
 
     // Prepare response data
     const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
-    console.log("===bookedseat===", bookedSeats);
+    // console.log("===bookedseat===", bookedSeats);
     // Filter and add push some booked seats
     // Create utils IF the Seat number with A1&A2 is throw = R1&R2 too
     // Create utils IF the Seat number with X1,X2,X3&X4 is Exist trhow R1 R2 R3,R4
@@ -1252,10 +1252,10 @@ const getPassengersSeatNumber = async (req, res) => {
       boatData
     );
 
-    console.log("===processedbookedseat=== FINAL", processedBookedSeats);
+    // console.log("===processedbookedseat=== FINAL", processedBookedSeats);
 
     const totalSeats = seatAvailability.available_seats || 0;
-    console.log("===totalseat===", totalSeats);
+    // console.log("===totalseat===", totalSeats);
 
     // Custom response
     const response = {

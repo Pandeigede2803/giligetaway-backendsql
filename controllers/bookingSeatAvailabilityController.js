@@ -175,6 +175,174 @@ const findSeatAvailabilityById = async (req, res) => {
   }
 };
 
+const findSeatAvailabilityByIdSimple = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+      // Fetch seat availability by ID and include related bookings, passengers, and other necessary models
+      const seatAvailability = await SeatAvailability.findOne({
+          where: { id },
+          // include: [
+          //     {
+          //         model: BookingSeatAvailability,
+          //         as: 'BookingSeatAvailabilities',
+          //         include: [
+          //             {
+          //                 model: Booking,
+          //                 where: { payment_status: ['paid',"invoiced","unpaid"] },  // Filter only paid bookings
+          //                 include: [
+          //                     {
+          //                         model: Passenger,
+          //                         as: 'passengers', // Include passengers related to the booking
+          //                     },
+          //                     {
+          //                         model: Schedule,
+          //                         as: 'schedule',
+          //                         attributes: ['id', 'destination_from_id', 'destination_to_id'],
+          //                         include: [
+          //                             {
+          //                                 model: Destination,
+          //                                 as: 'FromDestination',
+          //                                 attributes: ['name'],
+          //                             },
+          //                             {
+          //                                 model: Destination,
+          //                                 as: 'ToDestination',
+          //                                 attributes: ['name'],
+          //                             },
+          //                         ],
+          //                     },
+          //                     {
+          //                         model: SubSchedule,
+          //                         as: 'subSchedule',
+          //                         attributes: ['id'],
+          //                         include: [
+          //                             {
+          //                                 model: Destination,
+          //                                 as: 'DestinationFrom',
+          //                                 attributes: ['name'],
+          //                             },
+          //                             {
+          //                                 model: Destination,
+          //                                 as: 'DestinationTo',
+          //                                 attributes: ['name'],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'TransitFrom',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'TransitTo',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'Transit1',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'Transit2',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'Transit3',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: Transit,
+          //                                 as: 'Transit4',
+          //                                 attributes: ['id', 'schedule_id', 'destination_id'],
+          //                                 include: [
+          //                                     {
+          //                                         model: Destination,
+          //                                         as: 'Destination',
+          //                                         attributes: ['name'],
+          //                                     },
+          //                                 ],
+          //                             },
+          //                             {
+          //                                 model: SeatAvailability,
+          //                                 as: 'SeatAvailabilities',
+          //                             },
+          //                         ],
+          //                     },
+          //                 ],
+          //             },
+          //         ],
+          //     },
+          // ],
+      });
+
+      if (!seatAvailability) {
+          return res.status(404).json({
+              status: 'fail',
+              message: `Seat availability not found for ID ${id}.`,
+          });
+      }
+
+      // Extract booking and passenger data
+      // const bookings = seatAvailability.BookingSeatAvailabilities.map((bsa) => ({
+      //     booking_id: bsa.booking_id,
+      //     passengers: bsa.Booking.passengers, // Related passengers for each booking
+      // }));
+
+      // Return seat availability details along with related booking and passenger data
+      return res.status(200).json({
+          status: 'success',
+          message: 'Seat availability and related passengers retrieved successfully',
+          seat_availability: {
+              ...seatAvailability.get({ plain: true }),
+              // bookings,
+          },
+      });
+  } catch (error) {
+      console.log('Error finding seat availability:', error.message);
+      return res.status(500).json({
+          status: 'error',
+          message: 'An error occurred while finding seat availability',
+          error: error.message,
+      });
+  }
+};
 
 /**
  * Mengambil dan memfilter pemesanan (booking) berdasarkan `seat_availability_id` yang diberikan.
@@ -760,6 +928,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
 module.exports = {
     findSeatAvailabilityById,
     getFilteredBookingsBySeatAvailability,
-    findRelatedPassengerBySeatAvailabilityId
+    findRelatedPassengerBySeatAvailabilityId,
+    findSeatAvailabilityByIdSimple 
 };
 
