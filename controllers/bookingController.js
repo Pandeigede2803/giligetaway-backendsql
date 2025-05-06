@@ -771,15 +771,15 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
     console.log("\n[Step 2] 🔄 Starting database transaction...");
     const result = await sequelize.transaction(async (t) => {
       const handleBooking = async (data, type) => {
-        console.log(
-          `\n[Step 3.${
-            type === "departure" ? 1 : 2
-          }] 📋 Processing ${type} booking...`
-        );
-        console.log(
-          `[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`,
-          data.schedule_id
-        );
+        // console.log(
+        //   `\n[Step 3.${
+        //     type === "departure" ? 1 : 2
+        //   }] 📋 Processing ${type} booking...`
+        // );
+        // console.log(
+        //   `[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`,
+        //   data.schedule_id
+        // );
 
         const {
           schedule_id,
@@ -916,11 +916,11 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           { transaction: t }
         );
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.7] 💳 Creating transaction entry...`
-        );
+        // console.log(
+        //   `[Step 3.${
+        //     type === "departure" ? 1 : 2
+        //   }.7] 💳 Creating transaction entry...`
+        // );
         const transactionEntry = await createTransaction(
           {
             transaction_id: `TRANS-${Date.now()}`,
@@ -934,11 +934,11 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           t
         );
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.8] 📤 Adding to booking queue...`
-        );
+        // console.log(
+        //   `[Step 3.${
+        //     type === "departure" ? 1 : 2
+        //   }.8] 📤 Adding to booking queue...`
+        // );
 
         bookingRoundQueue.add({
           schedule_id,
@@ -1017,8 +1017,8 @@ bookingRoundQueue.process(async (job, done) => {
     type, // Add 'type' to differentiate between departure and return
   } = job.data;
 
-  console.log("---START OF JOB---");
-  console.log(`[INFO] Processing ${type.toUpperCase()} booking queue`);
+  // console.log("---START OF JOB---");
+  // console.log(`[INFO] Processing ${type.toUpperCase()} booking queue`);
 
   const transaction = await sequelize.transaction();
   try {
@@ -1048,10 +1048,10 @@ bookingRoundQueue.process(async (job, done) => {
       );
     }
 
-    console.log(
-      `Remaining Seat Availabilities for ${type} booking:`,
-      remainingSeatAvailabilities
-    );
+    // console.log(
+    //   `Remaining Seat Availabilities for ${type} booking:`,
+    //   remainingSeatAvailabilities
+    // );
 
     // Step 5: Add Remaining Seat Availabilities
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
@@ -1062,34 +1062,34 @@ bookingRoundQueue.process(async (job, done) => {
         })
       );
 
-      console.log(
-        "Data to Insert into BookingSeatAvailability:",
-        bookingSeatAvailabilityData
-      );
+      // console.log(
+      //   "Data to Insert into BookingSeatAvailability:",
+      //   bookingSeatAvailabilityData
+      // );
 
       const result = await BookingSeatAvailability.bulkCreate(
         bookingSeatAvailabilityData,
         { transaction }
       );
 
-      console.log(
-        `Successfully created ${result.length} BookingSeatAvailability records.`
-      );
-      console.log(
-        "Created BookingSeatAvailability entries with seat_availability_id values:",
-        result.map((record) => record.seat_availability_id)
-      );
+      // console.log(
+      //   `Successfully created ${result.length} BookingSeatAvailability records.`
+      // );
+      // console.log(
+      //   "Created BookingSeatAvailability entries with seat_availability_id values:",
+      //   result.map((record) => record.seat_availability_id)
+      // );
     } else {
       console.log("No seat availabilities found.");
     }
 
-    console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+    // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
 
     // Step 3: Add Passengers
-    console.log(`Adding passengers for ${type}  booking_id ${booking_id}
-      `);
+    // console.log(`Adding passengers for ${type}  booking_id ${booking_id}
+    //   `);
 
-    console.log("✅ DATA PASSENGER IS", passengers);
+    // console.log("✅ DATA PASSENGER IS", passengers);
     await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings
@@ -1386,8 +1386,8 @@ bookingQueue.process(async (job, done) => {
     //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
     // }
 
-    console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-    console.log("Booking ID:", booking_id);
+    // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+    // console.log("Booking ID:", booking_id);
 
     await transaction.commit(); // Commit the transaction if successful
     console.log(`Booking queue success for booking ${booking_id}`);
@@ -1833,32 +1833,24 @@ const createBookingWithTransit2 = async (req, res) => {
 
 const generateOneWayTicketId = async (req, res) => {
   try {
-    const now = new Date();
+    let ticketId;
+    let exists = true;
 
-    const hours = now.getHours().toString().padStart(2, '0');   // e.g. "14"
-    const minutes = now.getMinutes().toString().padStart(2, '0'); // e.g. "37"
+    while (exists) {
+      const now = new Date();
+      const hh = now.getHours().toString().padStart(2, '0');    // "08"
+      const mm = now.getMinutes().toString().padStart(2, '0');  // "07"
+      const ss = now.getSeconds().toString().padStart(2, '0');  // "25"
 
-    const timePrefix = `${hours}${minutes}`; // e.g. "1437"
+      const numberPart = `${hh}${mm}${ss}`;                     // e.g. "080725"
+      ticketId = `GG-OW-${numberPart}`;                         // "GG-OW-080725"
 
-    let counter = 0;
-    let ticketId = '';
-
-    while (true) {
-      const counterStr = counter.toString().padStart(2, '0'); // "00" to "99"
-      const numberPart = `${timePrefix}${counterStr}`; // "143700", "143701", ...
-      ticketId = `GG-OW-${numberPart}`;
-
-      const existing = await Booking.findOne({
-        where: { ticket_id: ticketId }
-      });
-
-      if (!existing) break;
-
-      counter++;
-
-      // Prevent infinite loop
-      if (counter > 99) {
-        return res.status(500).json({ error: 'Too many ticket IDs generated for this minute.' });
+      // cek collision di DB
+      exists = await Booking.findOne({ where: { ticket_id: ticketId } });
+      if (exists) {
+        // tunggu sampai detik berikutnya
+        const msToNextSecond = 1000 - now.getMilliseconds();
+        await new Promise(r => setTimeout(r, msToNextSecond));
       }
     }
 
@@ -1868,6 +1860,7 @@ const generateOneWayTicketId = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
 
 
 const generateRoundTripTicketIds = async (req, res) => {

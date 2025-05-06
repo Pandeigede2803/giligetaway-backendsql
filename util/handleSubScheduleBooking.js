@@ -450,7 +450,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
 
     // Calculate public capacity using the utility
     const publicCapacity = calculatePublicCapacity(schedule.Boat);
-    console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
+    // console.log(`Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`);
 
     // Fetch the selected sub-schedule
     const subSchedule = await SubSchedule.findOne({
