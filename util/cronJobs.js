@@ -433,10 +433,10 @@ cron.schedule(cronFrequency, async () => {
   await handleExpiredBookings();
 
 });
-cron.schedule(process.env.CRON_FREQUENCY_SETTLEMENT || "*/3 * * * *", async () => {
-  console.log("🛡️ Midtrans Fallback Cron Running...");
-  await checkAndHandleMidtransSettlements();
-});
+// cron.schedule(process.env.CRON_FREQUENCY_SETTLEMENT || "*/3 * * * *", async () => {
+//   console.log("🛡️ Midtrans Fallback Cron Running...");
+//   await checkAndHandleMidtransSettlements();
+// });
 
 
 
