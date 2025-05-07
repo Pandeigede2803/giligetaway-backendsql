@@ -32,12 +32,12 @@ const getBoats = async (req, res) => {
                 }
             ]
         });
-
         const boatsData = boats.map(boat => {
             const boatData = boat.toJSON();
             boatData.scheduleCount = boat.Schedules.length;
             // boatData.bookingCount = boat.Schedules.reduce((total, schedule) => total + schedule.Bookings.length, 0);
-            boatData.publicCapacity = calculatePublicCapacity(boatData);
+            boatData.publicCapacity = boatData.published_capacity;
+            console.log('Boat retrieved:', boatData);
             return boatData;
         });
 

@@ -153,8 +153,13 @@ exports.createPayment = async (req, res) => {
     // Send error response to client
     res.status(500).json({
       success: false,
-      message: "Failed to create payment",
-      error: error.response?.data || error.message,
+      message: "Failed to create payment, " + (error.response?.data?.message || error.message),
+      error: {
+        message: error.response?.data?.message || error.message,
+        status: error.response?.status,
+        headers: error.response?.headers,
+        data: error.response?.data,
+      },
     });
   }
   

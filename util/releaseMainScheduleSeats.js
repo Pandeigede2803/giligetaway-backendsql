@@ -1,6 +1,6 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
-
+const {calculatePublicCapacity} = require('./getCapacityReduction');
 /**
  * Mengembalikan kursi yang sebelumnya telah dipesan untuk Main Schedule dan SubSchedules terkait.
  *
@@ -186,7 +186,7 @@ const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
             const maxCapacity = seatAvailability.boost 
                 ? boat.capacity 
                 : calculatePublicCapacity(boat);
-            
+            console.log("✅ Kapasitas Maksimum:", maxCapacity);
             // Cek apakah melebihi kapasitas
             if (seatAvailability.available_seats > maxCapacity) {
                 console.log(`⚠️ PERINGATAN: SeatAvailability ID=${seatAvailability.id} melebihi kapasitas`);
@@ -215,11 +215,6 @@ const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
 };
 
 // Fungsi calculatePublicCapacity (jika belum ada)
-const calculatePublicCapacity = (boat) => {
-    // Implementasi sesuai dengan logika bisnis Anda
-    // Contoh: 80% dari kapasitas total
-    return Math.floor(boat.capacity * 0.8);
-};
 
 // const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passengers, transaction) => {
 //     const releasedSeatIds = []; // Track updated SeatAvailability IDs

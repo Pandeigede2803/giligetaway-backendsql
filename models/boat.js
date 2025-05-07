@@ -38,7 +38,11 @@ const Boat = sequelize.define('Boat', {
     rooftop_seats: {
         type: DataTypes.JSON,
         allowNull: true
-    }
+    },
+    published_capacity: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
 }, {
     tableName: 'Boats',
     timestamps: false
