@@ -1723,7 +1723,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     }
     const availableSchedules = schedules.filter(schedule => 
       schedule.dataValues.seatAvailability && 
-      schedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+      schedule.dataValues.seatAvailability.available_seats > 0 
       &&
       schedule.dataValues.seatAvailability.availability === true
     );
@@ -1740,7 +1740,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     // Filter subSchedules dengan available_seats > 0
     const availableSubSchedules = subSchedules.filter(subSchedule => 
       subSchedule.dataValues.seatAvailability && 
-      subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+      subSchedule.dataValues.seatAvailability.available_seats > 0 
       &&
       subSchedule.dataValues.seatAvailability.availability === true
     );
