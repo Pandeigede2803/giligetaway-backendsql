@@ -894,7 +894,7 @@ const sendPaymentEmail = async (
   refundAmount = null,
   refundAmountUSD = null
 ) => {
-  console.log("start to send the email", recipientEmail);
+  console.log("😹start to send the email", recipientEmail);
   const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
 
   try {
@@ -1040,7 +1040,7 @@ const sendPaymentEmail = async (
     `;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -1675,7 +1675,7 @@ const sendCancellationEmail = async (customerEmail, booking) => {
           
           <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #e9ecef; border-radius: 0 0 5px 5px;">
             <p style="margin: 5px 0;">Gili Getaway | Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229, Indonesia</p>
-            <p style="margin: 5px 0;">Contact: +62 812 3456 7890 | officebali1@gmail.com</p>
+            <p style="margin: 5px 0;">Contact: +62 812 3456 7890 | bookings@giligetaway.com</p>
             <p style="margin: 5px 0;"><a href="https://www.giligetaway.com" style="color: #165297;">www.giligetaway.com</a></p>
             <p style="margin: 5px 0;">© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
             <p style="margin: 5px 0;">This is an automated transactional email regarding your booking with Gili Getaway.</p>
