@@ -665,6 +665,7 @@ const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
         const maxCapacity = seatAvailability.boost 
           ? boat.capacity 
           : calculatePublicCapacity(boat);
+        //   : boat.published_capacity;
         
         // Cek apakah melebihi kapasitas
         if (seatAvailability.available_seats > maxCapacity) {

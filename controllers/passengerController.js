@@ -418,7 +418,7 @@ const getPassengerCountBySchedule = async (req, res) => {
         {
           model: Boat,
           as: "Boat",
-          attributes: ["id", "boat_name", "capacity"],
+          // attributes: ["id", "boat_name", "capacity"],
         },
       ],
     });
@@ -535,10 +535,8 @@ const getPassengerCountBySchedule = async (req, res) => {
           ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
           : 0;
 
-        const capacity = mainAvailability
-          ? mainAvailability.available_seats + totalPassengers
-          : schedule.Boat
-          ? calculatePublicCapacity(schedule.Boat)
+        const capacity = schedule.Boat
+          ? schedule.Boat.published_capacity
           : 0;
 
         const remainingSeats = capacity - totalPassengers;
@@ -591,7 +589,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           const subCapacity = subAvailability
             ? subAvailability.available_seats + subTotalPassengers
             : schedule.Boat
-            ? calculatePublicCapacity(schedule.Boat)
+            ? schedule.Boat.published_capacity
             : 0;
           const subRemainingSeats = subCapacity - subTotalPassengers;
 
@@ -931,16 +929,160 @@ const getPassengerCountByMonth = async (req, res) => {
     });
   }
 };
-
-
 const createPassenger = async (req, res) => {
   try {
-    const passenger = await Passenger.create(req.body);
-    res.status(201).json(passenger);
+    const { booking_id, ...passengerData } = req.body;
+    
+    // Validasi booking_id
+    if (!booking_id) {
+      return res.status(400).json({ error: "booking_id is required" });
+    }
+    
+    // Periksa apakah booking ada - tanpa include untuk menghindari error alias
+    const booking = await Booking.findByPk(booking_id);
+    
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+    
+    // Cari SeatAvailability yang sesuai dengan booking
+    const seatAvailability = await SeatAvailability.findOne({
+      where: {
+        schedule_id: booking.schedule_id,
+        subschedule_id: booking.subschedule_id || null,
+        date: booking.booking_date
+      }
+    });
+    
+    if (!seatAvailability) {
+      console.warn(`No SeatAvailability found for booking ${booking_id} with schedule ${booking.schedule_id}, subschedule ${booking.subschedule_id}, date ${booking.booking_date}`);
+      // Kita bisa lanjut tanpa SeatAvailability, atau membuat baru jika diperlukan
+    } else {
+      // Periksa apakah BookingSeatAvailability sudah ada
+      const existingBSA = await BookingSeatAvailability.findOne({
+        where: {
+          booking_id: booking_id,
+          seat_availability_id: seatAvailability.id
+        }
+      });
+      
+      // Jika belum ada, buat BookingSeatAvailability baru
+      if (!existingBSA) {
+        await BookingSeatAvailability.create({
+          booking_id: booking_id,
+          seat_availability_id: seatAvailability.id
+        });
+        console.log(`Created BookingSeatAvailability for booking ${booking_id} and seat ${seatAvailability.id}`);
+      }
+    }
+    
+    // Buat passenger
+    const passenger = await Passenger.create({
+      booking_id,
+      ...passengerData
+    });
+    
+    // Update total_passengers di booking jika perlu
+    const passengerCount = await Passenger.count({ where: { booking_id } });
+    if (passengerCount !== booking.total_passengers) {
+      await booking.update({ total_passengers: passengerCount });
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: "Passenger created successfully",
+      data: passenger
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    console.error("Error creating passenger:", error);
+    res.status(400).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
+
+// const createPassenger = async (req, res) => {
+//   try {
+//     const { booking_id, ...passengerData } = req.body;
+    
+//     // Validasi booking_id
+//     if (!booking_id) {
+//       return res.status(400).json({ error: "booking_id is required" });
+//     }
+    
+//     // Periksa apakah booking ada
+//     const booking = await Booking.findByPk(booking_id, {
+//       include: [
+//         {
+//           model: Schedule,
+//           as: "Schedule",
+//           required: true
+//         }
+//       ]
+//     });
+    
+//     if (!booking) {
+//       return res.status(404).json({ error: "Booking not found" });
+//     }
+    
+//     // Cari SeatAvailability yang sesuai dengan booking
+//     const seatAvailability = await SeatAvailability.findOne({
+//       where: {
+//         schedule_id: booking.schedule_id,
+//         subschedule_id: booking.subschedule_id || null,
+//         date: booking.booking_date
+//       }
+//     });
+    
+//     if (!seatAvailability) {
+//       console.warn(`No SeatAvailability found for booking ${booking_id} with schedule ${booking.schedule_id}, subschedule ${booking.subschedule_id}, date ${booking.booking_date}`);
+//       // Opsional: Buat SeatAvailability jika belum ada
+//       // const newSeatAvailability = await SeatAvailability.create({...});
+//     } else {
+//       // Periksa apakah BookingSeatAvailability sudah ada
+//       const existingBSA = await BookingSeatAvailability.findOne({
+//         where: {
+//           booking_id: booking_id,
+//           seat_availability_id: seatAvailability.id
+//         }
+//       });
+      
+//       // Jika belum ada, buat BookingSeatAvailability baru
+//       if (!existingBSA) {
+//         await BookingSeatAvailability.create({
+//           booking_id: booking_id,
+//           seat_availability_id: seatAvailability.id
+//         });
+//         console.log(`Created BookingSeatAvailability for booking ${booking_id} and seat ${seatAvailability.id}`);
+//       }
+//     }
+    
+//     // Buat passenger
+//     const passenger = await Passenger.create({
+//       booking_id,
+//       ...passengerData
+//     });
+    
+//     // Update total_passengers di booking jika perlu
+//     const passengerCount = await Passenger.count({ where: { booking_id } });
+//     if (passengerCount !== booking.total_passengers) {
+//       await booking.update({ total_passengers: passengerCount });
+//     }
+    
+//     res.status(201).json({
+//       success: true,
+//       message: "Passenger created successfully",
+//       data: passenger
+//     });
+//   } catch (error) {
+//     console.error("Error creating passenger:", error);
+//     res.status(400).json({ 
+//       success: false,
+//       error: error.message 
+//     });
+//   }
+// };
 
 const getPassengers = async (req, res) => {
   try {

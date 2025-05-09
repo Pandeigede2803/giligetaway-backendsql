@@ -1643,7 +1643,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
             {
               model: Boat,
               as: "Boat",
-              attributes: ["id", "capacity", "boat_name"],
+              // attributes: ["id", "capacity", "boat_name",],
             },
           ],
         },
@@ -1727,7 +1727,14 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       &&
       schedule.dataValues.seatAvailability.availability === true
     );
-    
+
+    // prepare to match with the passenger total
+    // const availableSchedules = schedules.filter(schedule => 
+    //   schedule.dataValues.seatAvailability && 
+    //   schedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+    //   &&
+    //   schedule.dataValues.seatAvailability.availability === true
+    // );
 
     // console.log(
     //   "🫁Available Schedules Jancuk:",
@@ -1744,6 +1751,15 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       &&
       subSchedule.dataValues.seatAvailability.availability === true
     );
+
+    // prepare to match with passenger total
+
+    // const availableSubSchedules = subSchedules.filter(subSchedule => 
+    //   subSchedule.dataValues.seatAvailability && 
+    //   subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+    //   &&
+    //   subSchedule.dataValues.seatAvailability.availability === true
+    // );
     // console.log("🫁Available SubSchedules:", JSON.stringify(availableSubSchedules.SeatAvailabilities, null, 2));
     
 
