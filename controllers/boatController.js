@@ -31,7 +31,7 @@ const getBoats = async (req, res) => {
                     // ]
                 }
             ]
-        });
+        });;
         const boatsData = boats.map(boat => {
             const boatData = boat.toJSON();
             boatData.scheduleCount = boat.Schedules.length;
