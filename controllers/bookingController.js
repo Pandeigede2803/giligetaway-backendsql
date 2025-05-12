@@ -25,7 +25,7 @@ const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
-const releaseSeats = require("../util/releaseSeats"); // Adjust the path based on your project structure
+const {releaseSeats,releaseBookingSeats} = require("../util/releaseSeats"); // Adjust the path based on your project structure
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
@@ -4107,7 +4107,7 @@ const editBooking = async (req, res) => {
       'payment_status',
       'booking_source',
       'booking_date',
-      'expiration_time',
+      // 'expiration_time',
       'ticket_id', // Now included as editable
       'bank_fee',
       'abandoned',
@@ -4227,6 +4227,8 @@ const updateMultipleBookingPayment = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
   const { payment_method, payment_status } = req.body;
@@ -4308,7 +4310,7 @@ const updateBookingPayment = async (req, res) => {
         });
         
         try {
-          const releasedSeatIds = await releaseSeats(booking, t);
+          const releasedSeatIds = await releaseBookingSeats(booking.id, t);
           console.log(
             `✅ Released seats: ${
               releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
