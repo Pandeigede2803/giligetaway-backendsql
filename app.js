@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const sequelize = require('./config/database');
 const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
+const bookingSummaryCron = require('./util/bookingSummaryCron');
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs'); // Import cronjob pengingat
 const { initWebSocketServer } = require('./config/websocket'); // Import fungsi WebSocket
 const http = require('http');
@@ -122,6 +123,8 @@ sequelize.sync()
     server.listen(PORT, () => {  // Ganti app.listen dengan server.listen
       console.log(`YAY Server is running on port ${PORT}`);
       cronJobs.handleExpiredBookings(); // Jalankan cron job saat server dimulai
+      bookingSummaryCron.scheduleDailySummary();
+      console.log('✅ Daily booking summary cronjob registered');
 
         // Cronjob baru untuk pengingat unpaid
         // unpaidReminderCronJobs.sendUnpaidReminders();
