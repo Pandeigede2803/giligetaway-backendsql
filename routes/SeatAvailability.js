@@ -9,7 +9,9 @@ const {
   checkAllAvailableSeats,
   getFilteredSeatAvailabilityById,
   checkAllAvailableSeatsBookingCount,
-  handleSeatAvailability,createOrGetSeatAvailability
+  handleSeatAvailability,createOrGetSeatAvailability,
+  fixSeatMismatch,
+  fixSeatMismatchBatch,
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 const authenticate = require("../middleware/authenticate");
 // Route to check available seats for a specific schedule and date
@@ -33,10 +35,17 @@ router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
 
 
 
+
+
 router.get("/check-available", authenticate, checkAvailableSeats);
 
 // Route to check all available seats for a specific schedule and date
 router.get("/check-all", authenticate, checkAllAvailableSeats);
+// Fix seat mismatch for a single seat availability
+router.post('/fix-mismatch/:id', authenticate, fixSeatMismatch);
+
+// Fix seat mismatch for multiple seat availabilities
+router.post('/fix-mismatch-batch', authenticate, fixSeatMismatchBatch);
 
 // updateseatavailability
 

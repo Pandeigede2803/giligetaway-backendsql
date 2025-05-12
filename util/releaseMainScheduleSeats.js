@@ -1,6 +1,8 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
 const {calculatePublicCapacity} = require('./getCapacityReduction');
+const { createSeatAvailability } = require('../controllers/scheduleController');
+
 /**
  * Mengembalikan kursi yang sebelumnya telah dipesan untuk Main Schedule dan SubSchedules terkait.
  *
@@ -78,9 +80,12 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
             transaction
         });
         
-        if (!mainScheduleSeatAvailability) {
-            throw new Error('Seat availability tidak ditemukan untuk Main Schedule.');
-        }
+     
+if (!mainScheduleSeatAvailability) {
+    // Fallback: bikin seat availability pakai utils resmi
+    mainScheduleSeatAvailability = await createSeatAvailability(schedule, null, formattedDate, transaction);
+}
+
         
         // SELALU TAMBAHKAN KURSI TERLEBIH DAHULU - tanpa pengecekan kapasitas
         console.log(`✅ Current available seats for Main Schedule: ${mainScheduleSeatAvailability.available_seats}`);

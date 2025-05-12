@@ -3557,5 +3557,6 @@ module.exports = {
   getScheduleFormatted,
   getScheduleSubschedule,
   searchSchedulesAndSubSchedulesAgent,
+  createSeatAvailability,
 };
 

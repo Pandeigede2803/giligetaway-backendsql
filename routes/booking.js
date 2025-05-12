@@ -87,6 +87,8 @@ router.put('/multipayment',authenticate, bookingController.updateMultipleBooking
 // UPDATE booking
 router.put('/:id', bookingController.updateBooking);
 
+router.put('/edit/:id',authenticate, bookingController.editBooking);
+
 
 // update Booking note
 router.put('/note/:id',authenticate, bookingController.updateBookingNotes);

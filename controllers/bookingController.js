@@ -4066,6 +4066,100 @@ const updateBooking = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+// Controller for editing booking data
+const editBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // List of fields that should never be updated
+    const protectedFields = [
+      'id',
+      'created_at', 
+      'updated_at'
+    ];
+
+    // Remove protected fields from update data
+    protectedFields.forEach(field => {
+      delete updateData[field];
+    });
+
+    // List of allowed fields that can be updated
+    const allowedFields = [
+      'contact_name',
+      'contact_phone',
+      'contact_passport_id',
+      'contact_nationality',
+      'contact_email',
+      'schedule_id',
+      'subschedule_id',
+      'agent_id',
+      'payment_method',
+      'gross_total',
+      'currency',
+      'gross_total_in_usd',
+      'exchange_rate',
+      'ticket_total',
+      'total_passengers',
+      'adult_passengers',
+      'child_passengers',
+      'infant_passengers',
+      'payment_status',
+      'booking_source',
+      'booking_date',
+      'expiration_time',
+      'ticket_id', // Now included as editable
+      'bank_fee',
+      'abandoned',
+      'note',
+      'final_state',
+      'discount_data'
+    ];
+
+    // Filter to only include allowed fields
+    const filteredUpdateData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredUpdateData[key] = updateData[key];
+      }
+    });
+
+    // Check if there's anything to update
+    if (Object.keys(filteredUpdateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields provided for update'
+      });
+    }
+
+    // Find the booking
+    const booking = await Booking.findByPk(id);
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Update the booking
+    await booking.update(filteredUpdateData);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking updated successfully',
+      data: booking
+    });
+
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating booking',
+      error: error.message
+    });
+  }
+};
 
 const updateMultipleBookingPayment = async (req, res) => {
   try {
@@ -5763,6 +5857,7 @@ module.exports = {
   createBooking,
   updateMultipleBookingPayment,
   getAbandonedPayments,
+  editBooking,
   deleteAbandonedPayment,
   sendPaymentReminder,
   getAbandonedPaymentById,

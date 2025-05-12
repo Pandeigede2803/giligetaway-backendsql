@@ -152,16 +152,16 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
 
   // If boost mode is enabled but not for Boat ID 2, return the original booked seats without processing
   if (boost) {
-    console.log("🛑 Boost is enabled. Returning original booked seats without processing.");
+    // console.log("🛑 Boost is enabled. Returning original booked seats without processing.");
     return Array.from(bookedSeatsSet);
   }
 
   // If boost mode is disabled, process the booked seats using addSeatPair
-  console.log("⚙️ Boost is not enabled. Processing booked seats...");
+  // console.log("⚙️ Boost is not enabled. Processing booked seats...");
   const resultSet = new Set(bookedSeatsSet); 
 
   for (const seat of bookedSeatsSet) {
-    console.log(`🔍 Processing seat: ${seat}`);
+    // console.log(`🔍 Processing seat: ${seat}`);
     addSeatPair(resultSet, seat);
     // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
   }

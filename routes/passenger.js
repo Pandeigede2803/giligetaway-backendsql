@@ -7,8 +7,12 @@ const {validatePassengerCriteria,validateDaysOfWeekForDate} = require('../middle
 
 
 
-// CREATE passenger
+// // CREATE passenger
 router.post('/', authenticate, passengerController.createPassenger);
+
+// add passenger
+router.post('/booking/:booking_id', authenticate, passengerController.addPassenger);
+
 
 // READ passengers
 router.get('/', authenticate, passengerController.getPassengers);
@@ -38,5 +42,8 @@ router.put('/:id', authenticate, passengerController.updatePassenger);
 
 // DELETE passenger
 router.delete('/:id', authenticate, passengerController.deletePassenger);
+
+// DELETE passenger booking id
+router.delete('/booking/:booking_id', authenticate, passengerController.deletePassenger);
 
 module.exports = router;

@@ -106,6 +106,9 @@ const releaseSeats = async (booking, transaction) => {
 
   try {
     if (subschedule_id) {
+      console.log(
+        `start releaseSubScheduleSeats, schedule_id: ${schedule_id}, subschedule_id: ${subschedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      );
       // Jika SubSchedule ada, kembalikan kursi untuk SubSchedule
       await releaseSubScheduleSeats(
         schedule_id,
@@ -116,6 +119,10 @@ const releaseSeats = async (booking, transaction) => {
       );
     } else {
       // Jika Main Schedule, kembalikan kursi untuk Main Schedule
+      console.log("start releaseMainScheduleSeats");
+      console.log(
+        `schedule_id: ${schedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      );
       await releaseMainScheduleSeats(
         schedule_id,
         booking_date,
@@ -129,7 +136,7 @@ const releaseSeats = async (booking, transaction) => {
     // );
   } catch (error) {
     console.error(
-      `Gagal melepaskan kursi untuk Booking ID: ${booking.id}`,
+      `😻Gagal melepaskan kursi untuk Booking ID: ${booking.id} dan ticket ID: ${booking.ticket_id}`, 
       error
     );
     throw error;

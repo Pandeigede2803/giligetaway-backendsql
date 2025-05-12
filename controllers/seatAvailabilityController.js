@@ -8,6 +8,7 @@ const {
   Destination,
   BookingSeatAvailability,
   Passenger,
+
 } = require("../models"); // Adjust the path as needed
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
@@ -103,10 +104,15 @@ const createOrGetSeatAvailability = async (req, res) => {
 };
 
 const getSeatAvailabilityByMonthYear = async (req, res) => {
-  const { year, month } = req.query;
-  console.log("Query Params:", { year, month });
+  const { year, month, page = 1, limit = 10 } = req.query;
+  // console.log("Query Params:", { year, month, page, limit });
 
   try {
+    // Convert pagination parameters to numbers
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const offset = (pageNumber - 1) * limitNumber;
+
     // Ensure month is zero-padded for consistency
     const formattedMonth = month.padStart(2, "0");
 
@@ -117,7 +123,19 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
 
     console.log("Start Date:", startOfMonth, "End Date:", endOfMonth);
 
-    // Query the database
+    // First, get total count for pagination info (this query is lightweight)
+    const totalCount = await SeatAvailability.count({
+      where: {
+        date: {
+          [Op.between]: [startOfMonth, endOfMonth],
+        },
+      },
+    });
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalCount / limitNumber);
+
+    // Gunakan Sequelize untuk melakukan query dengan include, pagination, dan atribut virtual
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
         date: {
@@ -132,17 +150,113 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         "subschedule_id",
         "availability",
         "date",
-        "updated_at",
         "boost",
+        "updated_at",
         "created_at",
       ],
+      include: [
+        {
+          model: Schedule,
+          required: true,
+          attributes:["id"],
+          include: [
+            {
+              model: Boat,
+              as: "Boat",
+              required: true,
+              attributes: ["id", "capacity", "published_capacity"]
+            }
+          ]
+        },
+        {
+          model: BookingSeatAvailability,
+          required: false,
+          as: "BookingSeatAvailabilities",
+          include: [
+            {
+              model: Booking,
+              attributes:["id"],
+              required: false,
+              where: {
+                payment_status: {
+                  [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
+                }
+              },
+              include: [
+                {
+                  model: Passenger,
+                  as: "passengers",
+                  required: false
+                }
+              ]
+            }
+          ]
+        }
+      ],
       order: [["created_at", "DESC"]],
+      limit: limitNumber,
+      offset: offset
+    });
+
+    // Transformasi hasil untuk menambahkan informasi yang dibutuhkan
+    const enhancedSeatAvailabilities = seatAvailabilities.map(seatAvailability => {
+      // Konversi ke plain object untuk manipulasi lebih mudah
+      const seatAvailabilityObj = seatAvailability.get({ plain: true });
+      
+      // Hitung total penumpang
+      let totalPassengers = 0;
+      const bookingIds = new Set();
+      
+      if (seatAvailabilityObj.BookingSeatAvailabilities) {
+        seatAvailabilityObj.BookingSeatAvailabilities.forEach(bsa => {
+          if (bsa.Booking && bsa.Booking.passengers) {
+            totalPassengers += bsa.Booking.passengers.length;
+            bookingIds.add(bsa.Booking.id);
+          }
+        });
+      }
+      
+ // Total kursi yang terisi ditambah kursi yang tersedia harus sama dengan kapasitas maksimum
+const totalAllocatedSeats = totalPassengers + seatAvailabilityObj.available_seats;
+const correctCapacity = seatAvailabilityObj.boost ? 
+                       (seatAvailabilityObj.Schedule?.Boat?.capacity || 0) : 
+                       (seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0);
+
+                             // Hitung miss_seat (nilai +/- ketidakcocokan)
+   // Hitung available_seats yang benar (correct capacity - total passengers)
+const correctAvailableSeats = correctCapacity - totalPassengers;
+
+// Hitung miss_seat (selisih antara available_seats yang benar dengan yang saat ini)
+const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
+
+
+      
+      // Tambahkan field-field baru
+      return {
+        ...seatAvailabilityObj,
+        boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
+        total_passengers: totalPassengers,
+        total_bookings: bookingIds.size,
+        correct_capacity: correctCapacity,
+        capacity_match_status: totalAllocatedSeats === correctCapacity ? 'MATCH' : 'MISMATCH',
+        miss_seats: miss_seat,
+        // Hapus data nested yang tidak perlu (opsional, untuk mengurangi ukuran response)
+        BookingSeatAvailabilities: undefined
+      };
     });
 
     return res.status(200).json({
       success: true,
       message: "Seat availability fetched by month and year",
-      seat_availabilities: seatAvailabilities,
+      seat_availabilities: enhancedSeatAvailabilities,
+      pagination: {
+        total: totalCount,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: totalPages,
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1
+      }
     });
   } catch (error) {
     console.error("Error fetching seat availability:", error.message);
@@ -152,6 +266,243 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
     });
   }
 };
+// Controllers/SeatAvailabilityController.js
+
+/**
+ * Memperbaiki miss_seat untuk satu SeatAvailability
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+const fixSeatMismatch = async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Temukan SeatAvailability dengan relasi yang dibutuhkan
+    const seatAvailability = await SeatAvailability.findByPk(id, {
+      include: [
+        {
+          model: Schedule,
+          include: [{ model: Boat, as: "Boat" }]
+        },
+        {
+          model: BookingSeatAvailability,
+          as: "BookingSeatAvailabilities",
+          include: [
+            {
+              model: Booking,
+              where: {
+                payment_status: {
+                  [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
+                }
+              },
+              include: [
+                {
+                  model: Passenger,
+                  as: "passengers",
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+    
+    if (!seatAvailability) {
+      return res.status(404).json({
+        success: false,
+        message: "Seat availability not found",
+      });
+    }
+    
+    // Hitung total penumpang
+    let totalPassengers = 0;
+    seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+      if (bsa.Booking && bsa.Booking.passengers) {
+        totalPassengers += bsa.Booking.passengers.length;
+      }
+    });
+    
+    // Tentukan kapasitas yang benar
+    const correctCapacity = seatAvailability.boost
+      ? seatAvailability.Schedule.Boat.capacity
+      : seatAvailability.Schedule.Boat.published_capacity;
+    
+    // Hitung available_seats yang benar
+    const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
+    
+    // Hitung miss_seat sebelum perbaikan
+    const originalMissSeat = correctAvailableSeats - seatAvailability.available_seats;
+    
+    // Jika tidak ada ketidakcocokan, tidak perlu update
+    if (originalMissSeat === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Seat availability already correct",
+        seatAvailability,
+        originalMissSeat,
+        fixed: false,
+      });
+    }
+    
+    // Update available_seats
+    const updatedSeatAvailability = await seatAvailability.update({
+      available_seats: correctAvailableSeats
+    });
+    
+    return res.status(200).json({
+      success: true,
+      message: "Seat availability mismatch fixed",
+      seatAvailability: updatedSeatAvailability,
+      originalMissSeat,
+      fixed: true
+    });
+  } catch (error) {
+    console.error("Error fixing seat mismatch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fix seat mismatch",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Memperbaiki miss_seat untuk beberapa SeatAvailability secara batch
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+const fixSeatMismatchBatch = async (req, res) => {
+  const { ids } = req.body;
+  
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide an array of seat availability IDs"
+    });
+  }
+  
+  try {
+    // Hasil dari operasi batch
+    const results = {
+      total: ids.length,
+      fixed: 0,
+      alreadyCorrect: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Proses setiap SeatAvailability
+    for (const id of ids) {
+      try {
+        // Temukan SeatAvailability dengan relasi
+        const seatAvailability = await SeatAvailability.findByPk(id, {
+          include: [
+            {
+              model: Schedule,
+              include: [{ model: Boat, as: "Boat" }]
+            },
+            {
+              model: BookingSeatAvailability,
+              as: "BookingSeatAvailabilities",
+              include: [
+                {
+                  model: Booking,
+                  where: {
+                    payment_status: {
+                      [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
+                    }
+                  },
+                  include: [
+                    {
+                      model: Passenger,
+                      as: "passengers",
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        });
+        
+        if (!seatAvailability) {
+          results.failed++;
+          results.details.push({
+            id,
+            status: 'failed',
+            message: 'Seat availability not found'
+          });
+          continue;
+        }
+        
+        // Hitung total penumpang
+        let totalPassengers = 0;
+        seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+          if (bsa.Booking && bsa.Booking.passengers) {
+            totalPassengers += bsa.Booking.passengers.length;
+          }
+        });
+        
+        // Tentukan kapasitas yang benar
+        const correctCapacity = seatAvailability.boost
+          ? seatAvailability.Schedule.Boat.capacity
+          : seatAvailability.Schedule.Boat.published_capacity;
+        
+        // Hitung available_seats yang benar
+        const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
+        
+        // Hitung miss_seat
+        const miss_seat = correctAvailableSeats - seatAvailability.available_seats;
+        
+        // Jika tidak ada ketidakcocokan, tidak perlu update
+        if (miss_seat === 0) {
+          results.alreadyCorrect++;
+          results.details.push({
+            id,
+            status: 'already_correct',
+            miss_seat: 0
+          });
+          continue;
+        }
+        
+        // Update available_seats
+        await seatAvailability.update({
+          available_seats: correctAvailableSeats
+        });
+        
+        results.fixed++;
+        results.details.push({
+          id,
+          status: 'fixed',
+          original_miss_seat: miss_seat,
+          new_available_seats: correctAvailableSeats
+        });
+      } catch (error) {
+        results.failed++;
+        results.details.push({
+          id,
+          status: 'error',
+          message: error.message
+        });
+      }
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: `Fixed ${results.fixed} seat availabilities, ${results.alreadyCorrect} already correct, ${results.failed} failed`,
+      results
+    });
+  } catch (error) {
+    console.error("Error fixing seat mismatches in batch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fix seat mismatches",
+      error: error.message
+    });
+  }
+};
+
+
+
 const deleteSeatAvailabilityByIds = async (req, res) => {
   const { ids } = req.query;
 
@@ -646,5 +997,7 @@ module.exports = {
   getFilteredSeatAvailabilityById,
  handleSeatAvailability,
  getSeatAvailabilityByMonthYear,
- deleteSeatAvailabilityByIds
+ deleteSeatAvailabilityByIds,
+ fixSeatMismatch,
+ fixSeatMismatchBatch
 };
