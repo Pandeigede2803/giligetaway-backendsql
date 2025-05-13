@@ -138,6 +138,11 @@ const Booking = sequelize.define('Booking', {
         allowNull: true,
         comment: 'Data related to discounts applied to the booking'
     },
+    booked_by:{
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        comment: 'User who booked the ticket'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

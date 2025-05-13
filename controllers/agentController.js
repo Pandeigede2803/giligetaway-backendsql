@@ -286,7 +286,7 @@ exports.sendAgentInvitationEmail = async (req, res) => {
       });
     }
     
-    console.log("Agent found:", agent);
+    // console.log("Agent found:", agent);
 
     // Create the transporter using your configuration function
     const transporter = configureTransporter();
@@ -563,8 +563,8 @@ transporter.sendMail(mailOptions, async (error, info) => {
       return res.status(500).json({ message: "Error sending reset link via both SMTP and Resend API." });
     }
   } else {
-    console.log("✅ Email sent successfully via SMTP to:", agent.email);
-    console.log("📩 SMTP response:", info.response);
+    // console.log("✅ Email sent successfully via SMTP to:", agent.email);
+    // console.log("📩 SMTP response:", info.response);
     return res.status(200).json({ message: "Reset link sent to your email." });
   }
 });
@@ -627,7 +627,7 @@ exports.updateAgent = async (req, res) => {
 
     // Attempt to update the agent
     await agent.update(agentData, { transaction: t });
-    console.log("Agent update successful:", agent.dataValues);
+    // console.log("Agent update successful:", agent.dataValues);
 
     // Commit transaction
     await t.commit();
@@ -797,7 +797,7 @@ exports.getAllAgents = async (req, res) => {
         },
       ],
     });
-    console.log("All agents retrieved:", agents);
+    // console.log("All agents retrieved:", agents);
     res.status(200).json(agents);
   } catch (error) {
     console.log("Error retrieving agents:", error.message);
@@ -852,7 +852,7 @@ exports.getAllAgentsOnly = async (req, res) => {
         },
       ],
     });
-    console.log("All agents retrieved:", agents);
+    // console.log("All agents retrieved:", agents);
     res.status(200).json(agents);
   } catch (error) {
     console.log("Error retrieving agents:", error.message);
@@ -914,7 +914,7 @@ exports.getAgentById = async (req, res) => {
     });;
 
     if (agent) {
-      console.log("Agent retrieved:", agent);
+      // console.log("Agent retrieved:", agent);
       res.status(200).json(agent);
     } else {
       console.log("Agent not found:", req.params.id);
@@ -980,10 +980,10 @@ exports.getAgentByIdSingle = async (req, res) => {
     });;
 
     if (agent) {
-      console.log("Agent retrieved:", agent);
+      // console.log("Agent retrieved:", agent);
       res.status(200).json(agent);
     } else {
-      console.log("Agent not found:", req.params.id);
+      // console.log("Agent not found:", req.params.id);
       res.status(400).json({ message: "Agent not found" });
     }
   } catch (error) {

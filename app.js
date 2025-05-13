@@ -94,7 +94,7 @@ app.use('/api/waiting-list', waitingListRoutes);
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
-});
+});;
 
 // Middleware untuk menangani semua error
 app.use((err, req, res, next) => {

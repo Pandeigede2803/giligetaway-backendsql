@@ -811,9 +811,10 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           note,
           final_state,
           discount_data,
+          booked_by,
         } = data;
 
-        console.log("note from frontend type", type, note);
+        // console.log("note from frontend type", type, note);
 
         console.log(
           `[Step 3.${
@@ -909,6 +910,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             note,
             discount_data,
             final_state,
+            booked_by,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ), // Default 30 minutes
@@ -968,13 +970,13 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
       console.log("\n[Step 3.2] 🛬 Processing return booking...");
       const returnResult = await handleBooking(returnData, "return");
 
-      console.log("\n[Step 4] 📝 Compiling final results...");
+      // console.log("\n[Step 4] 📝 Compiling final results...");
       return { departure: departureResult, return: returnResult };
     });
 
     const totalGross = departure.gross_total + returnData.gross_total;
-    console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
-    console.log("Total gross amount:", totalGross);
+    // console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
+    // console.log("Total gross amount:", totalGross);
     const bookings = [result.departure.booking, result.return.booking];
     const transactions = [
       result.departure.transaction,
@@ -1143,9 +1145,10 @@ const createBookingWithTransitQueue = async (req, res) => {
     note,
     final_state,
     discount_data,
+    booked_by,
   } = req.body;
 
-  console.log("🙀REQUEST FROM BODY:", req.body,final_state);
+  // console.log("🙀REQUEST FROM BODY:", req.body,final_state);
   // Validasi final_state kalau diperlukan
 if (typeof final_state !== 'object' || final_state === null) {
   return res.status(400).json({
@@ -1217,6 +1220,7 @@ if (typeof final_state !== 'object' || final_state === null) {
           final_state,
           discount_data,
           note,
+          booked_by,
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
           ),

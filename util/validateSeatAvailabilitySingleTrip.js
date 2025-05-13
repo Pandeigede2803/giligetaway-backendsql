@@ -28,7 +28,7 @@ const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, b
 
     // Step 3: Find seat availability with the constructed query
     const seatAvailability = await SeatAvailability.findOne(seatAvailabilityQuery);
-    console.log("this the data of seat availability", seatAvailability)
+    // console.log("this the data of seat availability", seatAvailability)
 
   
 

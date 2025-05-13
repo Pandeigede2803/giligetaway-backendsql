@@ -1423,9 +1423,9 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
 const getMetricsBookingDate = async (req, res) => {
   try {
     // Ambil parameter filter dari query
-    console.log("START TO FILTER BOOKING DATE METRICS");
+    // console.log("START TO FILTER BOOKING DATE METRICS");
     const { from, to, month, year, day } = req.query;
-    console.log("  ✅===all query====  ✅", req.query);
+    // console.log("  ✅===all query====  ✅", req.query);
 
     const numericYear = year ? parseInt(year) : null;
     const numericMonth = month ? parseInt(month) : null;

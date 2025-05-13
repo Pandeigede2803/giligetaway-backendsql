@@ -40,9 +40,9 @@ const AgentCommissionController = {
   // Fetch commissions with optional filters: month, year, agent_id, or from_date, to_date
   async getCommissions(req, res) {
     try {
-      console.log("Received query parameters:", req.query);;
+      // console.log("Received query parameters:", req.query);;
 
-      console.log("START AGENT GET COMISSION DATA")
+      // console.log("START AGENT GET COMISSION DATA")
 
       const agentId = req.query.agent_id
         ? parseInt(req.query.agent_id, 10)
@@ -90,12 +90,12 @@ const AgentCommissionController = {
           [Op.gte]: startOfDay,
           [Op.lte]: endOfDay,
         };
-        console.log(
-          "✅ Filter AgentCommission.created_at by day:",
-          startOfDay,
-          "-",
-          endOfDay
-        );
+        // console.log(
+        //   "✅ Filter AgentCommission.created_at by day:",
+        //   startOfDay,
+        //   "-",
+        //   endOfDay
+        // );
       }
       
       else if (year) {
@@ -106,12 +106,12 @@ const AgentCommissionController = {
           const endOfMonth = new Date(year, month, 0, 23, 59, 59);
           whereConditions.created_at[Op.gte] = startOfMonth;
           whereConditions.created_at[Op.lte] = endOfMonth;
-          console.log(
-            "✅ Filter AgentCommission.created_at by month:",
-            startOfMonth,
-            "-",
-            endOfMonth
-          );
+          // console.log(
+          //   "✅ Filter AgentCommission.created_at by month:",
+          //   startOfMonth,
+          //   "-",
+          //   endOfMonth
+          // );
         } else {
           const startOfYear = new Date(year, 0, 1);
           const endOfYear = new Date(year, 11, 31, 23, 59, 59);
@@ -165,29 +165,29 @@ const AgentCommissionController = {
           const endOfMonth = new Date(yearBooking, monthBooking, 0, 23, 59, 59);
           bookingWhereConditions.booking_date[Op.gte] = startOfMonth;
           bookingWhereConditions.booking_date[Op.lte] = endOfMonth;
-          console.log(
-            "✅ Filter Booking.booking_date by month:",
-            startOfMonth,
-            "-",
-            endOfMonth
-          );
+          // console.log(
+          //   "✅ Filter Booking.booking_date by month:",
+          //   startOfMonth,
+          //   "-",
+          //   endOfMonth
+          // );
         } else {
           const startOfYear = new Date(yearBooking, 0, 1);
           const endOfYear = new Date(yearBooking, 11, 31, 23, 59, 59);
           bookingWhereConditions.booking_date[Op.gte] = startOfYear;
           bookingWhereConditions.booking_date[Op.lte] = endOfYear;
-          console.log(
-            "✅ Filter Booking.booking_date by year:",
-            startOfYear,
-            "-",
-            endOfYear
-          );
+          // console.log(
+          //   "✅ Filter Booking.booking_date by year:",
+          //   startOfYear,
+          //   "-",
+          //   endOfYear
+          // );
         }
       } 
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
 
-      console.log("📝 AgentCommission conditions:", whereConditions);
-      console.log("📝 Booking conditions:", bookingWhereConditions);
+      // console.log("📝 AgentCommission conditions:", whereConditions);
+      // console.log("📝 Booking conditions:", bookingWhereConditions);
 
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
@@ -402,8 +402,8 @@ const AgentCommissionController = {
 
   async getCommissionsPagination(req, res) {
     try {
-      console.log("Received query parameters:", req.query);
-      console.log("START AGENT GET COMMISSION DATA");
+      // console.log("Received query parameters:", req.query);
+      // console.log("START AGENT GET COMMISSION DATA");
   
       const {
         agent_id,
@@ -473,13 +473,14 @@ const AgentCommissionController = {
         bookingWhereConditions.booking_date = { [Op.gte]: start, [Op.lte]: end };
       }
   
-      console.log("📝 whereConditions:", whereConditions);
-      console.log("📝 bookingWhereConditions:", bookingWhereConditions);
+      // console.log("📝 whereConditions:", whereConditions);
+      // console.log("📝 bookingWhereConditions:", bookingWhereConditions);
   
       const { count, rows: commissions } = await AgentCommission.findAndCountAll({
         where: whereConditions,
         limit: limitNum,
         offset,
+        order: [['created_at', 'DESC']], // Order by latest created_at
         distinct: true, // 🔧 fix overcounting
         include: {
           model: Booking,
@@ -772,7 +773,7 @@ const AgentCommissionController = {
             });
           }
 
-          console.log("👶transportCost", transportCost);
+          // console.log("👶transportCost", transportCost);
 
           // Use transportCost instead of bk.transportBookings if needed
           const amount = bk.gross_total - commission.amount-transportCost;
@@ -956,15 +957,15 @@ const AgentCommissionController = {
         to_booking_date,
       } = req.query;
 
-      console.log("===Received query parameters:====", {
-        agent_id,
-        year,
-        month,
-        from_date,
-        to_date,
-        from_booking_date,
-        to_booking_date,
-      });
+      // console.log("===Received query parameters:====", {
+      //   agent_id,
+      //   year,
+      //   month,
+      //   from_date,
+      //   to_date,
+      //   from_booking_date,
+      //   to_booking_date,
+      // });
 
       // 1. Filter di AgentCommission (created_at + agent_id)
       const whereConditions = {};
@@ -1034,8 +1035,8 @@ const AgentCommissionController = {
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
       // tapi masih payment_status = 'invoiced'
 
-      console.log("AgentCommission conditions (invoiced):", whereConditions);
-      console.log("Booking conditions (invoiced):", bookingWhereConditions);
+      // console.log("AgentCommission conditions (invoiced):", whereConditions);
+      // console.log("Booking conditions (invoiced):", bookingWhereConditions);
 
       const commissions = await AgentCommission.findAll({
         where: whereConditions,
@@ -1190,10 +1191,10 @@ const AgentCommissionController = {
         };
       });
 
-      console.log(
-        "Processed commissions (invoiced) with routes:",
-        JSON.stringify(processedCommissions, null, 2)
-      );
+      // console.log(
+      //   "Processed commissions (invoiced) with routes:",
+      //   JSON.stringify(processedCommissions, null, 2)
+      // );
       res.status(200).json(processedCommissions);
     } catch (error) {
       console.error("Error fetching commissions (invoiced):", error);
@@ -1240,8 +1241,8 @@ const AgentCommissionController = {
  
 
   async createAgentComission(req, res) {
-    console.log("start to add agent comission")
-    console.log("BODY RECEIVED:", req.body);
+    // console.log("start to add agent comission")
+    // console.log("BODY RECEIVED:", req.body);
 
     try {
       const { booking_id, agent_id, amount } = req.body;

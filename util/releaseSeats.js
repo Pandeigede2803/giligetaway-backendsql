@@ -199,4 +199,4 @@ const releaseSeats = async (booking, transaction) => {
     return updatedSeatAvailabilityIds;
   };
   
-  module.exports = releaseSeats;  
+  module.exports = {releaseSeats,releaseBookingSeats};  
