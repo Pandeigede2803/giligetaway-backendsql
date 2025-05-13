@@ -124,7 +124,7 @@ const formatBookingsToText = (bookings) => {
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
   
   // Create summary text
-  let emailText = `TESTING DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
+  let emailText = `DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
   emailText += `SUMMARY:\n`;
   emailText += `Total Bookings: ${totalBookings}\n`;
   emailText += `Total Passengers: ${totalPassengers}\n`;
