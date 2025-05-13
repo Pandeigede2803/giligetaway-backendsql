@@ -30,10 +30,14 @@ const buildRoute = (seatAvailability) => {
   return route;
 };
 
+
+// sdfghj
+
 const buildRouteFromSchedule = (schedule, subSchedule) => {
 
 
-
+  // console.log("Schedule structure:", JSON.stringify(schedule, null, 2));
+  // console.log("SubSchedule structure:", JSON.stringify(subSchedule, null, 2));
   let route = '';
 
   
@@ -82,7 +86,7 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
   return route;
 };
 
-console.log("ini route jancuk:", buildRouteFromSchedule);
+// console.log("ini route jancuk:", buildRouteFromSchedule);
 
 
 

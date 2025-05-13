@@ -55,6 +55,7 @@ const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabi
 const AgentCommission = require("../models/AgentComission");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
 const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
+const { buildRouteFromSchedule2 } = require("../util/schedulepassenger/buildRouteFromSchedule");
 
 
 
@@ -2530,8 +2531,8 @@ const getFilteredBookingsPagination = async (req, res) => {
               },
             ],
           },
-          { model: Destination, as: "FromDestination", attributes: ["name"] },
-          { model: Destination, as: "ToDestination", attributes: ["name"] },
+          { model: Destination, as: "FromDestination",attributes: ["name"] },
+          { model: Destination, as: "ToDestination",attributes: ["name"] },
         ],
       },
       { model: AgentCommission, as: "agentCommission",
@@ -2542,8 +2543,8 @@ const getFilteredBookingsPagination = async (req, res) => {
         model: SubSchedule,
         as: "subSchedule",
         attributes: [
-          
-        ],
+          "id",],
+  
         include: [
           { model: Destination, as: "DestinationFrom", attributes: ["name"] },
           { model: Destination, as: "DestinationTo", attributes: ["name"] },
@@ -2552,7 +2553,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "TransitFrom",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination"},
             ],
           },
           {
@@ -2560,7 +2561,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "TransitTo",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination"},
             ],
           },
           {
@@ -2568,7 +2569,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "Transit1",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination" },
             ],
           },
           {
@@ -2576,7 +2577,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "Transit2",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination" },
             ],
           },
           {
@@ -2584,7 +2585,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "Transit3",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination" },
             ],
           },
           {
@@ -2592,7 +2593,7 @@ const getFilteredBookingsPagination = async (req, res) => {
             as: "Transit4",
             attributes: ["id"],
             include: [
-              { model: Destination, as: "Destination", attributes: ["name"] },
+              { model: Destination, as: "Destination"},
             ],
           },
         ],
@@ -2735,6 +2736,8 @@ const getFilteredBookingsPagination = async (req, res) => {
       const route = schedule
         ? buildRouteFromSchedule(schedule, subSchedule)
         : null;
+
+         // Build route
 
       // Tambahkan route ke hasil booking
       return {
