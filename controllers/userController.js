@@ -147,8 +147,8 @@ const loginUser = async (req, res) => {
                 
                 // If token is still valid (not expired)
                 if (decoded.exp > currentTime) {
-                    console.log(`Using cached token for: ${email}`);
-                    console.log(`Token will expire in: ${(decoded.exp - currentTime) / 60} minutes`);
+                    // console.log(`Using cached token for: ${email}`);
+                    // console.log(`Token will expire in: ${(decoded.exp - currentTime) / 60} minutes`);
                     
                     // Verify password first for security
                     const user = await User.findOne({ where: { email } });
@@ -164,7 +164,7 @@ const loginUser = async (req, res) => {
                     });
                 } else {
                     // Token has expired, remove from cache
-                    console.log(`Cached token expired for: ${email}, removing from cache`);
+                    // console.log(`Cached token expired for: ${email}, removing from cache`);
                     tokenCache.delete(email);
                 }
             } catch (err) {

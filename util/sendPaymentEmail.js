@@ -922,6 +922,10 @@ const sendPaymentEmail = async (
         paymentStatus === "refund_50"
           ? "Partial Refund Processed"
           : "Full Refund Processed";
+    } else if (paymentStatus === "cancelled") {
+      statusColor = "#757575"; // Grey for cancelled
+      statusIcon = "🚫";
+      statusMessage = "Booking Cancelled";
     }
 
     let message = `
@@ -1009,6 +1013,15 @@ const sendPaymentEmail = async (
                 <span style="font-weight: bold; display: inline-block; width: 150px;">New Status:</span> ${paymentStatus}
               </div>
               <p style="margin-bottom: 0;">Your refund has been processed successfully. Please allow 3-5 business days for the amount to appear in your account.</p>`;
+    } else if (paymentStatus === "cancelled") {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Cancelled
+              </div>
+              <p style="margin-bottom: 0;">Your booking has been cancelled. If you have already made a payment, a refund will be processed according to our cancellation policy.</p>`;
     } else {
       message += `
               <div style="margin-bottom: 10px;">
@@ -1805,6 +1818,7 @@ const sendWaitingListConfirmationEmail = async (
 
     const mailOptions = {
       from:  process.env.EMAIL_BOOKING,
+      cc: process.env.EMAIL_USER_GMAIL,
       to: email,
       subject: "Your Waiting List Confirmation",
       html: `

@@ -4256,55 +4256,25 @@ const updateBookingPayment = async (req, res) => {
       console.log(`🔍 Current payment status: ${booking.payment_status}`);
       console.log(`🔍 Requested payment status: ${payment_status}`);
       
-      // === PENTING: Periksa status khusus terlebih dahulu ===
-      // Handle refund and cancellation cases FIRST
-      if (payment_status === "refund_50" || payment_status === "refund_100" || payment_status === "cancelled") {
-        console.log(`\n🔄 Processing special status: ${payment_status}`);
+      // === HANDLE CANCELLATION WITHOUT REFUND ===
+      if (payment_status === "cancelled") {
+        console.log(`\n🔄 Processing cancellation (no refund calculation)...`);
         
-        // Hitung refund berdasarkan status
-        const refundPercentage = payment_status === "refund_50" ? 0.5 : 1;
-        const refundAmount = booking.gross_total * refundPercentage;
-        const refundAmountUSD = booking.gross_total_in_usd
-          ? booking.gross_total_in_usd * refundPercentage
-          : null;
-
-        // Tampilkan informasi perhitungan
-        console.log("\n📊 Refund/Cancellation Calculations:");
-        console.log(`- Status: ${payment_status}`);
-        console.log(`- Refund Percentage: ${refundPercentage * 100}%`);
-        console.log(`- Refund Amount: ${refundAmount} ${booking.currency}`);
-        if (refundAmountUSD !== null) {
-          console.log(`- Refund Amount USD: $${refundAmountUSD}`);
-        }
-
-        // Hitung total baru
-        const newGrossTotal = booking.gross_total - refundAmount;
-        const newGrossTotalUSD = booking.gross_total_in_usd
-          ? booking.gross_total_in_usd - refundAmountUSD
-          : null;
-
-        // Update booking
-        console.log("\n🔄 Updating booking with status details...");
+        // Update booking status only - no financial calculations
+        console.log("🔄 Updating booking status to cancelled...");
         await booking.update(
           {
-            payment_status,
-            gross_total: newGrossTotal,
-            gross_total_in_usd: newGrossTotalUSD,
+            payment_status: "cancelled",
+            // Keep original gross_total and gross_total_in_usd unchanged
           },
           { transaction: t }
         );
         
-        // Log status sesuai jenis operasi
-        if (payment_status === "cancelled") {
-          console.log("✅ Booking cancellation processed successfully");
-        } else {
-          console.log("✅ Refund processed successfully");
-        }
+        console.log("✅ Booking cancellation processed successfully");
 
-        // Proses pengembalian kursi
+        // Process seat release
         console.log("\n🪑 Processing seat release...");
         
-        // Tambahkan debug info untuk membantu pelacakan
         console.log("Booking data for release:", {
           id: booking.id,
           schedule_id: booking.schedule_id,
@@ -4321,17 +4291,105 @@ const updateBookingPayment = async (req, res) => {
             }`
           );
           
-          // Log berhasil
-          if (payment_status === "cancelled") {
-            console.log("\n✅ Cancellation process completed successfully");
-          } else {
-            console.log(
-              "\n✅ Refund process completed successfully",
-              booking.contact_email
+          console.log("\n✅ Cancellation process completed successfully");
+
+          // Send email notification
+          if (booking.contact_email) {
+            console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
+            console.log(`start to send the email ${booking.contact_email}`);
+            sendPaymentEmail(
+              booking.contact_email,
+              booking,
+              payment_method,
+              payment_status,
+              null, // No refund amount for cancellation
+              null  // No refund amount USD for cancellation
             );
+            console.log(`📧 Payment email sent to ${booking.contact_email}`);
           }
 
-          // Kirim email notifikasi
+          return res.status(200).json({
+            message: "Booking cancelled successfully",
+            data: {
+              booking_id: booking.id,
+              payment_status: "cancelled",
+              released_seats: releasedSeatIds,
+            },
+          });
+        } catch (releaseError) {
+          console.error("\n❌ Error releasing seats:", releaseError);
+          
+          return res.status(200).json({
+            message: "Booking cancelled but had issues releasing seats",
+            data: {
+              booking_id: booking.id,
+              payment_status: "cancelled",
+              error: releaseError.message
+            },
+          });
+        }
+      }
+      // === HANDLE REFUND CASES (50% and 100%) ===
+      else if (payment_status === "refund_50" || payment_status === "refund_100") {
+        console.log(`\n🔄 Processing refund: ${payment_status}`);
+        
+        // Calculate refund based on status
+        const refundPercentage = payment_status === "refund_50" ? 0.5 : 1;
+        const refundAmount = booking.gross_total * refundPercentage;
+        const refundAmountUSD = booking.gross_total_in_usd
+          ? booking.gross_total_in_usd * refundPercentage
+          : null;
+
+        // Display calculation info
+        console.log("\n📊 Refund Calculations:");
+        console.log(`- Status: ${payment_status}`);
+        console.log(`- Refund Percentage: ${refundPercentage * 100}%`);
+        console.log(`- Refund Amount: ${refundAmount} ${booking.currency}`);
+        if (refundAmountUSD !== null) {
+          console.log(`- Refund Amount USD: $${refundAmountUSD}`);
+        }
+
+        // Calculate new totals
+        const newGrossTotal = booking.gross_total - refundAmount;
+        const newGrossTotalUSD = booking.gross_total_in_usd
+          ? booking.gross_total_in_usd - refundAmountUSD
+          : null;
+
+        // Update booking
+        console.log("\n🔄 Updating booking with refund details...");
+        await booking.update(
+          {
+            payment_status,
+            gross_total: newGrossTotal,
+            gross_total_in_usd: newGrossTotalUSD,
+          },
+          { transaction: t }
+        );
+        
+        console.log("✅ Refund processed successfully");
+
+        // Process seat release
+        console.log("\n🪑 Processing seat release...");
+        
+        console.log("Booking data for release:", {
+          id: booking.id,
+          schedule_id: booking.schedule_id,
+          subschedule_id: booking.subschedule_id,
+          total_passengers: booking.total_passengers,
+          booking_date: booking.booking_date
+        });
+        
+        try {
+          const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+          console.log(
+            `✅ Released seats: ${
+              releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
+            }`
+          );
+          
+          console.log("\n✅ Refund process completed successfully");
+
+          // Send email notification
           if (booking.contact_email) {
             console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
             console.log(`start to send the email ${booking.contact_email}`);
@@ -4346,46 +4404,30 @@ const updateBookingPayment = async (req, res) => {
             console.log(`📧 Payment email sent to ${booking.contact_email}`);
           }
 
-          // Kirim response yang sesuai
-          if (payment_status === "cancelled") {
-            return res.status(200).json({
-              message: "Booking cancelled successfully",
-              data: {
-                booking_id: booking.id,
-                payment_status,
-                released_seats: releasedSeatIds,
-              },
-            });
-          } else {
-            return res.status(200).json({
-              message: `${
-                payment_status === "refund_50" ? "50%" : "Full"
-              } refund processed successfully`,
-              data: {
-                booking_id: booking.id,
-                refund_amount: refundAmount,
-                refund_amount_usd: refundAmountUSD,
-                new_gross_total: newGrossTotal,
-                new_gross_total_usd: newGrossTotalUSD,
-                new_payment_status: payment_status,
-                released_seats: releasedSeatIds,
-              },
-            });
-          }
+          return res.status(200).json({
+            message: `${
+              payment_status === "refund_50" ? "50%" : "Full"
+            } refund processed successfully`,
+            data: {
+              booking_id: booking.id,
+              refund_amount: refundAmount,
+              refund_amount_usd: refundAmountUSD,
+              new_gross_total: newGrossTotal,
+              new_gross_total_usd: newGrossTotalUSD,
+              new_payment_status: payment_status,
+              released_seats: releasedSeatIds,
+            },
+          });
         } catch (releaseError) {
-          // Tangani error pada releaseSeats
           console.error("\n❌ Error releasing seats:", releaseError);
           
-          // Lanjutkan proses meskipun ada error
           return res.status(200).json({
-            message: payment_status === "cancelled" 
-              ? "Booking cancelled but had issues releasing seats" 
-              : `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
+            message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
             data: {
               booking_id: booking.id,
               payment_status,
-              refund_amount: payment_status === "cancelled" ? null : refundAmount,
-              refund_amount_usd: payment_status === "cancelled" ? null : refundAmountUSD,
+              refund_amount: refundAmount,
+              refund_amount_usd: refundAmountUSD,
               new_gross_total: newGrossTotal,
               new_gross_total_usd: newGrossTotalUSD,
               error: releaseError.message
@@ -4393,8 +4435,7 @@ const updateBookingPayment = async (req, res) => {
           });
         }
       }
-      // === BARU KEMUDIAN cek payment details lainnya ===
-      // Only reach this code if not a special status
+      // === HANDLE REGULAR PAYMENT UPDATES ===
       else if (payment_method || payment_status) {
         console.log("\n🔄 Updating regular payment details...");
         const data = {};
@@ -4422,8 +4463,7 @@ const updateBookingPayment = async (req, res) => {
           data: booking,
         });
       }
-      
-      // Fallback untuk kasus yang tidak ditangani di atas (jarang terjadi)
+      // === FALLBACK ===
       else {
         console.log("\n⚠️ No changes specified in the request");
         return res.status(400).json({
