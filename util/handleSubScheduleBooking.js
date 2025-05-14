@@ -338,6 +338,7 @@ if (!subSchedule || !schedule_id) {
 
 const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) => {
   // First, find all relations for this subschedule
+  console.log("masuk findRelatedSubSchedules");
   const relations = await SubScheduleRelation.findAll({
     where: {
       main_subschedule_id: subSchedule.id
@@ -438,6 +439,7 @@ const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) =>
 
 const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_date, total_passengers, transaction) => {
     // Fetch the main schedule and boat capacity
+    console.log("masuk handleSubScheduleBooking");
     const schedule = await Schedule.findByPk(schedule_id, {
         include: [{ model: sequelize.models.Boat, as: 'Boat' }],
         transaction

@@ -1333,10 +1333,10 @@ bookingQueue.process(async (job, done) => {
       );
     }
 
-    console.log(
-      "THIS ISRemaining Seat Availabilities:",
-      remainingSeatAvailabilities
-    );
+    // console.log(
+    //   "THIS ISRemaining Seat Availabilities:",
+    //   remainingSeatAvailabilities
+    // );
     // ======================
     // Step 2: Buat Record Pivot BookingSeatAvailability
     // ======================
