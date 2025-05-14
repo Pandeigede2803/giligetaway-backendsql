@@ -2009,16 +2009,80 @@ const getPassengersSeatNumber = async (req, res) => {
   }
 };
 
+const assignSeatAvailabilityToBooking = async (bookingId) => {
+  const booking = await Booking.findByPk(bookingId);
+  if (!booking) throw new Error("Booking not found");
+
+  const scheduleId = booking.schedule_id;
+  const subScheduleId = booking.sub_schedule_id || null;
+  const date = booking.booking_date;
+
+  console.log("📋 Booking info:", { bookingId, scheduleId, subScheduleId, date });
+
+  // 1. Cek apakah seat availability sudah ada
+  let seatAvailability = await SeatAvailability.findOne({
+    where: {
+      schedule_id: scheduleId,
+      subschedule_id: subScheduleId,
+      date,
+    },
+  });
+
+  // 2. Kalau belum ada, buat baru
+  if (!seatAvailability) {
+    console.log("🆕 Creating new seat availability...");
+
+    const schedule = await Schedule.findByPk(scheduleId, {
+      include: [{ model: Boat, as: "Boat" }],
+    });
+
+    if (!schedule || !schedule.Boat) {
+      throw new Error("Schedule or Boat not found.");
+    }
+
+    const boat = schedule.Boat;
+
+    // Gunakan published_capacity jika boost false
+    const availableSeats = boat.published_capacity || boat.capacity;
+
+    seatAvailability = await SeatAvailability.create({
+      schedule_id: scheduleId,
+      subschedule_id: subScheduleId,
+      available_seats: availableSeats,
+      date,
+      boost: false, // default false saat create
+    });
+
+    console.log("✅ SeatAvailability created with ID:", seatAvailability.id);
+  } else {
+    console.log("🔁 Found existing seat availability ID:", seatAvailability.id);
+  }
+
+  // 3. Link ke Booking melalui BookingSeatAvailability
+  const [link, created] = await BookingSeatAvailability.findOrCreate({
+    where: {
+      booking_id: bookingId,
+      seat_availability_id: seatAvailability.id,
+    },
+  });
+
+  console.log(`🔗 Seat availability ${created ? "linked" : "already linked"} to booking ${bookingId}`);
+};
+
+
+
 const getPassengersSeatNumberByBookingId = async (req, res) => {
   const { booking_id } = req.query;
-  
+
   if (!booking_id) {
+    console.log("❌ Missing booking_id in query.");
     return res.status(400).json({ error: "Missing booking_id parameter." });
   }
-  
+
   try {
-    // 1️⃣ Ambil Booking termasuk relasi Schedule & Boat
-    const booking = await Booking.findByPk(booking_id, {
+    console.log("🔍 Looking for booking with ID:", booking_id);
+
+    let booking = await Booking.findByPk(booking_id, {
       include: [
         {
           model: Passenger,
@@ -2037,23 +2101,63 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
         },
       ],
     });
-    
+
     if (!booking) {
+      console.log("❌ Booking not found for ID:", booking_id);
       return res.status(404).json({ error: "Booking not found." });
     }
-    
+
+    console.log("✅ Booking found:", {
+      id: booking.id,
+      passengerCount: booking.passengers?.length,
+      scheduleId: booking.schedule?.id,
+    });
+
     if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
-      return res.status(404).json({ error: "No seat availability linked to this booking." });
+      console.log("⚠️ No seat availability found, attempting to assign...");
+
+      await assignSeatAvailabilityToBooking(booking_id);
+
+      // Fetch ulang booking setelah assign
+      booking = await Booking.findByPk(booking_id, {
+        include: [
+          {
+            model: Passenger,
+            as: "passengers",
+            attributes: ["id", "name", "seat_number"],
+          },
+          {
+            model: Schedule,
+            as: "schedule",
+            include: [{ model: Boat, as: "Boat" }],
+          },
+          {
+            model: SeatAvailability,
+            as: "seatAvailabilities",
+            through: BookingSeatAvailability,
+          },
+        ],
+      });
+
+      if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
+        return res.status(404).json({ error: "Still no seat availability after assignment." });
+      }
     }
-    
-    const seatAvailability = booking.seatAvailabilities[0]; // Ambil seat availability pertama
+
+    const seatAvailability = booking.seatAvailabilities[0];
+    console.log("🪑 Seat Availability:", seatAvailability.id);
+
     const boat = booking.schedule?.Boat;
-    
     if (!boat) {
+      console.log("❌ Boat not found in schedule of booking ID:", booking_id);
       return res.status(404).json({ error: "Boat not found from schedule." });
     }
-    
-    // 2️⃣ Ambil semua booking yang terkait dengan seat availability yang sama
+
+    console.log("⛵ Boat info:", {
+      id: boat.id,
+      name: boat.name,
+    });
+
     const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
       where: {
         seat_availability_id: seatAvailability.id,
@@ -2074,32 +2178,36 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
         },
       ],
     });
-    
-    // 3️⃣ Kumpulkan semua seat_number dari semua booking
+
+    console.log("📦 Total related bookings sharing this seat availability:", bookingSeatAvailabilities.length);
+
     const allBookedSeats = [];
-    bookingSeatAvailabilities.forEach(bsa => {
+    bookingSeatAvailabilities.forEach((bsa) => {
       if (bsa.Booking && bsa.Booking.passengers) {
-        bsa.Booking.passengers.forEach(p => {
+        bsa.Booking.passengers.forEach((p) => {
           if (p.seat_number) {
             allBookedSeats.push(p.seat_number);
           }
         });
       }
     });
-    
-    // 4️⃣ Pisahkan seat number dari booking yang diminta
+
+    console.log("🎫 All booked seat numbers:", allBookedSeats);
+
     const currentBookingSeats = booking.passengers
       .map((p) => p.seat_number)
       .filter(Boolean);
-    
-    // 5️⃣ Proses semua seat yang sudah dipesan dengan fungsi utils
+
+    console.log("🎟️ Current booking seat numbers:", currentBookingSeats);
+
     const processedBookedSeats = processBookedSeats(
       new Set(allBookedSeats),
       seatAvailability.boost,
       boat
     );
-    
-    // 6️⃣ Siapkan respons
+
+    console.log("🧮 Processed booked seats with boost logic:", processedBookedSeats);
+
     return res.status(200).json({
       status: "success",
       message: "Seat information retrieved successfully.",
@@ -2111,9 +2219,9 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
       boatDetails: boat,
       seatAvailability,
     });
-    
+
   } catch (error) {
-    console.error("Error in getPassengersSeatNumberByBookingId:", error);
+    console.error("🔥 Error in getPassengersSeatNumberByBookingId:", error);
     return res.status(500).json({
       error: "Failed to retrieve seat information.",
     });
