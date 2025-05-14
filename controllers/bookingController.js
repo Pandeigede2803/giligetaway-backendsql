@@ -5086,7 +5086,7 @@ const deleteBooking = async (req, res) => {
     if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
       console.log("\n🔄 Releasing seats from current booking date...");
       try {
-        const releasedSeatIds = await releaseBookingSeats(booking, transaction);
+        const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
