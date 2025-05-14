@@ -457,7 +457,7 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
         where: {
           id: subschedule_id,
           schedule_id: schedule_id,
-          availability: true,
+          // availability: true,
         },
         include: [
           {
