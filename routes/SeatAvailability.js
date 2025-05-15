@@ -13,6 +13,7 @@ const {
   fixSeatMismatch,
   fixSeatMismatchBatch,
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
+
 const authenticate = require("../middleware/authenticate");
 // Route to check available seats for a specific schedule and date
 const { body } = require("express-validator");

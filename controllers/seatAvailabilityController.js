@@ -8,14 +8,18 @@ const {
   Destination,
   BookingSeatAvailability,
   Passenger,
-
 } = require("../models"); // Adjust the path as needed
 const formatScheduleResponse = require("../util/formatScheduleResponse");
-const { validationResult } = require('express-validator');
+const { validationResult } = require("express-validator");
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
-const { Op } = require('sequelize'); // Import Sequelize operators
-const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
+const { Op } = require("sequelize"); // Import Sequelize operators
+const {
+  adjustSeatAvailability,
+  boostSeatAvailability,
+  createSeatAvailability,
+  createSeatAvailabilityMax,
+} = require("../util/seatAvailabilityUtils");
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
@@ -46,7 +50,9 @@ const createOrGetSeatAvailability = async (req, res) => {
     });
 
     if (!mainSeatAvailability) {
-      console.log("2. Main seat not found, creating main schedule seat availability...");
+      console.log(
+        "2. Main seat not found, creating main schedule seat availability..."
+      );
       const result = await createSeatAvailability({
         schedule_id,
         date,
@@ -92,7 +98,6 @@ const createOrGetSeatAvailability = async (req, res) => {
       message: "Seat availability retrieved or created successfully",
       seat_availability: seatAvailability,
     });
-
   } catch (error) {
     console.error("❌ Error in createOrGetSeatAvailability:", error.message);
     return res.status(500).json({
@@ -104,7 +109,8 @@ const createOrGetSeatAvailability = async (req, res) => {
 };
 
 const getSeatAvailabilityByMonthYear = async (req, res) => {
-  const { year, month, page = 1, limit = 10 } = req.query;
+  const { year, month, date, page = 1, limit = 10 } = req.query;
+
   // console.log("Query Params:", { year, month, page, limit });
 
   try {
@@ -113,23 +119,45 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
     const limitNumber = parseInt(limit, 10);
     const offset = (pageNumber - 1) * limitNumber;
 
-    // Ensure month is zero-padded for consistency
-    const formattedMonth = month.padStart(2, "0");
+    // // Ensure month is zero-padded for consistency
+    // const formattedMonth = month.padStart(2, "0");
+    // // Calculate start and end of the month
+    // const startOfMonth = new Date(`${year}-${formattedMonth}-01`);
+    // const endOfMonth = new Date(`${year}-${formattedMonth}-01`);
+    // endOfMonth.setMonth(endOfMonth.getMonth() + 1); // Move to next month
 
-    // Calculate start and end of the month
-    const startOfMonth = new Date(`${year}-${formattedMonth}-01`);
-    const endOfMonth = new Date(`${year}-${formattedMonth}-01`);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1); // Move to next month
+    let dateCondition = {};
 
-    console.log("Start Date:", startOfMonth, "End Date:", endOfMonth);
-
-    // First, get total count for pagination info (this query is lightweight)
-    const totalCount = await SeatAvailability.count({
-      where: {
+    if (date) {
+      const specificDate = new Date(date);
+      if (isNaN(specificDate)) {
+        return res
+          .status(400)
+          .json({ error: "Invalid date format. Use YYYY-MM-DD." });
+      }
+      dateCondition = { date: specificDate };
+    } else if (year && month) {
+      const formattedMonth = month.padStart(2, "0");
+      const startOfMonth = new Date(`${year}-${formattedMonth}-01`);
+      const endOfMonth = new Date(`${year}-${formattedMonth}-01`);
+      endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+      dateCondition = {
         date: {
           [Op.between]: [startOfMonth, endOfMonth],
         },
-      },
+      };
+    } else {
+      return res
+        .status(400)
+        .json({ error: "Provide either date or (year and month)." });
+    }
+    console.log("Date Condition:", dateCondition);
+
+
+    // First, get total count for pagination info (this query is lightweight)
+    const totalCount = await SeatAvailability.count({
+      where: dateCondition,
+
     });
 
     // Calculate total pages
@@ -139,7 +167,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
     const seatAvailabilities = await SeatAvailability.findAll({
       where: {
         date: {
-          [Op.between]: [startOfMonth, endOfMonth],
+          where: dateCondition,
         },
       },
       attributes: [
@@ -158,15 +186,15 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         {
           model: Schedule,
           required: true,
-          attributes:["id"],
+          attributes: ["id"],
           include: [
             {
               model: Boat,
               as: "Boat",
               required: true,
-              attributes: ["id", "capacity", "published_capacity"]
-            }
-          ]
+              attributes: ["id", "capacity", "published_capacity"],
+            },
+          ],
         },
         {
           model: BookingSeatAvailability,
@@ -175,75 +203,78 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
           include: [
             {
               model: Booking,
-              attributes:["id"],
+              attributes: ["id"],
               required: false,
               where: {
                 payment_status: {
-                  [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
-                }
+                  [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                },
               },
               include: [
                 {
                   model: Passenger,
                   as: "passengers",
-                  required: false
-                }
-              ]
-            }
-          ]
-        }
+                  required: false,
+                },
+              ],
+            },
+          ],
+        },
       ],
       order: [["created_at", "DESC"]],
       limit: limitNumber,
-      offset: offset
+      offset: offset,
     });
 
     // Transformasi hasil untuk menambahkan informasi yang dibutuhkan
-    const enhancedSeatAvailabilities = seatAvailabilities.map(seatAvailability => {
-      // Konversi ke plain object untuk manipulasi lebih mudah
-      const seatAvailabilityObj = seatAvailability.get({ plain: true });
-      
-      // Hitung total penumpang
-      let totalPassengers = 0;
-      const bookingIds = new Set();
-      
-      if (seatAvailabilityObj.BookingSeatAvailabilities) {
-        seatAvailabilityObj.BookingSeatAvailabilities.forEach(bsa => {
-          if (bsa.Booking && bsa.Booking.passengers) {
-            totalPassengers += bsa.Booking.passengers.length;
-            bookingIds.add(bsa.Booking.id);
-          }
-        });
+    const enhancedSeatAvailabilities = seatAvailabilities.map(
+      (seatAvailability) => {
+        // Konversi ke plain object untuk manipulasi lebih mudah
+        const seatAvailabilityObj = seatAvailability.get({ plain: true });
+
+        // Hitung total penumpang
+        let totalPassengers = 0;
+        const bookingIds = new Set();
+
+        if (seatAvailabilityObj.BookingSeatAvailabilities) {
+          seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
+            if (bsa.Booking && bsa.Booking.passengers) {
+              totalPassengers += bsa.Booking.passengers.length;
+              bookingIds.add(bsa.Booking.id);
+            }
+          });
+        }
+
+        // Total kursi yang terisi ditambah kursi yang tersedia harus sama dengan kapasitas maksimum
+        const totalAllocatedSeats =
+          totalPassengers + seatAvailabilityObj.available_seats;
+        const correctCapacity = seatAvailabilityObj.boost
+          ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
+          : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
+
+        // Hitung miss_seat (nilai +/- ketidakcocokan)
+        // Hitung available_seats yang benar (correct capacity - total passengers)
+        const correctAvailableSeats = correctCapacity - totalPassengers;
+
+        // Hitung miss_seat (selisih antara available_seats yang benar dengan yang saat ini)
+        const miss_seat =
+          correctAvailableSeats - seatAvailabilityObj.available_seats;
+
+        // Tambahkan field-field baru
+        return {
+          ...seatAvailabilityObj,
+          boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
+          total_passengers: totalPassengers,
+          total_bookings: bookingIds.size,
+          correct_capacity: correctCapacity,
+          capacity_match_status:
+            totalAllocatedSeats === correctCapacity ? "MATCH" : "MISMATCH",
+          miss_seats: miss_seat,
+          // Hapus data nested yang tidak perlu (opsional, untuk mengurangi ukuran response)
+          BookingSeatAvailabilities: undefined,
+        };
       }
-      
- // Total kursi yang terisi ditambah kursi yang tersedia harus sama dengan kapasitas maksimum
-const totalAllocatedSeats = totalPassengers + seatAvailabilityObj.available_seats;
-const correctCapacity = seatAvailabilityObj.boost ? 
-                       (seatAvailabilityObj.Schedule?.Boat?.capacity || 0) : 
-                       (seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0);
-
-                             // Hitung miss_seat (nilai +/- ketidakcocokan)
-   // Hitung available_seats yang benar (correct capacity - total passengers)
-const correctAvailableSeats = correctCapacity - totalPassengers;
-
-// Hitung miss_seat (selisih antara available_seats yang benar dengan yang saat ini)
-const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
-
-
-      
-      // Tambahkan field-field baru
-      return {
-        ...seatAvailabilityObj,
-        boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
-        total_passengers: totalPassengers,
-        total_bookings: bookingIds.size,
-        correct_capacity: correctCapacity,
-        capacity_match_status: totalAllocatedSeats === correctCapacity ? 'MATCH' : 'MISMATCH',
-        miss_seats: miss_seat,
-        // Hapus data nested yang tidak perlu (opsional, untuk mengurangi ukuran response)
-        BookingSeatAvailabilities: undefined
-      };
-    });
+    );
 
     return res.status(200).json({
       success: true,
@@ -255,8 +286,8 @@ const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
         limit: limitNumber,
         totalPages: totalPages,
         hasNextPage: pageNumber < totalPages,
-        hasPrevPage: pageNumber > 1
-      }
+        hasPrevPage: pageNumber > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching seat availability:", error.message);
@@ -275,14 +306,14 @@ const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
  */
 const fixSeatMismatch = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Temukan SeatAvailability dengan relasi yang dibutuhkan
     const seatAvailability = await SeatAvailability.findByPk(id, {
       include: [
         {
           model: Schedule,
-          include: [{ model: Boat, as: "Boat" }]
+          include: [{ model: Boat, as: "Boat" }],
         },
         {
           model: BookingSeatAvailability,
@@ -292,47 +323,51 @@ const fixSeatMismatch = async (req, res) => {
               model: Booking,
               where: {
                 payment_status: {
-                  [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
-                }
+                  [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                },
               },
               include: [
                 {
                   model: Passenger,
                   as: "passengers",
-                }
-              ]
-            }
-          ]
-        }
-      ]
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
-    
+
     if (!seatAvailability) {
       return res.status(404).json({
         success: false,
         message: "Seat availability not found",
       });
     }
-    
+
     // Hitung total penumpang
     let totalPassengers = 0;
-    seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+    seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
       if (bsa.Booking && bsa.Booking.passengers) {
         totalPassengers += bsa.Booking.passengers.length;
       }
     });
-    
+
     // Tentukan kapasitas yang benar
     const correctCapacity = seatAvailability.boost
       ? seatAvailability.Schedule.Boat.capacity
       : seatAvailability.Schedule.Boat.published_capacity;
-    
+
     // Hitung available_seats yang benar
-    const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
-    
+    const correctAvailableSeats = Math.max(
+      0,
+      correctCapacity - totalPassengers
+    );
+
     // Hitung miss_seat sebelum perbaikan
-    const originalMissSeat = correctAvailableSeats - seatAvailability.available_seats;
-    
+    const originalMissSeat =
+      correctAvailableSeats - seatAvailability.available_seats;
+
     // Jika tidak ada ketidakcocokan, tidak perlu update
     if (originalMissSeat === 0) {
       return res.status(200).json({
@@ -343,25 +378,25 @@ const fixSeatMismatch = async (req, res) => {
         fixed: false,
       });
     }
-    
+
     // Update available_seats
     const updatedSeatAvailability = await seatAvailability.update({
-      available_seats: correctAvailableSeats
+      available_seats: correctAvailableSeats,
     });
-    
+
     return res.status(200).json({
       success: true,
       message: "Seat availability mismatch fixed",
       seatAvailability: updatedSeatAvailability,
       originalMissSeat,
-      fixed: true
+      fixed: true,
     });
   } catch (error) {
     console.error("Error fixing seat mismatch:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fix seat mismatch",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -373,14 +408,14 @@ const fixSeatMismatch = async (req, res) => {
  */
 const fixSeatMismatchBatch = async (req, res) => {
   const { ids } = req.body;
-  
+
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "Please provide an array of seat availability IDs"
+      message: "Please provide an array of seat availability IDs",
     });
   }
-  
+
   try {
     // Hasil dari operasi batch
     const results = {
@@ -388,9 +423,9 @@ const fixSeatMismatchBatch = async (req, res) => {
       fixed: 0,
       alreadyCorrect: 0,
       failed: 0,
-      details: []
+      details: [],
     };
-    
+
     // Proses setiap SeatAvailability
     for (const id of ids) {
       try {
@@ -399,7 +434,7 @@ const fixSeatMismatchBatch = async (req, res) => {
           include: [
             {
               model: Schedule,
-              include: [{ model: Boat, as: "Boat" }]
+              include: [{ model: Boat, as: "Boat" }],
             },
             {
               model: BookingSeatAvailability,
@@ -409,99 +444,101 @@ const fixSeatMismatchBatch = async (req, res) => {
                   model: Booking,
                   where: {
                     payment_status: {
-                      [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
-                    }
+                      [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                    },
                   },
                   include: [
                     {
                       model: Passenger,
                       as: "passengers",
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
         });
-        
+
         if (!seatAvailability) {
           results.failed++;
           results.details.push({
             id,
-            status: 'failed',
-            message: 'Seat availability not found'
+            status: "failed",
+            message: "Seat availability not found",
           });
           continue;
         }
-        
+
         // Hitung total penumpang
         let totalPassengers = 0;
-        seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+        seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
           if (bsa.Booking && bsa.Booking.passengers) {
             totalPassengers += bsa.Booking.passengers.length;
           }
         });
-        
+
         // Tentukan kapasitas yang benar
         const correctCapacity = seatAvailability.boost
           ? seatAvailability.Schedule.Boat.capacity
           : seatAvailability.Schedule.Boat.published_capacity;
-        
+
         // Hitung available_seats yang benar
-        const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
-        
+        const correctAvailableSeats = Math.max(
+          0,
+          correctCapacity - totalPassengers
+        );
+
         // Hitung miss_seat
-        const miss_seat = correctAvailableSeats - seatAvailability.available_seats;
-        
+        const miss_seat =
+          correctAvailableSeats - seatAvailability.available_seats;
+
         // Jika tidak ada ketidakcocokan, tidak perlu update
         if (miss_seat === 0) {
           results.alreadyCorrect++;
           results.details.push({
             id,
-            status: 'already_correct',
-            miss_seat: 0
+            status: "already_correct",
+            miss_seat: 0,
           });
           continue;
         }
-        
+
         // Update available_seats
         await seatAvailability.update({
-          available_seats: correctAvailableSeats
+          available_seats: correctAvailableSeats,
         });
-        
+
         results.fixed++;
         results.details.push({
           id,
-          status: 'fixed',
+          status: "fixed",
           original_miss_seat: miss_seat,
-          new_available_seats: correctAvailableSeats
+          new_available_seats: correctAvailableSeats,
         });
       } catch (error) {
         results.failed++;
         results.details.push({
           id,
-          status: 'error',
-          message: error.message
+          status: "error",
+          message: error.message,
         });
       }
     }
-    
+
     return res.status(200).json({
       success: true,
       message: `Fixed ${results.fixed} seat availabilities, ${results.alreadyCorrect} already correct, ${results.failed} failed`,
-      results
+      results,
     });
   } catch (error) {
     console.error("Error fixing seat mismatches in batch:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fix seat mismatches",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
-
 
 const deleteSeatAvailabilityByIds = async (req, res) => {
   const { ids } = req.query;
@@ -518,18 +555,18 @@ const deleteSeatAvailabilityByIds = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: `Seat availability with IDs ${ids.join(', ')} has been deleted`,
+        message: `Seat availability with IDs ${ids.join(", ")} has been deleted`,
       });
     }
 
     return res.status(400).json({
-      error: 'Bad request',
-      message: 'Ids must be an array with at least one element',
+      error: "Bad request",
+      message: "Ids must be an array with at least one element",
     });
   } catch (error) {
-    console.log('Error:', error.message);
+    console.log("Error:", error.message);
     return res.status(500).json({
-      error: 'Internal server error',
+      error: "Internal server error",
       message: error.message,
     });
   }
@@ -540,23 +577,27 @@ const handleSeatAvailability = async (req, res) => {
   try {
     if (seat_availability_id && boost === true) {
       // Scenario 1: Boost existing seat availability to the maximum capacity
-      console.log('🛠 Scenario 1: Boost existing seat availability to maximum');
-      const seatAvailability = await boostSeatAvailability({ id: seat_availability_id, boost });
+      console.log("🛠 Scenario 1: Boost existing seat availability to maximum");
+      const seatAvailability = await boostSeatAvailability({
+        id: seat_availability_id,
+        boost,
+      });
       return res.status(200).json({
         success: true,
-        message: 'Seat availability boosted to maximum successfully.',
+        message: "Seat availability boosted to maximum successfully.",
         seat_availability: seatAvailability,
       });
     } else if (schedule_id && date) {
       // Scenario 2: Create new seat availability
-      console.log('🛠 Scenario 2: Create new seat availability');
-      const { mainSeatAvailability, subscheduleSeatAvailabilities } = await createSeatAvailabilityMax({
-        schedule_id,
-        date,
-      });
+      console.log("🛠 Scenario 2: Create new seat availability");
+      const { mainSeatAvailability, subscheduleSeatAvailabilities } =
+        await createSeatAvailabilityMax({
+          schedule_id,
+          date,
+        });
       return res.status(201).json({
         success: true,
-        message: 'Seat availabilities created successfully.',
+        message: "Seat availabilities created successfully.",
         mainSeatAvailability,
         subscheduleSeatAvailabilities,
       });
@@ -565,13 +606,14 @@ const handleSeatAvailability = async (req, res) => {
     // Invalid request
     return res.status(400).json({
       success: false,
-      message: 'Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.',
+      message:
+        "Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.",
     });
   } catch (error) {
-    console.error('Error handling seat availability:', error.message);
+    console.error("Error handling seat availability:", error.message);
     return res.status(500).json({
       success: false,
-      message: 'An error occurred while processing seat availability.',
+      message: "An error occurred while processing seat availability.",
       error: error.message,
     });
   }
@@ -587,11 +629,11 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
       include: [
         {
           model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
+          as: "BookingSeatAvailabilities",
           include: [
             {
               model: Booking,
-              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
+              where: { payment_status: ["paid", "invoiced", "unpaid"] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },
@@ -600,7 +642,7 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
 
     if (!seatAvailability) {
       return res.status(404).json({
-        status: 'fail',
+        status: "fail",
         message: `Seat availability not found for ID ${id}.`,
       });
     }
@@ -615,11 +657,11 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
       include: [
         {
           model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
+          as: "BookingSeatAvailabilities",
           include: [
             {
               model: Booking,
-              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
+              where: { payment_status: ["paid", "invoiced", "unpaid"] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },
@@ -627,24 +669,22 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
     });
 
     // Return only the seat_availability_id of the related records
-    const seatAvailabilityIds = relatedSeatAvailabilities.map(sa => sa.id);
+    const seatAvailabilityIds = relatedSeatAvailabilities.map((sa) => sa.id);
 
     return res.status(200).json({
-      status: 'success',
-      message: 'Related seat availabilities retrieved successfully',
+      status: "success",
+      message: "Related seat availabilities retrieved successfully",
       seatAvailabilityIds, // Return the list of seat_availability_ids
     });
   } catch (error) {
-    console.error('Error fetching related seat availabilities:', error.message);
+    console.error("Error fetching related seat availabilities:", error.message);
     return res.status(500).json({
-      status: 'error',
-      message: 'An error occurred while fetching seat availabilities',
+      status: "error",
+      message: "An error occurred while fetching seat availabilities",
       error: error.message,
     });
   }
 };
-
-
 
 const checkAvailableSeats = async (req, res) => {
   const { schedule_id, booking_date } = req.query;
@@ -664,11 +704,9 @@ const checkAvailableSeats = async (req, res) => {
     });
 
     if (!seatAvailability) {
-      return res
-        .status(404)
-        .json({
-          error: `Seat availability not found for schedule ID ${schedule_id} on date ${booking_date}.`,
-        });
+      return res.status(404).json({
+        error: `Seat availability not found for schedule ID ${schedule_id} on date ${booking_date}.`,
+      });
     }
 
     // Return available seats
@@ -777,38 +815,38 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
           where: { seat_availability_id: seatAvailability.id },
           include: {
             model: Booking,
-            attributes: ['id',
-              'contact_name',
-              'contact_phone',
-              'contact_passport_id',
-              'contact_nationality',
-              'contact_email',
-              'schedule_id',
-              'agent_id',
-              'payment_method',
-              'gross_total',
-              'total_passengers',
-              'adult_passengers',
-              'child_passengers',
-              'infant_passengers',
-              'payment_status',
-              'booking_source',
-              'booking_date',
-              'ticket_id',
-              'created_at',
-              'updated_at'
+            attributes: [
+              "id",
+              "contact_name",
+              "contact_phone",
+              "contact_passport_id",
+              "contact_nationality",
+              "contact_email",
+              "schedule_id",
+              "agent_id",
+              "payment_method",
+              "gross_total",
+              "total_passengers",
+              "adult_passengers",
+              "child_passengers",
+              "infant_passengers",
+              "payment_status",
+              "booking_source",
+              "booking_date",
+              "ticket_id",
+              "created_at",
+              "updated_at",
             ],
             include: {
               model: Passenger,
-              as:'passengers',
-            }
-
+              as: "passengers",
+            },
           },
         });
         return {
           ...seatAvailability.get({ plain: true }),
           available_seats: seatAvailability.available_seats, // Ensure available_seats is included
-          bookings: bookings.map(bsa => ({ id: bsa.Booking.id })),
+          bookings: bookings.map((bsa) => ({ id: bsa.Booking.id })),
         };
       })
     );
@@ -839,7 +877,7 @@ const updateSeatAvailability = async (req, res) => {
     subschedule_id,
     availability,
     boost,
-    date
+    date,
   } = req.body;
 
   const errors = validationResult(req);
@@ -851,7 +889,9 @@ const updateSeatAvailability = async (req, res) => {
     const seatAvailability = await SeatAvailability.findByPk(id);
 
     if (!seatAvailability) {
-      return res.status(404).json({ error: `Seat availability not found for ID ${id}.` });
+      return res
+        .status(404)
+        .json({ error: `Seat availability not found for ID ${id}.` });
     }
 
     const updatedSeatAvailability = await seatAvailability.update({
@@ -861,23 +901,22 @@ const updateSeatAvailability = async (req, res) => {
       subschedule_id,
       availability,
       boost,
-      date
+      date,
     });
 
     return res.status(200).json({
       status: "success",
       message: "Seat availability updated successfully",
-      seat_availability: updatedSeatAvailability
+      seat_availability: updatedSeatAvailability,
     });
   } catch (error) {
     return res.status(500).json({
       status: "error",
       message: "An error occurred while updating seat availability",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
   const { schedule_id } = req.query;
@@ -886,8 +925,10 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
     let seatAvailabilities;
 
     if (schedule_id) {
-      console.log(`Fetching seat availabilities for schedule_id: ${schedule_id}`);
-      
+      console.log(
+        `Fetching seat availabilities for schedule_id: ${schedule_id}`
+      );
+
       // Fetch specific seat availability for the given schedule_id
       seatAvailabilities = await SeatAvailability.findAll({
         where: { schedule_id },
@@ -898,8 +939,8 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
             include: [
               { model: Boat, as: "Boat" },
               { model: Destination, as: "DestinationFrom" },
-              { model: Destination, as: "DestinationTo" }
-            ]
+              { model: Destination, as: "DestinationTo" },
+            ],
           },
           {
             model: SubSchedule,
@@ -911,16 +952,16 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
                 include: [
                   { model: Boat, as: "Boat" },
                   { model: Destination, as: "DestinationFrom" },
-                  { model: Destination, as: "DestinationTo" }
-                ]
-              }
-            ]
-          }
-        ]
+                  { model: Destination, as: "DestinationTo" },
+                ],
+              },
+            ],
+          },
+        ],
       });
     } else {
-      console.log('Fetching all seat availabilities');
-      
+      console.log("Fetching all seat availabilities");
+
       // Fetch all seat availabilities
       seatAvailabilities = await SeatAvailability.findAll({
         include: [
@@ -930,8 +971,8 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
             include: [
               { model: Boat, as: "Boat" },
               { model: Destination, as: "DestinationFrom" },
-              { model: Destination, as: "DestinationTo" }
-            ]
+              { model: Destination, as: "DestinationTo" },
+            ],
           },
           {
             model: SubSchedule,
@@ -943,20 +984,20 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
                 include: [
                   { model: Boat, as: "Boat" },
                   { model: Destination, as: "DestinationFrom" },
-                  { model: Destination, as: "DestinationTo" }
-                ]
-              }
-            ]
-          }
-        ]
+                  { model: Destination, as: "DestinationTo" },
+                ],
+              },
+            ],
+          },
+        ],
       });
     }
 
     if (!seatAvailabilities || seatAvailabilities.length === 0) {
-      console.log('No seat availabilities found.');
+      console.log("No seat availabilities found.");
       return res.status(404).json({
         status: "fail",
-        message: "No seat availabilities found."
+        message: "No seat availabilities found.",
       });
     }
 
@@ -965,27 +1006,24 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
     // Format the response using formatScheduleResponse utility
     const responseData = seatAvailabilities.map(formatScheduleResponse);
 
-    console.log('Returning formatted seat availabilities data');
-    
+    console.log("Returning formatted seat availabilities data");
+
     // Return the response
     return res.status(200).json({
       status: "success",
-      message: "Seat availabilities with schedules and subschedules retrieved successfully",
-      seat_availabilities: responseData
+      message:
+        "Seat availabilities with schedules and subschedules retrieved successfully",
+      seat_availabilities: responseData,
     });
   } catch (error) {
     console.error("Error retrieving seat availabilities:", error.message);
     return res.status(500).json({
       status: "error",
       message: "An error occurred while retrieving seat availabilities",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
-
-
-
 
 module.exports = {
   checkAvailableSeats,
@@ -995,9 +1033,9 @@ module.exports = {
   updateSeatAvailability,
   getAllSeatAvailabilityScheduleAndSubSchedule,
   getFilteredSeatAvailabilityById,
- handleSeatAvailability,
- getSeatAvailabilityByMonthYear,
- deleteSeatAvailabilityByIds,
- fixSeatMismatch,
- fixSeatMismatchBatch
+  handleSeatAvailability,
+  getSeatAvailabilityByMonthYear,
+  deleteSeatAvailabilityByIds,
+  fixSeatMismatch,
+  fixSeatMismatchBatch,
 };
