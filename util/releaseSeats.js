@@ -293,7 +293,7 @@ const allocateBookingSeats = async (bookingId, transaction) => {
   let subSchedulesToProcess = [selectedSubSchedule];
   if (selectedSubSchedule) {
     console.log("🔍 Looking for related SubSchedules...");
-    const related = await findRelatedSubSchedulesGet(booking.schedule_id, selectedSubSchedule, transaction);
+    const related = await findRelatedSubSchedules(booking.schedule_id, selectedSubSchedule, transaction);
     subSchedulesToProcess = [selectedSubSchedule, ...related];
     console.log(`📦 Found ${related.length} related SubSchedules`);
   }
