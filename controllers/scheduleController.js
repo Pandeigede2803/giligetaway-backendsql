@@ -585,7 +585,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
         COALESCE(SUM(b.total_passengers), 0) as total_passengers
       FROM SeatAvailability sa
       LEFT JOIN BookingSeatAvailability bsa ON sa.id = bsa.seat_availability_id
-      LEFT JOIN Bookings b ON bsa.booking_id = b.id AND b.payment_status IN ('paid', 'invoiced', 'unpaid')
+      LEFT JOIN Bookings b ON bsa.booking_id = b.id AND b.payment_status IN ('paid', 'invoiced', 'unpaid','refund_50','cancel_100_charge')
       WHERE 
         sa.schedule_id IN (:scheduleIds)
         AND sa.date BETWEEN :startDate AND :endDate
@@ -614,7 +614,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
       WHERE 
         schedule_id IN (:scheduleIds)
         AND booking_date BETWEEN :startDate AND :endDate
-        AND payment_status IN ('paid', 'invoiced', 'unpaid')
+        AND payment_status IN ('paid', 'invoiced', 'unpaid','refund_50','cancel_100_charge')
       GROUP BY 
         schedule_id, subschedule_id, DATE(booking_date)
     `,

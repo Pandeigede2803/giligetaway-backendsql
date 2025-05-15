@@ -4269,7 +4269,7 @@ const updateBookingPayment = async (req, res) => {
         console.log("🔄 Updating booking status to cancelled...");
         await booking.update(
           {
-            payment_status: "cancelled",
+            payment_status, // bisa "cancelled" atau "cancel_100_charge"
             // Keep original gross_total and gross_total_in_usd unchanged
           },
           { transaction: t }
@@ -4452,18 +4452,21 @@ const updateBookingPayment = async (req, res) => {
         await booking.update(data, { transaction: t });
         console.log("✅ Payment details updated successfully");
         
-        // 🔄 Jika payment_status berubah ke 'paid', jalankan allocateBookingSeats
-        if (payment_status === "paid" && originalPaymentStatus !== "paid") {
-          console.log("\n🪑 Reallocating seats because payment is now confirmed...");
-          try {
-            const allocatedIds = await allocateBookingSeats(booking.id, t);
-            console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
-          } catch (allocErr) {
-            console.error("❌ Error allocating booking seats:", allocErr);
-            throw allocErr; // rollback transaksi
-          }
+        const shouldReallocate =
+        payment_status === "paid" &&
+        ["abandoned", "cancelled", "cancel_100_charge"].includes(originalPaymentStatus);
+      
+      if (shouldReallocate) {
+        console.log("\n🪑 Reallocating seats because payment is now confirmed from a previously cancelled/abandoned state...");
+        try {
+          const allocatedIds = await allocateBookingSeats(booking.id, t);
+          console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
+        } catch (allocErr) {
+          console.error("❌ Error allocating booking seats:", allocErr);
+          throw allocErr; // rollback transaksi
         }
-        
+      }
+      
         // Send email notification
         if (booking.contact_email) {
           console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);

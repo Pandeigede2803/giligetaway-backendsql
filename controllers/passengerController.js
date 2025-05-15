@@ -714,7 +714,7 @@ const getPassengerCountByMonth = async (req, res) => {
                 model: Booking,
                 as: "Booking",
                 attributes: ["total_passengers","schedule_id","subschedule_id"],
-                where: { payment_status: ["paid", "invoiced", "pending", "unpaid"] },
+                where: { payment_status: ["paid", "invoiced", "pending", "unpaid","refund_50",'cancel_100_charge'] },
               },
             ],
           },
