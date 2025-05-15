@@ -922,7 +922,7 @@ const sendPaymentEmail = async (
         paymentStatus === "refund_50"
           ? "Partial Refund Processed"
           : "Full Refund Processed";
-    } else if (paymentStatus === "cancelled") {
+    } else if (paymentStatus === "cancelled" ||paymentStatus === "cancel_100_charge") {
       statusColor = "#757575"; // Grey for cancelled
       statusIcon = "🚫";
       statusMessage = "Booking Cancelled";

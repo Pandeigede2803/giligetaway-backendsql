@@ -24,6 +24,9 @@ const { v4: uuidv4 } = require('uuid');
 
 const releaseMainScheduleSeats = require('../util/releaseMainScheduleSeats');
 const releaseSubScheduleSeats = require('../util/releaseSubScheduleSeats');
+const {createSeatAvailability} = require('../controllers/scheduleController');
+const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
+
 /**
  * Mengembalikan kursi yang sebelumnya telah dipesan untuk SubSchedule dan SubSchedules terkait,
  * serta Main Schedule jika terkait.
@@ -198,5 +201,119 @@ const releaseSeats = async (booking, transaction) => {
     // Return the IDs of updated SeatAvailability records
     return updatedSeatAvailabilityIds;
   };
+
+
+
+
   
-  module.exports = {releaseSeats,releaseBookingSeats};  
+  const allocateBookingSeats = async (bookingId, transaction) => {
+    console.log(`\n🔄 Starting allocateBookingSeats for booking ID: ${bookingId}`);
+  
+    const booking = await Booking.findByPk(bookingId, {
+      include: [
+        {
+          model: Schedule,
+          as: 'schedule',
+          include: [
+           {
+            model: Boat,
+            as: 'Boat',
+           }
+          ],
+        },
+        {
+          model: SubSchedule,
+          as: 'subSchedule',
+          include: [
+            {
+              model: Schedule,
+              as:"Schedule",
+              include: [
+                {
+                 model: Boat,
+                 as: 'Boat',
+                }
+               ],
+            }
+          ]
+        }
+      ],
+      transaction
+    });
+  
+    if (!booking) throw new Error(`Booking with ID ${bookingId} not found`);
+  
+    const totalPassengers = booking.total_passengers || 0;
+    if (totalPassengers <= 0) return [];
+  
+    // const selectedSchedule = booking.schedule_id ? booking.Schedule : null;
+
+
+    const selectedSubSchedule = booking.subschedule_id ? booking.subSchedule : null;
+
+  
+    // Default: hanya subschedule utama
+    let subSchedulesToProcess = [selectedSubSchedule];
+  
+    // Jika pakai SubSchedule, cari yang berelasi
+    if (selectedSubSchedule) {
+      console.log("🔍 Looking for related SubSchedules...");
+      const relatedSubSchedules = await findRelatedSubSchedules(
+        booking.schedule_id,
+        selectedSubSchedule,
+        transaction
+      );
+  
+      console.log(`📦 Found ${relatedSubSchedules.length} related SubSchedules`);
+      subSchedulesToProcess = [selectedSubSchedule, ...relatedSubSchedules];
+    }
+  
+    const allocatedSeatAvailabilityIds = [];
+  
+    for (const ss of subSchedulesToProcess) {
+      let sa = await SeatAvailability.findOne({
+        where: {
+          schedule_id: booking.schedule_id,
+          subschedule_id: ss.id,
+          date: booking.booking_date
+        },
+        transaction
+      });
+  
+      // Buat SeatAvailability jika belum ada
+      if (!sa) {
+        console.log(`ℹ️ SeatAvailability not found for SubSchedule ID ${ss.id}, creating...`);
+        sa = await createSeatAvailability(null, ss, booking.booking_date);
+      }
+  
+      // Validasi seat cukup
+      if (sa.available_seats < totalPassengers) {
+        throw new Error(`❌ Not enough seats in SubSchedule ID ${ss.id}. Needed: ${totalPassengers}, Available: ${sa.available_seats}`);
+      }
+  
+      // Kurangi seat dan update
+      const newAvailable = sa.available_seats - totalPassengers;
+      await sa.update({ available_seats: newAvailable }, { transaction });
+      console.log(`✅ SeatAvailability ID ${sa.id} updated: -${totalPassengers} → ${newAvailable}`);
+  
+      // Link ke BookingSeatAvailability hanya untuk subschedule utama
+      if (ss.id === booking.subschedule_id) {
+        const link = await BookingSeatAvailability.create({
+          booking_id: booking.id,
+          seat_availability_id: sa.id
+        }, { transaction });
+  
+        console.log(`📝 Linked BookingSeatAvailability ID: ${link.id}`);
+      }
+  
+      allocatedSeatAvailabilityIds.push(sa.id);
+    }
+  
+    return allocatedSeatAvailabilityIds;
+  };
+  
+ 
+  
+  
+  
+  module.exports = {releaseSeats,releaseBookingSeats,allocateBookingSeats};  

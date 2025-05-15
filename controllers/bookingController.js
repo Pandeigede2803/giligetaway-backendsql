@@ -25,7 +25,7 @@ const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
-const {releaseSeats,releaseBookingSeats} = require("../util/releaseSeats"); // Adjust the path based on your project structure
+const {releaseSeats,releaseBookingSeats,allocateBookingSeats} = require("../util/releaseSeats"); // Adjust the path based on your project structure
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
@@ -4236,6 +4236,8 @@ const updateMultipleBookingPayment = async (req, res) => {
 };
 
 
+
+
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
   const { payment_method, payment_status } = req.body;
@@ -4260,7 +4262,7 @@ const updateBookingPayment = async (req, res) => {
       console.log(`🔍 Requested payment status: ${payment_status}`);
       
       // === HANDLE CANCELLATION WITHOUT REFUND ===
-      if (payment_status === "cancelled") {
+      if (payment_status === "cancelled" || payment_status === "cancel_100_charge") {
         console.log(`\n🔄 Processing cancellation (no refund calculation)...`);
         
         // Update booking status only - no financial calculations
@@ -4371,16 +4373,16 @@ const updateBookingPayment = async (req, res) => {
         
         console.log("✅ Refund processed successfully");
 
-        // Process seat release
-        console.log("\n🪑 Processing seat release...");
+        // // Process seat release
+        // console.log("\n🪑 Processing seat release...");
         
-        console.log("Booking data for release:", {
-          id: booking.id,
-          schedule_id: booking.schedule_id,
-          subschedule_id: booking.subschedule_id,
-          total_passengers: booking.total_passengers,
-          booking_date: booking.booking_date
-        });
+        // console.log("Booking data for release:", {
+        //   id: booking.id,
+        //   schedule_id: booking.schedule_id,
+        //   subschedule_id: booking.subschedule_id,
+        //   total_passengers: booking.total_passengers,
+        //   booking_date: booking.booking_date
+        // });
         
         try {
           const releasedSeatIds = await releaseBookingSeats(booking.id, t);
@@ -4445,9 +4447,23 @@ const updateBookingPayment = async (req, res) => {
         if (payment_method) data.payment_method = payment_method;
         if (payment_status) data.payment_status = payment_status;
 
+
+        const originalPaymentStatus = booking.payment_status; // sebelum update
         await booking.update(data, { transaction: t });
         console.log("✅ Payment details updated successfully");
-
+        
+        // 🔄 Jika payment_status berubah ke 'paid', jalankan allocateBookingSeats
+        if (payment_status === "paid" && originalPaymentStatus !== "paid") {
+          console.log("\n🪑 Reallocating seats because payment is now confirmed...");
+          try {
+            const allocatedIds = await allocateBookingSeats(booking.id, t);
+            console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
+          } catch (allocErr) {
+            console.error("❌ Error allocating booking seats:", allocErr);
+            throw allocErr; // rollback transaksi
+          }
+        }
+        
         // Send email notification
         if (booking.contact_email) {
           console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
