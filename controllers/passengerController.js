@@ -597,7 +597,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           return {
             seatavailability_id: subAvailability ? subAvailability.id : null,
             date,
-            availability: subAvailability?.availability || true,
+            availability: subAvailability?.availability ,
             schedule_id: schedule.id,
             subschedule_id: subSchedule.id,
             boost: subAvailability?.boost || false,
@@ -616,7 +616,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           schedule_id: schedule.id,
           subschedule_id: null,
           route,
-          availability: mainAvailability?.availability || true,
+          availability: mainAvailability?.availability ,
           boost: mainAvailability?.boost || false,
           capacity,
           remainingSeats,

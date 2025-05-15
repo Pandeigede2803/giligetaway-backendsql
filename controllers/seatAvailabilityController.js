@@ -244,7 +244,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         miss_seats: miss_seat,
         BookingSeatAvailabilities: undefined,
       };
-    });
+    });;
 
     return res.status(200).json({
       success: true,

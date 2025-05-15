@@ -1,7 +1,7 @@
 const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat } = require('../models');
 
 const sumTotalPassengers = (bookingSeatAvailabilities) => {
-  console.log("=====bookingSeatAvailabilities======",JSON.stringify(bookingSeatAvailabilities, null, 2))
+  // console.log("=====bookingSeatAvailabilities======",JSON.stringify(bookingSeatAvailabilities, null, 2))
     return bookingSeatAvailabilities.reduce((total, bookingSeatAvailability) => {
       return total + (bookingSeatAvailability.Booking?.total_passengers || 0);
     }, 0);
