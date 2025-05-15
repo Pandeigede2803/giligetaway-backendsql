@@ -1349,10 +1349,10 @@ bookingQueue.process(async (job, done) => {
         })
       );
 
-      console.log(
-        "=======Data to Insert into BookingSeatAvailability:=======",
-        bookingSeatAvailabilityData
-      );
+      // console.log(
+      //   "=======Data to Insert into BookingSeatAvailability:=======",
+      //   bookingSeatAvailabilityData
+      // );
 
       // Eksekusi bulkCreate
       const result = await BookingSeatAvailability.bulkCreate(

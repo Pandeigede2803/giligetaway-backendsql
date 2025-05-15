@@ -845,7 +845,7 @@ const getPassengerCountByMonth = async (req, res) => {
         // Jika ada data seat availability, gunakan data tersebut
         finalResults.push(
           ...seatAvailabilitiesByDate[date].map((sa) => {
-            console.log(JSON.stringify(sa.BookingSeatAvailabilities));
+            // console.log(JSON.stringify(sa.BookingSeatAvailabilities));
             const totalPassengers = sumTotalPassengers(
               sa.BookingSeatAvailabilities
             );

@@ -3432,13 +3432,13 @@ const getScheduleSubscheduleByIdSeat = async (req, res) => {
 
     if (schedule) {
       console.log("Schedule found:");
-      console.log(JSON.stringify(schedule, null, 2));
+      // console.log(JSON.stringify(schedule, null, 2));
 
       if (schedule.SubSchedules && schedule.SubSchedules.length > 0) {
         console.log("SubSchedules found:");
         schedule.SubSchedules.forEach((subSchedule, index) => {
           console.log(`SubSchedule ${index + 1}:`);
-          console.log(JSON.stringify(subSchedule, null, 2));
+          // console.log(JSON.stringify(subSchedule, null, 2));
         });
       } else {
         console.log("No SubSchedules found for this schedule.");

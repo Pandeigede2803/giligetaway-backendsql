@@ -556,7 +556,7 @@ exports.updateOrCreateSubScheduleRelation = async (req, res) => {
 
         // Log the result
         console.log('Result of updateOrCreateSubScheduleRelation:');
-        console.log(JSON.stringify(results, null, 2));
+        // console.log(JSON.stringify(results, null, 2));
 
         // Return appropriate response
         if (results.errors.length === related_subschedule_ids.length) {

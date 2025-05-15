@@ -230,116 +230,104 @@ const releaseBookingSeats = async (bookingId, transaction) => {
 };
 
 const allocateBookingSeats = async (bookingId, transaction) => {
-  console.log(
-    `\n🔄 Starting allocateBookingSeats for booking ID: ${bookingId}`
-  );
+  console.log(`\n🔄 Starting allocateBookingSeats for booking ID: ${bookingId}`);
 
   const booking = await Booking.findByPk(bookingId, {
     include: [
       {
         model: Schedule,
-        as: "schedule",
-        include: [
-          {
-            model: Boat,
-            as: "Boat",
-          },
-        ],
+        as: 'schedule',
+        include: [{ model: Boat, as: 'Boat' }]
       },
       {
         model: SubSchedule,
-        as: "subSchedule",
+        as: 'subSchedule',
         include: [
           {
             model: Schedule,
-            as: "Schedule",
-            include: [
-              {
-                model: Boat,
-                as: "Boat",
-              },
-            ],
-          },
-        ],
-      },
+            as: 'Schedule',
+            include: [{ model: Boat, as: 'Boat' }]
+          }
+        ]
+      }
     ],
-    transaction,
+    transaction
   });
 
   if (!booking) throw new Error(`Booking with ID ${bookingId} not found`);
-
   const totalPassengers = booking.total_passengers || 0;
   if (totalPassengers <= 0) return [];
 
-  // const selectedSchedule = booking.schedule_id ? booking.Schedule : null;
+  const selectedSubSchedule = booking.subschedule_id ? booking.subSchedule : null;
+  const allocatedSeatAvailabilityIds = [];
 
-  const selectedSubSchedule = booking.subschedule_id
-    ? booking.subSchedule
-    : null;
+  // Step 1: Cek apakah BookingSeatAvailability sudah ada
+  const existingBSA = await BookingSeatAvailability.findAll({
+    where: { booking_id: booking.id },
+    include: [{ model: SeatAvailability, as: 'SeatAvailability' }],
+    transaction
+  });
 
-  // Default: hanya subschedule utama
-  let subSchedulesToProcess = [selectedSubSchedule];
+  if (existingBSA.length > 0) {
+    console.log(`🔎 Found ${existingBSA.length} existing BookingSeatAvailability records. Adjusting SeatAvailability...`);
 
-  // Jika pakai SubSchedule, cari yang berelasi
-  if (selectedSubSchedule) {
-    console.log("🔍 Looking for related SubSchedules...");
-    const relatedSubSchedules = await findRelatedSubSchedules(
-      booking.schedule_id,
-      selectedSubSchedule,
-      transaction
-    );
+    for (const bsa of existingBSA) {
+      const sa = bsa.SeatAvailability;
+      if (!sa) continue;
 
-    console.log(`📦 Found ${relatedSubSchedules.length} related SubSchedules`);
-    subSchedulesToProcess = [selectedSubSchedule, ...relatedSubSchedules];
+      const updatedSeats = sa.available_seats - totalPassengers;
+      if (updatedSeats < 0) {
+        throw new Error(`❌ Not enough seats in SeatAvailability ID ${sa.id}. Needed: ${totalPassengers}, Available: ${sa.available_seats}`);
+      }
+
+      await sa.update({ available_seats: updatedSeats }, { transaction });
+      console.log(`✅ SeatAvailability ID ${sa.id} updated: -${totalPassengers} → ${updatedSeats}`);
+
+      allocatedSeatAvailabilityIds.push(sa.id);
+    }
+
+    return allocatedSeatAvailabilityIds;
   }
 
-  const allocatedSeatAvailabilityIds = [];
+  // Step 2: Jika belum ada BSA, cari relasi subschedule dan buat SA + BSA
+  let subSchedulesToProcess = [selectedSubSchedule];
+  if (selectedSubSchedule) {
+    console.log("🔍 Looking for related SubSchedules...");
+    const related = await findRelatedSubSchedulesGet(booking.schedule_id, selectedSubSchedule, transaction);
+    subSchedulesToProcess = [selectedSubSchedule, ...related];
+    console.log(`📦 Found ${related.length} related SubSchedules`);
+  }
 
   for (const ss of subSchedulesToProcess) {
     let sa = await SeatAvailability.findOne({
       where: {
         schedule_id: booking.schedule_id,
         subschedule_id: ss.id,
-        date: booking.booking_date,
+        date: booking.booking_date
       },
-      transaction,
+      transaction
     });
 
-    // Buat SeatAvailability jika belum ada
     if (!sa) {
-      console.log(
-        `ℹ️ SeatAvailability not found for SubSchedule ID ${ss.id}, creating...`
-      );
+      console.log(`ℹ️ SeatAvailability not found for SubSchedule ID ${ss.id}, creating...`);
       sa = await createSeatAvailability(null, ss, booking.booking_date);
     }
 
-    // Validasi seat cukup
     if (sa.available_seats < totalPassengers) {
-      throw new Error(
-        `❌ Not enough seats in SubSchedule ID ${ss.id}. Needed: ${totalPassengers}, Available: ${sa.available_seats}`
-      );
+      throw new Error(`❌ Not enough seats in SubSchedule ID ${ss.id}. Needed: ${totalPassengers}, Available: ${sa.available_seats}`);
     }
 
-    // Kurangi seat dan update
     const newAvailable = sa.available_seats - totalPassengers;
     await sa.update({ available_seats: newAvailable }, { transaction });
-    console.log(
-      `✅ SeatAvailability ID ${sa.id} updated: -${totalPassengers} → ${newAvailable}`
-    );
+    console.log(`✅ SeatAvailability ID ${sa.id} updated: -${totalPassengers} → ${newAvailable}`);
 
-    // Link ke BookingSeatAvailability hanya untuk subschedule utama
-    if (ss.id === booking.subschedule_id) {
-      const link = await BookingSeatAvailability.create(
-        {
-          booking_id: booking.id,
-          seat_availability_id: sa.id,
-        },
-        { transaction }
-      );
+    // 🔥 Buat BookingSeatAvailability untuk setiap SeatAvailability yang diproses
+    const link = await BookingSeatAvailability.create({
+      booking_id: booking.id,
+      seat_availability_id: sa.id
+    }, { transaction });
 
-      console.log(`📝 Linked BookingSeatAvailability ID: ${link.id}`);
-    }
-
+    console.log(`📝 Linked BookingSeatAvailability ID: ${link.id}`);
     allocatedSeatAvailabilityIds.push(sa.id);
   }
 

@@ -41,7 +41,7 @@ const getBoats = async (req, res) => {
             return boatData;
         });
 
-        console.log('Boats retrieved:', boatsData);
+        // console.log('Boats retrieved:', boatsData);
         res.status(200).json(boatsData);
     } catch (error) {
         console.log('Error retrieving boats:', error.message);

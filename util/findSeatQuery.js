@@ -198,7 +198,7 @@ const findSeatAvailabilityWithDetails = async (id) => {
       throw new Error("Seat Availability Not Found");
     }
 
-    console.log('Seat availability details:', JSON.stringify(seatAvailability, null, 2));
+    // console.log('Seat availability details:', JSON.stringify(seatAvailability, null, 2));
     seatAvailability.BookingSeatAvailabilities.forEach((bookingSeat) => {
       const booking = bookingSeat.Booking;
     
