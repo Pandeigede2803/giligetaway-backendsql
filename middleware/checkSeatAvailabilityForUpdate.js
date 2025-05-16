@@ -865,7 +865,7 @@ const checkBookingDateUpdate2 = async (req, res, next) => {
       if (booking.payment_status === "paid") {
         return res.status(400).json({
           success: false,
-          message: "Your booking is already paid. Please contact our staff to process a refund. email: giligetaway@ozemail.com"
+          message: "Your booking is already paid. Please contact our staff to process a refund. email: agentbookings@giligetaway.com"
         });
       } else if (booking.payment_status !== "invoiced" && booking.payment_status !== "unpaid") {
         return res.status(400).json({
