@@ -4,6 +4,8 @@ const sequelize = require('./config/database');
 const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
 const bookingSummaryCron = require('./util/bookingSummaryCron');
+const seatFixCron = require('./util/seatFixCron');
+
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs'); // Import cronjob pengingat
 const { initWebSocketServer } = require('./config/websocket'); // Import fungsi WebSocket
 const http = require('http');
@@ -125,6 +127,9 @@ sequelize.sync()
       cronJobs.handleExpiredBookings(); // Jalankan cron job saat server dimulai
       bookingSummaryCron.scheduleDailySummary();
       console.log('✅ Daily booking summary cronjob registered');
+
+      seatFixCron.scheduleSeatFixJob();
+      console.log('✅ SeatFixCron registered');
 
         // Cronjob baru untuk pengingat unpaid
         // unpaidReminderCronJobs.sendUnpaidReminders();

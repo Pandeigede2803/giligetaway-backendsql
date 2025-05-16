@@ -1251,6 +1251,10 @@ const createBookingWithTransitQueue = async (req, res) => {
         t
       );
 
+       // Step 3: Add Passengers
+   
+    // await addPassengers(passengers, booking.id, t);
+
       console.log(`Initial transaction created for booking ID: ${booking.id}`);
 
       bookingQueue.add({
@@ -1308,7 +1312,7 @@ bookingQueue.process(async (job, done) => {
     payment_status,
   } = job.data;
 
-  console.log("---START OF JOB---");
+  console.log("---START OF JOB QUEUE---");
 
   const transaction = await sequelize.transaction();
   try {
@@ -1316,7 +1320,7 @@ bookingQueue.process(async (job, done) => {
     let remainingSeatAvailabilities;
     if (subschedule_id) {
       console.log(
-        `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
+        `😻Processing sub-schedule booking for subschedule_id ${subschedule_id}`
       );
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
@@ -1377,9 +1381,9 @@ bookingQueue.process(async (job, done) => {
       console.log("No seat availabilities found.");
     }
 
-    // Step 3: Add Passengers
-    console.log(`Adding passengers for booking_id ${booking_id}`);
-    await addPassengers(passengers, booking_id, transaction);
+       // Step 3: Add Passengers
+       console.log(`Adding passengers for booking_id ${booking_id}`);
+       await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings
     console.log(`Adding transport bookings for booking_id ${booking_id}`);

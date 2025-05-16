@@ -10,6 +10,7 @@ const {
   Passenger,
 
 } = require("../models"); // Adjust the path as needed
+const cron = require("node-cron");
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
 
@@ -367,6 +368,66 @@ const fixSeatMismatch = async (req, res) => {
     });
   }
 };
+
+const fixAllSeatMismatches = async () => {
+  console.log("🕒 Running Seat Mismatch Fix Job");
+
+  const seatAvailabilities = await SeatAvailability.findAll({
+    include: [
+      {
+        model: Schedule,
+        include: [{ model: Boat, as: "Boat" }]
+      },
+      {
+        model: BookingSeatAvailability,
+        as: "BookingSeatAvailabilities",
+        include: [
+          {
+            model: Booking,
+            where: {
+              payment_status: {
+                [Op.in]: ['paid', 'invoiced', 'unpaid']
+              }
+            },
+            include: [
+              {
+                model: Passenger,
+                as: "passengers",
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+
+  let totalFixed = 0;
+
+  for (const seatAvailability of seatAvailabilities) {
+    let totalPassengers = 0;
+
+    seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+      if (bsa.Booking?.passengers?.length) {
+        totalPassengers += bsa.Booking.passengers.length;
+      }
+    });
+
+    const correctCapacity = seatAvailability.boost
+      ? seatAvailability.Schedule.Boat.capacity
+      : seatAvailability.Schedule.Boat.published_capacity;
+
+    const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
+
+    if (seatAvailability.available_seats !== correctAvailableSeats) {
+      await seatAvailability.update({ available_seats: correctAvailableSeats });
+      console.log(`✅ Fix Seat ID ${seatAvailability.id} date: ${seatAvailability.date}`);
+      totalFixed++;
+    }
+  }
+
+  console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
+};
+
 
 /**
  * Memperbaiki miss_seat untuk beberapa SeatAvailability secara batch
@@ -986,7 +1047,13 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
 };
 
 
+const cronFrequencySeatMatches = process.env.CRON_FREQUENCY_SEAT_MISMATCH || "0 */3 * * *"; // Default setiap 3 jam
 
+// Jalankan setiap 3 jam sekali
+cron.schedule('0 */3 * * *', async () => {
+  console.log("🚀 Starting scheduled job for seat mismatch correction...");
+  await fixAllSeatMismatches();
+});
 
 
 module.exports = {
@@ -1001,5 +1068,5 @@ module.exports = {
  getSeatAvailabilityByMonthYear,
  deleteSeatAvailabilityByIds,
  fixSeatMismatch,
- fixSeatMismatchBatch
+ fixSeatMismatchBatch,fixAllSeatMismatches
 };

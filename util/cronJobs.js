@@ -14,6 +14,7 @@ const {handleMidtransSettlement,handleMidtransSettlementRoundTrip} = require("..
 const releaseMainScheduleSeats = require("../util/releaseMainScheduleSeats");
 const releaseSubScheduleSeats = require("../util/releaseSubScheduleSeats");
 const {fetchMidtransPaymentStatus} = require("../util/fetchMidtransPaymentStatus");
+const { fixAllSeatMismatches } = require("../controllers/seatAvailabilityController");
 /**
  * Fungsi untuk melepaskan kursi yang sudah dipesan ke available_seats
  * jika pemesanan telah melewati waktu kedaluwarsa
@@ -94,6 +95,8 @@ const checkAndHandleMidtransSettlements = async () => {
     console.error("🔥 Fatal error in fallback settlement cron:", fatalErr);
   }
 };
+
+
 
 
 
@@ -288,11 +291,14 @@ const handleExpiredBookings = async () => {
 const cronFrequency = process.env.CRON_FREQUENCY || "*/5 * * * *"; // Default 15 menit
 
 
+
 // Menjadwalkan cron job dengan frekuensi dari env
 cron.schedule(cronFrequency, async () => {
   await handleExpiredBookings();
 
 });
+
+
 
 
 // const handleExpiredBookings = async () => {
