@@ -1123,7 +1123,7 @@ const sendPaymentEmailAgent = async (
             <h1 style="margin: 0; color: #333;">Booking Update</h1>
           </div>
           <div style="padding: 20px; background-color: #fff;">
-            <p style="margin-top: 0;">Dear Customer,</p>
+            <p style="margin-top: 0;">Dear Customer/Agent,</p>
             
             <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: ${statusColor};">
               ${statusIcon} ${statusMessage}
