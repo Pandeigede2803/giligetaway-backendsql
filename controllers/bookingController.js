@@ -5706,7 +5706,7 @@ const cancelBooking = async (req, res) => {
         include: [
           {
             model: Agent,
-            as: 'agent', // sesuaikan dengan alias jika pakai `as` di relasi
+            as: 'Agent', // sesuaikan dengan alias jika pakai `as` di relasi
             attributes: ['email'],
           },
         ],
@@ -5760,7 +5760,7 @@ const cancelBooking = async (req, res) => {
         );
         console.log(`start to send the email ${booking.contact_email}`);
         sendPaymentEmailAgent(
-          booking.agent.email,
+          booking.Agent.email,
           booking,
           booking.payment_method,
           booking.payment_status,
