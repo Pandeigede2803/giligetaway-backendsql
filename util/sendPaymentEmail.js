@@ -1279,15 +1279,17 @@ const sendEmailNotificationAgent = async (
     `;
 
     const agentMailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.AGENT,
       to: agentEmail,
+      cc: process.env.EMAIL_AGENT,
       subject: agentSubject,
       html: agentMessage,
     };
 
     const recipientMailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.AGENT,
       to: recipientEmail,
+      cc: process.env.EMAIL_AGENT,
       subject: recipientSubject,
       html: recipientMessage,
     };
@@ -1323,18 +1325,18 @@ const sendEmailNotification = async (
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Booking Date Update</title>
+        <title>Departure Date Update</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #ddd;">
-            <h1 style="margin: 0; color: #333;">Booking Date Update</h1>
+            <h1 style="margin: 0; color: #333;">Departure Date Update</h1>
           </div>
           <div style="padding: 20px; background-color: #fff;">
             <p style="margin-top: 0;">Dear Customer,</p>
             
             <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
-              ⚠️ Booking Date Changed
+              ⚠️Departure Date Changed
             </div>
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
@@ -1369,9 +1371,10 @@ const sendEmailNotification = async (
       : recipientEmail;
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_BOOKING,
       to: recipients,
-      subject: "Booking Date Updated",
+      cc:process.env.EMAIL_BOOKING,
+      subject: "Departure Date Updated",
       html: message,
     };
 
@@ -1381,6 +1384,85 @@ const sendEmailNotification = async (
     console.error("❌ Failed to send email notification:", error);
   }
 };
+
+const sendEmailNotificationAgentDateChange = async (
+  recipientEmail,
+  bookingId,
+  oldDate,
+  newDate,
+  agentEmail
+) => {
+  try {
+    const emailUrl = process.env.FRONTEND_URL;
+    console.log("emailUrl", emailUrl);
+
+    const message = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Departure Date Update</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #ddd;">
+            <h1 style="margin: 0; color: #333;">Departure Date Update</h1>
+          </div>
+          <div style="padding: 20px; background-color: #fff;">
+            <p style="margin-top: 0;">Dear Customer,</p>
+            
+            <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
+              ⚠️Departure Date Changed
+            </div>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Booking ID:</span> ${bookingId}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Previous Date:</span> ${oldDate}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">New Date:</span> <span style="color: #2196F3; font-weight: bold;">${newDate}</span>
+              </div>
+            </div>
+            
+            <p>Please review the updated booking details. If you have any questions or concerns about this change, please contact our support team immediately.</p>
+            
+            <a href="${emailUrl}/check-ticket-page/${bookingId}" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Updated Ticket</a>
+            
+            <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
+              <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
+              <p style="margin-top: 0;">This is an automated message, please do not reply directly to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // If agent email is provided, also send to them
+    const recipients = agentEmail
+      ? [recipientEmail, agentEmail]
+      : recipientEmail;
+
+    const mailOptions = {
+      from: process.env.EMAIL_AGENT,
+      to: recipients,
+      cc:process.env.EMAIL_AGENT,
+      subject: "Departure Date Updated",
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log("📧 Email notification sent successfully to", recipients);
+  } catch (error) {
+    console.error("❌ Failed to send email notification:", error);
+  }
+};
+
+
 
 /**
  * Function to send payment reminder email to customer
@@ -1938,5 +2020,6 @@ module.exports = {
   sendWaitingListConfirmationEmail,
   sendExpiredBookingEmail,
   sendPaymentSuccessEmail,
-  sendPaymentSuccessEmailRoundTrip
+  sendPaymentSuccessEmailRoundTrip,
+  sendEmailNotificationAgentDateChange
 };

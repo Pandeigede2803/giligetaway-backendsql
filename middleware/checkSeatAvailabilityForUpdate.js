@@ -820,7 +820,7 @@ const checkBookingDateUpdate = async (req, res, next) => {
       if (diffDays > 10) {
         return res.status(400).json({
           success: false,
-          message: `Cannot update booking_date. More than 10 days have passed since the booking was created. (~${diffDays.toFixed(1)} days)`
+          message: `Cannot update departure date. More than 10 days have passed since the booking was created. (~${diffDays.toFixed(1)} days)`
         });
       }
   

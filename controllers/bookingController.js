@@ -40,6 +40,7 @@ const bookingRoundQueue = new Queue("bookingRoundQueue");
 const {
   sendPaymentEmail,
   sendEmailNotification,
+  sendEmailNotificationAgentDateChange,
 } = require("../util/sendPaymentEmail");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
@@ -4916,7 +4917,7 @@ const updateBookingDateAgent = async (req, res) => {
       // 3. Release seats from previous date
       console.log("\n🔄 Releasing seats from previous date...");
       try {
-        const releasedSeatIds = await releaseSeats(booking, t);
+        const releasedSeatIds = await releaseBookingSeats(booking.id, t);
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
@@ -4991,7 +4992,7 @@ const updateBookingDateAgent = async (req, res) => {
 
       // 8. Send email notification to agent/customer
       if (booking.contact_email) {
-        sendEmailNotification(
+        sendEmailNotificationAgentDateChange(
           booking.contact_email,
           booking.ticket_id,
           originalBookingDate,
@@ -5654,7 +5655,7 @@ const cancelBooking = async (req, res) => {
 
       // 2. Lepaskan seat yang sudah terlanjur di-reserve
       console.log("\n🪑 Releasing seats for the booking...");
-      const releasedSeatIds = await releaseSeats(booking, t);
+      const releasedSeatIds = await releaseBookingSeats(booking.id, t);
       console.log(
         `✅ Released seats: ${
           releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"

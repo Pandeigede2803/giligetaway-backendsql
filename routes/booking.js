@@ -183,7 +183,7 @@ router.put(
 router.put(
   "/date-agent/:booking_id",
   authenticate,
-  checkBookingDateUpdate,
+  checkBookingDateUpdate2,
   validateBookingDate2,
   checkSeatAvailabilityForUpdate2,
   bookingController.updateBookingDateAgent
