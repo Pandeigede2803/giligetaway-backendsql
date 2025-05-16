@@ -5022,6 +5022,7 @@ const updateBookingDateAgent = async (req, res) => {
   }
 };
 
+
 const deleteBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -5041,7 +5042,22 @@ const deleteBooking = async (req, res) => {
 
     const { booking_date, transport_id, payment_status } = booking;
 
-    // Step 2: Check and delete related records in Transactions
+    // Step 2: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
+    // MOVED THIS STEP UP from Step 5 to Step 2
+    if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
+      console.log("\n🔄 Releasing seats from current booking date...");
+      try {
+        const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
+        console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
+      } catch (error) {
+        console.error("❌ Error releasing seats:", error);
+        throw new Error(`Failed to release seats: ${error.message}`);
+      }
+    } else {
+      console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
+    }
+
+    // Step 3: Check and delete related records in Transactions
     console.log("\n🔍 Checking and deleting related Transactions...");
     const transactions = await Transaction.findAll({
       where: { booking_id: bookingId },
@@ -5061,7 +5077,7 @@ const deleteBooking = async (req, res) => {
       console.log("✅ No related Transactions found.");
     }
 
-    // Step 3: Check and delete related records in Passengers
+    // Step 4: Check and delete related records in Passengers
     console.log("\n🔍 Checking and deleting related Passengers...");
     const passengers = await Passenger.findAll({
       where: { booking_id: bookingId },
@@ -5081,7 +5097,7 @@ const deleteBooking = async (req, res) => {
       console.log("✅ No related Passengers found.");
     }
 
-    // Step 4: Check and delete related records in BookingSeatAvailability
+    // Step 5: Check and delete related records in BookingSeatAvailability
     console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
     const relatedRecords = await BookingSeatAvailability.findAll({
       where: { booking_id: bookingId },
@@ -5099,20 +5115,6 @@ const deleteBooking = async (req, res) => {
       console.log("✅ Successfully deleted related BookingSeatAvailability records.");
     } else {
       console.log("✅ No related records found in BookingSeatAvailability.");
-    }
-
-    // Step 5: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
-    if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
-      console.log("\n🔄 Releasing seats from current booking date...");
-      try {
-        const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
-        console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
-      } catch (error) {
-        console.error("❌ Error releasing seats:", error);
-        throw new Error(`Failed to release seats: ${error.message}`);
-      }
-    } else {
-      console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
     }
 
     // Step 6: Delete the booking
@@ -5148,6 +5150,133 @@ const deleteBooking = async (req, res) => {
     });
   }
 };
+// const deleteBooking = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+//   try {
+//     const bookingId = req.params.id;
+
+//     // Step 1: Fetch the booking details based on the provided ID
+//     const booking = await Booking.findOne({
+//       where: { id: bookingId },
+//     });
+
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: `Booking with ID ${bookingId} not found.`,
+//       });
+//     }
+
+//     const { booking_date, transport_id, payment_status } = booking;
+
+//     // Step 2: Check and delete related records in Transactions
+//     console.log("\n🔍 Checking and deleting related Transactions...");
+//     const transactions = await Transaction.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (transactions.length > 0) {
+//       const transactionIds = transactions.map((t) => t.id);
+//       console.log("🔄 Deleting related Transactions records:", transactionIds);
+
+//       await Transaction.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related Transactions records.");
+//     } else {
+//       console.log("✅ No related Transactions found.");
+//     }
+
+//     // Step 3: Check and delete related records in Passengers
+//     console.log("\n🔍 Checking and deleting related Passengers...");
+//     const passengers = await Passenger.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (passengers.length > 0) {
+//       const passengerIds = passengers.map((p) => p.id);
+//       console.log("🔄 Deleting related Passengers records:", passengerIds);
+
+//       await Passenger.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related Passengers records.");
+//     } else {
+//       console.log("✅ No related Passengers found.");
+//     }
+
+//     // Step 4: Check and delete related records in BookingSeatAvailability
+//     console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
+//     const relatedRecords = await BookingSeatAvailability.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (relatedRecords.length > 0) {
+//       const relatedIds = relatedRecords.map((r) => r.id);
+//       console.log("🔄 Deleting related BookingSeatAvailability records:", relatedIds);
+
+//       await BookingSeatAvailability.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related BookingSeatAvailability records.");
+//     } else {
+//       console.log("✅ No related records found in BookingSeatAvailability.");
+//     }
+
+//     // Step 5: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
+//     if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
+//       console.log("\n🔄 Releasing seats from current booking date...");
+//       try {
+//         const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
+//         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
+//       } catch (error) {
+//         console.error("❌ Error releasing seats:", error);
+//         throw new Error(`Failed to release seats: ${error.message}`);
+//       }
+//     } else {
+//       console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
+//     }
+
+//     // Step 6: Delete the booking
+//     console.log(`\n🔄 Deleting booking with ID: ${bookingId}`);
+//     const deletedBooking = await Booking.destroy({
+//       where: { id: bookingId },
+//       transaction,
+//     });
+
+//     if (deletedBooking) {
+//       await transaction.commit();
+
+//       return res.status(200).json({
+//         success: true,
+//         message: `Booking with ID ${bookingId} and associated records have been deleted successfully.`,
+//       });
+//     } else {
+//       await transaction.rollback();
+
+//       return res.status(500).json({
+//         success: false,
+//         message: `Failed to delete booking with ID ${bookingId}.`,
+//       });
+//     }
+//   } catch (error) {
+//     await transaction.rollback();
+
+//     console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: `An error occurred while deleting booking with ID ${req.params.id}: ${error.message}`,
+//     });
+//   }
+// };
+
 
 
 const createBookingWithoutTransit = async (req, res) => {

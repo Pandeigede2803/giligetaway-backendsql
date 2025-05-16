@@ -17,7 +17,7 @@ const {
   BookingSeatAvailability,
   Boat,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op } = require("sequelize");;
 
 
 const { getSeasonPrice } = require('../util/formatSchedules'); // import di atas
