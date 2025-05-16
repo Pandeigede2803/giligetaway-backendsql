@@ -1054,6 +1054,188 @@ const sendPaymentEmail = async (
 
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
+      cc:process.env.EMAIL_BOOKING,
+      to: recipientEmail,
+      subject: subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`📧 Payment email sent to ${recipientEmail}`);
+  } catch (error) {
+    console.error("❌ Failed to send payment email:", error);
+  }
+};
+
+const sendPaymentEmailAgent = async (
+  recipientEmail,
+  booking,
+  paymentMethod,
+  paymentStatus,
+  refundAmount = null,
+  refundAmountUSD = null
+) => {
+  console.log("😹start to send the email", recipientEmail);
+  const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
+
+  try {
+    let subject = "Payment Update for Your Booking";
+    let statusColor = "#4CAF50"; // Default green color for success
+    let statusIcon = "✅"; // Default success icon
+    let statusMessage = "Payment Successful";
+
+    // Set appropriate color, icon and status message based on payment status
+    if (paymentStatus === "pending") {
+      statusColor = "#FF9800"; // Orange for pending
+      statusIcon = "⏳";
+      statusMessage = "Payment Pending";
+    } else if (paymentStatus === "failed") {
+      statusColor = "#F44336"; // Red for failed
+      statusIcon = "❌";
+      statusMessage = "Payment Failed";
+    } else if (
+      paymentStatus === "refund_50" ||
+      paymentStatus === "refund_100"
+    ) {
+      statusColor = "#2196F3"; // Blue for refund
+      statusIcon = "💰";
+      statusMessage =
+        paymentStatus === "refund_50"
+          ? "Partial Refund Processed"
+          : "Full Refund Processed";
+    } else if (paymentStatus === "cancelled" ||paymentStatus === "cancel_100_charge") {
+      statusColor = "#757575"; // Grey for cancelled
+      statusIcon = "🚫";
+      statusMessage = "Booking Cancelled";
+    }
+
+    let message = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Payment Update</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #ddd;">
+            <h1 style="margin: 0; color: #333;">Booking Update</h1>
+          </div>
+          <div style="padding: 20px; background-color: #fff;">
+            <p style="margin-top: 0;">Dear Customer,</p>
+            
+            <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: ${statusColor};">
+              ${statusIcon} ${statusMessage}
+            </div>
+            
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">`;
+
+    // Payment-specific content
+    if (paymentStatus === "paid") {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Status:</span> ${paymentStatus}
+              </div>
+              <p style="margin-bottom: 0;">Thank you for your payment. Your booking has been confirmed.</p>`;
+    } else if (paymentStatus === "pending") {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Status:</span> ${paymentStatus}
+              </div>
+              <p style="margin-bottom: 0;">Your payment is currently being processed. Please complete your payment to confirm your booking.</p>`;
+    } else if (paymentStatus === "failed") {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Status:</span> ${paymentStatus}
+              </div>
+              <p style="margin-bottom: 0;">Unfortunately, we couldn't process your payment. Please try again or contact our support team for assistance.</p>`;
+    } else if (
+      paymentStatus === "refund_50" ||
+      paymentStatus === "refund_100"
+    ) {
+      const refundType = paymentStatus === "refund_50" ? "50%" : "Full";
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Refund Type:</span> ${refundType}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Refund Amount:</span> ${refundAmount} ${booking.currency}
+              </div>`;
+      if (refundAmountUSD !== null) {
+        message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Refund in USD:</span> $${refundAmountUSD}
+              </div>`;
+      }
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">New Status:</span> ${paymentStatus}
+              </div>
+              <p style="margin-bottom: 0;">Your refund has been processed successfully. Please allow 3-5 business days for the amount to appear in your account.</p>`;
+    } else if (paymentStatus === "cancelled") {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Cancelled
+              </div>
+              <p style="margin-bottom: 0;">Your booking has been cancelled. If you have already made a payment, a refund will be processed according to our cancellation policy.</p>`;
+    } else {
+      message += `
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+              <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">New Status:</span> ${paymentStatus}
+              </div>
+              <p style="margin-bottom: 0;">Your payment status has been updated.</p>`;
+    }
+
+    message += `
+            </div>
+            
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            
+            <a href="${emailUrl}/check-invoice/${
+      booking.ticket_id
+    }" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Booking Details</a>
+            
+            <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
+              <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
+              <p style="margin-top: 0;">This is an automated message, please do not reply directly to this email.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_AGENT,
+      cc:process.env.EMAIL_AGENT,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -2028,5 +2210,6 @@ module.exports = {
   sendExpiredBookingEmail,
   sendPaymentSuccessEmail,
   sendPaymentSuccessEmailRoundTrip,
-  sendEmailNotificationAgentDateChange
+  sendEmailNotificationAgentDateChange,
+  sendPaymentEmailAgent,
 };

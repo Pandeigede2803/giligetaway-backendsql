@@ -15,17 +15,20 @@ const {
   Agent,
   BookingSeatAvailability,
   Boat,
-} = require("../models");;
+} = require("../models");
 const { fn, col } = require("sequelize");
 const nodemailer = require("nodemailer");
-const { v4: uuidv4 } = require('uuid');
-
+const { v4: uuidv4 } = require("uuid");
 
 const { Op } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
-const {releaseSeats,releaseBookingSeats,allocateBookingSeats} = require("../util/releaseSeats"); // Adjust the path based on your project structure
+const {
+  releaseSeats,
+  releaseBookingSeats,
+  allocateBookingSeats,
+} = require("../util/releaseSeats"); // Adjust the path based on your project structure
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
@@ -39,12 +42,13 @@ const bookingQueueMultiple = new Queue("bookingQueueMultiple");
 const bookingRoundQueue = new Queue("bookingRoundQueue");
 const {
   sendPaymentEmail,
+  sendPaymentEmailAgent,
   sendEmailNotification,
   sendEmailNotificationAgentDateChange,
 } = require("../util/sendPaymentEmail");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
-const {checkSeatAvailability}= require("../util/checkSeatNumber");
+const { checkSeatAvailability } = require("../util/checkSeatNumber");
 const {
   generateMidtransToken,
 } = require("../util/payment/generateMidtransToken"); // MidTrans utility
@@ -56,9 +60,9 @@ const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabi
 const AgentCommission = require("../models/AgentComission");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
 const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
-const { buildRouteFromSchedule2 } = require("../util/schedulepassenger/buildRouteFromSchedule");
-
-
+const {
+  buildRouteFromSchedule2,
+} = require("../util/schedulepassenger/buildRouteFromSchedule");
 
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
@@ -1152,12 +1156,12 @@ const createBookingWithTransitQueue = async (req, res) => {
 
   // console.log("🙀REQUEST FROM BODY:", req.body,final_state);
   // Validasi final_state kalau diperlukan
-if (typeof final_state !== 'object' || final_state === null) {
-  return res.status(400).json({
-    error: "Invalid final_state",
-    message: "final_state must be a valid JSON object",
-  });
-}
+  if (typeof final_state !== "object" || final_state === null) {
+    return res.status(400).json({
+      error: "Invalid final_state",
+      message: "final_state must be a valid JSON object",
+    });
+  }
 
   try {
     const result = await sequelize.transaction(async (t) => {
@@ -1231,7 +1235,7 @@ if (typeof final_state !== 'object' || final_state === null) {
       );
 
       console.log(`Booking created with ID: ${booking.id}`);
-      const shortTransactionId = uuidv4().replace(/-/g, '').substring(0, 16);
+      const shortTransactionId = uuidv4().replace(/-/g, "").substring(0, 16);
 
       const transactionEntry = await createTransaction(
         {
@@ -1539,25 +1543,33 @@ const findRelatedSubSchedulesGet = async (req, res) => {
       error: error.message,
     });
   }
-};;
+};
 
 const getBookingById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!id) {
       return res.status(400).json({ error: "Booking ID is required" });
     }
-    
+
     // Include clause dengan detail lengkap yang dibutuhkan
     const includeClause = [
       {
         model: Schedule,
         as: "schedule",
         attributes: [
-          "id", "boat_id", "availability", "arrival_time", "journey_time",
-          "route_image", "departure_time", "check_in_time", "schedule_type",
-          "days_of_week", "trip_type",
+          "id",
+          "boat_id",
+          "availability",
+          "arrival_time",
+          "journey_time",
+          "route_image",
+          "departure_time",
+          "check_in_time",
+          "schedule_type",
+          "days_of_week",
+          "trip_type",
         ],
         include: [
           {
@@ -1576,10 +1588,10 @@ const getBookingById = async (req, res) => {
           { model: Destination, as: "ToDestination", attributes: ["name"] },
         ],
       },
-      { 
-        model: AgentCommission, 
+      {
+        model: AgentCommission,
         as: "agentCommission",
-        attributes: ["id", "agent_id", "amount"]
+        attributes: ["id", "agent_id", "amount"],
       },
       {
         model: SubSchedule,
@@ -1657,38 +1669,42 @@ const getBookingById = async (req, res) => {
           attributes: ["id"],
         },
       },
-      { 
-        model: Passenger, 
+      {
+        model: Passenger,
         as: "passengers",
-  
       },
       {
         model: TransportBooking,
         as: "transportBookings",
-        include: [{ 
-          model: Transport, 
-          as: "transport",
-          attributes: [
-            "id", "pickup_area", "duration", "cost", 
-            "interval_time", "description"
-          ]
-        }],
+        include: [
+          {
+            model: Transport,
+            as: "transport",
+            attributes: [
+              "id",
+              "pickup_area",
+              "duration",
+              "cost",
+              "interval_time",
+              "description",
+            ],
+          },
+        ],
       },
-      { 
-        model: Agent, 
+      {
+        model: Agent,
         as: "Agent",
-     
       },
       {
         model: Transaction,
         as: "transactions",
-        attributes: ["id", "transaction_id"]
-      }
+        attributes: ["id", "transaction_id"],
+      },
     ];
 
     // Fetch booking by ID
     const booking = await Booking.findByPk(id, {
-      include: includeClause
+      include: includeClause,
     });
 
     if (!booking) {
@@ -1703,28 +1719,30 @@ const getBookingById = async (req, res) => {
     const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
     // Build route
-    const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+    const route = schedule
+      ? buildRouteFromSchedule(schedule, subSchedule)
+      : null;
 
     // Prepare response
     const enrichedBooking = {
       ...booking.dataValues,
       route,
       departure_time: times.departure_time,
-      arrival_time: times.arrival_time
+      arrival_time: times.arrival_time,
     };
 
     res.status(200).json({
-      booking: enrichedBooking
+      booking: enrichedBooking,
     });
   } catch (error) {
     console.error("Error retrieving booking details:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "An error occurred while fetching the booking details.",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
-
 
 const createBookingWithTransit2 = async (req, res) => {
   const {
@@ -1836,7 +1854,6 @@ const createBookingWithTransit2 = async (req, res) => {
 };
 // controllers/generateOneWayTicketId.js
 
-
 const generateOneWayTicketId = async (req, res) => {
   try {
     let ticketId;
@@ -1844,101 +1861,103 @@ const generateOneWayTicketId = async (req, res) => {
 
     while (exists) {
       const now = new Date();
-      const hh = now.getHours().toString().padStart(2, '0');    // "08"
-      const mm = now.getMinutes().toString().padStart(2, '0');  // "07"
-      const ss = now.getSeconds().toString().padStart(2, '0');  // "25"
+      const hh = now.getHours().toString().padStart(2, "0"); // "08"
+      const mm = now.getMinutes().toString().padStart(2, "0"); // "07"
+      const ss = now.getSeconds().toString().padStart(2, "0"); // "25"
 
-      const numberPart = `${hh}${mm}${ss}`;                     // e.g. "080725"
-      ticketId = `GG-OW-${numberPart}`;                         // "GG-OW-080725"
+      const numberPart = `${hh}${mm}${ss}`; // e.g. "080725"
+      ticketId = `GG-OW-${numberPart}`; // "GG-OW-080725"
 
       // cek collision di DB
       exists = await Booking.findOne({ where: { ticket_id: ticketId } });
       if (exists) {
         // tunggu sampai detik berikutnya
         const msToNextSecond = 1000 - now.getMilliseconds();
-        await new Promise(r => setTimeout(r, msToNextSecond));
+        await new Promise((r) => setTimeout(r, msToNextSecond));
       }
     }
 
     return res.json({ ticket_id: ticketId });
   } catch (error) {
-    console.error('❌ Error generating one-way ticket ID:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error("❌ Error generating one-way ticket ID:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
 
 const generateRoundTripTicketIds = async (req, res) => {
   try {
     // Dapatkan timestamp saat ini
     const now = Date.now();
-    
+
     // Fungsi untuk menghasilkan 6 digit acak yang unik
     const generateRandomSixDigits = () => {
       // Angka acak antara 100000-999999
       const randomNum = 100000 + Math.floor(Math.random() * 900000);
       // Pastikan angka ganjil untuk tiket keberangkatan
-      return (randomNum % 2 === 0) ? randomNum + 1 : randomNum;
+      return randomNum % 2 === 0 ? randomNum + 1 : randomNum;
     };
-    
+
     let baseNumber = generateRandomSixDigits();
-    let ticketIdDeparture = '';
-    let ticketIdReturn = '';
+    let ticketIdDeparture = "";
+    let ticketIdReturn = "";
     let attempts = 0;
     const maxAttempts = 100;
-    
+
     while (attempts < maxAttempts) {
       attempts++;
-      
+
       // Pastikan baseNumber selalu ganjil
       if (baseNumber % 2 === 0) baseNumber++;
-      
+
       // Buat ticket ID dengan format: GG-RT-XXXXXX
       ticketIdDeparture = `GG-RT-${baseNumber}`;
       ticketIdReturn = `GG-RT-${baseNumber + 1}`;
-      
-      console.log(`🔄 Mencoba pasangan ID ke-${attempts}: ${ticketIdDeparture} dan ${ticketIdReturn}`);
-      
+
+      console.log(
+        `🔄 Mencoba pasangan ID ke-${attempts}: ${ticketIdDeparture} dan ${ticketIdReturn}`
+      );
+
       // Cek apakah ID sudah ada di database
       const existing = await Booking.findAll({
         where: {
           ticket_id: {
-            [Op.in]: [ticketIdDeparture, ticketIdReturn]
-          }
-        }
+            [Op.in]: [ticketIdDeparture, ticketIdReturn],
+          },
+        },
       });
-      
+
       // Jika tidak ada yang sama, keluar dari loop
       if (existing.length === 0) {
-        console.log(`✅ Menemukan pasangan ID yang tersedia: ${ticketIdDeparture} dan ${ticketIdReturn}`);
+        console.log(
+          `✅ Menemukan pasangan ID yang tersedia: ${ticketIdDeparture} dan ${ticketIdReturn}`
+        );
         break;
       }
-      
+
       console.log(`⚠️ ID sudah digunakan, mencoba pasangan berikutnya...`);
-      
+
       // Jika terjadi konflik, buat nomor acak baru sepenuhnya
       baseNumber = generateRandomSixDigits();
     }
-    
+
     // Jika mencapai batas percobaan, beri tahu pengguna
     if (attempts >= maxAttempts) {
       return res.status(500).json({
-        error: 'Could not generate unique ticket IDs',
-        message: 'Reached maximum attempts'
+        error: "Could not generate unique ticket IDs",
+        message: "Reached maximum attempts",
       });
     }
-    
+
     return res.json({
       ticket_id_departure: ticketIdDeparture,
       ticket_id_return: ticketIdReturn,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('❌ Error generating round-trip ticket IDs:', error);
+    console.error("❌ Error generating round-trip ticket IDs:", error);
     return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message
+      error: "Internal server error",
+      message: error.message,
     });
   }
 };
@@ -1947,7 +1966,7 @@ const getBookings = async (req, res) => {
   try {
     const bookings = await Booking.findAll({
       limit: 10,
-      order: [['created_at', 'DESC']],
+      order: [["created_at", "DESC"]],
       include: [
         {
           model: Schedule,
@@ -2019,25 +2038,24 @@ const getBookings = async (req, res) => {
   }
 };
 
-
-  // Helper to build filters object
-  const buildFiltersObj = () => {
-    return {
-      payment_status: filterStore.table.paymentStatus || '',
-      boat: filterStore.table.boat || '',
-      booking_source: filterStore.table.bookingSource || '',
-      ticket_id: filterStore.table.ticketId || '',
-      monthly: filterStore.table.month || '',
-      booking_month: filterStore.table.monthBooking || '',
-      day: filterStore.table.day || '',
-      booking_day: filterStore.table.bookingDay || '',
-      fromDate: filterStore.table.fromDate || '',
-      toDate: filterStore.table.toDate || '',
-      fromBookingDate: filterStore.table.fromBookingDate || '',
-      toBookingDate: filterStore.table.toBookingDate || '',
-      // Add any other filters you need
-    };
+// Helper to build filters object
+const buildFiltersObj = () => {
+  return {
+    payment_status: filterStore.table.paymentStatus || "",
+    boat: filterStore.table.boat || "",
+    booking_source: filterStore.table.bookingSource || "",
+    ticket_id: filterStore.table.ticketId || "",
+    monthly: filterStore.table.month || "",
+    booking_month: filterStore.table.monthBooking || "",
+    day: filterStore.table.day || "",
+    booking_day: filterStore.table.bookingDay || "",
+    fromDate: filterStore.table.fromDate || "",
+    toDate: filterStore.table.toDate || "",
+    fromBookingDate: filterStore.table.fromBookingDate || "",
+    toBookingDate: filterStore.table.toBookingDate || "",
+    // Add any other filters you need
   };
+};
 
 const getFilteredBookings = async (req, res) => {
   try {
@@ -2054,7 +2072,7 @@ const getFilteredBookings = async (req, res) => {
       ticket_id,
       id,
     } = req.query;
-    console.log("req query",req.query)
+    console.log("req query", req.query);
 
     // Filter data
     let dateFilter = {};
@@ -2094,11 +2112,9 @@ const getFilteredBookings = async (req, res) => {
         isNaN(month) ||
         isNaN(day)
       ) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
-          });
+        return res.status(400).json({
+          error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
+        });
       }
 
       dateFilter = {
@@ -2170,7 +2186,6 @@ const getFilteredBookings = async (req, res) => {
         },
       };
     } else if (fromBookingDate && toBookingDate) {
-
       const fromDateObj = new Date(fromBookingDate);
       const toDateObj = new Date(toBookingDate);
 
@@ -2186,7 +2201,7 @@ const getFilteredBookings = async (req, res) => {
         },
       };
     }
-    console.log("DATE FILTER FUCK",dateFilter)
+    console.log("DATE FILTER FUCK", dateFilter);
 
     // Query semua data booking sesuai filter
     const bookings = await Booking.findAll({
@@ -2354,7 +2369,7 @@ const getFilteredBookingsPagination = async (req, res) => {
     const chunk = parseInt(req.query.chunk) || 1;
     const chunkSize = parseInt(req.query.chunkSize) || 50; // 100 records per chunk
     const offset = (chunk - 1) * chunkSize;
-    
+
     // Ambil query parameter
     const {
       monthly,
@@ -2370,15 +2385,15 @@ const getFilteredBookingsPagination = async (req, res) => {
       payment_status,
       boat,
       booking_source,
-      
+
       contact_name,
     } = req.query;
 
-    console.log("req query",req.query)
+    console.log("req query", req.query);
 
     // Filter data
     let whereClause = {};
-    
+
     // Prioritaskan filter berdasarkan `id` jika tersedia
     if (id) {
       whereClause.id = id; // Filter berdasarkan `id`
@@ -2387,12 +2402,12 @@ const getFilteredBookingsPagination = async (req, res) => {
       whereClause.ticket_id = ticket_id;
     } else {
       // Build up the where clause with all other filters
-      
+
       // Add payment_status filter if provided
       if (payment_status) {
         whereClause.payment_status = payment_status;
       }
-      
+
       // Add booking_source filter if provided
       if (booking_source) {
         whereClause.booking_source = booking_source;
@@ -2400,17 +2415,19 @@ const getFilteredBookingsPagination = async (req, res) => {
       if (contact_name) {
         // Gunakan ILIKE jika pakai PostgreSQL, atau LIKE untuk MySQL
         whereClause.contact_name = {
-          [Op.like]: `%${contact_name}%` // Case-insensitive substring match
+          [Op.like]: `%${contact_name}%`, // Case-insensitive substring match
         };
       }
-      
+
       // Date filtering - booking_date filters
       if (booking_month) {
         const [year, month] = booking_month.split("-");
         if (!year || !month || isNaN(year) || isNaN(month)) {
           return res
             .status(400)
-            .json({ error: "Invalid booking_month filter format. Use YYYY-MM." });
+            .json({
+              error: "Invalid booking_month filter format. Use YYYY-MM.",
+            });
         }
 
         whereClause.booking_date = {
@@ -2418,7 +2435,6 @@ const getFilteredBookingsPagination = async (req, res) => {
             new Date(year, month - 1, 1), // Awal bulan
             new Date(year, month, 0, 23, 59, 59), // Akhir bulan
           ],
-          
         };
       } else if (booking_day) {
         const [year, month, dayValue] = booking_day.split("-");
@@ -2430,11 +2446,9 @@ const getFilteredBookingsPagination = async (req, res) => {
           isNaN(month) ||
           isNaN(dayValue)
         ) {
-          return res
-            .status(400)
-            .json({
-              error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
-            });
+          return res.status(400).json({
+            error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
+          });
         }
 
         whereClause.booking_date = {
@@ -2450,14 +2464,16 @@ const getFilteredBookingsPagination = async (req, res) => {
         if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
           return res
             .status(400)
-            .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+            .json({
+              error: "Invalid date range filter format. Use YYYY-MM-DD.",
+            });
         }
 
         whereClause.booking_date = {
           [Op.between]: [fromDateObj, toDateObj],
         };
       }
-      
+
       // created_at filters
       if (monthly) {
         const [year, month] = monthly.split("-");
@@ -2472,7 +2488,6 @@ const getFilteredBookingsPagination = async (req, res) => {
             new Date(year, month - 1, 1), // Awal bulan
             new Date(year, month, 0, 23, 59, 59), // Akhir bulan
           ],
-        
         };
       } else if (day) {
         const [year, month, dayValue] = day.split("-");
@@ -2502,7 +2517,9 @@ const getFilteredBookingsPagination = async (req, res) => {
         if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
           return res
             .status(400)
-            .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+            .json({
+              error: "Invalid date range filter format. Use YYYY-MM-DD.",
+            });
         }
 
         whereClause.created_at = {
@@ -2510,15 +2527,13 @@ const getFilteredBookingsPagination = async (req, res) => {
         };
       }
     }
-    
+
     // Create the include clauses with boat filter if needed
     const includeClause = [
       {
         model: Schedule,
         as: "schedule",
-        attributes: [
-          "id","boat_id"
-        ],
+        attributes: ["id", "boat_id"],
         include: [
           {
             model: Transit,
@@ -2532,20 +2547,20 @@ const getFilteredBookingsPagination = async (req, res) => {
               },
             ],
           },
-          { model: Destination, as: "FromDestination",attributes: ["name"] },
-          { model: Destination, as: "ToDestination",attributes: ["name"] },
+          { model: Destination, as: "FromDestination", attributes: ["name"] },
+          { model: Destination, as: "ToDestination", attributes: ["name"] },
         ],
       },
-      { model: AgentCommission, as: "agentCommission",
-    attributes: ["id", "agent_id", "amount"]
-
-       },
+      {
+        model: AgentCommission,
+        as: "agentCommission",
+        attributes: ["id", "agent_id", "amount"],
+      },
       {
         model: SubSchedule,
         as: "subSchedule",
-        attributes: [
-          "id",],
-  
+        attributes: ["id"],
+
         include: [
           { model: Destination, as: "DestinationFrom", attributes: ["name"] },
           { model: Destination, as: "DestinationTo", attributes: ["name"] },
@@ -2553,49 +2568,37 @@ const getFilteredBookingsPagination = async (req, res) => {
             model: Transit,
             as: "TransitFrom",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination"},
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
           {
             model: Transit,
             as: "TransitTo",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination"},
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
           {
             model: Transit,
             as: "Transit1",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination" },
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
           {
             model: Transit,
             as: "Transit2",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination" },
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
           {
             model: Transit,
             as: "Transit3",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination" },
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
           {
             model: Transit,
             as: "Transit4",
             attributes: ["id"],
-            include: [
-              { model: Destination, as: "Destination"},
-            ],
+            include: [{ model: Destination, as: "Destination" }],
           },
         ],
       },
@@ -2612,56 +2615,65 @@ const getFilteredBookingsPagination = async (req, res) => {
       {
         model: TransportBooking,
         as: "transportBookings",
-        include: [{ model: Transport, as: "transport" ,
-          attributes: [
-            "id",
-            "pickup_area",
-           
-   
-            "duration",
-            "cost",
-            "interval_time",
-            "description",
-       
-          ],
+        include: [
+          {
+            model: Transport,
+            as: "transport",
+            attributes: [
+              "id",
+              "pickup_area",
 
-        }],
+              "duration",
+              "cost",
+              "interval_time",
+              "description",
+            ],
+          },
+        ],
 
-      //   "transport": {
-      //     "id": 85,
-      //     "pickup_area": "Kuta",
-      //     "pickup_time": "00:00:00",
-      //     "duration": 30,
-      //     "check_in_time": null,
-      //     "pickup_time_2": null,
-      //     "check_in_time_2": null,
-      //     "pickup_time_3": null,
-      //     "check_in_time_3": null,
-      //     "pickup_time_4": null,
-      //     "check_in_time_4": null,
-      //     "cost": "0.00",
-      //     "interval_time": 30,
-      //     "description": "FREE Sharing",
-      //     "created_at": "2025-04-10T03:01:29.000Z",
-      //     "updated_at": "2025-04-10T03:15:15.000Z",
-      //     "availability": true
-      // }
+        //   "transport": {
+        //     "id": 85,
+        //     "pickup_area": "Kuta",
+        //     "pickup_time": "00:00:00",
+        //     "duration": 30,
+        //     "check_in_time": null,
+        //     "pickup_time_2": null,
+        //     "check_in_time_2": null,
+        //     "pickup_time_3": null,
+        //     "check_in_time_3": null,
+        //     "pickup_time_4": null,
+        //     "check_in_time_4": null,
+        //     "cost": "0.00",
+        //     "interval_time": 30,
+        //     "description": "FREE Sharing",
+        //     "created_at": "2025-04-10T03:01:29.000Z",
+        //     "updated_at": "2025-04-10T03:15:15.000Z",
+        //     "availability": true
+        // }
       },
       { model: Agent, as: "Agent" },
-      {model:Transaction,as:"transactions",
-        attributes:["id","transaction_id"]
-
-      }
+      {
+        model: Transaction,
+        as: "transactions",
+        attributes: ["id", "transaction_id"],
+      },
     ];
-    
+
     // Add boat filter if provided
     if (boat) {
-      const boatId = boat === 'Giligetaway 2' ? 1 :
-                     boat === 'Giligetaway 5' ? 2 :
-                     boat === 'Giligetaway 3' ? 3 : null;
-                     
+      const boatId =
+        boat === "Giligetaway 2"
+          ? 1
+          : boat === "Giligetaway 5"
+            ? 2
+            : boat === "Giligetaway 3"
+              ? 3
+              : null;
+
       if (boatId) {
-        const scheduleInclude = includeClause.find(inc => inc.as === "schedule");
+        const scheduleInclude = includeClause.find(
+          (inc) => inc.as === "schedule"
+        );
         if (scheduleInclude) {
           if (!scheduleInclude.where) {
             scheduleInclude.where = {};
@@ -2674,55 +2686,55 @@ const getFilteredBookingsPagination = async (req, res) => {
     // First count total records matching the filters (for pagination)
     const totalCount = await Booking.count({
       where: whereClause,
-      include: includeClause.map(inc => {
+      include: includeClause.map((inc) => {
         // Create a simpler version of include for counting
         // This improves performance by not loading all related data just for counting
         return {
           model: inc.model,
           as: inc.as,
-          where: inc.where || undefined
+          where: inc.where || undefined,
         };
       }),
-      distinct: true  // Using distinct count to handle include clauses properly
+      distinct: true, // Using distinct count to handle include clauses properly
     });
 
     // Then get the actual paginated data
     const bookings = await Booking.findAll({
-      attributes:[
-        'id',
-        'contact_name',
-        'contact_phone',
-        'contact_passport_id',
-        'contact_nationality',
-        'contact_email',
-        'schedule_id',
-        'subschedule_id',
-        'agent_id',
-        'payment_method',
-        'gross_total',
-        'currency',
-        'gross_total_in_usd',
-        'exchange_rate',
-        'ticket_total',
-        'total_passengers',
-        'adult_passengers',
-        'child_passengers',
-        'infant_passengers',
-        'payment_status',
-        'booking_source',
-        'booking_date',
-        'expiration_time',
-        'ticket_id',
-        'bank_fee',
-        'abandoned',
-        'created_at',
-        'note'
+      attributes: [
+        "id",
+        "contact_name",
+        "contact_phone",
+        "contact_passport_id",
+        "contact_nationality",
+        "contact_email",
+        "schedule_id",
+        "subschedule_id",
+        "agent_id",
+        "payment_method",
+        "gross_total",
+        "currency",
+        "gross_total_in_usd",
+        "exchange_rate",
+        "ticket_total",
+        "total_passengers",
+        "adult_passengers",
+        "child_passengers",
+        "infant_passengers",
+        "payment_status",
+        "booking_source",
+        "booking_date",
+        "expiration_time",
+        "ticket_id",
+        "bank_fee",
+        "abandoned",
+        "created_at",
+        "note",
       ],
       where: whereClause,
       include: includeClause,
       limit: chunkSize,
       offset: offset,
-      order: [['created_at', 'DESC']], // Order by created_at descending
+      order: [["created_at", "DESC"]], // Order by created_at descending
     });
 
     // Tambahkan route ke masing-masing booking
@@ -2738,7 +2750,7 @@ const getFilteredBookingsPagination = async (req, res) => {
         ? buildRouteFromSchedule(schedule, subSchedule)
         : null;
 
-         // Build route
+      // Build route
 
       // Tambahkan route ke hasil booking
       return {
@@ -2770,8 +2782,8 @@ const getFilteredBookingsPagination = async (req, res) => {
         fromDate,
         toDate,
         fromBookingDate,
-        toBookingDate
-      }
+        toBookingDate,
+      },
     });
   } catch (error) {
     console.error("Error retrieving filtered bookings:", error);
@@ -2781,38 +2793,37 @@ const getFilteredBookingsPagination = async (req, res) => {
   }
 };
 
-
 // const getFilteredBookingsPagination = async (req, res) => {
 //   try {
 //     // Pagination parameters
 //     const page = parseInt(req.query.page) || 1;
 //     const pageSize = parseInt(req.query.pageSize) || 100;
 //     const offset = (page - 1) * pageSize;
-    
+
 //     // Get filters from query parameters
 //     const { payment_status, booking_date } = req.query;
-    
+
 //     // Build where clause
 //     let whereClause = {};
-    
+
 //     // Add payment status filter if provided
 //     if (payment_status) {
 //       whereClause.payment_status = payment_status;
 //     }
-    
+
 //     // Add booking date filter if provided
 //     if (booking_date) {
 //       const bookingDateObj = new Date(booking_date);
-      
+
 //       // Create start and end of the day
 //       const startDate = new Date(bookingDateObj.setHours(0, 0, 0, 0));
 //       const endDate = new Date(bookingDateObj.setHours(23, 59, 59, 999));
-      
+
 //       whereClause.booking_date = {
 //         [Op.between]: [startDate, endDate]
 //       };
 //     }
-    
+
 //     // Using a single query with subqueries for count
 //     const { count, rows } = await Booking.findAndCountAll({
 //       where: whereClause,
@@ -2840,8 +2851,8 @@ const getFilteredBookingsPagination = async (req, res) => {
 //       // All data is already loaded, no additional queries needed
 //       return {
 //         ...booking.dataValues,
-//         route: booking.schedule ? 
-//           `${booking.schedule.FromDestination?.name || ''} → ${booking.schedule.ToDestination?.name || ''}` : 
+//         route: booking.schedule ?
+//           `${booking.schedule.FromDestination?.name || ''} → ${booking.schedule.ToDestination?.name || ''}` :
 //           null
 //       };
 //     });
@@ -2859,16 +2870,15 @@ const getFilteredBookingsPagination = async (req, res) => {
 //         hasPrevPage: page > 1
 //       }
 //     });
-    
+
 //   } catch (error) {
 //     console.error("Error retrieving bookings:", error);
-//     res.status(500).json({ 
-//       success: false, 
-//       error: "Failed to fetch bookings data" 
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to fetch bookings data"
 //     });
 //   }
 // };
-
 
 const getAbandonedPayments = async (req, res) => {
   try {
@@ -2886,7 +2896,7 @@ const getAbandonedPayments = async (req, res) => {
       id,
       // Pagination parameters
       page = 1,
-      limit = 10
+      limit = 10,
     } = req.query;
 
     // Calculate offset for pagination
@@ -2896,23 +2906,23 @@ const getAbandonedPayments = async (req, res) => {
     // Modified to include payment_status: 'abandoned' OR (abandoned: true) with any payment_status
     let paymentFilter = {
       [Op.or]: [
-        { payment_status: 'abandoned' }, // Filter for abandoned status
-        { 
+        { payment_status: "abandoned" }, // Filter for abandoned status
+        {
           [Op.and]: [
             { abandoned: true },
-            { 
-              payment_status: { 
-                [Op.in]: ['pending', 'cancelled', 'paid'] 
-              } 
-            }
-          ]
-        }
-      ]
+            {
+              payment_status: {
+                [Op.in]: ["pending", "cancelled", "paid"],
+              },
+            },
+          ],
+        },
+      ],
     };
 
     // Additional date filter
     let dateFilter = {};
-    
+
     // Prioritize filter based on `id` if available
     if (id) {
       dateFilter = { id }; // Filter by `id`
@@ -2947,11 +2957,9 @@ const getAbandonedPayments = async (req, res) => {
         isNaN(month) ||
         isNaN(day)
       ) {
-        return res
-          .status(400)
-          .json({
-            error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
-          });
+        return res.status(400).json({
+          error: "Invalid booking_day filter format. Use YYYY-MM-DD.",
+        });
       }
 
       dateFilter = {
@@ -3040,43 +3048,41 @@ const getAbandonedPayments = async (req, res) => {
     // Combine payment status filter with date filter
     const combinedFilter = {
       ...paymentFilter,
-      ...dateFilter
+      ...dateFilter,
     };
 
     // Get total count without fetching all records
     const totalCount = await Booking.count({
-      where: combinedFilter
+      where: combinedFilter,
     });
 
     // Query for calculating gross total
-   // Query for calculating gross total
-const grossTotalResult = await Booking.findOne({
-  attributes: [
-    [sequelize.fn('SUM', sequelize.col('gross_total')), 'total']
-  ],
-  where: combinedFilter
-});
+    // Query for calculating gross total
+    const grossTotalResult = await Booking.findOne({
+      attributes: [
+        [sequelize.fn("SUM", sequelize.col("gross_total")), "total"],
+      ],
+      where: combinedFilter,
+    });
 
-// Get the gross total or default to 0 if null
-const grossTotal = grossTotalResult.dataValues.total || 0;
-    
-
+    // Get the gross total or default to 0 if null
+    const grossTotal = grossTotalResult.dataValues.total || 0;
 
     // Query specifically for different payment statuses with abandoned:true
     const cancelledAbandonedCount = await Booking.count({
       where: {
         ...dateFilter,
         abandoned: true,
-        payment_status: 'cancelled'
-      }
+        payment_status: "cancelled",
+      },
     });
-    
+
     const paidAbandonedCount = await Booking.count({
       where: {
         ...dateFilter,
         abandoned: true,
-        payment_status: 'paid'
-      }
+        payment_status: "paid",
+      },
     });
 
     // Query abandoned bookings with pagination
@@ -3203,7 +3209,7 @@ const grossTotal = grossTotalResult.dataValues.total || 0;
         },
         { model: Agent, as: "Agent" },
       ],
-      order: [['created_at', 'DESC']], // Sort abandoned bookings by creation date, newest first
+      order: [["created_at", "DESC"]], // Sort abandoned bookings by creation date, newest first
     });
 
     // Add route to each booking
@@ -3235,12 +3241,12 @@ const grossTotal = grossTotalResult.dataValues.total || 0;
         currentPage: parseInt(page),
         totalPages: Math.ceil(totalCount / limit),
         limit: parseInt(limit),
-        totalItems: totalCount
+        totalItems: totalCount,
       },
       statistics: {
         grossTotal,
         cancelledAbandonedCount,
-        paidAbandonedCount
+        paidAbandonedCount,
       },
       id, // If available, send back to frontend
       ticket_id, // If available, send back to frontend
@@ -3253,7 +3259,6 @@ const grossTotal = grossTotalResult.dataValues.total || 0;
   }
 };
 
-
 const getBookingByTicketId = async (req, res) => {
   console.log("start to get booking by ticket id");
   try {
@@ -3262,7 +3267,7 @@ const getBookingByTicketId = async (req, res) => {
       include: [
         {
           model: Transaction,
-          as: 'transactions'
+          as: "transactions",
         },
         {
           model: Schedule,
@@ -3413,47 +3418,52 @@ const getBookingByTicketId = async (req, res) => {
       const seatAvailability = booking.SeatAvailabilities[0];
       const schedule_id = booking.schedule?.id;
       const sub_schedule_id = booking.subSchedule?.id;
-      
+
       // Enhanced response with seat availability for each passenger
-      const enhancedBooking = {...booking.get()};
-      
+      const enhancedBooking = { ...booking.get() };
+
       // Check seat availability for each passenger
-      if (enhancedBooking.passengers && enhancedBooking.passengers.length > 0 && seatAvailability) {
+      if (
+        enhancedBooking.passengers &&
+        enhancedBooking.passengers.length > 0 &&
+        seatAvailability
+      ) {
         const passengersWithAvailability = await Promise.all(
           enhancedBooking.passengers.map(async (passenger) => {
-            const passengerData = {...passenger.get()};
-            
+            const passengerData = { ...passenger.get() };
+
             // Check if this seat is still available (not booked by someone else)
             if (passengerData.seat_number) {
               const availabilityCheck = await checkSeatAvailability({
                 date: seatAvailability.date,
                 schedule_id: schedule_id,
                 sub_schedule_id: sub_schedule_id,
-                seat_number: passengerData.seat_number
+                seat_number: passengerData.seat_number,
               });
-              
-              passengerData.seatNumberAvailability = availabilityCheck.isAvailable;
+
+              passengerData.seatNumberAvailability =
+                availabilityCheck.isAvailable;
               passengerData.seatAvailabilityMessage = availabilityCheck.message;
             } else {
               passengerData.seatNumberAvailability = null;
               passengerData.seatAvailabilityMessage = "No seat assigned yet";
             }
-            
+
             return passengerData;
           })
         );
-        
+
         enhancedBooking.passengers = passengersWithAvailability;
-        
+
         // Check if any passenger has a seat availability issue
         const hasUnavailableSeat = enhancedBooking.passengers.some(
-          passenger => passenger.seatNumberAvailability === false
+          (passenger) => passenger.seatNumberAvailability === false
         );
-        
+
         // Add overall availability flag to the main response
         enhancedBooking.availability = !hasUnavailableSeat;
       }
-      
+
       res.status(200).json(enhancedBooking);
     } else {
       console.log("Booking not found:", req.params.ticket_id);
@@ -3473,13 +3483,13 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8966")
     const ticketPrefix = ticket_id.slice(0, -2);
     const lastTwoDigits = ticket_id.slice(-2);
-    
+
     console.log("Ticket prefix:", ticketPrefix);
     console.log("Last two digits:", lastTwoDigits);
-    
+
     // Buat pattern untuk pencarian SQL dengan sintaks template literal yang benar
     const regexPattern = `${ticketPrefix}%`;
-    
+
     console.log("Looking for tickets with pattern:", regexPattern);
 
     // 2️⃣ Cari booking dengan ticket_id yang memiliki prefix yang sama
@@ -3489,10 +3499,10 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       },
       include: [
         {
-          model:Transaction,
-          as:'transactions'
+          model: Transaction,
+          as: "transactions",
         },
-        {model: AgentCommission, as: "agentCommission"},
+        { model: AgentCommission, as: "agentCommission" },
         {
           model: Schedule,
           as: "schedule",
@@ -3569,10 +3579,13 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     });
 
     console.log("Bookings found:", bookings.length);
-    
+
     // Debug: Log semua ticket ID yang ditemukan
     if (bookings.length > 0) {
-      console.log("Found ticket IDs:", bookings.map(b => b.ticket_id));
+      console.log(
+        "Found ticket IDs:",
+        bookings.map((b) => b.ticket_id)
+      );
     }
 
     if (bookings.length === 0) {
@@ -3581,103 +3594,123 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     }
 
     // 3️⃣ Temukan tiket saat ini
-    const currentTicket = bookings.find(b => b.ticket_id === ticket_id);
-    
+    const currentTicket = bookings.find((b) => b.ticket_id === ticket_id);
+
     if (!currentTicket) {
       console.log("❌ Current ticket not found in database.");
-      return res.status(400).json({ error: "Current ticket not found in database" });
+      return res
+        .status(400)
+        .json({ error: "Current ticket not found in database" });
     }
-    
+
     // Debug: log contact name dari tiket saat ini
     console.log("Current ticket contact name:", currentTicket.contact_name);
-    
+
     if (bookings.length === 1) {
       console.log("⚠️ Only one booking found. Returning single ticket.");
       return res
         .status(200)
         .json({ message: "Only one booking found", bookings: [currentTicket] });
     }
-    
+
     // 4️⃣ Cari pasangan tiket dengan kriteria:
     // 1. prefix sama
     // 2. pola ganjil-genap pada 2 digit terakhir
     // 3. contact_name sama
     const currentLastDigits = parseInt(lastTwoDigits);
     const isCurrentEven = currentLastDigits % 2 === 0;
-    
+
     // Normalisasi contact_name untuk perbandingan (lowercase dan trim whitespace)
-    const normalizedContactName = (currentTicket.contact_name || "").trim().toLowerCase();
-    
+    const normalizedContactName = (currentTicket.contact_name || "")
+      .trim()
+      .toLowerCase();
+
     // Cari tiket pasangan dengan kriteria yang lengkap
-    const pairedBooking = bookings.find(b => {
+    const pairedBooking = bookings.find((b) => {
       if (b.id === currentTicket.id) return false; // Skip tiket saat ini
-      
+
       const otherLastDigits = parseInt(b.ticket_id.slice(-2));
       const isOtherEven = otherLastDigits % 2 === 0;
       const otherContactName = (b.contact_name || "").trim().toLowerCase();
-      
+
       // Debug: log perbandingan contact_name
-      console.log(`Comparing contact names: [${normalizedContactName}] with [${otherContactName}]`);
-      
+      console.log(
+        `Comparing contact names: [${normalizedContactName}] with [${otherContactName}]`
+      );
+
       // Pasangan valid jika:
       // 1. Satu genap dan satu ganjil
       // 2. Prefix sama
       // 3. Contact name sama
-      return isCurrentEven !== isOtherEven && 
-             b.ticket_id.slice(0, -2) === ticketPrefix &&
-             otherContactName === normalizedContactName;
+      return (
+        isCurrentEven !== isOtherEven &&
+        b.ticket_id.slice(0, -2) === ticketPrefix &&
+        otherContactName === normalizedContactName
+      );
     });
-    
+
     if (!pairedBooking) {
-      console.log("⚠️ No matching paired booking found with same contact name.");
-      
+      console.log(
+        "⚠️ No matching paired booking found with same contact name."
+      );
+
       // Coba cari tiket yang cocok hanya berdasarkan pola ganjil-genap sebagai fallback
-      const fallbackPairedBooking = bookings.find(b => {
+      const fallbackPairedBooking = bookings.find((b) => {
         if (b.id === currentTicket.id) return false;
         const otherLastDigits = parseInt(b.ticket_id.slice(-2));
         const isOtherEven = otherLastDigits % 2 === 0;
-        return isCurrentEven !== isOtherEven && b.ticket_id.slice(0, -2) === ticketPrefix;
+        return (
+          isCurrentEven !== isOtherEven &&
+          b.ticket_id.slice(0, -2) === ticketPrefix
+        );
       });
-      
+
       if (fallbackPairedBooking) {
         console.log("⚠️ Found matching ticket based on even/odd pattern only.");
-        console.log(`Warning: Contact names don't match: [${currentTicket.contact_name}] vs [${fallbackPairedBooking.contact_name}]`);
+        console.log(
+          `Warning: Contact names don't match: [${currentTicket.contact_name}] vs [${fallbackPairedBooking.contact_name}]`
+        );
       }
-      
+
       return res.status(200).json({
         message: "No paired booking found with matching contact name",
         bookings: [currentTicket],
       });
     }
-    
+
     // 5️⃣ Siapkan kedua tiket untuk respons
     const resultBookings = [currentTicket, pairedBooking];
-    
+
     // Urutkan tiket berdasarkan ID
     resultBookings.sort((a, b) => a.id - b.id);
-    
+
     // Add availability check to bookings
     for (let i = 0; i < resultBookings.length; i++) {
       const booking = resultBookings[i];
       const bookingPlain = booking.get();
-      
+
       // Check if any passenger has seat availability issues
       let hasUnavailableSeat = false;
-      
-      if (bookingPlain.passengers && bookingPlain.passengers.length > 0 && booking.SeatAvailabilities && booking.SeatAvailabilities.length > 0) {
+
+      if (
+        bookingPlain.passengers &&
+        bookingPlain.passengers.length > 0 &&
+        booking.SeatAvailabilities &&
+        booking.SeatAvailabilities.length > 0
+      ) {
         const seatAvailability = booking.SeatAvailabilities[0];
         const schedule_id = booking.schedule?.id;
         const sub_schedule_id = booking.subSchedule?.id;
-        
+
         for (const passenger of bookingPlain.passengers) {
           if (passenger.seat_number) {
             const availabilityCheck = await checkSeatAvailability({
               date: seatAvailability.date,
               schedule_id: schedule_id,
               sub_schedule_id: sub_schedule_id,
-              seat_number: passenger.seat_number
+              seat_number: passenger.seat_number,
             });
-            
+
             if (!availabilityCheck.isAvailable) {
               hasUnavailableSeat = true;
               break;
@@ -3685,14 +3718,20 @@ const getRelatedBookingsByTicketId = async (req, res) => {
           }
         }
       }
-      
+
       // Add availability flag to the booking object
       resultBookings[i].dataValues.availability = !hasUnavailableSeat;
     }
 
-    console.log("✅ Successfully retrieved related bookings:", resultBookings.map(b => b.ticket_id));
-    console.log("Contact names match:", currentTicket.contact_name === pairedBooking.contact_name);
-    
+    console.log(
+      "✅ Successfully retrieved related bookings:",
+      resultBookings.map((b) => b.ticket_id)
+    );
+    console.log(
+      "Contact names match:",
+      currentTicket.contact_name === pairedBooking.contact_name
+    );
+
     return res.status(200).json({
       message: "Round-trip bookings found",
       bookings: resultBookings,
@@ -3706,53 +3745,57 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 // Helper function to enhance a booking with seat availability information
 const enhanceBookingWithAvailability = async (booking) => {
   // Convert Sequelize instance to plain object
-  const enhancedBooking = {...booking.get()};
-  
+  const enhancedBooking = { ...booking.get() };
+
   // Get data to check seat availability
   const seatAvailability = booking.SeatAvailabilities[0];
   const schedule_id = booking.schedule?.id;
   const sub_schedule_id = booking.subSchedule?.id;
-  
+
   // Check seat availability for each passenger
-  if (enhancedBooking.passengers && enhancedBooking.passengers.length > 0 && seatAvailability) {
+  if (
+    enhancedBooking.passengers &&
+    enhancedBooking.passengers.length > 0 &&
+    seatAvailability
+  ) {
     const passengersWithAvailability = await Promise.all(
       enhancedBooking.passengers.map(async (passenger) => {
-        const passengerData = {...passenger.get()};
-        
+        const passengerData = { ...passenger.get() };
+
         // Check if this seat is still available (not booked by someone else)
         if (passengerData.seat_number) {
           const availabilityCheck = await checkSeatAvailability({
             date: seatAvailability.date,
             schedule_id: schedule_id,
             sub_schedule_id: sub_schedule_id,
-            seat_number: passengerData.seat_number
+            seat_number: passengerData.seat_number,
           });
-          
+
           passengerData.seatNumberAvailability = availabilityCheck.isAvailable;
           passengerData.seatAvailabilityMessage = availabilityCheck.message;
         } else {
           passengerData.seatNumberAvailability = null;
           passengerData.seatAvailabilityMessage = "No seat assigned yet";
         }
-        
+
         return passengerData;
       })
     );
-    
+
     enhancedBooking.passengers = passengersWithAvailability;
-    
+
     // Check if any passenger has a seat availability issue
     const hasUnavailableSeat = enhancedBooking.passengers.some(
-      passenger => passenger.seatNumberAvailability === false
+      (passenger) => passenger.seatNumberAvailability === false
     );
-    
+
     // Add overall availability flag to the main response
     enhancedBooking.availability = !hasUnavailableSeat;
   } else {
     // If no passengers or no seat availability data
     enhancedBooking.availability = null;
   }
-  
+
   return enhancedBooking;
 };
 
@@ -3922,7 +3965,6 @@ const updateBookingNotes = async (req, res) => {
   }
 };
 
-
 const createBooking = async (req, res) => {
   try {
     const result = await sequelize.transaction(async (t) => {
@@ -4081,52 +4123,48 @@ const editBooking = async (req, res) => {
     const updateData = { ...req.body };
 
     // List of fields that should never be updated
-    const protectedFields = [
-      'id',
-      'created_at', 
-      'updated_at'
-    ];
+    const protectedFields = ["id", "created_at", "updated_at"];
 
     // Remove protected fields from update data
-    protectedFields.forEach(field => {
+    protectedFields.forEach((field) => {
       delete updateData[field];
     });
 
     // List of allowed fields that can be updated
     const allowedFields = [
-      'contact_name',
-      'contact_phone',
-      'contact_passport_id',
-      'contact_nationality',
-      'contact_email',
-      'schedule_id',
-      'subschedule_id',
-      'agent_id',
-      'payment_method',
-      'gross_total',
-      'currency',
-      'gross_total_in_usd',
-      'exchange_rate',
-      'ticket_total',
-      'total_passengers',
-      'adult_passengers',
-      'child_passengers',
-      'infant_passengers',
-      'payment_status',
-      'booking_source',
-      'booking_date',
+      "contact_name",
+      "contact_phone",
+      "contact_passport_id",
+      "contact_nationality",
+      "contact_email",
+      "schedule_id",
+      "subschedule_id",
+      "agent_id",
+      "payment_method",
+      "gross_total",
+      "currency",
+      "gross_total_in_usd",
+      "exchange_rate",
+      "ticket_total",
+      "total_passengers",
+      "adult_passengers",
+      "child_passengers",
+      "infant_passengers",
+      "payment_status",
+      "booking_source",
+      "booking_date",
       // 'expiration_time',
-      'ticket_id', // Now included as editable
-      'bank_fee',
-      'abandoned',
-      'note',
-      'final_state',
-      'discount_data'
+      "ticket_id", // Now included as editable
+      "bank_fee",
+      "abandoned",
+      "note",
+      "final_state",
+      "discount_data",
     ];
 
     // Filter to only include allowed fields
     const filteredUpdateData = {};
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (allowedFields.includes(key)) {
         filteredUpdateData[key] = updateData[key];
       }
@@ -4136,17 +4174,17 @@ const editBooking = async (req, res) => {
     if (Object.keys(filteredUpdateData).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'No valid fields provided for update'
+        message: "No valid fields provided for update",
       });
     }
 
     // Find the booking
     const booking = await Booking.findByPk(id);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
-        message: 'Booking not found'
+        message: "Booking not found",
       });
     }
 
@@ -4155,16 +4193,15 @@ const editBooking = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Booking updated successfully',
-      data: booking
+      message: "Booking updated successfully",
+      data: booking,
     });
-
   } catch (error) {
-    console.error('Error updating booking:', error);
+    console.error("Error updating booking:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating booking',
-      error: error.message
+      message: "Error updating booking",
+      error: error.message,
     });
   }
 };
@@ -4236,9 +4273,6 @@ const updateMultipleBookingPayment = async (req, res) => {
   }
 };
 
-
-
-
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
   const { payment_method, payment_status } = req.body;
@@ -4246,8 +4280,10 @@ const updateBookingPayment = async (req, res) => {
   try {
     await sequelize.transaction(async (t) => {
       console.log("\n=== Starting Payment Update ===");
-      console.log(`📝 Request data: { payment_method: '${payment_method || "unchanged"}', payment_status: '${payment_status || "unchanged"}' }`);
-      
+      console.log(
+        `📝 Request data: { payment_method: '${payment_method || "unchanged"}', payment_status: '${payment_status || "unchanged"}' }`
+      );
+
       console.log("\n🔍 Finding booking details...");
       const booking = await Booking.findByPk(id, {
         include: [{ model: Transaction, as: "transactions" }],
@@ -4261,11 +4297,14 @@ const updateBookingPayment = async (req, res) => {
 
       console.log(`🔍 Current payment status: ${booking.payment_status}`);
       console.log(`🔍 Requested payment status: ${payment_status}`);
-      
+
       // === HANDLE CANCELLATION WITHOUT REFUND ===
-      if (payment_status === "cancelled" || payment_status === "cancel_100_charge") {
+      if (
+        payment_status === "cancelled" ||
+        payment_status === "cancel_100_charge"
+      ) {
         console.log(`\n🔄 Processing cancellation (no refund calculation)...`);
-        
+
         // Update booking status only - no financial calculations
         console.log("🔄 Updating booking status to cancelled...");
         await booking.update(
@@ -4275,20 +4314,20 @@ const updateBookingPayment = async (req, res) => {
           },
           { transaction: t }
         );
-        
+
         console.log("✅ Booking cancellation processed successfully");
 
         // Process seat release
         console.log("\n🪑 Processing seat release...");
-        
+
         console.log("Booking data for release:", {
           id: booking.id,
           schedule_id: booking.schedule_id,
           subschedule_id: booking.subschedule_id,
           total_passengers: booking.total_passengers,
-          booking_date: booking.booking_date
+          booking_date: booking.booking_date,
         });
-        
+
         try {
           const releasedSeatIds = await releaseBookingSeats(booking.id, t);
           console.log(
@@ -4296,12 +4335,14 @@ const updateBookingPayment = async (req, res) => {
               releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
             }`
           );
-          
+
           console.log("\n✅ Cancellation process completed successfully");
 
           // Send email notification
           if (booking.contact_email) {
-            console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
+            console.log(
+              `\n📧 Sending email notification to ${booking.contact_email}...`
+            );
             console.log(`start to send the email ${booking.contact_email}`);
             sendPaymentEmail(
               booking.contact_email,
@@ -4309,7 +4350,7 @@ const updateBookingPayment = async (req, res) => {
               payment_method,
               payment_status,
               null, // No refund amount for cancellation
-              null  // No refund amount USD for cancellation
+              null // No refund amount USD for cancellation
             );
             console.log(`📧 Payment email sent to ${booking.contact_email}`);
           }
@@ -4324,21 +4365,24 @@ const updateBookingPayment = async (req, res) => {
           });
         } catch (releaseError) {
           console.error("\n❌ Error releasing seats:", releaseError);
-          
+
           return res.status(200).json({
             message: "Booking cancelled but had issues releasing seats",
             data: {
               booking_id: booking.id,
               payment_status: "cancelled",
-              error: releaseError.message
+              error: releaseError.message,
             },
           });
         }
       }
       // === HANDLE REFUND CASES (50% and 100%) ===
-      else if (payment_status === "refund_50" || payment_status === "refund_100") {
+      else if (
+        payment_status === "refund_50" ||
+        payment_status === "refund_100"
+      ) {
         console.log(`\n🔄 Processing refund: ${payment_status}`);
-        
+
         // Calculate refund based on status
         const refundPercentage = payment_status === "refund_50" ? 0.5 : 1;
         const refundAmount = booking.gross_total * refundPercentage;
@@ -4371,12 +4415,12 @@ const updateBookingPayment = async (req, res) => {
           },
           { transaction: t }
         );
-        
+
         console.log("✅ Refund processed successfully");
 
         // // Process seat release
         // console.log("\n🪑 Processing seat release...");
-        
+
         // console.log("Booking data for release:", {
         //   id: booking.id,
         //   schedule_id: booking.schedule_id,
@@ -4384,7 +4428,7 @@ const updateBookingPayment = async (req, res) => {
         //   total_passengers: booking.total_passengers,
         //   booking_date: booking.booking_date
         // });
-        
+
         try {
           const releasedSeatIds = await releaseBookingSeats(booking.id, t);
           console.log(
@@ -4392,12 +4436,14 @@ const updateBookingPayment = async (req, res) => {
               releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
             }`
           );
-          
+
           console.log("\n✅ Refund process completed successfully");
 
           // Send email notification
           if (booking.contact_email) {
-            console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
+            console.log(
+              `\n📧 Sending email notification to ${booking.contact_email}...`
+            );
             console.log(`start to send the email ${booking.contact_email}`);
             sendPaymentEmail(
               booking.contact_email,
@@ -4426,7 +4472,7 @@ const updateBookingPayment = async (req, res) => {
           });
         } catch (releaseError) {
           console.error("\n❌ Error releasing seats:", releaseError);
-          
+
           return res.status(200).json({
             message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
             data: {
@@ -4436,7 +4482,7 @@ const updateBookingPayment = async (req, res) => {
               refund_amount_usd: refundAmountUSD,
               new_gross_total: newGrossTotal,
               new_gross_total_usd: newGrossTotalUSD,
-              error: releaseError.message
+              error: releaseError.message,
             },
           });
         }
@@ -4448,29 +4494,34 @@ const updateBookingPayment = async (req, res) => {
         if (payment_method) data.payment_method = payment_method;
         if (payment_status) data.payment_status = payment_status;
 
-
         const originalPaymentStatus = booking.payment_status; // sebelum update
         await booking.update(data, { transaction: t });
         console.log("✅ Payment details updated successfully");
-        
+
         const shouldReallocate =
-        payment_status === "paid" &&
-        ["abandoned", "cancelled", "cancel_100_charge"].includes(originalPaymentStatus);
-      
-      if (shouldReallocate) {
-        console.log("\n🪑 Reallocating seats because payment is now confirmed from a previously cancelled/abandoned state...");
-        try {
-          const allocatedIds = await allocateBookingSeats(booking.id, t);
-          console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
-        } catch (allocErr) {
-          console.error("❌ Error allocating booking seats:", allocErr);
-          throw allocErr; // rollback transaksi
+          payment_status === "paid" &&
+          ["abandoned", "cancelled", "cancel_100_charge"].includes(
+            originalPaymentStatus
+          );
+
+        if (shouldReallocate) {
+          console.log(
+            "\n🪑 Reallocating seats because payment is now confirmed from a previously cancelled/abandoned state..."
+          );
+          try {
+            const allocatedIds = await allocateBookingSeats(booking.id, t);
+            console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
+          } catch (allocErr) {
+            console.error("❌ Error allocating booking seats:", allocErr);
+            throw allocErr; // rollback transaksi
+          }
         }
-      }
-      
+
         // Send email notification
         if (booking.contact_email) {
-          console.log(`\n📧 Sending email notification to ${booking.contact_email}...`);
+          console.log(
+            `\n📧 Sending email notification to ${booking.contact_email}...`
+          );
           console.log(`start to send the email ${booking.contact_email}`);
           sendPaymentEmail(
             booking.contact_email,
@@ -4491,7 +4542,7 @@ const updateBookingPayment = async (req, res) => {
         console.log("\n⚠️ No changes specified in the request");
         return res.status(400).json({
           message: "No changes specified",
-          details: "Request must include payment_method or payment_status"
+          details: "Request must include payment_method or payment_status",
         });
       }
     });
@@ -4560,7 +4611,7 @@ const updateBookingPayment = async (req, res) => {
 //         const refundAmountUSD = booking.gross_total_in_usd
 //           ? booking.gross_total_in_usd * refundPercentage
 //           : null;
-      
+
 //         // Tampilkan informasi perhitungan
 //         console.log("\n📊 Refund/Cancellation Calculations:");
 //         console.log(`- Status: ${payment_status}`);
@@ -4569,13 +4620,13 @@ const updateBookingPayment = async (req, res) => {
 //         if (refundAmountUSD !== null) {
 //           console.log(`- Refund Amount USD: $${refundAmountUSD}`);
 //         }
-      
+
 //         // Hitung total baru
 //         const newGrossTotal = booking.gross_total - refundAmount;
 //         const newGrossTotalUSD = booking.gross_total_in_usd
 //           ? booking.gross_total_in_usd - refundAmountUSD
 //           : null;
-      
+
 //         // Update booking
 //         console.log("\n🔄 Updating booking with status details...");
 //         await booking.update(
@@ -4586,17 +4637,17 @@ const updateBookingPayment = async (req, res) => {
 //           },
 //           { transaction: t }
 //         );
-        
+
 //         // Log status sesuai jenis operasi
 //         if (payment_status === "cancelled") {
 //           console.log("✅ Booking cancellation processed successfully");
 //         } else {
 //           console.log("✅ Refund processed successfully");
 //         }
-      
+
 //         // Proses pengembalian kursi
 //         console.log("\n🪑 Processing seat release...");
-        
+
 //         // Tambahkan debug info untuk membantu pelacakan
 //         console.log("Booking data for release:", {
 //           id: booking.id,
@@ -4605,7 +4656,7 @@ const updateBookingPayment = async (req, res) => {
 //           total_passengers: booking.total_passengers,
 //           booking_date: booking.booking_date
 //         });
-        
+
 //         try {
 //           const releasedSeatIds = await releaseSeats(booking, t);
 //           console.log(
@@ -4613,7 +4664,7 @@ const updateBookingPayment = async (req, res) => {
 //               releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
 //             }`
 //           );
-          
+
 //           // Log berhasil
 //           if (payment_status === "cancelled") {
 //             console.log("\n✅ Cancellation process completed successfully");
@@ -4623,7 +4674,7 @@ const updateBookingPayment = async (req, res) => {
 //               booking.customer_email
 //             );
 //           }
-      
+
 //           // Kirim email notifikasi
 //           if (booking.contact_email) {
 //             console.log("\n📧 Sending email notification...");
@@ -4636,7 +4687,7 @@ const updateBookingPayment = async (req, res) => {
 //               refundAmountUSD
 //             );
 //           }
-      
+
 //           // Kirim response yang sesuai
 //           if (payment_status === "cancelled") {
 //             return res.status(200).json({
@@ -4666,11 +4717,11 @@ const updateBookingPayment = async (req, res) => {
 //         } catch (releaseError) {
 //           // Tangani error pada releaseSeats
 //           console.error("\n❌ Error releasing seats:", releaseError);
-          
+
 //           // Lanjutkan proses meskipun ada error
 //           return res.status(200).json({
-//             message: payment_status === "cancelled" 
-//               ? "Booking cancelled but had issues releasing seats" 
+//             message: payment_status === "cancelled"
+//               ? "Booking cancelled but had issues releasing seats"
 //               : `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
 //             data: {
 //               booking_id: booking.id,
@@ -5024,7 +5075,6 @@ const updateBookingDateAgent = async (req, res) => {
   }
 };
 
-
 const deleteBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -5046,17 +5096,22 @@ const deleteBooking = async (req, res) => {
 
     // Step 2: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
     // MOVED THIS STEP UP from Step 5 to Step 2
-    if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
+    if (payment_status !== "cancelled" && payment_status !== "abandoned") {
       console.log("\n🔄 Releasing seats from current booking date...");
       try {
-        const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
+        const releasedSeatIds = await releaseBookingSeats(
+          booking.id,
+          transaction
+        );
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
         throw new Error(`Failed to release seats: ${error.message}`);
       }
     } else {
-      console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
+      console.log(
+        `🟡 Skipping seat release. Booking already ${payment_status}.`
+      );
     }
 
     // Step 3: Check and delete related records in Transactions
@@ -5100,21 +5155,28 @@ const deleteBooking = async (req, res) => {
     }
 
     // Step 5: Check and delete related records in BookingSeatAvailability
-    console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
+    console.log(
+      "\n🔍 Checking and deleting related BookingSeatAvailability..."
+    );
     const relatedRecords = await BookingSeatAvailability.findAll({
       where: { booking_id: bookingId },
     });
 
     if (relatedRecords.length > 0) {
       const relatedIds = relatedRecords.map((r) => r.id);
-      console.log("🔄 Deleting related BookingSeatAvailability records:", relatedIds);
+      console.log(
+        "🔄 Deleting related BookingSeatAvailability records:",
+        relatedIds
+      );
 
       await BookingSeatAvailability.destroy({
         where: { booking_id: bookingId },
         transaction,
       });
 
-      console.log("✅ Successfully deleted related BookingSeatAvailability records.");
+      console.log(
+        "✅ Successfully deleted related BookingSeatAvailability records."
+      );
     } else {
       console.log("✅ No related records found in BookingSeatAvailability.");
     }
@@ -5144,7 +5206,10 @@ const deleteBooking = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
 
-    console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
+    console.error(
+      `Error deleting booking with ID ${req.params.id}:`,
+      error.message
+    );
 
     return res.status(500).json({
       success: false,
@@ -5278,8 +5343,6 @@ const deleteBooking = async (req, res) => {
 //     });
 //   }
 // };
-
-
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
@@ -5647,7 +5710,10 @@ const cancelBooking = async (req, res) => {
       }
 
       // Cek apakah sudah cancelled sebelumnya (opsional)
-      if (booking.payment_status === "cancelled" || booking.payment_status === "Cancelled") {
+      if (
+        booking.payment_status === "cancelled" ||
+        booking.payment_status === "Cancelled"
+      ) {
         console.log("⚠️ Booking already cancelled");
         return res.status(400).json({
           error: "Booking is already cancelled",
@@ -5663,6 +5729,8 @@ const cancelBooking = async (req, res) => {
         }`
       );
 
+     
+
       // 3. Update payment_status menjadi 'cancelled'
       //    (Opsional: set gross_total = 0, dsb. jika ada kebijakan refund total)
       console.log("\n🔄 Updating booking to cancelled status...");
@@ -5674,6 +5742,23 @@ const cancelBooking = async (req, res) => {
         },
         { transaction: t }
       );
+
+       // Send email notification
+       if (booking.contact_email) {
+        console.log(
+          `\n📧 Sending email notification to ${booking.contact_email}...`
+        );
+        console.log(`start to send the email ${booking.contact_email}`);
+        sendPaymentEmailAgent(
+          booking.contact_email,
+          booking,
+          booking.payment_method,
+          booking.payment_status,
+          null, // No refund amount for cancellation
+          null // No refund amount USD for cancellation
+        );
+        console.log(`📧 Payment email sent to ${booking.contact_email}`);
+      }
       console.log("✅ Booking successfully cancelled");
 
       // 4. Return response sukses
@@ -5736,10 +5821,16 @@ const updatePaymentStatus = async (req, res) => {
     }
 
     // Validasi nilai payment_status
-    const validStatuses = ['pending', 'paid', 'cancelled', 'refunded', 'abandoned'];
+    const validStatuses = [
+      "pending",
+      "paid",
+      "cancelled",
+      "refunded",
+      "abandoned",
+    ];
     if (!validStatuses.includes(payment_status)) {
-      return res.status(400).json({ 
-        error: `Invalid status. Status must be one of: ${validStatuses.join(', ')}` 
+      return res.status(400).json({
+        error: `Invalid status. Status must be one of: ${validStatuses.join(", ")}`,
       });
     }
 
@@ -5752,12 +5843,12 @@ const updatePaymentStatus = async (req, res) => {
 
     // Update status pembayaran
     booking.payment_status = payment_status;
-    
+
     // Jika payment menjadi paid, update payment_date
-    if (payment_status === 'paid' && !booking.payment_date) {
+    if (payment_status === "paid" && !booking.payment_date) {
       booking.payment_date = new Date();
     }
-    
+
     // Simpan perubahan
     await booking.save();
 
@@ -5768,8 +5859,8 @@ const updatePaymentStatus = async (req, res) => {
       payment: {
         id: booking.id,
         payment_status: booking.payment_status,
-        payment_date: booking.payment_date
-      }
+        payment_date: booking.payment_date,
+      },
     });
   } catch (error) {
     console.error("Error updating payment status:", error);
@@ -5790,25 +5881,23 @@ const sendPaymentReminder = async (req, res) => {
     const booking = await Booking.findOne({
       where: {
         id,
-        payment_status: 'abandoned'
+        payment_status: "abandoned",
       },
-      include: [
-        { model: Passenger, as: "passengers" }
-      ]
+      include: [{ model: Passenger, as: "passengers" }],
     });
 
     if (!booking) {
       return res.status(404).json({ error: "Abandoned payment not found" });
     }
-    
+
     // Validasi apakah ada passenger dengan contact info
-    const hasContactInfo = booking.passengers && booking.passengers.some(
-      p => p.email || p.phone
-    );
-    
+    const hasContactInfo =
+      booking.passengers && booking.passengers.some((p) => p.email || p.phone);
+
     if (!hasContactInfo) {
-      return res.status(400).json({ 
-        error: "Cannot send reminder. No contact information found for passengers." 
+      return res.status(400).json({
+        error:
+          "Cannot send reminder. No contact information found for passengers.",
       });
     }
 
@@ -5826,8 +5915,8 @@ const sendPaymentReminder = async (req, res) => {
       message: "Payment reminder sent successfully",
       payment: {
         id: booking.id,
-        last_reminder_sent: booking.last_reminder_sent
-      }
+        last_reminder_sent: booking.last_reminder_sent,
+      },
     });
   } catch (error) {
     console.error("Error sending payment reminder:", error);
@@ -5849,12 +5938,12 @@ const getAbandonedPaymentById = async (req, res) => {
       where: {
         id,
         [Op.or]: [
-          { payment_status: 'abandoned' }, // Filter untuk status abandoned
-          { 
-            payment_status: { [Op.ne]: 'abandoned' }, // Semua status selain 'abandoned'
-            abandoned: true // Dengan flag abandoned = true
-          }
-        ]
+          { payment_status: "abandoned" }, // Filter untuk status abandoned
+          {
+            payment_status: { [Op.ne]: "abandoned" }, // Semua status selain 'abandoned'
+            abandoned: true, // Dengan flag abandoned = true
+          },
+        ],
       },
       include: [
         {
@@ -5989,7 +6078,9 @@ const getAbandonedPaymentById = async (req, res) => {
     const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
 
     // Bangun route
-    const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+    const route = schedule
+      ? buildRouteFromSchedule(schedule, subSchedule)
+      : null;
 
     // Tambahkan ke hasil
     const enrichedBooking = {
@@ -6001,16 +6092,17 @@ const getAbandonedPaymentById = async (req, res) => {
 
     // Respons data
     res.status(200).json({
-      abandonedPayment: enrichedBooking
+      abandonedPayment: enrichedBooking,
     });
   } catch (error) {
     console.error("Error retrieving abandoned payment:", error);
     res
       .status(500)
-      .json({ error: "An error occurred while fetching the abandoned payment." });
+      .json({
+        error: "An error occurred while fetching the abandoned payment.",
+      });
   }
 };
-
 
 /**
  * Menghapus abandoned payment
@@ -6027,8 +6119,8 @@ const deleteAbandonedPayment = async (req, res) => {
     const booking = await Booking.findOne({
       where: {
         id,
-        payment_status: 'abandoned'
-      }
+        payment_status: "abandoned",
+      },
     });
 
     if (!booking) {
@@ -6042,15 +6134,17 @@ const deleteAbandonedPayment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Abandoned payment deleted successfully",
-      payment_id: id
+      payment_id: id,
     });
   } catch (error) {
     console.error("Error deleting abandoned payment:", error);
     res
       .status(500)
-      .json({ error: "An error occurred while deleting the abandoned payment." });
+      .json({
+        error: "An error occurred while deleting the abandoned payment.",
+      });
   }
-};;
+};
 
 module.exports = {
   createBooking,
