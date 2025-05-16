@@ -5702,7 +5702,17 @@ const cancelBooking = async (req, res) => {
     await sequelize.transaction(async (t) => {
       // 1. Cari booking
       console.log("\n🔍 Finding booking details...");
-      const booking = await Booking.findByPk(id, { transaction: t });
+      const booking = await Booking.findByPk(id, {
+        include: [
+          {
+            model: Agent,
+            as: 'agent', // sesuaikan dengan alias jika pakai `as` di relasi
+            attributes: ['email'],
+          },
+        ],
+        transaction: t,
+      });
+      
 
       if (!booking) {
         console.log("❌ Booking not found");
@@ -5750,7 +5760,7 @@ const cancelBooking = async (req, res) => {
         );
         console.log(`start to send the email ${booking.contact_email}`);
         sendPaymentEmailAgent(
-          booking.contact_email,
+          booking.agent.email,
           booking,
           booking.payment_method,
           booking.payment_status,
