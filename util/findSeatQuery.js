@@ -212,11 +212,11 @@ const findSeatAvailabilityWithDetails = async (id) => {
         booking.setDataValue("route", route);
     
         // 🔍 Debugging Log - Check the Data Before Returning
-        console.log("Updated Booking with Route & Passenger Count:", {
-          id: booking.id,
-          passenger_count: booking.getDataValue("passenger_count"),
-          route: booking.getDataValue("route"),
-        });
+        // console.log("Updated Booking with Route & Passenger Count:", {
+        //   id: booking.id,
+        //   passenger_count: booking.getDataValue("passenger_count"),
+        //   route: booking.getDataValue("route"),
+        // });
       }
     });
     
