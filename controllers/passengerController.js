@@ -24,6 +24,7 @@ const {
   fetchSeatAvailability,
   createSeatAvailability,
 } = require("../util/seatAvailabilityUtils");
+const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
 const { processBookedSeats } = require("../util/seatUtils");

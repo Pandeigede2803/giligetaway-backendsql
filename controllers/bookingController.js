@@ -1323,7 +1323,7 @@ bookingQueue.process(async (job, done) => {
         subschedule_id,
         booking_date,
         total_passengers,
-        transit_details,
+        // transit_details,
         transaction
       );
     } else {
