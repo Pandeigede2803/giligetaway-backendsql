@@ -933,62 +933,76 @@ const getPassengerCountByMonth = async (req, res) => {
 const createPassenger = async (req, res) => {
   try {
     const { booking_id, ...passengerData } = req.body;
-    
-    // Validasi booking_id
+
     if (!booking_id) {
       return res.status(400).json({ error: "booking_id is required" });
     }
-    
-    // Periksa apakah booking ada - tanpa include untuk menghindari error alias
+
     const booking = await Booking.findByPk(booking_id);
-    
+
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
-    
-    // Cari SeatAvailability yang sesuai dengan booking
-    const seatAvailability = await SeatAvailability.findOne({
-      where: {
-        schedule_id: booking.schedule_id,
-        subschedule_id: booking.subschedule_id || null,
-        date: booking.booking_date
-      }
-    });
-    
-    if (!seatAvailability) {
-      console.warn(`No SeatAvailability found for booking ${booking_id} with schedule ${booking.schedule_id}, subschedule ${booking.subschedule_id}, date ${booking.booking_date}`);
-      // Kita bisa lanjut tanpa SeatAvailability, atau membuat baru jika diperlukan
+
+    const totalPassengers = booking.total_passengers || 0;
+    const selectedSubSchedule = booking.subschedule_id;
+
+    // === CARI related SubSchedules (jika ada) ===
+    let subSchedulesToProcess = [];
+    if (selectedSubSchedule) {
+      const selectedSS = await SubSchedule.findByPk(selectedSubSchedule); // dapatkan instance lengkap
+      const related = await findRelatedSubSchedules(booking.schedule_id, selectedSS); // jangan lupa `selectedSS`, bukan hanya id
+      subSchedulesToProcess = [selectedSS, ...related];
+      console.log(`📦 Found ${related.length} related SubSchedules`);
     } else {
-      // Periksa apakah BookingSeatAvailability sudah ada
+      subSchedulesToProcess = [null]; // untuk booking tanpa subschedule (langsung ke schedule utama)
+    }
+
+    for (const ss of subSchedulesToProcess) {
+      const subscheduleId = ss ? ss.id : null;
+
+      let sa = await SeatAvailability.findOne({
+        where: {
+          schedule_id: booking.schedule_id,
+          subschedule_id: subscheduleId,
+          date: booking.booking_date
+        }
+      });
+
+      if (!sa) {
+        console.warn(`⚠️ No SeatAvailability found for subschedule_id=${subscheduleId} on ${booking.booking_date}`);
+        continue; // bisa dilewati atau buat jika perlu
+      }
+
+      // Periksa apakah BookingSeatAvailability sudah dibuat
       const existingBSA = await BookingSeatAvailability.findOne({
         where: {
           booking_id: booking_id,
-          seat_availability_id: seatAvailability.id
+          seat_availability_id: sa.id
         }
       });
-      
-      // Jika belum ada, buat BookingSeatAvailability baru
+
       if (!existingBSA) {
         await BookingSeatAvailability.create({
           booking_id: booking_id,
-          seat_availability_id: seatAvailability.id
+          seat_availability_id: sa.id
         });
-        console.log(`Created BookingSeatAvailability for booking ${booking_id} and seat ${seatAvailability.id}`);
+        console.log(`✅ Linked Booking ID ${booking_id} to SeatAvailability ID ${sa.id}`);
       }
     }
-    
-    // Buat passenger
+
+    // === Buat Passenger ===
     const passenger = await Passenger.create({
       booking_id,
       ...passengerData
     });
-    
-    // Update total_passengers di booking jika perlu
+
+    // === Update total_passengers di booking ===
     const passengerCount = await Passenger.count({ where: { booking_id } });
     if (passengerCount !== booking.total_passengers) {
       await booking.update({ total_passengers: passengerCount });
     }
-    
+
     res.status(201).json({
       success: true,
       message: "Passenger created successfully",

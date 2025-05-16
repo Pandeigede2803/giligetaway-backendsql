@@ -6167,7 +6167,6 @@ module.exports = {
   getFilteredBookingsPagination,
   generateOneWayTicketId,
   generateRoundTripTicketIds,
-
   updateBookingNotes,
   createBookingMultiple,
   getBookingContact,
