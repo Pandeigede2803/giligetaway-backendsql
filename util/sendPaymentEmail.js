@@ -1387,6 +1387,7 @@ const sendEmailNotification = async (
 
 const sendEmailNotificationAgentDateChange = async (
   recipientEmail,
+  contactName,
   bookingId,
   oldDate,
   newDate,
@@ -1422,6 +1423,12 @@ const sendEmailNotificationAgentDateChange = async (
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Previous Date:</span> ${oldDate}
+              </div>
+               <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Agent Email:</span> ${agentEmail}
+              </div>
+               <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Customer Name:</span> ${contactName} (${recipientEmail})
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">New Date:</span> <span style="color: #2196F3; font-weight: bold;">${newDate}</span>

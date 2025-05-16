@@ -4994,6 +4994,7 @@ const updateBookingDateAgent = async (req, res) => {
       if (booking.contact_email) {
         sendEmailNotificationAgentDateChange(
           booking.contact_email,
+          booking.contact_name,
           booking.ticket_id,
           originalBookingDate,
           booking_date,
