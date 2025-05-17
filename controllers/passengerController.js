@@ -945,19 +945,19 @@ const createPassenger = async (req, res) => {
       return res.status(404).json({ error: "Booking not found" });
     }
 
-    const totalPassengers = booking.total_passengers || 0;
     const selectedSubSchedule = booking.subschedule_id;
-
-    // === CARI related SubSchedules (jika ada) ===
     let subSchedulesToProcess = [];
+
     if (selectedSubSchedule) {
-      const selectedSS = await SubSchedule.findByPk(selectedSubSchedule); // dapatkan instance lengkap
-      const related = await findRelatedSubSchedules(booking.schedule_id, selectedSS); // jangan lupa `selectedSS`, bukan hanya id
+      const selectedSS = await SubSchedule.findByPk(selectedSubSchedule);
+      const related = await findRelatedSubSchedules(booking.schedule_id, selectedSS);
       subSchedulesToProcess = [selectedSS, ...related];
       console.log(`📦 Found ${related.length} related SubSchedules`);
     } else {
-      subSchedulesToProcess = [null]; // untuk booking tanpa subschedule (langsung ke schedule utama)
+      subSchedulesToProcess = [null];
     }
+
+    const affectedSeatAvailabilityIds = [];
 
     for (const ss of subSchedulesToProcess) {
       const subscheduleId = ss ? ss.id : null;
@@ -972,10 +972,9 @@ const createPassenger = async (req, res) => {
 
       if (!sa) {
         console.warn(`⚠️ No SeatAvailability found for subschedule_id=${subscheduleId} on ${booking.booking_date}`);
-        continue; // bisa dilewati atau buat jika perlu
+        continue;
       }
 
-      // Periksa apakah BookingSeatAvailability sudah dibuat
       const existingBSA = await BookingSeatAvailability.findOne({
         where: {
           booking_id: booking_id,
@@ -990,6 +989,8 @@ const createPassenger = async (req, res) => {
         });
         console.log(`✅ Linked Booking ID ${booking_id} to SeatAvailability ID ${sa.id}`);
       }
+
+      affectedSeatAvailabilityIds.push(sa.id);
     }
 
     // === Buat Passenger ===
@@ -997,6 +998,23 @@ const createPassenger = async (req, res) => {
       booking_id,
       ...passengerData
     });
+
+    // === Kurangi available_seats jika tipe penumpang perlu kursi ===
+    const seatTypesRequiringSeat = ['adult', 'child'];
+    const passengerType = passenger.passenger_type || 'adult';
+
+    if (seatTypesRequiringSeat.includes(passengerType)) {
+      for (const saId of affectedSeatAvailabilityIds) {
+        const sa = await SeatAvailability.findByPk(saId);
+
+        if (sa && sa.available_seats > 0) {
+          await sa.update({ available_seats: sa.available_seats - 1 });
+          console.log(`🪑 Decreased seat on SA ${sa.id} -> now ${sa.available_seats - 1}`);
+        } else {
+          console.warn(`❌ Cannot reduce seats — SA ID ${saId} has no available seats`);
+        }
+      }
+    }
 
     // === Update total_passengers di booking ===
     const passengerCount = await Passenger.count({ where: { booking_id } });
@@ -1009,6 +1027,7 @@ const createPassenger = async (req, res) => {
       message: "Passenger created successfully",
       data: passenger
     });
+
   } catch (error) {
     console.error("Error creating passenger:", error);
     res.status(400).json({ 
@@ -1017,6 +1036,7 @@ const createPassenger = async (req, res) => {
     });
   }
 };
+
 
 // const createPassenger = async (req, res) => {
 //   try {
@@ -1162,9 +1182,6 @@ const updatePassenger = async (req, res) => {
 // };
 
 // controllers/passengerController.js
-
-
-
 const addPassenger = async (req, res) => {
   const transaction = await sequelize.transaction();
   
@@ -1233,50 +1250,24 @@ const addPassenger = async (req, res) => {
     let newChildCount = 0;
     let newInfantCount = 0;
     
-    // Hitung jumlah penumpang yang akan menempati kursi (adult dan child)
-    let seatOccupyingPassengersCount = 0;
-    
     passengersToAdd.forEach(passenger => {
       const passengerType = passenger.passenger_type || 'adult';
       
       if (passengerType === 'adult') {
         newAdultCount++;
-        seatOccupyingPassengersCount++;
       } else if (passengerType === 'child') {
         newChildCount++;
-        seatOccupyingPassengersCount++;
       } else if (passengerType === 'infant') {
         newInfantCount++;
-        // Infant biasanya tidak menempati kursi sendiri
       }
     });
     
-    // Verifikasi bahwa ada cukup kursi tersedia untuk semua penumpang yang membutuhkan kursi
-    for (const bsa of bookingSeatAvailabilities) {
-      const seatAvailability = bsa.SeatAvailability;
-      
-      // Hitung kapasitas yang benar berdasarkan boost
-      const correctCapacity = seatAvailability.boost ? 
-        seatAvailability.Schedule.Boat.capacity : 
-        seatAvailability.Schedule.Boat.published_capacity;
-      
-      // Verifikasi apakah masih cukup kursi tersedia - hanya untuk penumpang yang butuh kursi
-      if (seatAvailability.available_seats < seatOccupyingPassengersCount) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: `Not enough available seats (${seatAvailability.available_seats}) for ${seatOccupyingPassengersCount} new passengers requiring seats`,
-          seat_availability_id: seatAvailability.id,
-          available_seats: seatAvailability.available_seats,
-          passengers_requiring_seats: seatOccupyingPassengersCount
-        });
-      }
-    }
+    // Tidak perlu cek kapasitas kursi karena ini adalah penambahan missing passenger
+    // Kursi sudah dialokasikan di proses booking awal
     
     // Buat penumpang baru
     const addedPassengers = [];
     for (const passengerItem of passengersToAdd) {
-      // Default passenger_type ke 'adult' jika tidak ditentukan
       const passengerWithType = {
         ...passengerItem,
         passenger_type: passengerItem.passenger_type || 'adult',
@@ -1284,48 +1275,31 @@ const addPassenger = async (req, res) => {
       };
       
       const passenger = await Passenger.create(passengerWithType, { transaction });
-      
       addedPassengers.push(passenger);
     }
     
-    // Update available_seats di semua SeatAvailability terkait - hanya kurangi untuk penumpang yang butuh kursi
-    const updatePromises = bookingSeatAvailabilities.map(async (bsa) => {
-      const seatAvailability = bsa.SeatAvailability;
-      
-      // Kurangi available_seats sesuai jumlah penumpang yang membutuhkan kursi
-      const newAvailableSeats = Math.max(0, seatAvailability.available_seats - seatOccupyingPassengersCount);
-      
-      await SeatAvailability.update({ 
-        available_seats: newAvailableSeats 
-      }, { 
-        where: { id: seatAvailability.id },
-        transaction
-      });
-      
+    // ❌ Tidak perlu kurangi seat lagi, hanya tampilkan kondisi sekarang
+    const updatedSeatAvailabilities = bookingSeatAvailabilities.map(bsa => {
       return {
-        seat_availability_id: seatAvailability.id,
-        previous_available_seats: seatAvailability.available_seats,
-        new_available_seats: newAvailableSeats
+        seat_availability_id: bsa.SeatAvailability.id,
+        available_seats: bsa.SeatAvailability.available_seats
       };
     });
-    
-    const updatedSeatAvailabilities = await Promise.all(updatePromises);
-    
-    // PENTING: Update jumlah penumpang di model Booking
-// PENTING: Update jumlah penumpang di model Booking (sementara di-comment karena akan dilakukan manual)
-/*
-const updatedBookingData = {
-  adult_passengers: booking.adult_passengers + newAdultCount,
-  child_passengers: booking.child_passengers + newChildCount,
-  infant_passengers: booking.infant_passengers + newInfantCount,
-  total_passengers: booking.total_passengers + newAdultCount + newChildCount 
-};
 
-await Booking.update(updatedBookingData, {
-  where: { id: booking_id },
-  transaction
-});
-*/
+    // PENTING: Update jumlah penumpang di model Booking (sementara di-comment karena akan dilakukan manual)
+    /*
+    const updatedBookingData = {
+      adult_passengers: booking.adult_passengers + newAdultCount,
+      child_passengers: booking.child_passengers + newChildCount,
+      infant_passengers: booking.infant_passengers + newInfantCount,
+      total_passengers: booking.total_passengers + newAdultCount + newChildCount 
+    };
+
+    await Booking.update(updatedBookingData, {
+      where: { id: booking_id },
+      transaction
+    });
+    */
     
     // Hitung jumlah penumpang berdasarkan tipe setelah penambahan
     const passengerCounts = await getPassengerCounts(booking_id, transaction);
@@ -1339,14 +1313,12 @@ await Booking.update(updatedBookingData, {
       booking_id,
       added_passengers: addedPassengers,
       updated_seat_availabilities: updatedSeatAvailabilities,
-      passenger_counts: passengerCounts,
+      passenger_counts: passengerCounts
       // updated_booking: updatedBookingData
     });
     
   } catch (error) {
-    // Rollback transaction jika terjadi error
     await transaction.rollback();
-    
     console.error("Error adding passengers:", error);
     return res.status(500).json({
       success: false,
@@ -1355,6 +1327,199 @@ await Booking.update(updatedBookingData, {
     });
   }
 };
+
+
+
+// const addPassenger = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+  
+//   try {
+//     const { booking_id } = req.params;
+//     const passengerData = req.body;
+
+//     console.log("Adding passengers:", passengerData);
+//     console.log("😽Booking ID:", booking_id);
+    
+//     // Validasi input
+//     if (!booking_id) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Booking ID is required"
+//       });
+//     }
+    
+//     // Jika input adalah array, gunakan itu, jika tidak, buat array dengan satu item
+//     const passengersToAdd = Array.isArray(passengerData) ? passengerData : [passengerData];
+    
+//     if (passengersToAdd.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No passenger data provided"
+//       });
+//     }
+    
+//     // Cari booking untuk memastikan ada
+//     const booking = await Booking.findByPk(booking_id, { transaction });
+    
+//     if (!booking) {
+//       await transaction.rollback();
+//       return res.status(404).json({
+//         success: false,
+//         message: "Booking not found"
+//       });
+//     }
+    
+//     // Temukan semua SeatAvailability yang terkait dengan booking ini
+//     const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
+//       where: { booking_id },
+//       include: [{
+//         model: SeatAvailability,
+//         include: [{
+//           model: Schedule,
+//           include: [{
+//             model: Boat,
+//             as: "Boat"
+//           }]
+//         }]
+//       }],
+//       transaction
+//     });
+    
+//     if (bookingSeatAvailabilities.length === 0) {
+//       await transaction.rollback();
+//       return res.status(404).json({
+//         success: false,
+//         message: "No seat availabilities found for this booking"
+//       });
+//     }
+    
+//     // Hitung penumpang berdasarkan jenis untuk pembaruan booking
+//     let newAdultCount = 0;
+//     let newChildCount = 0;
+//     let newInfantCount = 0;
+    
+//     // Hitung jumlah penumpang yang akan menempati kursi (adult dan child)
+//     let seatOccupyingPassengersCount = 0;
+    
+//     passengersToAdd.forEach(passenger => {
+//       const passengerType = passenger.passenger_type || 'adult';
+      
+//       if (passengerType === 'adult') {
+//         newAdultCount++;
+//         seatOccupyingPassengersCount++;
+//       } else if (passengerType === 'child') {
+//         newChildCount++;
+//         seatOccupyingPassengersCount++;
+//       } else if (passengerType === 'infant') {
+//         newInfantCount++;
+//         // Infant biasanya tidak menempati kursi sendiri
+//       }
+//     });
+    
+//     // Verifikasi bahwa ada cukup kursi tersedia untuk semua penumpang yang membutuhkan kursi
+//     for (const bsa of bookingSeatAvailabilities) {
+//       const seatAvailability = bsa.SeatAvailability;
+      
+//       // Hitung kapasitas yang benar berdasarkan boost
+//       const correctCapacity = seatAvailability.boost ? 
+//         seatAvailability.Schedule.Boat.capacity : 
+//         seatAvailability.Schedule.Boat.published_capacity;
+      
+//       // Verifikasi apakah masih cukup kursi tersedia - hanya untuk penumpang yang butuh kursi
+//       if (seatAvailability.available_seats < seatOccupyingPassengersCount) {
+//         await transaction.rollback();
+//         return res.status(400).json({
+//           success: false,
+//           message: `Not enough available seats (${seatAvailability.available_seats}) for ${seatOccupyingPassengersCount} new passengers requiring seats`,
+//           seat_availability_id: seatAvailability.id,
+//           available_seats: seatAvailability.available_seats,
+//           passengers_requiring_seats: seatOccupyingPassengersCount
+//         });
+//       }
+//     }
+    
+//     // Buat penumpang baru
+//     const addedPassengers = [];
+//     for (const passengerItem of passengersToAdd) {
+//       // Default passenger_type ke 'adult' jika tidak ditentukan
+//       const passengerWithType = {
+//         ...passengerItem,
+//         passenger_type: passengerItem.passenger_type || 'adult',
+//         booking_id
+//       };
+      
+//       const passenger = await Passenger.create(passengerWithType, { transaction });
+      
+//       addedPassengers.push(passenger);
+//     }
+    
+//     // Update available_seats di semua SeatAvailability terkait - hanya kurangi untuk penumpang yang butuh kursi
+//     const updatePromises = bookingSeatAvailabilities.map(async (bsa) => {
+//       const seatAvailability = bsa.SeatAvailability;
+      
+//       // Kurangi available_seats sesuai jumlah penumpang yang membutuhkan kursi
+//       const newAvailableSeats = Math.max(0, seatAvailability.available_seats - seatOccupyingPassengersCount);
+      
+//       await SeatAvailability.update({ 
+//         available_seats: newAvailableSeats 
+//       }, { 
+//         where: { id: seatAvailability.id },
+//         transaction
+//       });
+      
+//       return {
+//         seat_availability_id: seatAvailability.id,
+//         previous_available_seats: seatAvailability.available_seats,
+//         new_available_seats: newAvailableSeats
+//       };
+//     });
+    
+//     const updatedSeatAvailabilities = await Promise.all(updatePromises);
+    
+//     // PENTING: Update jumlah penumpang di model Booking
+// // PENTING: Update jumlah penumpang di model Booking (sementara di-comment karena akan dilakukan manual)
+// /*
+// const updatedBookingData = {
+//   adult_passengers: booking.adult_passengers + newAdultCount,
+//   child_passengers: booking.child_passengers + newChildCount,
+//   infant_passengers: booking.infant_passengers + newInfantCount,
+//   total_passengers: booking.total_passengers + newAdultCount + newChildCount 
+// };
+
+// await Booking.update(updatedBookingData, {
+//   where: { id: booking_id },
+//   transaction
+// });
+// */
+    
+//     // Hitung jumlah penumpang berdasarkan tipe setelah penambahan
+//     const passengerCounts = await getPassengerCounts(booking_id, transaction);
+    
+//     // Commit transaction jika semuanya berhasil
+//     await transaction.commit();
+    
+//     return res.status(201).json({
+//       success: true,
+//       message: `${addedPassengers.length} passenger(s) added to booking successfully`,
+//       booking_id,
+//       added_passengers: addedPassengers,
+//       updated_seat_availabilities: updatedSeatAvailabilities,
+//       passenger_counts: passengerCounts,
+//       // updated_booking: updatedBookingData
+//     });
+    
+//   } catch (error) {
+//     // Rollback transaction jika terjadi error
+//     await transaction.rollback();
+    
+//     console.error("Error adding passengers:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to add passengers",
+//       error: error.message
+//     });
+//   }
+// };
 
 /**
  * Menghapus penumpang dari booking dan menyesuaikan available_seats
