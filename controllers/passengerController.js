@@ -1312,17 +1312,20 @@ const addPassenger = async (req, res) => {
     const updatedSeatAvailabilities = await Promise.all(updatePromises);
     
     // PENTING: Update jumlah penumpang di model Booking
-    const updatedBookingData = {
-      adult_passengers: booking.adult_passengers + newAdultCount,
-      child_passengers: booking.child_passengers + newChildCount,
-      infant_passengers: booking.infant_passengers + newInfantCount,
-      total_passengers: booking.total_passengers + newAdultCount + newChildCount 
-    };
-    
-    await Booking.update(updatedBookingData, {
-      where: { id: booking_id },
-      transaction
-    });
+// PENTING: Update jumlah penumpang di model Booking (sementara di-comment karena akan dilakukan manual)
+/*
+const updatedBookingData = {
+  adult_passengers: booking.adult_passengers + newAdultCount,
+  child_passengers: booking.child_passengers + newChildCount,
+  infant_passengers: booking.infant_passengers + newInfantCount,
+  total_passengers: booking.total_passengers + newAdultCount + newChildCount 
+};
+
+await Booking.update(updatedBookingData, {
+  where: { id: booking_id },
+  transaction
+});
+*/
     
     // Hitung jumlah penumpang berdasarkan tipe setelah penambahan
     const passengerCounts = await getPassengerCounts(booking_id, transaction);
@@ -1337,7 +1340,7 @@ const addPassenger = async (req, res) => {
       added_passengers: addedPassengers,
       updated_seat_availabilities: updatedSeatAvailabilities,
       passenger_counts: passengerCounts,
-      updated_booking: updatedBookingData
+      // updated_booking: updatedBookingData
     });
     
   } catch (error) {
