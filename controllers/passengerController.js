@@ -270,19 +270,19 @@ const isDayAvailable = (date, daysOfWeek) => {
 // };
 
 const getDaysInMonthWithDaysOfWeek = (month, year, daysOfWeek) => {
-  console.log(
-    `📅 Filtering days in month ${month}-${year} for days of week:`,
-    daysOfWeek
-  );
+  // console.log(
+  //   `📅 Filtering days in month ${month}-${year} for days of week:`,
+  //   daysOfWeek
+  // );
   const daysInMonth = getDaysInMonth(month, year); // Existing utility function
-  console.log(`📅 All days in month ${month}-${year}:`, daysInMonth);
+  // console.log(`📅 All days in month ${month}-${year}:`, daysInMonth);
 
   const filteredDays = daysInMonth.filter((date) => {
     const dayOfWeek = new Date(date).getDay(); // Get day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
     const isMatch = daysOfWeek.includes(dayOfWeek);
-    console.log(
-      `📅 Date: ${date}, Day of Week: ${dayOfWeek}, Match: ${isMatch}`
-    );
+    // console.log(
+    //   `📅 Date: ${date}, Day of Week: ${dayOfWeek}, Match: ${isMatch}`
+    // );
     return isMatch;
   });
 
@@ -304,7 +304,7 @@ const getFullMonthRange = (year, month) => {
 
 // Contoh penggunaan:
 const { startFullDate, endFullDate } = getFullMonthRange(2025, 2);
-console.log("Full month range:", startFullDate, endFullDate); // Output: 2025-02-01 2025-02-28
+// console.log("Full month range:", startFullDate, endFullDate); // Output: 2025-02-01 2025-02-28
 
 
 
