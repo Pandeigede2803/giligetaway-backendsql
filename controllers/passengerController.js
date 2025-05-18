@@ -378,11 +378,11 @@ const getPassengerCountBySchedule = async (req, res) => {
     });
 
   
-    seatAvailabilities.forEach((sa) =>
-      console.log(
-        `SeatAvailability ID: ${sa.id}, Date: ${sa.date}, Available Seats: ${sa.available_seats}`
-      )
-    );
+    seatAvailabilities.forEach((sa) => {
+      // console.log(
+      //   `SeatAvailability ID: ${sa.id}, Date: ${sa.date}, Available Seats: ${sa.available_seats}`
+      // );
+    });
 
     // Kelompokkan seat availabilities berdasarkan tanggal untuk lookup cepat
     const seatAvailabilitiesByDate = seatAvailabilities.reduce((acc, sa) => {
@@ -537,9 +537,12 @@ const getPassengerCountBySchedule = async (req, res) => {
           ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
           : 0;
 
-        const capacity = schedule.Boat
-          ? schedule.Boat.published_capacity
-          : 0;
+        const capacity =
+          mainAvailability?.boost && schedule.Boat
+            ? schedule.Boat.capacity
+            : schedule.Boat
+            ? schedule.Boat.published_capacity
+            : 0;
 
         const remainingSeats = capacity - totalPassengers;
 
