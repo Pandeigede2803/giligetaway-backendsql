@@ -56,7 +56,8 @@ const getYesterdayPaidBookings = async () => {
         'booking_source',
         'booking_date',
         'ticket_id',
-        'created_at'
+        'created_at',
+        'final_state'
       ],
       order: [["created_at", "ASC"]],
     });
@@ -119,6 +120,7 @@ const formatBookingsToText = (bookings) => {
   const totalAmount = bookings.reduce((sum, booking) => sum + parseFloat(booking.gross_total || 0), 0);
   const totalBookings = bookings.length;
   const totalPassengers = bookings.reduce((sum, booking) => sum + (booking.total_passengers || 0), 0);
+
   
   // Format date for the summary
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
@@ -139,11 +141,15 @@ const formatBookingsToText = (bookings) => {
     emailText += `   Contact: ${booking.contact_name}\n`;
     emailText += `   Phone: ${booking.contact_phone}\n`;
     emailText += `   Email: ${booking.contact_email}\n`;
+    // route
+    emailText += `   Route: ${booking.final_state.bookingData.from||'N/A'} - ${booking.final_state.bookingData.to|| 'N/A'}\n`;
     emailText += `   Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})\n`;
     emailText += `   Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}\n`;
     emailText += `   Booking Source: ${booking.booking_source || 'N/A'}\n`;
-    emailText += `   Booking Date: ${moment(booking.booking_date).format("MMM D, YYYY")}\n`;
+    emailText += `   Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}\n`;
     emailText += `   Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}\n\n`;
+    // add link for giligetaway-widget/check-ticket/${ticket_id}
+    emailText += `   Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}\n\n`;
   });
   
   return emailText;
