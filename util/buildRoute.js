@@ -86,8 +86,46 @@ const buildRouteFromSchedule = (schedule, subSchedule) => {
   return route;
 };
 
+const buildRouteFromScheduleFlatten = (schedule, subSchedule) => {
+  let route = '';
+  
+  // Case 1: Schedule only
+  if (schedule && !subSchedule) {
+    const fromName = schedule.FromDestination?.name || 'Unknown';
+    const toName = schedule.ToDestination?.name || 'Unknown';
+    const transits = schedule.Transits?.map(transit => transit.Destination?.name) || [];
+    
+    // Join all route segments
+    route = [fromName, ...transits, toName].filter(segment => segment !== 'Unknown').join(' - ');
+  } 
+  // Case 2: SubSchedule exists
+  else if (subSchedule) {
+    const fromName = subSchedule.DestinationFrom?.name || 'Unknown';
+    const transitFromName = subSchedule.TransitFrom?.Destination?.name || 'Unknown';
+    
+    // Collect all transit points
+    const transitPoints = [
+      subSchedule.Transit1?.Destination?.name,
+      subSchedule.Transit2?.Destination?.name,
+      subSchedule.Transit3?.Destination?.name,
+      subSchedule.Transit4?.Destination?.name
+    ].filter(Boolean);
+    
+    const transitToName = subSchedule.TransitTo?.Destination?.name || 'Unknown';
+    const toName = subSchedule.DestinationTo?.name || 'Unknown';
+    
+    // Join all route segments
+    route = [fromName, transitFromName, ...transitPoints, transitToName, toName]
+      .filter(segment => segment !== 'Unknown')
+      .join(' - ');
+  }
+  
+  return route;
+};
+
+
 // console.log("ini route jancuk:", buildRouteFromSchedule);
 
 
 
-module.exports = { buildRoute, buildRouteFromSchedule };
+module.exports = { buildRoute, buildRouteFromSchedule,buildRouteFromScheduleFlatten };

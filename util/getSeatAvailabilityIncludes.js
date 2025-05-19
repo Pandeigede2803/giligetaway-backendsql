@@ -11,7 +11,7 @@ const getSeatAvailabilityIncludes = () => {
             model: Booking,
             as: 'Booking',
             where: { 
-              payment_status: ['paid','invoiced',"pending","unpaid","refund_50","cancel_100_charge"],
+              payment_status: ['paid','invoiced',"pending","unpaid",],
              },
             attributes: ['total_passengers', 'id','schedule_id','subschedule_id'],
           }

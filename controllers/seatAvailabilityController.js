@@ -13,10 +13,12 @@ const {
 const cron = require("node-cron");
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
+const { buildRouteFromSchedule, buildRouteFromScheduleFlatten } = require("../util/buildRoute");
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
 const { Op } = require('sequelize'); // Import Sequelize operators
 const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
+const { sub } = require("date-fns/sub");
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
@@ -170,7 +172,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         {
           model: Schedule,
           required: true,
-          attributes: ["id"],
+          attributes: ["id","destination_from_id", "destination_to_id", "departure_time"],
           include: [
             {
               model: Boat,
@@ -178,8 +180,103 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
               required: true,
               attributes: ["id", "capacity", "published_capacity"],
             },
+            {
+              model: Destination,
+              as: "FromDestination",
+              required: true,
+              attributes: ["id", "name"],
+            },
+            {
+              model: Destination,
+              as: "ToDestination",
+              required: true,
+              attributes: ["id", "name"],
+            },
+       
           ],
+   
+
+      
+          
         },
+      {
+        model: SubSchedule,
+        required: false,
+        attributes: ["id", "schedule_id",],
+        as: "SubSchedule",
+        include: [
+          {
+            model: Destination,
+            as: "DestinationFrom",
+            attributes: ["name"],
+          },
+          {
+            model: Destination,
+            as: "DestinationTo",
+            attributes: ["name"],
+          },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit1",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit2",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit3",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+          {
+            model: Transit,
+            as: "Transit4",
+            attributes: ["id"],
+            include: {
+              model: Destination,
+              as: "Destination",
+              attributes: ["name"],
+            },
+          },
+        ],
+      },
         {
           model: BookingSeatAvailability,
           required: false,
@@ -187,7 +284,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
           include: [
             {
               model: Booking,
-              attributes: ["id"],
+              attributes: ["id",],
               required: false,
               where: {
                 payment_status: {
@@ -209,6 +306,10 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
       limit: limitNumber,
       offset: offset,
     });
+
+ 
+
+
 
     const enhancedSeatAvailabilities = seatAvailabilities.map((seatAvailability) => {
       const seatAvailabilityObj = seatAvailability.get({ plain: true });
@@ -232,12 +333,27 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
       const correctAvailableSeats = correctCapacity - totalPassengers;
       const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
 
+      const route = seatAvailabilityObj.Schedule
+      ? buildRouteFromScheduleFlatten(
+          seatAvailabilityObj.Schedule,
+          seatAvailabilityObj.SubSchedule
+        )
+      : null;;
+
+     
+
+
+
+
+
+
       return {
         ...seatAvailabilityObj,
         boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
         total_passengers: totalPassengers,
         total_bookings: bookingIds.size,
         correct_capacity: correctCapacity,
+        route: route,
         capacity_match_status:
           totalPassengers + seatAvailabilityObj.available_seats === correctCapacity
             ? "MATCH"
@@ -246,6 +362,10 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         BookingSeatAvailabilities: undefined,
       };
     });;
+
+
+
+
 
     return res.status(200).json({
       success: true,
