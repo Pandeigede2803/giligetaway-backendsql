@@ -1721,20 +1721,20 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       //   subSchedule.dataValues.seatAvailability
       // );
     }
-    const availableSchedules = schedules.filter(schedule => 
-      schedule.dataValues.seatAvailability && 
-      schedule.dataValues.seatAvailability.available_seats > 0 
-      &&
-      schedule.dataValues.seatAvailability.availability === true
-    );
-
-    // prepare to match with the passenger total
     // const availableSchedules = schedules.filter(schedule => 
     //   schedule.dataValues.seatAvailability && 
-    //   schedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+    //   schedule.dataValues.seatAvailability.available_seats > 0 
     //   &&
     //   schedule.dataValues.seatAvailability.availability === true
     // );
+
+    // prepare to match with the passenger total
+    const availableSchedules = schedules.filter(schedule => 
+      schedule.dataValues.seatAvailability && 
+      schedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+      &&
+      schedule.dataValues.seatAvailability.availability === true
+    );
 
     // console.log(
     //   "🫁Available Schedules Jancuk:",
@@ -1745,21 +1745,21 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     // );
     
     // Filter subSchedules dengan available_seats > 0
-    const availableSubSchedules = subSchedules.filter(subSchedule => 
-      subSchedule.dataValues.seatAvailability && 
-      subSchedule.dataValues.seatAvailability.available_seats > 0 
-      &&
-      subSchedule.dataValues.seatAvailability.availability === true
-    );
-
-    // prepare to match with passenger total
-
     // const availableSubSchedules = subSchedules.filter(subSchedule => 
     //   subSchedule.dataValues.seatAvailability && 
-    //   subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+    //   subSchedule.dataValues.seatAvailability.available_seats > 0 
     //   &&
     //   subSchedule.dataValues.seatAvailability.availability === true
     // );
+
+    // prepare to match with passenger total
+
+    const availableSubSchedules = subSchedules.filter(subSchedule => 
+      subSchedule.dataValues.seatAvailability && 
+      subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+      &&
+      subSchedule.dataValues.seatAvailability.availability === true
+    );
     // console.log("🫁Available SubSchedules:", JSON.stringify(availableSubSchedules.SeatAvailabilities, null, 2));
     
 
