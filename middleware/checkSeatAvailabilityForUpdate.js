@@ -491,6 +491,100 @@ const getAvailableDays = (daysOfWeek) => {
     return days;
 };
 
+const validateSeatNumberConflictOnDateChange = async (req, res, next) => {
+    const { id } = req.params; // booking ID
+    const { booking_date } = req.body;
+  
+    if (!booking_date) {
+      return res.status(400).json({ error: "Booking date is required for seat validation." });
+    }
+  
+    try {
+      const booking = await Booking.findByPk(id, {
+        include: [
+          { model: Passenger, as: 'passengers', attributes: ['seat_number'] },
+          {
+            model: SeatAvailability,
+            as: 'seatAvailabilities',
+            through: BookingSeatAvailability
+          }
+        ]
+      });
+  
+      if (!booking) {
+        return res.status(404).json({ error: "Booking not found." });
+      }
+  
+      const currentSeatNumbers = booking.passengers.map(p => p.seat_number).filter(Boolean);
+  
+      if (currentSeatNumbers.length === 0) return next(); // Tidak perlu validasi jika belum ada seat
+  
+      const relatedSA = await SeatAvailability.findAll({
+        where: {
+          schedule_id: booking.schedule_id,
+          subschedule_id: booking.subschedule_id || null,
+          date: booking_date,
+        }
+      });
+  
+      const allConflicts = [];
+  
+      for (const sa of relatedSA) {
+        const bookingsUsingSA = await BookingSeatAvailability.findAll({
+          where: { seat_availability_id: sa.id },
+          include: [
+            {
+              model: Booking,
+              where: {
+                id: { [Op.ne]: booking.id },
+                payment_status: ['paid', 'invoiced', 'pending', 'unpaid']
+              },
+              include: [
+                {
+                  model: Passenger,
+                  as: 'passengers',
+                  attributes: ['seat_number']
+                }
+              ]
+            }
+          ]
+        });
+  
+        for (const bsa of bookingsUsingSA) {
+          const conflictingSeats = bsa.Booking.passengers
+            .map(p => p.seat_number)
+            .filter(seat => currentSeatNumbers.includes(seat));
+  
+          if (conflictingSeats.length > 0) {
+            allConflicts.push({
+              seatAvailabilityId: sa.id,
+              date: sa.date,
+              conflictingSeats,
+              bookingTicketId: bsa.Booking.ticket_id
+            });
+          }
+        }
+      }
+  
+      if (allConflicts.length > 0) {
+        return res.status(400).json({
+          error: 'Seat number conflict detected on new booking date.',
+          conflicts: allConflicts
+        });
+      }
+  
+      return next();
+  
+    } catch (error) {
+      console.error('❌ Error validating seat number on date change:', error);
+      return res.status(500).json({
+        error: "Internal server error during seat validation.",
+        detail: error.message
+      });
+    }
+  };
+  
+
 // Helper middleware to validate booking date format
 const validateBookingDate = async (req, res, next) => {
     const { id } = req.params;
@@ -1291,6 +1385,7 @@ module.exports = {
     checkBookingDateUpdate,
     validateRoundTripTicket,
     checkBookingDateUpdate2,
+    validateSeatNumberConflictOnDateChange,
   
     checkBookingDateUpdateDirect,
     checkAgentPassword

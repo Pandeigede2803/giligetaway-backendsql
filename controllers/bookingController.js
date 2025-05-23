@@ -2076,7 +2076,7 @@ const getFilteredBookings = async (req, res) => {
       ticket_id,
       id,
     } = req.query;
-    console.log("req query", req.query);
+    console.log("ANJING", req.query);
 
     // Filter data
     let dateFilter = {};
@@ -2177,13 +2177,13 @@ const getFilteredBookings = async (req, res) => {
       // console.log("Filtering by date range:", fromDate, toDate);
       const fromDateObj = new Date(fromDate);
       const toDateObj = new Date(toDate);
-
+    
       if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
         return res
           .status(400)
           .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
       }
-
+    
       dateFilter = {
         created_at: {
           [Op.between]: [fromDateObj, toDateObj],
@@ -2192,13 +2192,13 @@ const getFilteredBookings = async (req, res) => {
     } else if (fromBookingDate && toBookingDate) {
       const fromDateObj = new Date(fromBookingDate);
       const toDateObj = new Date(toBookingDate);
-
+    
       if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
         return res
           .status(400)
           .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
       }
-
+    
       dateFilter = {
         booking_date: {
           [Op.between]: [fromDateObj, toDateObj],
@@ -2393,7 +2393,7 @@ const getFilteredBookingsPagination = async (req, res) => {
       contact_name,
     } = req.query;
 
-    console.log("req query", req.query);
+    console.log("😻REQ QUERY", req.query);
 
     // Filter data
     let whereClause = {};
@@ -2462,19 +2462,20 @@ const getFilteredBookingsPagination = async (req, res) => {
           ],
         };
       } else if (fromBookingDate && toBookingDate) {
-        const fromDateObj = new Date(fromBookingDate);
-        const toDateObj = new Date(toBookingDate);
-
-        if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        // ✅ Use string format like metrics controller
+        const fromDate = moment(fromBookingDate).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        const toDate = moment(toBookingDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      
+        if (!moment(fromBookingDate).isValid() || !moment(toBookingDate).isValid()) {
           return res
             .status(400)
             .json({
               error: "Invalid date range filter format. Use YYYY-MM-DD.",
             });
         }
-
+      
         whereClause.booking_date = {
-          [Op.between]: [fromDateObj, toDateObj],
+          [Op.between]: [fromDate, toDate],
         };
       }
 
@@ -2514,16 +2515,22 @@ const getFilteredBookingsPagination = async (req, res) => {
             new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
           ],
         };
-      } else if (fromDate && toDate) {
-        const fromDateObj = new Date(fromDate);
-        const toDateObj = new Date(toDate);
+      }
+      
+      else if (fromDate && toDate) {
+        // Jika `fromDate` dan `toDate` ada, filter berdasarkan range created_at
+        console.log("Filtering by date range:", fromDate, toDate);
 
-        if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
+        const fromDateObj = moment(fromDate).startOf('day').toDate(); // 2025-05-19 00:00:00
+        const toDateObj = moment(toDate).endOf('day').toDate();       // 2025-05-22 23:59:59.999
+
+        console.log("FROM DATE", fromDateObj);
+        console.log("TO DATE", toDateObj);
+
+        if (!fromDateObj || !toDateObj) {
           return res
             .status(400)
-            .json({
-              error: "Invalid date range filter format. Use YYYY-MM-DD.",
-            });
+            .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
         }
 
         whereClause.created_at = {

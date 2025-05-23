@@ -20,6 +20,7 @@ const {
   checkAgentPassword,
   checkBookingDateUpdate2,
   checkBookingDateUpdateDirect,
+  validateSeatNumberConflictOnDateChange
 } = require("../middleware/checkSeatAvailabilityForUpdate");
 const {
   validateBookingCreation,
@@ -175,6 +176,7 @@ router.put(
   "/date/:id",
   authenticate,
   validateBookingDate,
+  // validateSeatNumberConflictOnDateChange,
   checkSeatAvailabilityForUpdate,
   checkBookingDateUpdateDirect,
   bookingController.updateBookingDate
@@ -184,6 +186,7 @@ router.put(
   "/date-agent/:booking_id",
   authenticate,
   checkBookingDateUpdate2,
+  // validateSeatNumberConflictOnDateChange,
   validateBookingDate2,
   checkSeatAvailabilityForUpdate2,
   bookingController.updateBookingDateAgent

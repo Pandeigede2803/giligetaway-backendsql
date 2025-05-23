@@ -6,7 +6,11 @@ const authenticate = require('../middleware/authenticate');
 
 
 // get the metrics
+
+// metrics for the booking is created
 router.get('/', authenticate,metricsController.getMetrics);
+
+// get the metrics by departure date (travel date)
 router.get('/booking-date', authenticate,metricsController.getMetricsBookingDate)
 
 

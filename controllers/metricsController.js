@@ -1336,19 +1336,13 @@ const getMetrics = async (req, res) => {
     });
   }
 };
-
 const buildBookingDateFilter = ({ from, to, month, year, day }) => {
-  // Log incoming parameters for debugging
-  // console.log("FROM BUILDBOOKINGDATE FILTER:", from);
-  // console.log("TO:", to);
-  // console.log("MONTH:", month);
-  // console.log("YEAR:", year);
-  // console.log("DAY:", day);
-
-  // Prioritize explicit from and to dates first
+  console.log("👄Build booking date filter with params:", { from, to, month, year, day });
+  
+  // ✅ FIXED: Include time component in all format() calls
   if (from && to) {
-    const fromDate = moment(from).startOf("day").format("YYYY-MM-DD");
-    const toDate = moment(to).endOf("day").format("YYYY-MM-DD");
+    const fromDate = moment(from).startOf("day").format("YYYY-MM-DD HH:mm:ss"); // ✅ Added HH:mm:ss
+    const toDate = moment(to).endOf("day").format("YYYY-MM-DD HH:mm:ss");       // ✅ Added HH:mm:ss
     return { booking_date: { [Op.between]: [fromDate, toDate] } };
   }
 
@@ -1357,24 +1351,13 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   const numericMonth = month ? parseInt(month) : null;
   const numericDay = day ? parseInt(day) : null;
 
-  // console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
-
-  // Full date (year, month, day)
+  // Full date (year, month, day) - Keep using database functions for precise date matching
   if (numericYear && numericMonth && numericDay) {
     return {
       [Op.and]: [
-        sequelize.where(
-          sequelize.fn("YEAR", sequelize.col("booking_date")),
-          numericYear
-        ),
-        sequelize.where(
-          sequelize.fn("MONTH", sequelize.col("booking_date")),
-          numericMonth
-        ),
-        sequelize.where(
-          sequelize.fn("DAY", sequelize.col("booking_date")),
-          numericDay
-        ),
+        sequelize.where(sequelize.fn("YEAR", sequelize.col("booking_date")), numericYear),
+        sequelize.where(sequelize.fn("MONTH", sequelize.col("booking_date")), numericMonth),
+        sequelize.where(sequelize.fn("DAY", sequelize.col("booking_date")), numericDay),
       ],
     };
   }
@@ -1383,28 +1366,24 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   if (numericYear && numericMonth) {
     const startDate = moment(`${numericYear}-${numericMonth}-01`)
       .startOf("month")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss"); // ✅ Added HH:mm:ss
     const endDate = moment(`${numericYear}-${numericMonth}-01`)
       .endOf("month")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");   // ✅ Added HH:mm:ss
 
-    return {
-      booking_date: { [Op.between]: [startDate, endDate] },
-    };
+    return { booking_date: { [Op.between]: [startDate, endDate] } };
   }
 
   // Only year
   if (numericYear) {
     const startDate = moment(`${numericYear}-01-01`)
       .startOf("year")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");  // ✅ Added HH:mm:ss
     const endDate = moment(`${numericYear}-12-31`)
       .endOf("year")
-      .format("YYYY-MM-DD");
+      .format("YYYY-MM-DD HH:mm:ss");    // ✅ Added HH:mm:ss
 
-    return {
-      booking_date: { [Op.between]: [startDate, endDate] },
-    };
+    return { booking_date: { [Op.between]: [startDate, endDate] } };
   }
 
   // Default case - return current month
@@ -1412,12 +1391,89 @@ const buildBookingDateFilter = ({ from, to, month, year, day }) => {
   return {
     booking_date: {
       [Op.between]: [
-        currentDate.clone().startOf("month").format("YYYY-MM-DD"),
-        currentDate.clone().endOf("month").format("YYYY-MM-DD"),
+        currentDate.clone().startOf("month").format("YYYY-MM-DD HH:mm:ss"), // ✅ Added HH:mm:ss
+        currentDate.clone().endOf("month").format("YYYY-MM-DD HH:mm:ss"),   // ✅ Added HH:mm:ss
       ],
     },
   };
 };
+
+// const buildBookingDateFilter = ({ from, to, month, year, day }) => {
+// console.log("👄Build booking date filter with params:", { from, to, month, year, day });
+
+//   // Prioritize explicit from and to dates first
+//   if (from && to) {
+//     const fromDate = moment(from).startOf("day").format("YYYY-MM-DD");
+//     const toDate = moment(to).endOf("day").format("YYYY-MM-DD");
+//     return { booking_date: { [Op.between]: [fromDate, toDate] } };
+//   }
+
+//   // Convert inputs to numbers and validate
+//   const numericYear = year ? parseInt(year) : moment().year();
+//   const numericMonth = month ? parseInt(month) : null;
+//   const numericDay = day ? parseInt(day) : null;
+
+//   // console.log("Filter parameters:", { numericYear, numericMonth, numericDay });
+
+//   // Full date (year, month, day)
+//   if (numericYear && numericMonth && numericDay) {
+//     return {
+//       [Op.and]: [
+//         sequelize.where(
+//           sequelize.fn("YEAR", sequelize.col("booking_date")),
+//           numericYear
+//         ),
+//         sequelize.where(
+//           sequelize.fn("MONTH", sequelize.col("booking_date")),
+//           numericMonth
+//         ),
+//         sequelize.where(
+//           sequelize.fn("DAY", sequelize.col("booking_date")),
+//           numericDay
+//         ),
+//       ],
+//     };
+//   }
+
+//   // Year and month
+//   if (numericYear && numericMonth) {
+//     const startDate = moment(`${numericYear}-${numericMonth}-01`)
+//       .startOf("month")
+//       .format("YYYY-MM-DD");
+//     const endDate = moment(`${numericYear}-${numericMonth}-01`)
+//       .endOf("month")
+//       .format("YYYY-MM-DD");
+
+//     return {
+//       booking_date: { [Op.between]: [startDate, endDate] },
+//     };
+//   }
+
+//   // Only year
+//   if (numericYear) {
+//     const startDate = moment(`${numericYear}-01-01`)
+//       .startOf("year")
+//       .format("YYYY-MM-DD");
+//     const endDate = moment(`${numericYear}-12-31`)
+//       .endOf("year")
+//       .format("YYYY-MM-DD");
+
+//     return {
+//       booking_date: { [Op.between]: [startDate, endDate] },
+//     };
+//   }
+
+//   // Default case - return current month
+//   const currentDate = moment();
+//   return {
+//     booking_date: {
+//       [Op.between]: [
+//         currentDate.clone().startOf("month").format("YYYY-MM-DD"),
+//         currentDate.clone().endOf("month").format("YYYY-MM-DD"),
+//       ],
+//     },
+//   };
+// };
 
 // booking date
 const getMetricsBookingDate = async (req, res) => {
