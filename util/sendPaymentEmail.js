@@ -1518,7 +1518,10 @@ const sendEmailNotification = async (
             <p style="margin-top: 0;">Dear Customer,</p>
             
             <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
-              ⚠️Departure Date Changed
+              ⚠️Departure Date Changed 
+            </div>
+             <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
+              ⚠️ PLEASE CHECK CURRENT SEAT NUMBER AFTER CHANGE THE DATE OR CONTACT TO OUR STAFF
             </div>
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
@@ -1598,6 +1601,10 @@ const sendEmailNotificationAgentDateChange = async (
             <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
               ⚠️Departure Date Changed
             </div>
+               <div style="display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; margin: 10px 0; color: white; background-color: #FF9800;">
+              ⚠️ PLEASE CHECK CURRENT SEAT NUMBER AFTER CHANGE THE DATE OR CONTACT TO OUR STAFF
+            </div>
+            
             
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
               <div style="margin-bottom: 10px;">
