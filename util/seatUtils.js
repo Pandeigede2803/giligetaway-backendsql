@@ -123,9 +123,84 @@ const addSeatPairBoat2 = (resultSet, seatNumber) => {
 
 
 
+// ✅ UTILS BARU - Untuk pertahankan duplikasi
+const addSeatPairWithDuplicates = (resultArray, seatNumber) => {
+  if (isSeatNumberWithA(seatNumber)) {
+    const number = seatNumber.slice(1);
+    resultArray.push(`R${number}`); // ✅ PUSH ke array
+  } 
+  else if (seatNumber.startsWith("R")) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    if (number > 2) {
+      resultArray.push(`X${number - 2}`);
+    }
+  } 
+  else if (isSeatNumberWithX(seatNumber)) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    resultArray.push(`R${number + 2}`);
+  }
+};
 
+const addSeatPairBoat2WithDuplicates = (resultArray, seatNumber) => {
+  if (isSeatNumberWithX(seatNumber)) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    resultArray.push(`R${number + 2}`); // ✅ PUSH ke array
+  } 
+  else if (seatNumber.startsWith("R")) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    if (number > 2) {
+      resultArray.push(`X${number - 2}`);
+    }
+  }
+};
 
+// ✅ UTILS BARU - processBookedSeatsWithDuplicates
+const processBookedSeatsWithDuplicates = (bookedSeatsInput, boost, boatData) => {
+  // console.log("🔧 processBookedSeatsWithDuplicates called");
+  // console.log("📥 Input seats:", bookedSeatsInput);
+  // console.log("⚡ Boost:", boost);
+  // console.log("🚤 Boat ID:", boatData?.id);
 
+  // Convert ke Array jika input adalah Set
+  const bookedSeatsArray = Array.isArray(bookedSeatsInput) 
+    ? bookedSeatsInput 
+    : Array.from(bookedSeatsInput);
+
+  // console.log("📦 Array seats (with duplicates):", bookedSeatsArray);
+
+  // ✅ Gunakan ARRAY untuk pertahankan duplikasi
+  const resultArray = [...bookedSeatsArray];
+
+  // Jika boost enabled dan boat ID = 2
+  if (boost && boatData?.id === 2) {
+    console.log("🚤 Boost enabled for Boat ID 2 (with duplicates)");
+    // ✅ PERHATIKAN: Jangan gunakan Set di loop ini!
+    for (const seat of bookedSeatsArray) {
+      console.log(`🔍 Processing: ${seat}`);
+      addSeatPairBoat2WithDuplicates(resultArray, seat);
+    }
+    console.log("🎯 Boat2 result with duplicates:", resultArray);
+    return resultArray;
+  }
+
+  // Jika boost enabled tapi bukan boat ID 2
+  if (boost) {
+    console.log("🛑 Boost enabled (with duplicates). Returning original.");
+    console.log("🎯 Boost result with duplicates:", bookedSeatsArray);
+    return bookedSeatsArray;
+  }
+
+  // Jika boost tidak enabled
+  console.log("⚙️ Processing seats with duplicates (no boost)...");
+  // ✅ PERHATIKAN: Jangan gunakan Set di loop ini!
+  for (const seat of bookedSeatsArray) {
+    // console.log(`🔍 Processing: ${seat}`);
+    addSeatPairWithDuplicates(resultArray, seat);
+  }
+
+  console.log("🎯 Final result with duplicates:", resultArray);
+  return resultArray;
+};
 
 
 
@@ -178,4 +253,5 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
     isSeatNumberWithA,
     isSeatNumberWithX,
     processBookedSeats,
+    processBookedSeatsWithDuplicates, // ✅ Yang baru untuk duplikasi
   };

@@ -27,8 +27,9 @@ const {
 const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
-const { processBookedSeats } = require("../util/seatUtils");
+const { processBookedSeats, processBookedSeatsWithDuplicates } = require("../util/seatUtils");
 const { add } = require("../queue/bookingQueue");
+const { all } = require("../routes/passenger");
 // Fix date utility function
 const getDaysInMonth = (month, year) => {
   const daysInMonth = new Date(year, month, 0).getDate(); // Get number of days in the month
@@ -2386,8 +2387,8 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
 
     console.log("🎟️ Current booking seat numbers:", currentBookingSeats);
 
-    const processedBookedSeats = processBookedSeats(
-      new Set(allBookedSeats),
+    const processedBookedSeats = processBookedSeatsWithDuplicates(
+      allBookedSeats,
       seatAvailability.boost,
       boat
     );
