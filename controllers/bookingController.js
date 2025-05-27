@@ -1595,7 +1595,7 @@ const getBookingById = async (req, res) => {
       {
         model: AgentCommission,
         as: "agentCommission",
-        attributes: ["id", "agent_id", "amount"],
+        attributes: ["id", "agent_id", "amount","created_at", "updated_at"],
       },
       {
         model: SubSchedule,

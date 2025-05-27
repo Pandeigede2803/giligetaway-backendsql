@@ -1290,8 +1290,41 @@ const AgentCommissionController = {
       console.error("Error creating AgentCommission:", error);
       return res.status(500).json({ error: "Failed to create AgentCommission" });
     }
+  },
+async deleteAgentCommission(req, res) {
+  try {
+    const { id } = req.body;
+
+    console.log("Deleting AgentCommission with ID:", id);
+
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ error: "Invalid or missing AgentCommission ID in request body" });
+    }
+
+    const commission = await AgentCommission.findByPk(id);
+
+    if (!commission) {
+      console.log("AgentCommission not found");
+      return res.status(404).json({ error: "AgentCommission not found" });
+    }
+
+    // Ambil booking dan hapus agent_id-nya jika ada
+    const booking = await Booking.findByPk(commission.booking_id);
+    if (booking) {
+      console.log("Deleting agent_id from booking:", booking.id);
+      await booking.update({ agent_id: null });
+    }
+
+    await commission.destroy();
+
+    console.log("AgentCommission deleted successfully");
+    return res.status(200).json({ message: "AgentCommission deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting AgentCommission:", error);
+    return res.status(500).json({ error: "Failed to delete AgentCommission" });
   }
-  
+},
+
 };
 
 // create update agent comission base on booking id that givin and the req body will be agent id and amount

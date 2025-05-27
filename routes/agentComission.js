@@ -27,6 +27,18 @@ router.post(
     agentCommissionsController.createAgentComission
   );
 
+  router.post(
+    "/comissions/",
+    authenticate,
+    agentCommissionsController.createAgentComission
+  );
+
+router.delete(
+  '/comissions',
+  authenticate,
+  agentCommissionsController.deleteAgentCommission
+);
+
 
 module.exports = router;;
 
