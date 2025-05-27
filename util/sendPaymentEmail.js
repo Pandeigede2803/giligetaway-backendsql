@@ -956,6 +956,9 @@ const sendPaymentEmail = async (
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
               </div>
+                <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
+              </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
               </div>
@@ -968,6 +971,9 @@ const sendPaymentEmail = async (
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
               </div>
+                  <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
+              </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
               </div>
@@ -979,6 +985,9 @@ const sendPaymentEmail = async (
       message += `
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+                  <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
@@ -995,6 +1004,9 @@ const sendPaymentEmail = async (
       message += `
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+                  <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Refund Type:</span> ${refundType}
@@ -1017,6 +1029,9 @@ const sendPaymentEmail = async (
       message += `
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
+              </div>
+                  <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Cancelled
