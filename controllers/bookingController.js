@@ -2408,9 +2408,34 @@ const getFilteredBookingsPagination = async (req, res) => {
       // Build up the where clause with all other filters
 
       // Add payment_status filter if provided
-      if (payment_status) {
-        whereClause.payment_status = payment_status;
-      }
+   // Dengan kode berikut:
+      // Payment status filter
+// Jadi ini:  
+// Add payment_status filter if provided
+// Tambahkan debug ini di controller sebelum query:
+if (payment_status) {
+  console.log("😻 ORIGINAL payment_status:", payment_status);
+  
+  if (payment_status.includes('&') || payment_status.includes(',')) {
+    const statusArray = payment_status.split(/[&,]/);
+    console.log("😻 SPLIT statusArray:", statusArray);
+    
+    // ✅ FILTER array untuk remove empty strings
+    const cleanStatusArray = statusArray.filter(status => status.trim() !== '');
+    console.log("😻 CLEAN statusArray:", cleanStatusArray);
+    
+    whereClause.payment_status = {
+      [Op.in]: cleanStatusArray
+    };
+  } else {
+    console.log("😻 SINGLE payment_status:", payment_status);
+    whereClause.payment_status = payment_status;
+  }
+  
+  console.log("😻 FINAL whereClause.payment_status:", whereClause.payment_status);
+}
+
+
 
       // Add booking_source filter if provided
       if (booking_source) {
