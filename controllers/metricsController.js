@@ -91,14 +91,14 @@ const getBookingMetricsBySource = async (req, res) => {
     });
 
     // Ensure all possible booking sources are included, even if 0
-    const allSources = ["website", "agent", "direct", "Other"]; // Add all expected booking sources here
+    const allSources = ["website", "agent",  "Other","staff"]; // Add all expected booking sources here
     const data = allSources.map((source) => {
       const metric = metrics.find((m) => m.booking_source === source);
       return {
         booking_source: source,
         totalBookings: metric ? parseInt(metric.totalBookings) : 0,
       };
-    });
+    });;
 
     return res.json({
       status: "success",

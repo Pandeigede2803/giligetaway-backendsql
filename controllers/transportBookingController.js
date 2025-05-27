@@ -56,7 +56,7 @@ exports.getAllTransportBookingsReview = async (req, res) => {
         },
         {
           model: Booking,
-          attributes: ['id','ticket_id'],
+          attributes: ['id','ticket_id' ,'booking_source','contact_email','contact_phone','contact_name' ,'booking_date', 'created_at', 'updated_at','payment_status'],
           // where: {
           //   payment_status: {
           //     [Op.in]: ['paid', 'invoiced']
