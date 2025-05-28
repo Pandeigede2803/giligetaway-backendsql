@@ -2695,29 +2695,10 @@ if (payment_status) {
       },
     ];
 
-    // Add boat filter if provided
-    if (boat) {
-      const boatId =
-        boat === "Giligetaway 2"
-          ? 1
-          : boat === "Giligetaway 5"
-            ? 2
-            : boat === "Giligetaway 3"
-              ? 3
-              : null;
+  
 
-      if (boatId) {
-        const scheduleInclude = includeClause.find(
-          (inc) => inc.as === "schedule"
-        );
-        if (scheduleInclude) {
-          if (!scheduleInclude.where) {
-            scheduleInclude.where = {};
-          }
-          scheduleInclude.where.boat_id = boatId;
-        }
-      }
-    }
+    // Add boat filter if provided
+ 
 
     // First count total records matching the filters (for pagination)
     const totalCount = await Booking.count({
@@ -2773,29 +2754,34 @@ if (payment_status) {
       order: [["created_at", "DESC"]], // Order by created_at descending
     });
 
-    // Tambahkan route ke masing-masing booking
-    const enrichedBookings = bookings.map((booking) => {
-      const schedule = booking.schedule || null;
-      const subSchedule = booking.subSchedule || null;
+ // ✅ BOAT FILTER - SETELAH bookings defined
+let filteredBookings = bookings;
 
-      // Tentukan departure_time dan arrival_time menggunakan fungsi
-      // const times = calculateDepartureAndArrivalTimes(schedule, subSchedule);
+if (boat) {
+  const boatId = parseInt(boat);
+  
+  if (boatId && [1, 2, 3].includes(boatId)) {
+    filteredBookings = bookings.filter(booking => 
+      booking.schedule?.boat_id === boatId
+    );
+    
+    console.log("😻 BOAT FILTER:", boatId, 
+      "- Filtered", bookings.length, "→", filteredBookings.length);
+  }
+}
 
-      // Gunakan fungsi `buildRouteFromSchedule` untuk membangun route
-      const route = schedule
-        ? buildRouteFromSchedule(schedule, subSchedule)
-        : null;
+// ✅ ENRICHED BOOKINGS dari hasil yang sudah di-filter
+const enrichedBookings = filteredBookings.map((booking) => {
+  const schedule = booking.schedule || null;
+  const subSchedule = booking.subSchedule || null;
+  const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
 
-      // Build route
-
-      // Tambahkan route ke hasil booking
-      return {
-        ...booking.dataValues,
-        route,
-        // departure_time: times.departure_time,
-        // arrival_time: times.arrival_time,
-      };
-    });
+  return {
+    ...booking.dataValues,
+    route,
+  };
+});
+ 
 
     // Send the response with pagination metadata
     res.status(200).json({
