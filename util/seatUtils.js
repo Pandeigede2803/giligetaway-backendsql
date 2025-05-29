@@ -218,7 +218,7 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
 
     for (const seat of bookedSeatsSet) {
       // console.log(`🔍 Processing seat: ${seat} with addSeatPairBoat2`);
-      addSeatPairBoat2(resultSet, seat);
+      addSeatPair(resultSet, seat);
       // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
     }
 
