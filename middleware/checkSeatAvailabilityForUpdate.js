@@ -155,20 +155,20 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
         // Print final availability summary
         console.log('\n📊 Seat Availability Summary:');
         availabilityChecks.forEach(check => {
-            // console.log(`\n${check.type} (ID: ${check.id}):`);
-            // console.log(`- Available: ${check.available ? 'Yes' : 'No'}`);
-            // console.log(`- Available Seats: ${check.availableSeats}`);
-            // console.log(`- Needed Seats: ${check.needed}`);
-            // console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);
+            console.log(`\n${check.type} (ID: ${check.id}):`);
+            console.log(`- Available: ${check.available ? 'Yes' : 'No'}`);
+            console.log(`- Available Seats: ${check.availableSeats}`);
+            console.log(`- Needed Seats: ${check.needed}`);
+            console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);
         });
 
         // Check if any availability check failed
         const failed = availabilityChecks.find(check => !check.available || !check.sufficient);
         if (failed) {
-            // console.log('\n❌ Seat availability check failed:');
-            // console.log(`- Failed at: ${failed.type} (ID: ${failed.id})`);
-            // console.log(`- Available seats: ${failed.availableSeats}`);
-            // console.log(`- Needed seats: ${failed.needed}`);
+            console.log('\n❌ Seat availability check failed:');
+            console.log(`- Failed at: ${failed.type} (ID: ${failed.id})`);
+            console.log(`- Available seats: ${failed.availableSeats}`);
+            console.log(`- Needed seats: ${failed.needed}`);
             
             return res.status(400).json({
                 error: `Not enough seats available in ${failed.type.toLowerCase()} ${failed.id}`,
@@ -1163,7 +1163,10 @@ const validatePaymentUpdate = async (req, res, next) => {
 
         // Validate payment method if provided
         if (payment_method) {
-            const validPaymentMethods = ['credit_card','invoiced', 'bank_transfer','doku', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card","prepaid credit card",'cash bali', 'cash_gili_trawangan', 'cash_gili_gede','visa/credit_card', 'credit_card_doku_edc','midtrans',"CREDIT_CARD","CASH","CREDIT_CARD_DOKU_EDC","PREPAID_CARD","PREPAID_DOKU","CASH_BALI","CASH_GILI_TRAWANGAN","CASH_GILI_GEDE","PREPAID_CASH","PREPAID_CARD","PREPAID_BANK_TRANSFER","PREPAID_WISE","PREPAID_PAYPAL","PREPAID_CREDIT_CARD","PREPAID_DOKU","INVOICED","FOC"];
+            const validPaymentMethods = ['credit_card','invoiced', 'bank_transfer','doku', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card",
+              "prepaid credit card",'cash bali', 'cash_gili_trawangan', 'cash_gili_gede','visa/credit_card', 'credit_card_doku_edc','midtrans',"CREDIT_CARD","CASH",
+              "CREDIT_CARD_DOKU_EDC","PREPAID_CARD","PREPAID_DOKU","CASH_BALI","CASH_GILI_TRAWANGAN","CASH_GILI_GEDE","PREPAID_CASH","PREPAID_CARD","PREPAID_BANK_TRANSFER",
+              "PREPAID_WISE","PREPAID_PAYPAL","PREPAID_CREDIT_CARD","PREPAID_DOKU","INVOICED","FOC"];
             if (!validPaymentMethods.includes(payment_method)) {
                 console.log('❌ Invalid payment method:', payment_method);
                 return res.status(400).json({
@@ -1187,7 +1190,7 @@ const validatePaymentUpdate = async (req, res, next) => {
                 'paid': ['refund_50','paid', 'refund_100', 'cancelled', 'abandoned','pending','cancel_100_charge',"invoiced"],
                 'refund_50': ["paid"], // No further transitions allowed
                 'refund_100': ["paid"], // No further transitions allowed
-                'cancel_100_charge': ["paid"],
+                'cancel_100_charge': ["paid","invoiced"],
                 'cancelled': [],  // No further transitions allowed
                 'abandoned': ['paid',"invoiced"]   // Allow transition from abandoned to paid
             };
