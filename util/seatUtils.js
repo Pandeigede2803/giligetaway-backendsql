@@ -177,7 +177,7 @@ const processBookedSeatsWithDuplicates = (bookedSeatsInput, boost, boatData) => 
     // ✅ PERHATIKAN: Jangan gunakan Set di loop ini!
     for (const seat of bookedSeatsArray) {
       console.log(`🔍 Processing: ${seat}`);
-      addSeatPairBoat2WithDuplicates(resultArray, seat);
+       addSeatPairWithDuplicates(resultArray, seat);
     }
     console.log("🎯 Boat2 result with duplicates:", resultArray);
     return resultArray;
