@@ -1152,14 +1152,14 @@ const validatePaymentUpdate = async (req, res, next) => {
         }
 
         // Check if booking is already refunded or cancelled
-        const finalStates = ['refund_50', 'refund_100', 'cancelled'];
-        if (finalStates.includes(booking.payment_status)) {
-            console.log('❌ Cannot modify booking in final state:', booking.payment_status);
-            return res.status(400).json({
-                error: `Cannot modify booking that is already ${booking.payment_status}`,
-                currentStatus: booking.payment_status
-            });
-        }
+        // const finalStates = ['refund_50', 'refund_100', 'cancelled'];
+        // if (finalStates.includes(booking.payment_status)) {
+        //     console.log('❌ Cannot modify booking in final state:', booking.payment_status);
+        //     return res.status(400).json({
+        //         error: `Cannot modify booking that is already ${booking.payment_status}`,
+        //         currentStatus: booking.payment_status
+        //     });
+        // }
 
         // Validate payment method if provided
         if (payment_method) {
