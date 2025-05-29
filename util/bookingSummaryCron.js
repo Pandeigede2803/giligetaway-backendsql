@@ -39,7 +39,7 @@ const getYesterdayPaidBookings = async () => {
           [Op.lt]: today.toDate(),
         },
         booking_source: {
-          [Op.in]: ['website', 'agent'] // Only include website and agent bookings
+          [Op.in]: ['website', 'agent', 'staff'] // Only include website and agent bookings
         }
       },
       attributes: [
