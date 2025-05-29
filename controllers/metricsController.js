@@ -146,7 +146,7 @@ const fetchAgentCommissionByBoat = async (dateFilter, previousPeriodFilter) => {
           attributes: [],
           required: true,
           where: {
-            payment_status: ["invoiced", "paid"],
+            payment_status: ["invoiced", "paid","cancel_100_charge","refund_50",],
             created_at: combinedFilter,
           },
           include: [
@@ -581,7 +581,7 @@ const processBookingsData = (bookingsData, result) => {
 
 
     // how to get ticketTotal
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       target.ticketTotal += ticketTotal;
     }
 
@@ -596,13 +596,13 @@ const processBookingsData = (bookingsData, result) => {
       target.boats[boatId].totalValue += grossTotal;
 
       // Net value for boat (paid or invoiced)
-      if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
         target.boats[boatId].netValue += grossTotal;
       }
     }
 
     // Process booking source
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       switch (bookingSource) {
         case "agent":
           target.bookingSource.agent += grossTotal;
@@ -619,7 +619,7 @@ const processBookingsData = (bookingsData, result) => {
       }
     }
     // add booking count for the each source
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced " || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       if (!target.bookingCountBySource) {
         target.bookingCountBySource = {
           agent: 0,

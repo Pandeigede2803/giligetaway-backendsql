@@ -475,7 +475,7 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
     }
 
     // get ticket total
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       target.ticketTotal += ticketTotal;
     }
 
@@ -487,11 +487,11 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
       target.boats[boatId].totalValue += grossTotal;
 
       // Net value for boat (paid or invoiced)
-      if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+      if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
         target.boats[boatId].netValue += grossTotal;
       }
     }
-    if (paymentStatus === "paid" || paymentStatus === "invoiced") {
+    if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       switch (bookingSource) {
         case "agent":
           target.bookingSource.agent += grossTotal;
