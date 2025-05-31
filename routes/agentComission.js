@@ -11,7 +11,9 @@ router.get('/comissions', authenticate, agentCommissionsController.getCommission
 router.get('/comissions-pagination', authenticate, agentCommissionsController.getCommissionsPagination);
 router.get('/comissions', authenticate, agentCommissionsController.getAgentSalesReport);
 router.get('/comissions-salesreport', authenticate, checkAgentExist,agentCommissionsController.getAgentSalesReport);
-router.get('/comissions-salesreport', authenticate, checkAgentExist,agentCommissionsController.getAgentSalesReport);
+
+// router.get('/comissions-salesreport', authenticate, checkAgentExist,agentCommissionsController.getAgentSalesReport);
+router.get('/comissions-all-agent', authenticate,agentCommissionsController.getMonthlyAgentSummary);
 
 // Route: Update AgentCommission by ID
 router.put(

@@ -42,7 +42,12 @@ const formatMetricsForResponse = (data, agentCount) => {
       current.ticketTotal,
       previous.ticketTotal
     );
-  
+
+      // bank fee
+  const bankFeeChange = calculatePercentageChange(
+    current.bankFee,
+    previous.bankFee
+  );
     // cancel only
     const totalCancelledChange = calculatePercentageChange(
       current.totalCancelled,
@@ -159,6 +164,13 @@ const formatMetricsForResponse = (data, agentCount) => {
           current.totalValue >= previous.totalValue ? "increase" : "decrease",
         change: `${bookingValueChange.toFixed(2)}%`,
       },
+        bankFee: {
+      value: current.bankFee,
+      status:
+        current.bankFee >= previous.bankFee ? "increase" : "decrease",
+      change: `${bankFeeChange.toFixed(2)}%`,
+      
+    },
       totalCancelled: {
         value: current.totalCancelled,
         status:
@@ -432,6 +444,7 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
     const bookingSource = booking.booking_source;
+    const bankFee = parseFloat(booking.bank_fee) || 0;
 
     // Get target object based on period
     const target = result[period];
@@ -451,6 +464,11 @@ const processBookingsDataBookingDate = (bookingsData, result) => {
 
     // Add to total value
     target.totalValue += grossTotal;
+
+      if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
+      target.bankFee += bankFee;
+    }
+
 
     // Process by payment status
     if (paymentStatus === "paid") {
@@ -557,6 +575,7 @@ const processMetricsDataBookingDate = (data) => {
       current: {
         totalValue: 0,
         ticketTotal: 0,
+        bankFee: 0,
         totalCancelled: 0,
         paymentReceived: 0,
         totalRefund: 0,
@@ -587,6 +606,7 @@ const processMetricsDataBookingDate = (data) => {
         totalValue: 0,
         ticketTotal: 0,
         totalCancelled: 0,
+        bankFee: 0,
         paymentReceived: 0,
         totalRefund: 0,
         agentBookingInvoiced: 0,
@@ -665,8 +685,8 @@ const processMetricsDataBookingDate = (data) => {
 
 
   const fetchAllMetricsDataBookingDate = async (dateFilter, previousPeriodFilter) => {
-    console.log("DATE FILTER", dateFilter);
-    console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);   
+    // console.log("DATE FILTER", dateFilter);
+    // console.log("PREVIOUS PERIOD FILTER", previousPeriodFilter);   
     try {
       // Queries yang sudah ada
       const bookingsData = await fetchBookingsWithAllDataBookingDate(
@@ -857,6 +877,8 @@ const fetchAgentCommissionByBoatBookingDate = async (dateFilter, previousPeriodF
           [sequelize.col("Booking.payment_status"), "payment_status"],
           [sequelize.col("Booking.ticket_total"), "ticket_total"],
           [sequelize.col("Booking.agent_id"), "agent_id"],
+          [sequelize.col("Booking.bank_fee"), "bank_fee"],
+         
         ],
         include: [
           {

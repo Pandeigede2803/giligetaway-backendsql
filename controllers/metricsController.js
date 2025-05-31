@@ -236,6 +236,9 @@ const fetchBookingsWithAllData = async (dateFilter, previousPeriodFilter) => {
         [sequelize.col("Booking.payment_status"), "payment_status"], // Spesifikkan tabel
         // add ticket total
         [sequelize.col("Booking.ticket_total"), "ticket_total"],
+        // add bank_fee
+        [sequelize.col("Booking.bank_fee"), "bank_fee"],
+        // add agent_id
         [sequelize.col("Booking.agent_id"), "agent_id"], // Spesifikkan tabel
       ],
       include: [
@@ -384,6 +387,8 @@ const fetchPassengerCount = async (dateFilter, previousPeriodFilter) => {
   }
 };
 
+
+// mengolah data hasil booking
 const processMetricsData = (data) => {
   const {
     bookingsData,
@@ -410,6 +415,8 @@ const processMetricsData = (data) => {
       agentBookingUnpaid: 0,
       bookingCount: 0,
       grossTotal: 0,
+      bankFee:0,
+      netRevenue: 0,
       bookingSource: {
         agent: 0,
         website: 0,
@@ -431,6 +438,8 @@ const processMetricsData = (data) => {
     previous: {
       totalValue: 0,
       ticketTotal: 0,
+      bankFee:0,
+      netRevenue: 0,
       paymentReceived: 0,
       totalCancelled: 0,
       totalRefund: 0,
@@ -532,7 +541,8 @@ const processBookingsData = (bookingsData, result) => {
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
     const paymentStatus = booking.payment_status;
     const hasAgent = booking.agent_id !== null;
-    const bookingSource = booking.booking_source;;
+    const bookingSource = booking.booking_source;
+    const bankFee = parseFloat(booking.bank_fee) || 0;
 
     // Get target object based on period
     const target = result[period];
@@ -552,6 +562,16 @@ const processBookingsData = (bookingsData, result) => {
 
     // Add to total value
     target.totalValue += grossTotal;
+
+    // memproses bank fee berdasarkan status pembaharan dan input hanya yang paid invoice refund 50 dan cancel_100_charge
+    if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
+      target.bankFee += bankFee;
+    }
+
+    // create net revenue
+    // all boat net revenue minus bank fee
+
+
 
 
     // Memproses berdasarkan status pembayaran
@@ -601,6 +621,8 @@ const processBookingsData = (bookingsData, result) => {
       }
     }
 
+    // add net revenue, all boat net 
+
     // Process booking source
     if (paymentStatus === "paid" || paymentStatus === "invoiced" || paymentStatus === "refund_50" || paymentStatus === "cancel_100_charge") {
       switch (bookingSource) {
@@ -634,6 +656,8 @@ const processBookingsData = (bookingsData, result) => {
 
   });
 };
+
+
 
 const processTransportData = (transportData, result) => {
   transportData.forEach((transport) => {
@@ -700,6 +724,12 @@ const formatMetricsForResponse = (data, agentCount) => {
   const ticketTotalChange = calculatePercentageChange(
     current.ticketTotal,
     previous.ticketTotal
+  );
+
+  // bank fee
+  const bankFeeChange = calculatePercentageChange(
+    current.bankFee,
+    previous.bankFee
   );
 
   // 
@@ -827,6 +857,15 @@ const bookingCountBySourceChange = {
       status:
         current.ticketTotal >= previous.ticketTotal ? "increase" : "decrease",
       change: `${ticketTotalChange.toFixed(2)}%`,
+    },
+
+    // bank fee
+    bankFee: {
+      value: current.bankFee,
+      status:
+        current.bankFee >= previous.bankFee ? "increase" : "decrease",
+      change: `${bankFeeChange.toFixed(2)}%`,
+      
     },
     totalCancelled: {
       value: current.totalCancelled,
