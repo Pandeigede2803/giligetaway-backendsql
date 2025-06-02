@@ -1199,7 +1199,7 @@ const validatePaymentUpdate = async (req, res, next) => {
             if (!validTransitions[currentStatus]) {
                 console.log('❌ Invalid current status:', currentStatus);
                 return res.status(400).json({
-                    error: "Invalid current payment status",
+                    error: `Invalid current payment status from payment status - to payment status ${currentStatus}`,
                     currentStatus
                 });
             }
