@@ -1413,12 +1413,395 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
 };
 
 // Controller function to fetch schedules and sub-schedules
+// const searchSchedulesAndSubSchedules = async (req, res) => {
+//   const { from, to, date, passengers_total } = req.query;
+
+//   try {
+//     const selectedDate = new Date(date);
+//     const selectedDayOfWeek = getDay(selectedDate);
+
+//     const schedules = await Schedule.findAll({
+//       where: {
+//         destination_from_id: from,
+//         destination_to_id: to,
+//         availability: 1,
+//         validity_start: { [Op.lte]: selectedDate },
+//         validity_end: { [Op.gte]: selectedDate },
+//         [Op.and]: sequelize.literal(
+//           `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+//         ),
+//       },
+//       include: [
+//         {
+//           model: Destination,
+//           as: "FromDestination",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model:SeatAvailability,
+//           as: "SeatAvailabilities",
+//         },
+//         {
+//           model: Destination,
+//           as: "ToDestination",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model: Boat,
+//           as: "Boat",
+//           attributes: ["id", "capacity", "boat_name"],
+//         },
+//         {
+//           model: Transit,
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: [
+//             {
+//               model: Destination,
+//               as: "Destination",
+//               attributes: ["id", "name"],
+//             },
+//           ],
+//         },
+//       ],
+//       attributes: [
+//         "id",
+//         "route_image",
+//         "low_season_price",
+//         "high_season_price",
+//         "peak_season_price",
+//         "departure_time",
+//         "check_in_time",
+//         "arrival_time",
+//         "journey_time",
+//       ],
+//     });
+
+//     // Fetch SubSchedules
+//     const subSchedules = await SubSchedule.findAll({
+//       where: {
+//         availability: true,
+//         [Op.and]: [
+//           {
+//             [Op.or]: [
+//               { destination_from_schedule_id: from },
+//               { "$TransitFrom.destination_id$": from },
+//             ],
+//           },
+//           {
+//             [Op.or]: [
+//               { destination_to_schedule_id: to },
+//               { "$TransitTo.destination_id$": to },
+//             ],
+//           },
+//           {
+//             validity_start: { [Op.lte]: selectedDate },
+//             validity_end: { [Op.gte]: selectedDate },
+//             [Op.and]: sequelize.literal(
+//               `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+//             ),
+//           },
+//         ],
+//         availability: true,
+//       },
+//       include: [
+//         {
+//           model: Destination,
+//           as: "DestinationFrom",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model: Destination,
+//           as: "DestinationTo",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model: Transit,
+//           as: "TransitFrom",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "TransitTo",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         // Add transit_1, transit_2, transit_3, transit_4 associations
+//         {
+//           model: Transit,
+//           as: "Transit1",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit2",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit3",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit4",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model:SeatAvailability,
+//           as: "SeatAvailabilities",
+//         },
+//         {
+//           model: Schedule,
+//           as: "Schedule",
+//           attributes: [
+//             "id",
+//             "departure_time",
+//             "check_in_time",
+//             "arrival_time",
+//             "journey_time",
+//           ],
+//           include: [
+//             {
+//               model: Boat,
+//               as: "Boat",
+//               // attributes: ["id", "capacity", "boat_name",],
+//             },
+//           ],
+//         },
+//       ],
+//     });
+
+//     // Check Seat Availability for Schedules
+//     for (const schedule of schedules) {
+//       let seatAvailability = await SeatAvailability.findOne({
+//         where: {
+//           schedule_id: schedule.id,
+//           date: selectedDate,
+//           // availability: 1,
+//           // available_seats: { [Op.gte]: passengers_total },
+//         },
+//       });
+//       // console.log("🧠seat availability MAIN",seatAvailability)
+
+//       // Create SeatAvailability if not found
+//       if (!seatAvailability) {
+//         seatAvailability = await createSeatAvailability(
+//           schedule,
+//           null,
+//           selectedDate
+//         );
+//       }
+
+//       schedule.dataValues.seatAvailability = {
+//         id: seatAvailability.id,
+//         available_seats: seatAvailability.available_seats,
+//         availability: seatAvailability.availability,
+//         date: selectedDate,
+//       };
+
+//       // Debugging log for schedules
+//       // console.log(
+//       //   `Schedule ID: ${schedule.id}, Seat Availability:`,
+//       //   schedule.dataValues.seatAvailability
+//       // );
+//     }
+
+//     // Check Seat Availability for SubSchedules
+//     for (const subSchedule of subSchedules) {
+//       let seatAvailability = await SeatAvailability.findOne({
+//         where: {
+//           subschedule_id: subSchedule.id,
+//           date: selectedDate,
+//           // availability: true,
+        
+//         },
+//       });
+//       // console.log("🧠seat availability SUB",seatAvailability)
+      
+
+//       // Create SeatAvailability if not found
+//       if (!seatAvailability) {
+//         seatAvailability = await createSeatAvailability(
+//           null,
+//           subSchedule,
+//           selectedDate
+//         );
+//       }
+
+//       // Attach seatAvailability to subSchedule dataValues
+//       subSchedule.dataValues.seatAvailability = {
+//         id: seatAvailability.id,
+//         available_seats: seatAvailability.available_seats,
+//         availability: seatAvailability.availability,
+//         date: selectedDate,
+//       };
+
+//       // Debugging log for subschedules
+//       // console.log(
+//       //   `SubSchedule ID: ${subSchedule.id}, Seat Availability:`,
+//       //   subSchedule.dataValues.seatAvailability
+//       // );
+//     }
+//     // const availableSchedules = schedules.filter(schedule => 
+//     //   schedule.dataValues.seatAvailability && 
+//     //   schedule.dataValues.seatAvailability.available_seats > 0 
+//     //   &&
+//     //   schedule.dataValues.seatAvailability.availability === true
+//     // );
+
+//     // prepare to match with the passenger total
+//     const availableSchedules = schedules.filter(schedule => 
+//       schedule.dataValues.seatAvailability && 
+//       schedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+//       &&
+//       schedule.dataValues.seatAvailability.availability === true
+//     );
+
+//     // console.log(
+//     //   "🫁Available Schedules Jancuk:",
+//     //   availableSchedules.map((schedule) => ({
+//     //     id: schedule.id,
+//     //     seatAvailability: schedule.dataValues.seatAvailability,
+//     //   }))
+//     // );
+    
+//     // Filter subSchedules dengan available_seats > 0
+//     // const availableSubSchedules = subSchedules.filter(subSchedule => 
+//     //   subSchedule.dataValues.seatAvailability && 
+//     //   subSchedule.dataValues.seatAvailability.available_seats > 0 
+//     //   &&
+//     //   subSchedule.dataValues.seatAvailability.availability === true
+//     // );
+
+//     // prepare to match with passenger total
+
+//     const availableSubSchedules = subSchedules.filter(subSchedule => 
+//       subSchedule.dataValues.seatAvailability && 
+//       subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
+//       &&
+//       subSchedule.dataValues.seatAvailability.availability === true
+//     );
+//     // console.log("🫁Available SubSchedules:", JSON.stringify(availableSubSchedules.SeatAvailabilities, null, 2));
+    
+
+//     // Step 6: Return the combined results with SeatAvailability details
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         schedules: formatSchedules(availableSchedules, selectedDate),
+//         subSchedules: formatSubSchedules(availableSubSchedules, selectedDate),
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error searching schedules and subschedules:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: error.message,
+//     });
+//   }
+// };
+
+
+
 const searchSchedulesAndSubSchedules = async (req, res) => {
   const { from, to, date, passengers_total } = req.query;
 
   try {
     const selectedDate = new Date(date);
     const selectedDayOfWeek = getDay(selectedDate);
+    
+    // Helper function to check if date is in July or August
+    const isJulyOrAugust = (date) => {
+      const month = date.getMonth(); // 0-based: 6 = July, 7 = August
+      return month === 6 || month === 7;
+    };
+
+    // Helper function to adjust available seats for boat ID 1 in July/August
+    const adjustAvailableSeats = (originalSeats, boatId, date) => {
+      if (boatId === 1 && isJulyOrAugust(date)) {
+        return Math.max(0, originalSeats - 4); // Reduce by 4, but never go below 0
+      }
+      return originalSeats;
+    };
 
     const schedules = await Schedule.findAll({
       where: {
@@ -1671,12 +2054,26 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         );
       }
 
+      // Apply boat ID 1 July/August reduction
+      const adjustedAvailableSeats = adjustAvailableSeats(
+        seatAvailability.available_seats,
+        schedule.Boat?.id,
+        selectedDate
+      );
+
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
-        available_seats: seatAvailability.available_seats,
+        available_seats: adjustedAvailableSeats,
         availability: seatAvailability.availability,
         date: selectedDate,
       };
+
+      // Log untuk debugging kondisi khusus boat ID 1
+      if (schedule.Boat?.id === 1 && isJulyOrAugust(selectedDate)) {
+        console.log(
+          `🚢 Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
+        );
+      }
 
       // Debugging log for schedules
       // console.log(
@@ -1707,13 +2104,27 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         );
       }
 
+      // Apply boat ID 1 July/August reduction for SubSchedules
+      const adjustedAvailableSeats = adjustAvailableSeats(
+        seatAvailability.available_seats,
+        subSchedule.Schedule?.Boat?.id,
+        selectedDate
+      );
+
       // Attach seatAvailability to subSchedule dataValues
       subSchedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
-        available_seats: seatAvailability.available_seats,
+        available_seats: adjustedAvailableSeats,
         availability: seatAvailability.availability,
         date: selectedDate,
       };
+
+      // Log untuk debugging kondisi khusus boat ID 1 pada SubSchedule
+      if (subSchedule.Schedule?.Boat?.id === 1 && isJulyOrAugust(selectedDate)) {
+        console.log(
+          `🚢 SubSchedule Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
+        );
+      }
 
       // Debugging log for subschedules
       // console.log(
@@ -1721,12 +2132,6 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       //   subSchedule.dataValues.seatAvailability
       // );
     }
-    // const availableSchedules = schedules.filter(schedule => 
-    //   schedule.dataValues.seatAvailability && 
-    //   schedule.dataValues.seatAvailability.available_seats > 0 
-    //   &&
-    //   schedule.dataValues.seatAvailability.availability === true
-    // );
 
     // prepare to match with the passenger total
     const availableSchedules = schedules.filter(schedule => 
@@ -1743,17 +2148,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     //     seatAvailability: schedule.dataValues.seatAvailability,
     //   }))
     // );
-    
-    // Filter subSchedules dengan available_seats > 0
-    // const availableSubSchedules = subSchedules.filter(subSchedule => 
-    //   subSchedule.dataValues.seatAvailability && 
-    //   subSchedule.dataValues.seatAvailability.available_seats > 0 
-    //   &&
-    //   subSchedule.dataValues.seatAvailability.availability === true
-    // );
 
     // prepare to match with passenger total
-
     const availableSubSchedules = subSchedules.filter(subSchedule => 
       subSchedule.dataValues.seatAvailability && 
       subSchedule.dataValues.seatAvailability.available_seats >= parseInt(passengers_total) 
