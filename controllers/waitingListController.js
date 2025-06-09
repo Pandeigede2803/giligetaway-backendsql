@@ -137,7 +137,8 @@ exports.create = async (req, res) => {
       contact_name,
       schedule,
       formattedDate,
-      total_passengers
+      total_passengers,
+      follow_up_notes
     );
 
     // Send notification email to admin
@@ -145,7 +146,8 @@ exports.create = async (req, res) => {
       transporter,
       waitingList,
       schedule,
-      formattedDate
+      formattedDate,
+      follow_up_notes
     );
 
     return res.status(201).json({

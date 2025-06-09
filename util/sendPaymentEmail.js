@@ -2101,13 +2101,12 @@ const sendWaitingListConfirmationEmail = async (
   name,
   schedule,
   date,
-  passengers
+  passengers,
+  follow_up_notes
 ) => {
   console.log("email", email);
   try {
-    const routeInfo = schedule
-      ? `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}`
-      : "Selected route";
+    const routeInfo = follow_up_notes;
 
     const mailOptions = {
       from:  process.env.EMAIL_BOOKING,
@@ -2163,12 +2162,11 @@ const sendAdminNotificationEmail = async (
   transporter,
   waitingList,
   schedule,
-  formattedDate
+  formattedDate,
+  follow_up_notes
 ) => {
   try {
-    const routeInfo = schedule
-      ? `${schedule.DestinationFrom.name} to ${schedule.DestinationTo.name}`
-      : "Selected route";
+    const routeInfo = follow_up_notes;
 
     const adminEmail = "bookings@giligetaway.com";
 

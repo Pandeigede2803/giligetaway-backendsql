@@ -1796,13 +1796,14 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     };
 
     // Helper function to adjust available seats for boat ID 1 in July/August
-    const adjustAvailableSeats = (originalSeats, boatId, date) => {
-      if (boatId === 1 && isJulyOrAugust(date)) {
-        return Math.max(0, originalSeats - 4); // Reduce by 4, but never go below 0
-      }
-      return originalSeats;
-    };
-
+const adjustAvailableSeats = (originalSeats, boatId, date, boost) => {
+  if (boatId === 1 && isJulyOrAugust(date) && boost !== true) {
+    const adjusted = Math.max(0, originalSeats - 4);
+    // console.log(`🚢 Boat ID 1 - July/August seat adjustment (boost: ${boost}): Original: ${originalSeats}, Adjusted: ${adjusted}`);
+    return adjusted;
+  }
+  return originalSeats;
+};
     const schedules = await Schedule.findAll({
       where: {
         destination_from_id: from,
@@ -2055,11 +2056,12 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       }
 
       // Apply boat ID 1 July/August reduction
-      const adjustedAvailableSeats = adjustAvailableSeats(
-        seatAvailability.available_seats,
-        schedule.Boat?.id,
-        selectedDate
-      );
+   const adjustedAvailableSeats = adjustAvailableSeats(
+  seatAvailability.available_seats,
+  schedule.Boat?.id,
+  selectedDate,
+  seatAvailability.boost  // <- Parameter boost ditambahkan
+);
 
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
@@ -2104,12 +2106,13 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         );
       }
 
-      // Apply boat ID 1 July/August reduction for SubSchedules
-      const adjustedAvailableSeats = adjustAvailableSeats(
-        seatAvailability.available_seats,
-        subSchedule.Schedule?.Boat?.id,
-        selectedDate
-      );
+  // Untuk subSchedules
+const adjustedAvailableSeats = adjustAvailableSeats(
+  seatAvailability.available_seats,
+  subSchedule.Schedule?.Boat?.id,
+  selectedDate,
+  seatAvailability.boost  // <- Parameter boost ditambahkan
+);
 
       // Attach seatAvailability to subSchedule dataValues
       subSchedule.dataValues.seatAvailability = {
