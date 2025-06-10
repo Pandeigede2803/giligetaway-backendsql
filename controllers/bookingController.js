@@ -4451,64 +4451,140 @@ const updateBookingPayment = async (req, res) => {
         //   booking_date: booking.booking_date
         // });
 
-        try {
-          const releasedSeatIds = await releaseBookingSeats(booking.id, t);
-          console.log(
-            `✅ Released seats: ${
-              releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
-            }`
-          );
+  // Tambahkan import di bagian atas file controller
+const { waitingListNotify } = require('../utils/waitingListNotify');
 
-          console.log("\n✅ Refund process completed successfully");
+// ... existing code
 
-          // Send email notification
-          if (booking.contact_email) {
-            console.log(
-              `\n📧 Sending email notification to ${booking.contact_email}...`
-            );
-            console.log(`start to send the email ${booking.contact_email}`);
-            sendPaymentEmail(
-              booking.contact_email,
-              booking,
-              payment_method,
-              payment_status,
-              refundAmount,
-              refundAmountUSD
-            );
-            console.log(`📧 Payment email sent to ${booking.contact_email}`);
-          }
+try {
+  const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+  console.log(
+    `✅ Released seats: ${
+      releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
+    }`
+  );
 
-          return res.status(200).json({
-            message: `${
-              payment_status === "refund_50" ? "50%" : "Full"
-            } refund processed successfully`,
-            data: {
-              booking_id: booking.id,
-              refund_amount: refundAmount,
-              refund_amount_usd: refundAmountUSD,
-              new_gross_total: newGrossTotal,
-              new_gross_total_usd: newGrossTotalUSD,
-              new_payment_status: payment_status,
-              released_seats: releasedSeatIds,
-            },
-          });
-        } catch (releaseError) {
-          console.error("\n❌ Error releasing seats:", releaseError);
+  // === NEW: WAITING LIST NOTIFICATION ===
+  let waitingListResult = null;
+  
+  if (releasedSeatIds.length > 0) {
+    console.log("\n🔔 === Starting Waiting List Notification ===");
+    
+    try {
+      waitingListResult = await waitingListNotify({
+        total_passengers: booking.total_passengers,
+        schedule_id: booking.schedule_id,
+        subschedule_id: booking.subschedule_id,
+        booking_date: booking.booking_date,
+        seat_availability_ids: releasedSeatIds
+      }, t);
 
-          return res.status(200).json({
-            message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
-            data: {
-              booking_id: booking.id,
-              payment_status,
-              refund_amount: refundAmount,
-              refund_amount_usd: refundAmountUSD,
-              new_gross_total: newGrossTotal,
-              new_gross_total_usd: newGrossTotalUSD,
-              error: releaseError.message,
-            },
-          });
-        }
+      console.log(`🔔 Waiting list notification result:`, {
+        success: waitingListResult.success,
+        notified_count: waitingListResult.notified_count,
+        message: waitingListResult.message
+      });
+
+      // Log detailed notification results
+      if (waitingListResult.notified_entries?.length > 0) {
+        console.log("📧 Successfully notified waiting list customers:");
+        waitingListResult.notified_entries.forEach(entry => {
+          console.log(`- ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
+        });
+      } else {
+        console.log("ℹ️ No waiting list customers were notified");
       }
+
+    } catch (waitingListError) {
+      console.error("❌ Waiting list notification failed:", waitingListError);
+      // Set result untuk response, tapi jangan gagalkan transaction
+      waitingListResult = {
+        success: false,
+        message: `Waiting list notification failed: ${waitingListError.message}`,
+        notified_count: 0,
+        notified_entries: []
+      };
+    }
+  } else {
+    console.log("ℹ️ No seats were released, skipping waiting list notification");
+  }
+
+  console.log("\n✅ Refund process completed successfully");
+
+  // Send email notification
+  if (booking.contact_email) {
+    console.log(
+      `\n📧 Sending email notification to ${booking.contact_email}...`
+    );
+    console.log(`start to send the email ${booking.contact_email}`);
+    
+    sendPaymentEmail(
+      booking.contact_email,
+      booking,
+      payment_method,
+      payment_status,
+      refundAmount,
+      refundAmountUSD
+    );
+    
+    console.log(`📧 Payment email sent to ${booking.contact_email}`);
+  }
+
+  return res.status(200).json({
+    message: `${
+      payment_status === "refund_50" ? "50%" : "Full"
+    } refund processed successfully`,
+    data: {
+      booking_id: booking.id,
+      refund_amount: refundAmount,
+      refund_amount_usd: refundAmountUSD,
+      new_gross_total: newGrossTotal,
+      new_gross_total_usd: newGrossTotalUSD,
+      new_payment_status: payment_status,
+      released_seats: releasedSeatIds,
+      // === NEW: WAITING LIST RESPONSE DATA ===
+      waiting_list_notification: {
+        success: waitingListResult?.success || false,
+        notified_count: waitingListResult?.notified_count || 0,
+        message: waitingListResult?.message || 'No notification attempted',
+        notified_customers: waitingListResult?.notified_entries?.map(entry => ({
+          id: entry.id,
+          name: entry.contact_name,
+          email: entry.contact_email,
+          passengers: entry.total_passengers,
+          seat_availability_id: entry.seat_availability_id,
+          booking_date: entry.booking_date,
+          schedule_info: entry.schedule_info
+        })) || []
+      }
+    },
+  });
+  
+} catch (releaseError) {
+  console.error("\n❌ Error releasing seats:", releaseError);
+
+  return res.status(200).json({
+    message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
+    data: {
+      booking_id: booking.id,
+      payment_status,
+      refund_amount: refundAmount,
+      refund_amount_usd: refundAmountUSD,
+      new_gross_total: newGrossTotal,
+      new_gross_total_usd: newGrossTotalUSD,
+      released_seats: [], // No seats were released due to error
+      waiting_list_notification: {
+        success: false,
+        notified_count: 0,
+        message: 'Seat release failed, no waiting list notification sent',
+        notified_customers: []
+      },
+      error: releaseError.message,
+    },
+  });
+}
+
+  }
       // === HANDLE REGULAR PAYMENT UPDATES ===
       else if (payment_method || payment_status) {
         console.log("\n🔄 Updating regular payment details...");

@@ -5,6 +5,8 @@ const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
 const bookingSummaryCron = require('./util/bookingSummaryCron');
 const seatFixCron = require('./util/seatFixCron');
+// ← TAMBAHKAN INI: Import waiting list cron
+const waitingListCron = require('./util/waitingListCron');
 
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs'); // Import cronjob pengingat
 const { initWebSocketServer } = require('./config/websocket'); // Import fungsi WebSocket
@@ -130,6 +132,11 @@ sequelize.sync()
 
       seatFixCron.scheduleSeatFixJob();
       console.log('✅ SeatFixCron registered');
+      
+
+       // ========== NEW: WAITING LIST CRON ==========
+      waitingListCron.scheduleWaitingListCron();
+      console.log('⛑️ ==== Waiting List Cron registered =====');
 
         // Cronjob baru untuk pengingat unpaid
         // unpaidReminderCronJobs.sendUnpaidReminders();

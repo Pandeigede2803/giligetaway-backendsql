@@ -2157,6 +2157,8 @@ const sendWaitingListConfirmationEmail = async (
   }
 };
 
+
+
 // Function to send notification email to admin
 const sendAdminNotificationEmail = async (
   transporter,

@@ -26,13 +26,15 @@ exports.create = async (req, res) => {
       follow_up_date
     } = req.body;
 
+    console.log('Creating waiting list entry with data:', req.body);
+
     // Validate required fields
     if (!contact_name || !contact_phone || !contact_email || !schedule_id || 
         !booking_date || !total_passengers) {
       return res.status(400).json({ 
         success: false,
         message: 'Missing required fields' 
-      });
+      });;
     }
 
     // Find seat availability based on booking_date, schedule_id, and subschedule_id
@@ -385,10 +387,8 @@ exports.updateStatus = async (req, res) => {
       last_contact_date: new Date()
     };
 
-    if (follow_up_notes) {
-      updateData.follow_up_notes = waitingList.follow_up_notes 
-        ? `${waitingList.follow_up_notes}\n\n${new Date().toISOString().split('T')[0]}: ${follow_up_notes}`
-        : `${new Date().toISOString().split('T')[0]}: ${follow_up_notes}`;
+    if (follow_up_notes !== undefined) {
+      updateData.follow_up_notes = follow_up_notes;
     }
 
     if (follow_up_date) {
@@ -397,7 +397,6 @@ exports.updateStatus = async (req, res) => {
 
     await waitingList.update(updateData);
 
-    // Get the updated record with associations
     const updatedWaitingList = await WaitingList.findByPk(id, {
       include: [
         { model: Schedule, as: 'WaitingListSchedule' },
@@ -419,6 +418,7 @@ exports.updateStatus = async (req, res) => {
     });
   }
 };
+
 
 // Get waiting list entries with upcoming follow-up dates
 exports.getUpcomingFollowUps = async (req, res) => {
