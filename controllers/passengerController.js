@@ -2141,7 +2141,7 @@ const getPassengersSeatNumber = async (req, res) => {
     });
 
     // query boat information from req query schedule-id
-    console.log(`Fetching boat with ID: ${schedule_id}`);
+    console.log(`Fetching schedule with ID: ${schedule_id}`);
     const schedule = await Schedule.findByPk(schedule_id, {
       attributes: ["id"],
       include: [
@@ -2169,7 +2169,7 @@ const getPassengersSeatNumber = async (req, res) => {
       boatData
     );
 
-    // console.log("===processedbookedseat=== FINAL", processedBookedSeats);
+    console.log("🦁===processedbookedseat=== FINAL", processedBookedSeats);
 
     const totalSeats = seatAvailability.available_seats || 0;
     // console.log("===totalseat===", totalSeats);

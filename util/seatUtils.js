@@ -103,22 +103,76 @@ const addSeatPair = (resultSet, seatNumber) => {
   }
 };
 
-const addSeatPairBoat2 = (resultSet, seatNumber) => {
-  // Jika kursi diawali dengan "X", ubah menjadi "R" dengan angka bertambah 2
-  if (isSeatNumberWithX(seatNumber)) {
-    const number = parseInt(seatNumber.slice(1), 10);
-    resultSet.add(`R${number + 2}`); // X ke R (misalnya X1 → R3)
-  } 
-  // Jika kursi diawali dengan "R", ubah menjadi "X" dengan angka dikurangi 2
-  else if (seatNumber.startsWith("R")) {
-    const number = parseInt(seatNumber.slice(1), 10);
-    if (number > 2) {
-      resultSet.add(`X${number - 2}`); // R ke X (misalnya R3 → X1)
-    }
-  }
-};
+
 
 // Fungsi utilitas untuk pengecekan awalan kursi
+
+
+
+const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
+  // Jika boost aktif, tidak proses seat pair apapun
+  if (boost) {
+    console.log("🛑 Boost is enabled. Returning original booked seats without processing.");
+    return Array.from(bookedSeatsSet);
+  }
+
+  // Jika boost tidak aktif, proses pasangan kursi seperti biasa
+  console.log("⚙️ Boost is not enabled. Processing booked seats...");
+  const resultSet = new Set(bookedSeatsSet);
+
+  for (const seat of bookedSeatsSet) {
+    addSeatPair(resultSet, seat);
+  }
+
+  return Array.from(resultSet);
+};
+
+
+
+
+
+
+
+// const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
+
+//   console.log("🐱INI SEAT YANG DI BOOKIED: ", bookedSeatsSet);
+//   console.log("⚡ Boost mode:", boost);
+ 
+//   // If boost mode is enabled and boatData.Boat.id is 2, use addSeatPairBoat2
+//   if (boost && boatData.id=== 2) {
+//     console.log("🚤 Boost enabled for Boat ID 2. Using addSeatPairBoat2.");
+//     const resultSet = new Set(bookedSeatsSet);
+
+//     for (const seat of bookedSeatsSet) {
+//       // console.log(`🔍 Processing seat: ${seat} with addSeatPairBoat2`);
+//       addSeatPair(resultSet, seat);
+//       // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
+//     }
+
+//     return Array.from(resultSet);
+//   }
+
+//   // If boost mode is enabled but not for Boat ID 2, return the original booked seats without processing
+//   if (boost) {
+//     console.log("🛑 Boost is enabled. Returning original booked seats without processing.");
+//     return Array.from(bookedSeatsSet);
+//   }
+
+//   // If boost mode is disabled, process the booked seats using addSeatPair
+//   console.log("⚙️ Boost is not enabled. Processing booked seats...");
+//   const resultSet = new Set(bookedSeatsSet); 
+
+//   for (const seat of bookedSeatsSet) {
+//     console.log(`🔍 Processing seat: ${seat}`);
+//     addSeatPair(resultSet, seat);
+//     // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
+//   }
+
+//   console.log("🎉 Finished processing all seats. Final set of seats:");
+//   console.log(Array.from(resultSet).join(', '));
+
+//   return Array.from(resultSet);
+// };
 
 
 
@@ -203,50 +257,20 @@ const processBookedSeatsWithDuplicates = (bookedSeatsInput, boost, boatData) => 
 };
 
 
-
-
-
-
-
-
-const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
- 
-  // If boost mode is enabled and boatData.Boat.id is 2, use addSeatPairBoat2
-  if (boost && boatData.id=== 2) {
-    // console.log("🚤 Boost enabled for Boat ID 2. Using addSeatPairBoat2.");
-    const resultSet = new Set(bookedSeatsSet);
-
-    for (const seat of bookedSeatsSet) {
-      // console.log(`🔍 Processing seat: ${seat} with addSeatPairBoat2`);
-      addSeatPair(resultSet, seat);
-      // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
+const addSeatPairBoat2 = (resultSet, seatNumber) => {
+  // Jika kursi diawali dengan "X", ubah menjadi "R" dengan angka bertambah 2
+  if (isSeatNumberWithX(seatNumber)) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    resultSet.add(`R${number + 2}`); // X ke R (misalnya X1 → R3)
+  } 
+  // Jika kursi diawali dengan "R", ubah menjadi "X" dengan angka dikurangi 2
+  else if (seatNumber.startsWith("R")) {
+    const number = parseInt(seatNumber.slice(1), 10);
+    if (number > 2) {
+      resultSet.add(`X${number - 2}`); // R ke X (misalnya R3 → X1)
     }
-
-    return Array.from(resultSet);
   }
-
-  // If boost mode is enabled but not for Boat ID 2, return the original booked seats without processing
-  if (boost) {
-    // console.log("🛑 Boost is enabled. Returning original booked seats without processing.");
-    return Array.from(bookedSeatsSet);
-  }
-
-  // If boost mode is disabled, process the booked seats using addSeatPair
-  // console.log("⚙️ Boost is not enabled. Processing booked seats...");
-  const resultSet = new Set(bookedSeatsSet); 
-
-  for (const seat of bookedSeatsSet) {
-    // console.log(`🔍 Processing seat: ${seat}`);
-    addSeatPair(resultSet, seat);
-    // console.log(`✅ Updated seat set after processing ${seat}: ${Array.from(resultSet).join(', ')}`);
-  }
-
-  // console.log("🎉 Finished processing all seats. Final set of seats:");
-  // console.log(Array.from(resultSet).join(', '));
-
-  return Array.from(resultSet);
 };
-
 
 
   module.exports = {
