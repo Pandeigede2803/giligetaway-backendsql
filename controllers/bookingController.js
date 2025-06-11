@@ -32,6 +32,9 @@ const {
 const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
+
+  // Tambahkan import di bagian atas file controller
+const { waitingListNotify } = require('../util/waitingListNotify');
 const calculateDepartureAndArrivalTimes = require("../util/calculateDepartureAndArrivalTime");
 const moment = require("moment"); // Use moment.js for date formatting
 const cronJobs = require("../util/cronJobs");
@@ -4451,11 +4454,6 @@ const updateBookingPayment = async (req, res) => {
         //   booking_date: booking.booking_date
         // });
 
-  // Tambahkan import di bagian atas file controller
-const { waitingListNotify } = require('../utils/waitingListNotify');
-
-// ... existing code
-
 try {
   const releasedSeatIds = await releaseBookingSeats(booking.id, t);
   console.log(
@@ -4463,51 +4461,6 @@ try {
       releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
     }`
   );
-
-  // === NEW: WAITING LIST NOTIFICATION ===
-  let waitingListResult = null;
-  
-  if (releasedSeatIds.length > 0) {
-    console.log("\n🔔 === Starting Waiting List Notification ===");
-    
-    try {
-      waitingListResult = await waitingListNotify({
-        total_passengers: booking.total_passengers,
-        schedule_id: booking.schedule_id,
-        subschedule_id: booking.subschedule_id,
-        booking_date: booking.booking_date,
-        seat_availability_ids: releasedSeatIds
-      }, t);
-
-      console.log(`🔔 Waiting list notification result:`, {
-        success: waitingListResult.success,
-        notified_count: waitingListResult.notified_count,
-        message: waitingListResult.message
-      });
-
-      // Log detailed notification results
-      if (waitingListResult.notified_entries?.length > 0) {
-        console.log("📧 Successfully notified waiting list customers:");
-        waitingListResult.notified_entries.forEach(entry => {
-          console.log(`- ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
-        });
-      } else {
-        console.log("ℹ️ No waiting list customers were notified");
-      }
-
-    } catch (waitingListError) {
-      console.error("❌ Waiting list notification failed:", waitingListError);
-      // Set result untuk response, tapi jangan gagalkan transaction
-      waitingListResult = {
-        success: false,
-        message: `Waiting list notification failed: ${waitingListError.message}`,
-        notified_count: 0,
-        notified_entries: []
-      };
-    }
-  } else {
-    console.log("ℹ️ No seats were released, skipping waiting list notification");
-  }
 
   console.log("\n✅ Refund process completed successfully");
 
@@ -4542,21 +4495,6 @@ try {
       new_gross_total_usd: newGrossTotalUSD,
       new_payment_status: payment_status,
       released_seats: releasedSeatIds,
-      // === NEW: WAITING LIST RESPONSE DATA ===
-      waiting_list_notification: {
-        success: waitingListResult?.success || false,
-        notified_count: waitingListResult?.notified_count || 0,
-        message: waitingListResult?.message || 'No notification attempted',
-        notified_customers: waitingListResult?.notified_entries?.map(entry => ({
-          id: entry.id,
-          name: entry.contact_name,
-          email: entry.contact_email,
-          passengers: entry.total_passengers,
-          seat_availability_id: entry.seat_availability_id,
-          booking_date: entry.booking_date,
-          schedule_info: entry.schedule_info
-        })) || []
-      }
     },
   });
   
@@ -4572,19 +4510,14 @@ try {
       refund_amount_usd: refundAmountUSD,
       new_gross_total: newGrossTotal,
       new_gross_total_usd: newGrossTotalUSD,
-      released_seats: [], // No seats were released due to error
-      waiting_list_notification: {
-        success: false,
-        notified_count: 0,
-        message: 'Seat release failed, no waiting list notification sent',
-        notified_customers: []
-      },
       error: releaseError.message,
     },
   });
+        }
 }
 
-  }
+
+      
       // === HANDLE REGULAR PAYMENT UPDATES ===
       else if (payment_method || payment_status) {
         console.log("\n🔄 Updating regular payment details...");
