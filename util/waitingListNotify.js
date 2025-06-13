@@ -313,7 +313,10 @@ const waitingListNotify = async (params, transaction = null) => {
           model: SeatAvailability,
           as: 'WaitingListSeatAvailability',
           attributes: ['id', 'available_seats', 'date'],
-          required: true // Seat availability harus ada
+          required: true, // Seat availability harus ada
+           where: {
+    availability: true // 🔥 Tambahkan ini untuk filter hanya yang tersedia
+  }
         }
       ],
       order: [['created_at', 'ASC']], // First come first serve
