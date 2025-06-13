@@ -1163,7 +1163,7 @@ const validatePaymentUpdate = async (req, res, next) => {
 
         // Validate payment method if provided
         if (payment_method) {
-            const validPaymentMethods = ['credit_card','invoiced', 'bank_transfer','doku', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card",
+            const validPaymentMethods = ['credit_card','collect from customer','invoiced', 'bank_transfer','doku', 'cash', 'paypal','midtrans', 'cash_bali',"prepaid doku","prepaid card",
               "prepaid credit card",'cash bali', 'cash_gili_trawangan', 'cash_gili_gede','visa/credit_card', 'credit_card_doku_edc','midtrans',"CREDIT_CARD","CASH",
               "CREDIT_CARD_DOKU_EDC","PREPAID_CARD","PREPAID_DOKU","CASH_BALI","CASH_GILI_TRAWANGAN","CASH_GILI_GEDE","PREPAID_CASH","PREPAID_CARD","PREPAID_BANK_TRANSFER",
               "PREPAID_WISE","PREPAID_PAYPAL","PREPAID_CREDIT_CARD","PREPAID_DOKU","INVOICED","FOC"];
