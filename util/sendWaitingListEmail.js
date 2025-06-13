@@ -500,7 +500,7 @@ const generateCustomerEmailContent = (data, availableSeats, formatDate, formatTi
         <div style="border-top: 1px solid #e0e0e0; padding: 15px 0; font-size: 12px; color: #666;">
             <p style="margin: 5px 0;">Gili Getaway</p>
             <p style="margin: 5px 0;">Jl. Pantai Serangan, Serangan, Denpasar Selatan, Bali 80229</p>
-            <p style="margin: 5px 0;">Phone: +62 812-3456-7890 | Email: bookings@giligetaway.com</p>
+            <p style="margin: 5px 0;">Phone:  +62 813-3707-4147| Email: bookings@giligetaway.com</p>
             <p style="margin: 5px 0;">This is an automated notification regarding your booking request.</p>
         </div>
         </div>
@@ -528,7 +528,7 @@ Website: ${process.env.FRONTEND_URL || 'www.giligetaway.com'}
 
 CUSTOMER SERVICE:
 Email: bookings@giligetaway.com
-Phone: +62 812-3456-7890
+Phone: +62 813-3707-4147 
 
 Thank you for choosing Gili Getaway.
 
