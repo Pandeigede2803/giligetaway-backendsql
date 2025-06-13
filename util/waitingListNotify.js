@@ -300,12 +300,20 @@ const waitingListNotify = async (params, transaction = null) => {
         {
           model: Schedule,
           as: 'WaitingListSchedule',
+                     where: {
+    availability: true // 🔥 Tambahkan ini untuk filter hanya yang tersedia
+  },
           attributes: ['id', 'arrival_time', 'validity_start', 'validity_end', 'days_of_week'], // ← Added days_of_week
           required: true // ← Changed to true since we need schedule data
+
+        
         },
         {
           model: SubSchedule,
           as: 'WaitingListSubSchedule',
+                     where: {
+    availability: true // 🔥 Tambahkan ini untuk filter hanya yang tersedia
+  },
           attributes: ['id'],
           required: false
         },

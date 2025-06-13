@@ -90,8 +90,14 @@ const Agent = sequelize.define(
       allowNull: false,
       defaultValue:"unknown",
     },
+    
     // add owner
     owner: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue:false,
+    },
+       cfc: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue:false,
