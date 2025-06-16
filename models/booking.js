@@ -143,6 +143,11 @@ const Booking = sequelize.define('Booking', {
         allowNull: true,
         comment: 'User who booked the ticket'
     },
+    reminder_hours: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Number of hours before the booking that a reminder should be sent'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

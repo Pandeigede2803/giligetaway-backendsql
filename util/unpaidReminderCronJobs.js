@@ -8,7 +8,7 @@
 
 // /utils/unpaidReminderCronJobs.js
 const cron = require("node-cron");
-
+const {releaseBookingSeats} = require("./releaseSeats");
 const {
   sequelize,
   Booking,
@@ -36,20 +36,20 @@ const {
 } = require("./sendPaymentEmail");
 const { create } = require("handlebars");
 
-// Get reminder timing settings from environment variables with defaults
-const FIRST_REMINDER_HOUR = parseInt(
-  process.env.UNPAID_FIRST_REMINDER_HOUR || "6"
-);
-const SECOND_REMINDER_HOUR = parseInt(
-  process.env.UNPAID_SECOND_REMINDER_HOUR || "12"
-);
-const THIRD_REMINDER_HOUR = parseInt(
-  process.env.UNPAID_THIRD_REMINDER_HOUR || "18"
-);
-const CANCELLATION_HOUR = parseInt(
-  process.env.UNPAID_CANCELLATION_HOUR || "24"
-);
-const TIME_TOLERANCE = parseFloat(process.env.UNPAID_TIME_TOLERANCE || "0.5"); // 30 minutes default
+// // Get reminder timing settings from environment variables with defaults
+// const FIRST_REMINDER_HOUR = parseInt(
+//   process.env.UNPAID_FIRST_REMINDER_HOUR || "6"
+// );
+// const SECOND_REMINDER_HOUR = parseInt(
+//   process.env.UNPAID_SECOND_REMINDER_HOUR || "12"
+// );
+// const THIRD_REMINDER_HOUR = parseInt(
+//   process.env.UNPAID_THIRD_REMINDER_HOUR || "18"
+// );
+// const CANCELLATION_HOUR = parseInt(
+//   process.env.UNPAID_CANCELLATION_HOUR || "24"
+// );
+// const TIME_TOLERANCE = parseFloat(process.env.UNPAID_TIME_TOLERANCE || "0.5"); // 30 minutes default
 
 /**
  * Function to send payment reminder emails for bookings with unpaid status
@@ -164,217 +164,323 @@ const TIME_TOLERANCE = parseFloat(process.env.UNPAID_TIME_TOLERANCE || "0.5"); /
 //   } catch (error) {
 //     console.error("❌ Error handling unpaid reminders:", error);
 //   }
+// // };
+
+// /**
+//  * Function to process reminder emails in batches
+//  * @param {Array} bookingsNeedingReminders - Array of bookings needing reminders
+//  */
+// async function processReminders(bookingsNeedingReminders) {
+//   // Batch implementation - process in batches of configurable size
+//   const BATCH_SIZE = parseInt(process.env.UNPAID_EMAIL_BATCH_SIZE || "10");
+//   const BATCH_DELAY = parseInt(process.env.UNPAID_BATCH_DELAY_MS || "2000"); // 2 seconds default
+//   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+//   for (let i = 0; i < bookingsNeedingReminders.length; i += BATCH_SIZE) {
+//     const batch = bookingsNeedingReminders.slice(i, i + BATCH_SIZE);
+//     console.log(
+//       `Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(
+//         bookingsNeedingReminders.length / BATCH_SIZE
+//       )}`
+//     );
+
+//     // Process emails in a batch in parallel
+//     const emailPromises = batch.map(
+//       async ({ booking, reminderLevel, hoursSinceCreation }) => {
+//         try {
+//           const customerEmail = booking.contact_email || booking.email;
+//           const agentEmail = booking.Agent
+//             ? booking.Agent.email
+//             : booking.agent
+//             ? booking.agent.email
+//             : null;
+
+//           console.log("🧠agentEmail,", agentEmail);
+
+//           console.log(
+//             `Processing booking ID: ${booking.id}, age: ${hoursSinceCreation}h, reminder level: ${reminderLevel}`
+//           );
+
+//           // Prepare booking details for email
+//           const bookingDetails = {
+//             ticket_id: booking.ticket_id,
+//             booking_date: booking.booking_date,
+//             created_at: booking.created_at, // Direct access to created_at
+//             gross_total: booking.gross_total || booking.dataValues.amount,
+//             currency: booking.currency || "USD",
+//           };
+
+//           console.log("BOOOKING DETAILS", bookingDetails);
+
+//           // Send reminder email to customer
+//           await sendUnpaidReminderEmail(
+//             customerEmail,
+//             bookingDetails,
+//             reminderLevel
+//           );
+
+//           // If agent email exists, send reminder to agent as well
+//           if (agentEmail) {
+//             await sendUnpaidReminderEmailToAgent(
+//               agentEmail,
+//               customerEmail,
+//               bookingDetails,
+//               reminderLevel
+//             );
+//           }
+
+//           console.log(
+//             `✅ Reminder email #${reminderLevel} successfully sent to customer: ${customerEmail} and agent: ${
+//               agentEmail || "N/A"
+//             } for booking ID: ${booking.id}`
+//           );
+//           return { success: true, email: customerEmail };
+//         } catch (error) {
+//           console.error(
+//             `❌ Failed to send email for booking ID: ${booking.id}`,
+//             error
+//           );
+//           return {
+//             success: false,
+//             bookingId: booking.id,
+//             error: error.message,
+//           };
+//         }
+//       }
+//     );
+
+//     // Wait for all emails in the batch to complete
+//     const results = await Promise.all(emailPromises);
+//     console.log(
+//       `Batch ${Math.floor(i / BATCH_SIZE) + 1} completed. ` +
+//         `Success: ${results.filter((r) => r.success).length}, ` +
+//         `Failed: ${results.filter((r) => !r.success).length}`
+//     );
+
+//     // Wait a moment before processing the next batch to avoid throttling
+//     if (i + BATCH_SIZE < bookingsNeedingReminders.length) {
+//       console.log(`Waiting ${BATCH_DELAY}ms before processing next batch...`);
+//       await delay(BATCH_DELAY);
+//     }
+//   }
+// }
+
+// /**
+//  * Function to cancel unpaid bookings that are past the cancellation hour
+//  * @param {Array} bookingsToCancel - Array of bookings to cancel
+//  */
+// async function cancelUnpaidBookings(bookingsToCancel) {
+//   console.log(
+//     `✅ Starting process to cancel unpaid bookings > ${CANCELLATION_HOUR} hours...`
+//   );
+
+//   for (const booking of bookingsToCancel) {
+//     try {
+//       // 1. Release the reserved seats
+//       await releaseSeats(booking);
+
+//       // 2. Update booking status to 'cancelled'
+//       booking.payment_status = "cancelled";
+//       await booking.save();
+
+//       // 3. Update related transaction status
+//       const transaction = await Transaction.findOne({
+//         where: { booking_id: booking.id, status: "unpaid" },
+//       });
+
+//       if (transaction) {
+//         transaction.status = "cancelled";
+//         await transaction.save();
+//         console.log(
+//           `Transaction ID ${transaction.transaction_id} has been canceled.`
+//         );
+//       }
+
+//       // 4. Send cancellation notification to customer
+//       const customerEmail = booking.contact_email;
+//       if (customerEmail) {
+//         await sendCancellationEmail(customerEmail, booking);
+//       }
+
+//       // 5. Send cancellation notification to agent with rebooking instructions
+//       const agentEmail = booking.agent_email || booking.agent?.email;
+//       if (agentEmail) {
+//         await sendCancellationEmailToAgent(agentEmail, customerEmail, booking);
+//       }
+
+//       console.log(
+//         `✅ Booking ID ${booking.id} (ticket ID: ${booking.ticket_id}) has been successfully canceled.`
+//       );
+//     } catch (error) {
+//       console.error(`❌ Failed to cancel booking ID: ${booking.id}`, error);
+//     }
+//   }
+// }
+
+// // Function to release seats - using the same code from releaseSeats in cronJobs.js
+
+
+
+// // Function to release seats - using the same code from releaseSeats in cronJobs.js
+// const releaseSeats = async (booking, transaction) => {
+//   const { schedule_id, subschedule_id, total_passengers, booking_date } =
+//     booking;
+
+//   console.log(`✅ STARTING RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
+
+//   try {
+//     // Import functions from other modules
+//     const releaseMainScheduleSeats = require("../util/releaseMainScheduleSeats");
+//     const releaseSubScheduleSeats = require("../util/releaseSubScheduleSeats");
+
+//     if (subschedule_id) {
+//       // If SubSchedule exists, return seats for SubSchedule
+//       await releaseSubScheduleSeats(
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers,
+//         transaction
+//       );
+//     } else {
+//       // If Main Schedule, return seats for Main Schedule
+//       await releaseMainScheduleSeats(
+//         schedule_id,
+//         booking_date,
+//         total_passengers,
+//         transaction
+//       );
+//     }
+
+//     console.log(
+//       `🎉Successfully released ${total_passengers} seats for Booking ID: ${booking.id}🎉`
+//     );
+//   } catch (error) {
+//     console.error(
+//       `Failed to release seats for Booking ID: ${booking.id}`,
+//       error
+//     );
+//     throw error;
+//   }
 // };
 
+// // Schedule cron job with configurable frequency
+// const cronSchedule = process.env.UNPAID_REMINDER_CRON || "0 * * * *"; // Default: every hour
+// cron.schedule(cronSchedule, async () => {
+//   console.log(
+//     `🕒 Running unpaid reminder cronjob with schedule: ${cronSchedule}`
+//   );
+//   await sendUnpaidReminders();
+// });
+
+
+
+
+// 🔧 Configurable from .env
+
+
+
+
+const cronSchedule = process.env.UNPAID_CRON_SCHEDULE || "*/15 * * * *";
+const reminderLevels = process.env.UNPAID_REMINDER_HOURS
+  ? process.env.UNPAID_REMINDER_HOURS.split(",").map((v) => parseInt(v.trim()))
+  : [3, 6, 12];
+
+const expiryHour = parseInt(process.env.UNPAID_CANCEL_AFTER_HOURS || "24");
+const enableLogging = process.env.ENABLE_UNPAID_CRON_LOGGING === "true";
+
 /**
- * Function to process reminder emails in batches
- * @param {Array} bookingsNeedingReminders - Array of bookings needing reminders
+ * Cron function to send unpaid booking reminders and cancel expired bookings
  */
-async function processReminders(bookingsNeedingReminders) {
-  // Batch implementation - process in batches of configurable size
-  const BATCH_SIZE = parseInt(process.env.UNPAID_EMAIL_BATCH_SIZE || "10");
-  const BATCH_DELAY = parseInt(process.env.UNPAID_BATCH_DELAY_MS || "2000"); // 2 seconds default
-  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sendUnpaidReminders = async () => {
+  const now = new Date();
 
-  for (let i = 0; i < bookingsNeedingReminders.length; i += BATCH_SIZE) {
-    const batch = bookingsNeedingReminders.slice(i, i + BATCH_SIZE);
-    console.log(
-      `Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(
-        bookingsNeedingReminders.length / BATCH_SIZE
-      )}`
-    );
+  const bookings = await Booking.findAll({
+    where: {
+      payment_status: "unpaid",
+      payment_method: "collect from customer",
+      reminder_hours: { [Op.lt]: expiryHour },
+    },
+    include: [
+      { model: Agent, as: "Agent" },
+      { model: Transaction, as: "transactions" },
+    ],
+  });
 
-    // Process emails in a batch in parallel
-    const emailPromises = batch.map(
-      async ({ booking, reminderLevel, hoursSinceCreation }) => {
-        try {
-          const customerEmail = booking.contact_email || booking.email;
-          const agentEmail = booking.Agent
-            ? booking.Agent.email
-            : booking.agent
-            ? booking.agent.email
-            : null;
+  for (const booking of bookings) {
+    const createdAt = new Date(booking.created_at);
+    const hoursSince = Math.floor((now - createdAt) / 36e5);
 
-          console.log("🧠agentEmail,", agentEmail);
+    const customerEmail = booking.contact_email || booking.email;
+    const agentEmail = booking.Agent?.email || null;
 
-          console.log(
-            `Processing booking ID: ${booking.id}, age: ${hoursSinceCreation}h, reminder level: ${reminderLevel}`
-          );
+    // === 1. CANCEL BOOKING IF EXPIRED ===
+    if (hoursSince >= expiryHour) {
+      try {
+        booking.payment_status = "abandoned";
+        await booking.save();
 
-          // Prepare booking details for email
-          const bookingDetails = {
-            ticket_id: booking.ticket_id,
-            booking_date: booking.booking_date,
-            created_at: booking.created_at, // Direct access to created_at
-            gross_total: booking.gross_total || booking.dataValues.amount,
-            currency: booking.currency || "USD",
-          };
+        const tx = await Transaction.findOne({
+          where: { booking_id: booking.id, status: "unpaid" },
+        });
 
-          console.log("BOOOKING DETAILS", bookingDetails);
-
-          // Send reminder email to customer
-          await sendUnpaidReminderEmail(
-            customerEmail,
-            bookingDetails,
-            reminderLevel
-          );
-
-          // If agent email exists, send reminder to agent as well
-          if (agentEmail) {
-            await sendUnpaidReminderEmailToAgent(
-              agentEmail,
-              customerEmail,
-              bookingDetails,
-              reminderLevel
-            );
-          }
-
-          console.log(
-            `✅ Reminder email #${reminderLevel} successfully sent to customer: ${customerEmail} and agent: ${
-              agentEmail || "N/A"
-            } for booking ID: ${booking.id}`
-          );
-          return { success: true, email: customerEmail };
-        } catch (error) {
-          console.error(
-            `❌ Failed to send email for booking ID: ${booking.id}`,
-            error
-          );
-          return {
-            success: false,
-            bookingId: booking.id,
-            error: error.message,
-          };
+        if (tx) {
+          tx.status = "cancelled";
+          await tx.save();
         }
-      }
-    );
 
-    // Wait for all emails in the batch to complete
-    const results = await Promise.all(emailPromises);
-    console.log(
-      `Batch ${Math.floor(i / BATCH_SIZE) + 1} completed. ` +
-        `Success: ${results.filter((r) => r.success).length}, ` +
-        `Failed: ${results.filter((r) => !r.success).length}`
-    );
-
-    // Wait a moment before processing the next batch to avoid throttling
-    if (i + BATCH_SIZE < bookingsNeedingReminders.length) {
-      console.log(`Waiting ${BATCH_DELAY}ms before processing next batch...`);
-      await delay(BATCH_DELAY);
-    }
-  }
-}
-
-/**
- * Function to cancel unpaid bookings that are past the cancellation hour
- * @param {Array} bookingsToCancel - Array of bookings to cancel
- */
-async function cancelUnpaidBookings(bookingsToCancel) {
-  console.log(
-    `✅ Starting process to cancel unpaid bookings > ${CANCELLATION_HOUR} hours...`
-  );
-
-  for (const booking of bookingsToCancel) {
-    try {
-      // 1. Release the reserved seats
-      await releaseSeats(booking);
-
-      // 2. Update booking status to 'cancelled'
-      booking.payment_status = "cancelled";
-      await booking.save();
-
-      // 3. Update related transaction status
-      const transaction = await Transaction.findOne({
-        where: { booking_id: booking.id, status: "unpaid" },
-      });
-
-      if (transaction) {
-        transaction.status = "cancelled";
-        await transaction.save();
-        console.log(
-          `Transaction ID ${transaction.transaction_id} has been canceled.`
-        );
-      }
-
-      // 4. Send cancellation notification to customer
-      const customerEmail = booking.contact_email;
-      if (customerEmail) {
+        await releaseBookingSeats(booking);
         await sendCancellationEmail(customerEmail, booking);
+        if (agentEmail) {
+          await sendCancellationEmailToAgent(agentEmail, customerEmail, booking);
+        }
+
+        if (enableLogging) {
+          console.log(`❌ Booking ID ${booking.id} expired and marked as abandoned.`);
+        }
+        continue;
+      } catch (err) {
+        console.error(`❌ Error cancelling booking ID ${booking.id}:`, err);
+        continue;
       }
-
-      // 5. Send cancellation notification to agent with rebooking instructions
-      const agentEmail = booking.agent_email || booking.agent?.email;
-      if (agentEmail) {
-        await sendCancellationEmailToAgent(agentEmail, customerEmail, booking);
-      }
-
-      console.log(
-        `✅ Booking ID ${booking.id} (ticket ID: ${booking.ticket_id}) has been successfully canceled.`
-      );
-    } catch (error) {
-      console.error(`❌ Failed to cancel booking ID: ${booking.id}`, error);
-    }
-  }
-}
-
-// Function to release seats - using the same code from releaseSeats in cronJobs.js
-
-
-
-// Function to release seats - using the same code from releaseSeats in cronJobs.js
-const releaseSeats = async (booking, transaction) => {
-  const { schedule_id, subschedule_id, total_passengers, booking_date } =
-    booking;
-
-  console.log(`✅ STARTING RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
-
-  try {
-    // Import functions from other modules
-    const releaseMainScheduleSeats = require("../util/releaseMainScheduleSeats");
-    const releaseSubScheduleSeats = require("../util/releaseSubScheduleSeats");
-
-    if (subschedule_id) {
-      // If SubSchedule exists, return seats for SubSchedule
-      await releaseSubScheduleSeats(
-        schedule_id,
-        subschedule_id,
-        booking_date,
-        total_passengers,
-        transaction
-      );
-    } else {
-      // If Main Schedule, return seats for Main Schedule
-      await releaseMainScheduleSeats(
-        schedule_id,
-        booking_date,
-        total_passengers,
-        transaction
-      );
     }
 
-    console.log(
-      `🎉Successfully released ${total_passengers} seats for Booking ID: ${booking.id}🎉`
+    // === 2. SEND NEXT REMINDER IF NEEDED ===
+    const nextReminder = reminderLevels.find(
+      (h) => h > booking.reminder_hours && h <= hoursSince
     );
-  } catch (error) {
-    console.error(
-      `Failed to release seats for Booking ID: ${booking.id}`,
-      error
-    );
-    throw error;
+
+    if (nextReminder) {
+      const reminderIndex = reminderLevels.indexOf(nextReminder) + 1;
+
+      try {
+        await sendUnpaidReminderEmail(customerEmail, booking, reminderIndex);
+        if (agentEmail) {
+          await sendUnpaidReminderEmailToAgent(agentEmail, customerEmail, booking, reminderIndex);
+        }
+
+        booking.reminder_hours = nextReminder;
+        await booking.save();
+
+        if (enableLogging) {
+          console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id}`);
+        }
+      } catch (err) {
+        console.error(`❌ Failed to send reminder for Booking ID ${booking.id}:`, err);
+      }
+    }
   }
 };
 
-// Schedule cron job with configurable frequency
-const cronSchedule = process.env.UNPAID_REMINDER_CRON || "0 * * * *"; // Default: every hour
+// 🕒 Run cron job on schedule
 cron.schedule(cronSchedule, async () => {
-  console.log(
-    `🕒 Running unpaid reminder cronjob with schedule: ${cronSchedule}`
-  );
+  if (enableLogging) {
+    console.log(`🕒 Running unpaid reminder cron job: ${cronSchedule}`);
+  }
   await sendUnpaidReminders();
 });
 
 module.exports = {
-  // sendUnpaidReminders,
+  sendUnpaidReminders,
 
-  cancelUnpaidBookings,
 };

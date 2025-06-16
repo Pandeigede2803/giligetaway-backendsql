@@ -1,7 +1,24 @@
-const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,SubSchedule,Transaction, Passenger,Transit, TransportBooking, AgentMetrics, Agent, BookingSeatAvailability, Boat, AgentCommission } = require('../models');
+const {
+  sequelize,
+  Booking,
+  SeatAvailability,
+  Destination,
+  Transport,
+  Schedule,
+  SubSchedule,
+  Transaction,
+  Passenger,
+  Transit,
+  TransportBooking,
+  AgentMetrics,
+  Agent,
+  BookingSeatAvailability,
+  Boat,
+  AgentCommission,
+  WaitingList,
+} = require("../models");
 
-
-const {buildRouteFromSchedule} = require('../util/buildRoute');
+const { buildRouteFromSchedule } = require("../util/buildRoute");
 const findSeatAvailabilityWithDetails = async (id) => {
   try {
     const seatAvailability = await SeatAvailability.findOne({
@@ -9,68 +26,92 @@ const findSeatAvailabilityWithDetails = async (id) => {
       include: [
         {
           model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
+          as: "BookingSeatAvailabilities",
           include: [
             {
               model: Booking,
-              where: { payment_status: ['paid', 'invoiced','unpaid','pending',"refund_50","cancel_100_charge"] },
+              where: {
+                payment_status: [
+                  "paid",
+                  "invoiced",
+                  "unpaid",
+                  "pending",
+                  "refund_50",
+                  "cancel_100_charge",
+                ],
+              },
               attributes: { exclude: [] }, // Include all attributes
               include: [
                 {
                   model: Passenger,
-                  as: 'passengers',
+                  as: "passengers",
                   include: [
                     {
                       model: Booking,
-                      as: 'booking',
-                      attributes: ['id', 'schedule_id', 'subschedule_id'],
+                      as: "booking",
+                      attributes: ["id", "schedule_id", "subschedule_id"],
                     },
                   ],
                 },
                 {
                   model: AgentCommission,
-                  as: 'agentCommission',
+                  as: "agentCommission",
                 },
                 {
                   model: TransportBooking,
-                  as: 'transportBookings',
-                  attributes: ['id', 'booking_id', 'transport_id', 'quantity', 'transport_price', 'transport_type', 'note',"payment_status","payment_method"],
+                  as: "transportBookings",
+                  attributes: [
+                    "id",
+                    "booking_id",
+                    "transport_id",
+                    "quantity",
+                    "transport_price",
+                    "transport_type",
+                    "note",
+                    "payment_status",
+                    "payment_method",
+                  ],
                   include: [
                     {
                       model: Transport,
-                      as: 'transport',
+                      as: "transport",
                     },
                   ],
                 },
                 {
                   model: Agent,
-                  as: 'Agent',
-                  attributes: ['id', 'name', 'email', 'phone'],
+                  as: "Agent",
+                  attributes: ["id", "name", "email", "phone"],
                 },
+          
                 {
                   model: Schedule,
-                  as: 'schedule',
-                  attributes: ['id', 'destination_from_id', 'destination_to_id'],
+                  as: "schedule",
+                  attributes: [
+                    "id",
+                    "destination_from_id",
+                    "destination_to_id",
+                  ],
                   include: [
                     {
                       model: Destination,
-                      as: 'FromDestination',
-                      attributes: ['name'],
+                      as: "FromDestination",
+                      attributes: ["name"],
                     },
                     {
                       model: Destination,
-                      as: 'ToDestination',
-                      attributes: ['name'],
+                      as: "ToDestination",
+                      attributes: ["name"],
                     },
                     {
                       model: Transit,
-                      as: 'Transits',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      as: "Transits",
+                      attributes: ["id", "schedule_id", "destination_id"],
                       include: [
                         {
                           model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
+                          as: "Destination",
+                          attributes: ["name"],
                         },
                       ],
                     },
@@ -78,40 +119,40 @@ const findSeatAvailabilityWithDetails = async (id) => {
                 },
                 {
                   model: SubSchedule,
-                  as: 'subSchedule',
-                  attributes: ['id'],
+                  as: "subSchedule",
+                  attributes: ["id"],
                   include: [
                     {
                       model: Destination,
-                      as: 'DestinationFrom',
-                      attributes: ['name'],
+                      as: "DestinationFrom",
+                      attributes: ["name"],
                     },
                     {
                       model: Destination,
-                      as: 'DestinationTo',
-                      attributes: ['name'],
+                      as: "DestinationTo",
+                      attributes: ["name"],
                     },
                     {
                       model: Transit,
-                      as: 'TransitFrom',
-                      attributes: ['id', 'schedule_id', 'destination_id'],
+                      as: "TransitFrom",
+                      attributes: ["id", "schedule_id", "destination_id"],
                       include: [
                         {
                           model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
+                          as: "Destination",
+                          attributes: ["name"],
                         },
                       ],
                     },
                     {
                       model: Transit,
-                      as: 'TransitTo',
-                      attributes: ['id'],
+                      as: "TransitTo",
+                      attributes: ["id"],
                       include: [
                         {
                           model: Destination,
-                          as: 'Destination',
-                          attributes: ['name'],
+                          as: "Destination",
+                          attributes: ["name"],
                         },
                       ],
                     },
@@ -121,30 +162,31 @@ const findSeatAvailabilityWithDetails = async (id) => {
             },
           ],
         },
+              { model: WaitingList, as: "WaitingLists" },
         {
           model: Schedule,
-          as: 'Schedule',
-          attributes: ['id', 'destination_from_id', 'destination_to_id'],
+          as: "Schedule",
+          attributes: ["id", "destination_from_id", "destination_to_id"],
           include: [
             {
               model: Destination,
-              as: 'FromDestination',
-              attributes: ['name'],
+              as: "FromDestination",
+              attributes: ["name"],
             },
             {
               model: Destination,
-              as: 'ToDestination',
-              attributes: ['name'],
+              as: "ToDestination",
+              attributes: ["name"],
             },
             {
               model: Transit,
-              as: 'Transits',
-              attributes: ['id', 'schedule_id', 'destination_id'],
+              as: "Transits",
+              attributes: ["id", "schedule_id", "destination_id"],
               include: [
                 {
                   model: Destination,
-                  as: 'Destination',
-                  attributes: ['name'],
+                  as: "Destination",
+                  attributes: ["name"],
                 },
               ],
             },
@@ -152,40 +194,40 @@ const findSeatAvailabilityWithDetails = async (id) => {
         },
         {
           model: SubSchedule,
-          as: 'SubSchedule',
-          attributes: ['id'],
+          as: "SubSchedule",
+          attributes: ["id"],
           include: [
             {
               model: Destination,
-              as: 'DestinationFrom',
-              attributes: ['name'],
+              as: "DestinationFrom",
+              attributes: ["name"],
             },
             {
               model: Destination,
-              as: 'DestinationTo',
-              attributes: ['name'],
+              as: "DestinationTo",
+              attributes: ["name"],
             },
             {
               model: Transit,
-              as: 'TransitFrom',
-              attributes: ['id', 'schedule_id', 'destination_id'],
+              as: "TransitFrom",
+              attributes: ["id", "schedule_id", "destination_id"],
               include: [
                 {
                   model: Destination,
-                  as: 'Destination',
-                  attributes: ['name'],
+                  as: "Destination",
+                  attributes: ["name"],
                 },
               ],
             },
             {
               model: Transit,
-              as: 'TransitTo',
-              attributes: ['id'],
+              as: "TransitTo",
+              attributes: ["id"],
               include: [
                 {
                   model: Destination,
-                  as: 'Destination',
-                  attributes: ['name'],
+                  as: "Destination",
+                  attributes: ["name"],
                 },
               ],
             },
@@ -201,16 +243,21 @@ const findSeatAvailabilityWithDetails = async (id) => {
     // console.log('Seat availability details:', JSON.stringify(seatAvailability, null, 2));
     seatAvailability.BookingSeatAvailabilities.forEach((bookingSeat) => {
       const booking = bookingSeat.Booking;
-    
+
       if (booking) {
         // ✅ Ensure `passengers` array exists
-        const passengerCount = booking.passengers ? booking.passengers.length : 0;
+        const passengerCount = booking.passengers
+          ? booking.passengers.length
+          : 0;
         booking.setDataValue("passenger_count", passengerCount);
-    
+
         // ✅ Ensure `route` is calculated correctly
-        const route = buildRouteFromSchedule(booking.schedule, booking.subSchedule);
+        const route = buildRouteFromSchedule(
+          booking.schedule,
+          booking.subSchedule
+        );
         booking.setDataValue("route", route);
-    
+
         // 🔍 Debugging Log - Check the Data Before Returning
         // console.log("Updated Booking with Route & Passenger Count:", {
         //   id: booking.id,
@@ -219,12 +266,11 @@ const findSeatAvailabilityWithDetails = async (id) => {
         // });
       }
     });
-    
 
     return seatAvailability;
   } catch (error) {
-    console.error('Error fetching seat availability details:', error);
-    throw new Error('Database query failed');
+    console.error("Error fetching seat availability details:", error);
+    throw new Error("Database query failed");
   }
 };
 

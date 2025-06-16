@@ -300,7 +300,7 @@ const checkAndNotifyWaitingList = async () => {
     const currentDate = new Date();
     const today = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    console.log(`📅 Checking waiting list for booking dates from today: ${today}`);
+    // console.log(`📅 Checking waiting list for booking dates from today: ${today}`);
 
     // Cari semua waiting list dengan status 'pending' dan booking_date >= today
     const pendingWaitingList = await WaitingList.findAll({
@@ -389,11 +389,11 @@ const checkAndNotifyWaitingList = async () => {
         const bookingDayOfWeek = bookingDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
         const dayBitValue = Math.pow(2, bookingDayOfWeek); // Convert day to bit value
         
-        console.log(`🗓️ Checking days_of_week for entry ${entry.id}:`);
-        console.log(`   - Booking date: ${entry.booking_date} (${getDayName(bookingDayOfWeek)})`);
-        console.log(`   - Schedule days_of_week: ${daysOfWeek} (${getDayOfWeekText(daysOfWeek)})`);
-        console.log(`   - Day bit value: ${dayBitValue}`);
-        console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
+        // console.log(`🗓️ Checking days_of_week for entry ${entry.id}:`);
+        // console.log(`   - Booking date: ${entry.booking_date} (${getDayName(bookingDayOfWeek)})`);
+        // console.log(`   - Schedule days_of_week: ${daysOfWeek} (${getDayOfWeekText(daysOfWeek)})`);
+        // console.log(`   - Day bit value: ${dayBitValue}`);
+        // console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
         
         if ((daysOfWeek & dayBitValue) === 0) {
           console.log(`❌ Entry ${entry.id} - Schedule does NOT operate on ${getDayName(bookingDayOfWeek)}`);
@@ -419,8 +419,8 @@ const checkAndNotifyWaitingList = async () => {
         
       } else {
         console.log(`❌ Entry ${entry.id} - INVALID: ${invalidReason}`);
-        console.log(`   👤 Customer: ${entry.contact_name} (${entry.contact_email})`);
-        console.log(`   🛤️ Route info: ${entry.follow_up_notes || 'N/A'}`);
+        // console.log(`   👤 Customer: ${entry.contact_name} (${entry.contact_email})`);
+        // console.log(`   🛤️ Route info: ${entry.follow_up_notes || 'N/A'}`);
         
         // Mark untuk update status ke 'contacted' (akan kirim follow-up email)
         invalidWaitingListIds.push(entry.id);
@@ -428,9 +428,9 @@ const checkAndNotifyWaitingList = async () => {
       }
     }
 
-    console.log(`\n📊 Validation Summary:`);
-    console.log(`   ✅ Valid entries (within validity period AND correct day of week): ${validEntries}`);
-    console.log(`   ❌ Invalid entries (outside validity period OR wrong day of week): ${invalidEntries}`);
+    // console.log(`\n📊 Validation Summary:`);
+    // console.log(`   ✅ Valid entries (within validity period AND correct day of week): ${validEntries}`);
+    // console.log(`   ❌ Invalid entries (outside validity period OR wrong day of week): ${invalidEntries}`);
 
     // Process invalid entries - Send follow-up emails dan update status
     if (invalidWaitingListIds.length > 0) {
@@ -566,10 +566,10 @@ const checkAndNotifyWaitingList = async () => {
     }
 
     console.log(`\n🎉 Cron waiting list check completed`);
-    console.log(`📊 Processed ${processedGroups.length} groups with notifications`);
-    console.log(`📧 Total customers notified (valid entries): ${totalNotified}`);
-    console.log(`📤 Follow-up emails sent (invalid entries): ${followUpEmailsSent}`);
-    console.log(`⚠️ Invalid entries processed: ${invalidEntries}`);
+    // console.log(`📊 Processed ${processedGroups.length} groups with notifications`);
+    // console.log(`📧 Total customers notified (valid entries): ${totalNotified}`);
+    // console.log(`📤 Follow-up emails sent (invalid entries): ${followUpEmailsSent}`);
+    // console.log(`⚠️ Invalid entries processed: ${invalidEntries}`);
 
     return {
       success: true,

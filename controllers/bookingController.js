@@ -33,8 +33,8 @@ const {
   handleSubScheduleBooking,
 } = require("../util/handleSubScheduleBooking");
 
-  // Tambahkan import di bagian atas file controller
-const { waitingListNotify } = require('../util/waitingListNotify');
+// Tambahkan import di bagian atas file controller
+const { waitingListNotify } = require("../util/waitingListNotify");
 const calculateDepartureAndArrivalTimes = require("../util/calculateDepartureAndArrivalTime");
 const moment = require("moment"); // Use moment.js for date formatting
 const cronJobs = require("../util/cronJobs");
@@ -1254,9 +1254,9 @@ const createBookingWithTransitQueue = async (req, res) => {
         t
       );
 
-       // Step 3: Add Passengers
-   
-    // await addPassengers(passengers, booking.id, t);
+      // Step 3: Add Passengers
+
+      // await addPassengers(passengers, booking.id, t);
 
       console.log(`Initial transaction created for booking ID: ${booking.id}`);
 
@@ -1384,9 +1384,9 @@ bookingQueue.process(async (job, done) => {
       console.log("No seat availabilities found.");
     }
 
-       // Step 3: Add Passengers
-       console.log(`Adding passengers for booking_id ${booking_id}`);
-       await addPassengers(passengers, booking_id, transaction);
+    // Step 3: Add Passengers
+    console.log(`Adding passengers for booking_id ${booking_id}`);
+    await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings
     console.log(`Adding transport bookings for booking_id ${booking_id}`);
@@ -1598,7 +1598,7 @@ const getBookingById = async (req, res) => {
       {
         model: AgentCommission,
         as: "agentCommission",
-        attributes: ["id", "agent_id", "amount","created_at", "updated_at"],
+        attributes: ["id", "agent_id", "amount", "created_at", "updated_at"],
       },
       {
         model: SubSchedule,
@@ -2180,13 +2180,13 @@ const getFilteredBookings = async (req, res) => {
       // console.log("Filtering by date range:", fromDate, toDate);
       const fromDateObj = new Date(fromDate);
       const toDateObj = new Date(toDate);
-    
+
       if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
         return res
           .status(400)
           .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
       }
-    
+
       dateFilter = {
         created_at: {
           [Op.between]: [fromDateObj, toDateObj],
@@ -2195,13 +2195,13 @@ const getFilteredBookings = async (req, res) => {
     } else if (fromBookingDate && toBookingDate) {
       const fromDateObj = new Date(fromBookingDate);
       const toDateObj = new Date(toBookingDate);
-    
+
       if (isNaN(fromDateObj.getTime()) || isNaN(toDateObj.getTime())) {
         return res
           .status(400)
           .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
       }
-    
+
       dateFilter = {
         booking_date: {
           [Op.between]: [fromDateObj, toDateObj],
@@ -2411,34 +2411,37 @@ const getFilteredBookingsPagination = async (req, res) => {
       // Build up the where clause with all other filters
 
       // Add payment_status filter if provided
-   // Dengan kode berikut:
+      // Dengan kode berikut:
       // Payment status filter
-// Jadi ini:  
-// Add payment_status filter if provided
-// Tambahkan debug ini di controller sebelum query:
-if (payment_status) {
-  console.log("😻 ORIGINAL payment_status:", payment_status);
-  
-  if (payment_status.includes('&') || payment_status.includes(',')) {
-    const statusArray = payment_status.split(/[&,]/);
-    console.log("😻 SPLIT statusArray:", statusArray);
-    
-    // ✅ FILTER array untuk remove empty strings
-    const cleanStatusArray = statusArray.filter(status => status.trim() !== '');
-    console.log("😻 CLEAN statusArray:", cleanStatusArray);
-    
-    whereClause.payment_status = {
-      [Op.in]: cleanStatusArray
-    };
-  } else {
-    console.log("😻 SINGLE payment_status:", payment_status);
-    whereClause.payment_status = payment_status;
-  }
-  
-  console.log("😻 FINAL whereClause.payment_status:", whereClause.payment_status);
-}
+      // Jadi ini:
+      // Add payment_status filter if provided
+      // Tambahkan debug ini di controller sebelum query:
+      if (payment_status) {
+        console.log("😻 ORIGINAL payment_status:", payment_status);
 
+        if (payment_status.includes("&") || payment_status.includes(",")) {
+          const statusArray = payment_status.split(/[&,]/);
+          console.log("😻 SPLIT statusArray:", statusArray);
 
+          // ✅ FILTER array untuk remove empty strings
+          const cleanStatusArray = statusArray.filter(
+            (status) => status.trim() !== ""
+          );
+          console.log("😻 CLEAN statusArray:", cleanStatusArray);
+
+          whereClause.payment_status = {
+            [Op.in]: cleanStatusArray,
+          };
+        } else {
+          console.log("😻 SINGLE payment_status:", payment_status);
+          whereClause.payment_status = payment_status;
+        }
+
+        console.log(
+          "😻 FINAL whereClause.payment_status:",
+          whereClause.payment_status
+        );
+      }
 
       // Add booking_source filter if provided
       if (booking_source) {
@@ -2455,11 +2458,9 @@ if (payment_status) {
       if (booking_month) {
         const [year, month] = booking_month.split("-");
         if (!year || !month || isNaN(year) || isNaN(month)) {
-          return res
-            .status(400)
-            .json({
-              error: "Invalid booking_month filter format. Use YYYY-MM.",
-            });
+          return res.status(400).json({
+            error: "Invalid booking_month filter format. Use YYYY-MM.",
+          });
         }
 
         whereClause.booking_date = {
@@ -2491,17 +2492,22 @@ if (payment_status) {
         };
       } else if (fromBookingDate && toBookingDate) {
         // ✅ Use string format like metrics controller
-        const fromDate = moment(fromBookingDate).startOf('day').format('YYYY-MM-DD HH:mm:ss');
-        const toDate = moment(toBookingDate).endOf('day').format('YYYY-MM-DD HH:mm:ss');
-      
-        if (!moment(fromBookingDate).isValid() || !moment(toBookingDate).isValid()) {
-          return res
-            .status(400)
-            .json({
-              error: "Invalid date range filter format. Use YYYY-MM-DD.",
-            });
+        const fromDate = moment(fromBookingDate)
+          .startOf("day")
+          .format("YYYY-MM-DD HH:mm:ss");
+        const toDate = moment(toBookingDate)
+          .endOf("day")
+          .format("YYYY-MM-DD HH:mm:ss");
+
+        if (
+          !moment(fromBookingDate).isValid() ||
+          !moment(toBookingDate).isValid()
+        ) {
+          return res.status(400).json({
+            error: "Invalid date range filter format. Use YYYY-MM-DD.",
+          });
         }
-      
+
         whereClause.booking_date = {
           [Op.between]: [fromDate, toDate],
         };
@@ -2543,14 +2549,12 @@ if (payment_status) {
             new Date(year, month - 1, dayValue, 23, 59, 59), // Akhir hari
           ],
         };
-      }
-      
-      else if (fromDate && toDate) {
+      } else if (fromDate && toDate) {
         // Jika `fromDate` dan `toDate` ada, filter berdasarkan range created_at
         console.log("Filtering by date range:", fromDate, toDate);
 
-        const fromDateObj = moment(fromDate).startOf('day').toDate(); // 2025-05-19 00:00:00
-        const toDateObj = moment(toDate).endOf('day').toDate();       // 2025-05-22 23:59:59.999
+        const fromDateObj = moment(fromDate).startOf("day").toDate(); // 2025-05-19 00:00:00
+        const toDateObj = moment(toDate).endOf("day").toDate(); // 2025-05-22 23:59:59.999
 
         console.log("FROM DATE", fromDateObj);
         console.log("TO DATE", toDateObj);
@@ -2558,7 +2562,9 @@ if (payment_status) {
         if (!fromDateObj || !toDateObj) {
           return res
             .status(400)
-            .json({ error: "Invalid date range filter format. Use YYYY-MM-DD." });
+            .json({
+              error: "Invalid date range filter format. Use YYYY-MM-DD.",
+            });
         }
 
         whereClause.created_at = {
@@ -2698,10 +2704,7 @@ if (payment_status) {
       },
     ];
 
-  
-
     // Add boat filter if provided
- 
 
     // First count total records matching the filters (for pagination)
     const totalCount = await Booking.count({
@@ -2757,34 +2760,41 @@ if (payment_status) {
       order: [["created_at", "DESC"]], // Order by created_at descending
     });
 
- // ✅ BOAT FILTER - SETELAH bookings defined
-let filteredBookings = bookings;
+    // ✅ BOAT FILTER - SETELAH bookings defined
+    let filteredBookings = bookings;
 
-if (boat) {
-  const boatId = parseInt(boat);
-  
-  if (boatId && [1, 2, 3].includes(boatId)) {
-    filteredBookings = bookings.filter(booking => 
-      booking.schedule?.boat_id === boatId
-    );
-    
-    console.log("😻 BOAT FILTER:", boatId, 
-      "- Filtered", bookings.length, "→", filteredBookings.length);
-  }
-}
+    if (boat) {
+      const boatId = parseInt(boat);
 
-// ✅ ENRICHED BOOKINGS dari hasil yang sudah di-filter
-const enrichedBookings = filteredBookings.map((booking) => {
-  const schedule = booking.schedule || null;
-  const subSchedule = booking.subSchedule || null;
-  const route = schedule ? buildRouteFromSchedule(schedule, subSchedule) : null;
+      if (boatId && [1, 2, 3].includes(boatId)) {
+        filteredBookings = bookings.filter(
+          (booking) => booking.schedule?.boat_id === boatId
+        );
 
-  return {
-    ...booking.dataValues,
-    route,
-  };
-});
- 
+        console.log(
+          "😻 BOAT FILTER:",
+          boatId,
+          "- Filtered",
+          bookings.length,
+          "→",
+          filteredBookings.length
+        );
+      }
+    }
+
+    // ✅ ENRICHED BOOKINGS dari hasil yang sudah di-filter
+    const enrichedBookings = filteredBookings.map((booking) => {
+      const schedule = booking.schedule || null;
+      const subSchedule = booking.subSchedule || null;
+      const route = schedule
+        ? buildRouteFromSchedule(schedule, subSchedule)
+        : null;
+
+      return {
+        ...booking.dataValues,
+        route,
+      };
+    });
 
     // Send the response with pagination metadata
     res.status(200).json({
@@ -3288,7 +3298,9 @@ const getBookingByTicketId = async (req, res) => {
   console.log("start to get booking by ticket id");
   try {
     const booking = await Booking.findOne({
-      where: { ticket_id: req.params.ticket_id },
+      where: {
+        ticket_id: req.params.ticket_id,
+      },
       include: [
         {
           model: Transaction,
@@ -3481,11 +3493,19 @@ const getBookingByTicketId = async (req, res) => {
         enhancedBooking.passengers = passengersWithAvailability;
 
         // Check if any passenger has a seat availability issue
-        const hasUnavailableSeat = enhancedBooking.passengers.some(
+        let hasUnavailableSeat = enhancedBooking.passengers.some(
           (passenger) => passenger.seatNumberAvailability === false
         );
 
-        // Add overall availability flag to the main response
+        // Exception rule: if payment_status is 'unpaid' and method is 'collect from customer', skip seat availability check
+        const isCollectMethodUnpaid =
+          booking.payment_status === "unpaid" &&
+          booking.payment_method?.toLowerCase() === "collect from customer";
+
+        if (isCollectMethodUnpaid) {
+          hasUnavailableSeat = false;
+        }
+
         enhancedBooking.availability = !hasUnavailableSeat;
       }
 
@@ -3742,6 +3762,15 @@ const getRelatedBookingsByTicketId = async (req, res) => {
             }
           }
         }
+      }
+
+      // Exception rule: if payment_status is 'unpaid' and method is 'collect from customer', skip seat availability check
+      const isCollectMethodUnpaid =
+        booking.payment_status === "unpaid" &&
+        booking.payment_method?.toLowerCase() === "collect from customer";
+
+      if (isCollectMethodUnpaid) {
+        hasUnavailableSeat = false;
       }
 
       // Add availability flag to the booking object
@@ -4454,70 +4483,67 @@ const updateBookingPayment = async (req, res) => {
         //   booking_date: booking.booking_date
         // });
 
-try {
-  const releasedSeatIds = await releaseBookingSeats(booking.id, t);
-  console.log(
-    `✅ Released seats: ${
-      releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
-    }`
-  );
+        try {
+          const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+          console.log(
+            `✅ Released seats: ${
+              releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
+            }`
+          );
 
-  console.log("\n✅ Refund process completed successfully");
+          console.log("\n✅ Refund process completed successfully");
 
-  // Send email notification
-  if (booking.contact_email) {
-    console.log(
-      `\n📧 Sending email notification to ${booking.contact_email}...`
-    );
-    console.log(`start to send the email ${booking.contact_email}`);
-    
-    sendPaymentEmail(
-      booking.contact_email,
-      booking,
-      payment_method,
-      payment_status,
-      refundAmount,
-      refundAmountUSD
-    );
-    
-    console.log(`📧 Payment email sent to ${booking.contact_email}`);
-  }
+          // Send email notification
+          if (booking.contact_email) {
+            console.log(
+              `\n📧 Sending email notification to ${booking.contact_email}...`
+            );
+            console.log(`start to send the email ${booking.contact_email}`);
 
-  return res.status(200).json({
-    message: `${
-      payment_status === "refund_50" ? "50%" : "Full"
-    } refund processed successfully`,
-    data: {
-      booking_id: booking.id,
-      refund_amount: refundAmount,
-      refund_amount_usd: refundAmountUSD,
-      new_gross_total: newGrossTotal,
-      new_gross_total_usd: newGrossTotalUSD,
-      new_payment_status: payment_status,
-      released_seats: releasedSeatIds,
-    },
-  });
-  
-} catch (releaseError) {
-  console.error("\n❌ Error releasing seats:", releaseError);
+            sendPaymentEmail(
+              booking.contact_email,
+              booking,
+              payment_method,
+              payment_status,
+              refundAmount,
+              refundAmountUSD
+            );
 
-  return res.status(200).json({
-    message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
-    data: {
-      booking_id: booking.id,
-      payment_status,
-      refund_amount: refundAmount,
-      refund_amount_usd: refundAmountUSD,
-      new_gross_total: newGrossTotal,
-      new_gross_total_usd: newGrossTotalUSD,
-      error: releaseError.message,
-    },
-  });
+            console.log(`📧 Payment email sent to ${booking.contact_email}`);
+          }
+
+          return res.status(200).json({
+            message: `${
+              payment_status === "refund_50" ? "50%" : "Full"
+            } refund processed successfully`,
+            data: {
+              booking_id: booking.id,
+              refund_amount: refundAmount,
+              refund_amount_usd: refundAmountUSD,
+              new_gross_total: newGrossTotal,
+              new_gross_total_usd: newGrossTotalUSD,
+              new_payment_status: payment_status,
+              released_seats: releasedSeatIds,
+            },
+          });
+        } catch (releaseError) {
+          console.error("\n❌ Error releasing seats:", releaseError);
+
+          return res.status(200).json({
+            message: `${payment_status === "refund_50" ? "50%" : "Full"} refund processed but had issues releasing seats`,
+            data: {
+              booking_id: booking.id,
+              payment_status,
+              refund_amount: refundAmount,
+              refund_amount_usd: refundAmountUSD,
+              new_gross_total: newGrossTotal,
+              new_gross_total_usd: newGrossTotalUSD,
+              error: releaseError.message,
+            },
+          });
         }
-}
+      }
 
-
-      
       // === HANDLE REGULAR PAYMENT UPDATES ===
       else if (payment_method || payment_status) {
         console.log("\n🔄 Updating regular payment details...");
@@ -5737,13 +5763,12 @@ const cancelBooking = async (req, res) => {
         include: [
           {
             model: Agent,
-            as: 'Agent', // sesuaikan dengan alias jika pakai `as` di relasi
-            attributes: ['email'],
+            as: "Agent", // sesuaikan dengan alias jika pakai `as` di relasi
+            attributes: ["email"],
           },
         ],
         transaction: t,
       });
-      
 
       if (!booking) {
         console.log("❌ Booking not found");
@@ -5770,8 +5795,6 @@ const cancelBooking = async (req, res) => {
         }`
       );
 
-     
-
       // 3. Update payment_status menjadi 'cancelled'
       //    (Opsional: set gross_total = 0, dsb. jika ada kebijakan refund total)
       console.log("\n🔄 Updating booking to cancelled status...");
@@ -5784,8 +5807,8 @@ const cancelBooking = async (req, res) => {
         { transaction: t }
       );
 
-       // Send email notification
-       if (booking.contact_email) {
+      // Send email notification
+      if (booking.contact_email) {
         console.log(
           `\n📧 Sending email notification to ${booking.contact_email}...`
         );
@@ -6137,11 +6160,9 @@ const getAbandonedPaymentById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error retrieving abandoned payment:", error);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while fetching the abandoned payment.",
-      });
+    res.status(500).json({
+      error: "An error occurred while fetching the abandoned payment.",
+    });
   }
 };
 
@@ -6179,11 +6200,9 @@ const deleteAbandonedPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting abandoned payment:", error);
-    res
-      .status(500)
-      .json({
-        error: "An error occurred while deleting the abandoned payment.",
-      });
+    res.status(500).json({
+      error: "An error occurred while deleting the abandoned payment.",
+    });
   }
 };
 

@@ -816,8 +816,11 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
     try {
       // Fetch seat availability and related details
       const seatAvailability = await findSeatAvailabilityWithDetails(id);
+
+      console.log("🔍 DEBUG waitingLists untuk seatAvailability ID:", id);
+console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
    
-      // console.log("BookingSeatAvailabilities:", JSON.stringify(seatAvailability?.BookingSeatAvailabilities, null, 2));
+      // console.log("BookingSeatAvailabilities:", JSON.stringify(seatAvailability.waitingLists, null, 2));
 // console.log("Schedule jancuk:", JSON.stringify(seatAvailability?.Schedule, null, 2));
 // console.log("Availability:", JSON.stringify(seatAvailability?.availability, null, 2));
     
@@ -906,6 +909,7 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       seatAvailabilityStatus,
       relatedPassengers: passengers,
       realPassengers,
+            waitingLists: seatAvailability.WaitingLists || "no waiting list",
       realPassengerCount,
       passengerTypeCounts,
       relatedPassengerCount: passengers.length,
