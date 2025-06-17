@@ -1773,7 +1773,7 @@ const sendUnpaidReminderEmail = async (
         
         <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
           <p>This email is sent automatically, please do not reply to this email.</p>
-          <p>© ${new Date().getFullYear()} Your Company Name. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} Gili Getaway. All rights reserved.</p>
         </div>
       </div>
     `;
