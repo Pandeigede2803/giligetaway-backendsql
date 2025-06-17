@@ -249,14 +249,14 @@ const waitingListNotify = async (params, transaction = null) => {
       seat_availability_ids = []
     } = params;
 
-    console.log('\n🔔 === Starting Waiting List Notification ===');
-    console.log(`📝 Parameters:`, {
-      total_passengers,
-      schedule_id,
-      subschedule_id,
-      booking_date,
-      seat_availability_ids
-    });
+    // console.log('\n🔔 === Starting Waiting List Notification ===');
+    // console.log(`📝 Parameters:`, {
+    //   total_passengers,
+    //   schedule_id,
+    //   subschedule_id,
+    //   booking_date,
+    //   seat_availability_ids
+    // });
 
     // Validasi input - seat_availability_ids harus ada dan tidak kosong
     if (!seat_availability_ids || seat_availability_ids.length === 0) {
@@ -347,18 +347,18 @@ const waitingListNotify = async (params, transaction = null) => {
     const validEntries = [];
 
     for (const entry of waitingListEntries) {
-      console.log(`\n🔍 Validating entry ID: ${entry.id}`);
-      console.log(`- Required passengers: ${entry.total_passengers}`);
-      console.log(`- Seat availability ID: ${entry.seat_availability_id}`);
-      console.log(`- Booking date: ${entry.booking_date}`);
-      console.log(`- Route info: ${entry.follow_up_notes || 'N/A'}`);
+      // console.log(`\n🔍 Validating entry ID: ${entry.id}`);
+      // console.log(`- Required passengers: ${entry.total_passengers}`);
+      // console.log(`- Seat availability ID: ${entry.seat_availability_id}`);
+      // console.log(`- Booking date: ${entry.booking_date}`);
+      // console.log(`- Route info: ${entry.follow_up_notes || 'N/A'}`);
       
       const seatAvailability = entry.WaitingListSeatAvailability;
       const schedule = entry.WaitingListSchedule;
       
-      console.log(`- Available seats in system: ${seatAvailability?.available_seats || 0}`);
-      console.log(`- Schedule validity: ${schedule?.validity_start} to ${schedule?.validity_end}`);
-      console.log(`- Schedule days_of_week: ${schedule?.days_of_week} (${getDayOfWeekText(schedule?.days_of_week || 0)})`);
+      // console.log(`- Available seats in system: ${seatAvailability?.available_seats || 0}`);
+      // console.log(`- Schedule validity: ${schedule?.validity_start} to ${schedule?.validity_end}`);
+      // console.log(`- Schedule days_of_week: ${schedule?.days_of_week} (${getDayOfWeekText(schedule?.days_of_week || 0)})`);
 
       // Validasi 1: Apakah booking date masih valid (belum lewat)
       const entryBookingDate = new Date(entry.booking_date);
@@ -377,10 +377,10 @@ const waitingListNotify = async (params, transaction = null) => {
       const validityEnd = new Date(schedule.validity_end);
       
       if (entryBookingDate < validityStart || entryBookingDate > validityEnd) {
-        console.log(`❌ Booking date ${entry.booking_date} is OUTSIDE schedule validity period for entry ${entry.id}`);
-        console.log(`   📅 Schedule valid from: ${validityStart.toISOString().split('T')[0]} to ${validityEnd.toISOString().split('T')[0]}`);
-        console.log(`   📅 Requested booking date: ${entryBookingDate.toISOString().split('T')[0]}`);
-        console.log(`   ⚠️ This entry should not be notified - schedule not available on this date`);
+        // console.log(`❌ Booking date ${entry.booking_date} is OUTSIDE schedule validity period for entry ${entry.id}`);
+        // console.log(`   📅 Schedule valid from: ${validityStart.toISOString().split('T')[0]} to ${validityEnd.toISOString().split('T')[0]}`);
+        // console.log(`   📅 Requested booking date: ${entryBookingDate.toISOString().split('T')[0]}`);
+        // console.log(`   ⚠️ This entry should not be notified - schedule not available on this date`);
         continue;
       }
       console.log(`✅ Booking date is within schedule validity period`);
@@ -390,16 +390,16 @@ const waitingListNotify = async (params, transaction = null) => {
       const daysOfWeek = schedule.days_of_week || 0;
       const dayBitValue = Math.pow(2, bookingDayOfWeek); // Convert day to bit value
       
-      console.log(`🗓️ Checking days_of_week for entry ${entry.id}:`);
-      console.log(`   - Booking date: ${entry.booking_date} (${getDayName(bookingDayOfWeek)})`);
-      console.log(`   - Schedule days_of_week: ${daysOfWeek} (${getDayOfWeekText(daysOfWeek)})`);
-      console.log(`   - Day bit value: ${dayBitValue}`);
-      console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
+      // console.log(`🗓️ Checking days_of_week for entry ${entry.id}:`);
+      // console.log(`   - Booking date: ${entry.booking_date} (${getDayName(bookingDayOfWeek)})`);
+      // console.log(`   - Schedule days_of_week: ${daysOfWeek} (${getDayOfWeekText(daysOfWeek)})`);
+      // console.log(`   - Day bit value: ${dayBitValue}`);
+      // console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
       
       if ((daysOfWeek & dayBitValue) === 0) {
-        console.log(`❌ Schedule does NOT operate on ${getDayName(bookingDayOfWeek)} for entry ${entry.id}`);
-        console.log(`   📅 Schedule only operates on: ${getDayOfWeekText(daysOfWeek)}`);
-        console.log(`   ⚠️ This entry should not be notified - schedule not available on this day of week`);
+        // console.log(`❌ Schedule does NOT operate on ${getDayName(bookingDayOfWeek)} for entry ${entry.id}`);
+        // console.log(`   📅 Schedule only operates on: ${getDayOfWeekText(daysOfWeek)}`);
+        // console.log(`   ⚠️ This entry should not be notified - schedule not available on this day of week`);
         continue;
       }
       console.log(`✅ Schedule operates on ${getDayName(bookingDayOfWeek)}`);
@@ -434,10 +434,10 @@ const waitingListNotify = async (params, transaction = null) => {
     const staffEmail = process.env.EMAIL_BOOKING;
 
     for (const entry of validEntries) {
-      console.log(`📧 Preparing notifications for entry ID: ${entry.id}`);
-      console.log(`   - Customer: ${entry.contact_name} (${entry.contact_email})`);
-      console.log(`   - Booking date: ${entry.booking_date} (within schedule validity)`);
-      console.log(`   - Route: ${entry.follow_up_notes || 'N/A'}`);
+      // console.log(`📧 Preparing notifications for entry ID: ${entry.id}`);
+      // console.log(`   - Customer: ${entry.contact_name} (${entry.contact_email})`);
+      // console.log(`   - Booking date: ${entry.booking_date} (within schedule validity)`);
+      // console.log(`   - Route: ${entry.follow_up_notes || 'N/A'}`);
       
       // Send customer notification
       if (entry.contact_email) {

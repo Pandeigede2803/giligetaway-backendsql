@@ -381,7 +381,8 @@ const { create } = require("handlebars");
 
 
 
-const cronSchedule = process.env.UNPAID_CRON_SCHEDULE || "*/15 * * * *";
+const cronSchedule = process.env.UNPAID_CRON_SCHEDULE ||"*/15 * * * *";;
+console.log(`🔧 Unpaid reminder cron schedule: ${cronSchedule}`);
 const reminderLevels = process.env.UNPAID_REMINDER_HOURS
   ? process.env.UNPAID_REMINDER_HOURS.split(",").map((v) => parseInt(v.trim()))
   : [3, 6, 12];
@@ -410,36 +411,42 @@ const sendUnpaidReminders = async () => {
   for (const booking of bookings) {
     const createdAt = new Date(booking.created_at);
     const hoursSince = Math.floor((now - createdAt) / 36e5);
+    // const hoursSince = Math.floor((now - createdAt) / (60 * 1000)); // use minutes for dev testing
 
     const customerEmail = booking.contact_email || booking.email;
     const agentEmail = booking.Agent?.email || null;
 
     // === 1. CANCEL BOOKING IF EXPIRED ===
     if (hoursSince >= expiryHour) {
+      const sequelizeTx = await sequelize.transaction();
       try {
         booking.payment_status = "abandoned";
-        await booking.save();
+        await booking.save({ transaction: sequelizeTx });
 
         const tx = await Transaction.findOne({
           where: { booking_id: booking.id, status: "unpaid" },
+          transaction: sequelizeTx,
         });
 
         if (tx) {
           tx.status = "cancelled";
-          await tx.save();
+          await tx.save({ transaction: sequelizeTx });
         }
 
-        await releaseBookingSeats(booking);
+        await releaseBookingSeats(booking.id, sequelizeTx);
         await sendCancellationEmail(customerEmail, booking);
         if (agentEmail) {
           await sendCancellationEmailToAgent(agentEmail, customerEmail, booking);
         }
+
+        await sequelizeTx.commit();
 
         if (enableLogging) {
           console.log(`❌ Booking ID ${booking.id} expired and marked as abandoned.`);
         }
         continue;
       } catch (err) {
+        await sequelizeTx.rollback();
         console.error(`❌ Error cancelling booking ID ${booking.id}:`, err);
         continue;
       }

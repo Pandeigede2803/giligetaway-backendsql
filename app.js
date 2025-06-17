@@ -139,8 +139,8 @@ sequelize.sync()
       console.log('⛑️ ==== Waiting List Cron registered =====');
 
         // Cronjob baru untuk pengingat unpaid
-        // unpaidReminderCronJobs.sendUnpaidReminders();
-        // console.log('✅ Unpaid reminder cronjob registered');
+        unpaidReminderCronJobs.sendUnpaidReminders();
+        console.log(' 🐰Unpaid reminder cronjob registered');
     });
   })
   .catch(err => {

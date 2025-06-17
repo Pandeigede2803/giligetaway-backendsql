@@ -362,26 +362,26 @@ const checkAndNotifyWaitingList = async () => {
       const validityEnd = new Date(entry.WaitingListSchedule.validity_end);
       const daysOfWeek = entry.WaitingListSchedule.days_of_week || 0;
 
-      console.log(`\n🔍 Checking entry ID ${entry.id}:`, {
-        booking_date: entry.booking_date,
-        validity_start: entry.WaitingListSchedule.validity_start,
-        validity_end: entry.WaitingListSchedule.validity_end,
-        days_of_week: daysOfWeek,
-        schedule_id: entry.schedule_id
-      });
+      // console.log(`\n🔍 Checking entry ID ${entry.id}:`, {
+      //   booking_date: entry.booking_date,
+      //   validity_start: entry.WaitingListSchedule.validity_start,
+      //   validity_end: entry.WaitingListSchedule.validity_end,
+      //   days_of_week: daysOfWeek,
+      //   schedule_id: entry.schedule_id
+      // });
 
       let isValid = true;
       let invalidReason = '';
 
       // Validasi 1: Apakah booking_date dalam periode validity schedule?
       if (bookingDate < validityStart || bookingDate > validityEnd) {
-        console.log(`❌ Entry ${entry.id} - Booking date is OUTSIDE schedule validity period`);
-        console.log(`   📅 Schedule valid: ${validityStart.toISOString().split('T')[0]} to ${validityEnd.toISOString().split('T')[0]}`);
-        console.log(`   📅 Booking date: ${bookingDate.toISOString().split('T')[0]}`);
-        isValid = false;
-        invalidReason = 'Outside validity period';
+        // console.log(`❌ Entry ${entry.id} - Booking date is OUTSIDE schedule validity period`);
+        // console.log(`   📅 Schedule valid: ${validityStart.toISOString().split('T')[0]} to ${validityEnd.toISOString().split('T')[0]}`);
+        // console.log(`   📅 Booking date: ${bookingDate.toISOString().split('T')[0]}`);
+        // isValid = false;
+        // invalidReason = 'Outside validity period';
       } else {
-        console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
+        // console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
       }
 
       // Validasi 2: Apakah booking_date sesuai dengan days_of_week schedule?
@@ -396,12 +396,12 @@ const checkAndNotifyWaitingList = async () => {
         // console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
         
         if ((daysOfWeek & dayBitValue) === 0) {
-          console.log(`❌ Entry ${entry.id} - Schedule does NOT operate on ${getDayName(bookingDayOfWeek)}`);
-          console.log(`   📅 Schedule only operates on: ${getDayOfWeekText(daysOfWeek)}`);
-          isValid = false;
-          invalidReason = `Schedule doesn't operate on ${getDayName(bookingDayOfWeek)}`;
+          // console.log(`❌ Entry ${entry.id} - Schedule does NOT operate on ${getDayName(bookingDayOfWeek)}`);
+          // console.log(`   📅 Schedule only operates on: ${getDayOfWeekText(daysOfWeek)}`);
+          // isValid = false;
+          // invalidReason = `Schedule doesn't operate on ${getDayName(bookingDayOfWeek)}`;
         } else {
-          console.log(`✅ Entry ${entry.id} - Schedule operates on ${getDayName(bookingDayOfWeek)}`);
+          // console.log(`✅ Entry ${entry.id} - Schedule operates on ${getDayName(bookingDayOfWeek)}`);
         }
       }
 
@@ -418,7 +418,7 @@ const checkAndNotifyWaitingList = async () => {
         validEntries++;
         
       } else {
-        console.log(`❌ Entry ${entry.id} - INVALID: ${invalidReason}`);
+        // console.log(`❌ Entry ${entry.id} - INVALID: ${invalidReason}`);
         // console.log(`   👤 Customer: ${entry.contact_name} (${entry.contact_email})`);
         // console.log(`   🛤️ Route info: ${entry.follow_up_notes || 'N/A'}`);
         
@@ -518,7 +518,7 @@ const checkAndNotifyWaitingList = async () => {
       };
     }
 
-    console.log(`\n🔄 Processing ${Object.keys(groupedBySeatId).length} seat availability groups...`);
+    // console.log(`\n🔄 Processing ${Object.keys(groupedBySeatId).length} seat availability groups...`);
 
     for (const [seatAvailabilityId, entries] of Object.entries(groupedBySeatId)) {
       console.log(`\n🔍 Processing seat availability ID: ${seatAvailabilityId}`);
@@ -645,15 +645,15 @@ const scheduleWaitingListCron = () => {
     try {
       const result = await checkAndNotifyWaitingList();
       
-      console.log("📊 Cron job completed:", {
-        success: result.success,
-        checked_entries: result.checked_entries,
-        valid_entries: result.valid_entries,
-        invalid_entries: result.invalid_entries,
-        total_notified: result.total_notified,
-        follow_up_emails_sent: result.follow_up_emails_sent,
-        message: result.message
-      });
+      // console.log("📊 Cron job completed:", {
+      //   success: result.success,
+      //   checked_entries: result.checked_entries,
+      //   valid_entries: result.valid_entries,
+      //   invalid_entries: result.invalid_entries,
+      //   total_notified: result.total_notified,
+      //   follow_up_emails_sent: result.follow_up_emails_sent,
+      //   message: result.message
+      // });
 
       // Log summary
       if (result.total_notified > 0) {
@@ -666,8 +666,8 @@ const scheduleWaitingListCron = () => {
       }
 
       if (result.invalid_entries > 0) {
-        console.log(`\n📧 FOLLOW-UP EMAILS: ${result.follow_up_emails_sent} follow-up emails sent to customers with invalid requests`);
-        console.log(`⚠️ VALIDATION: ${result.invalid_entries} entries marked as contacted (outside validity or wrong day of week)`);
+        // console.log(`\n📧 FOLLOW-UP EMAILS: ${result.follow_up_emails_sent} follow-up emails sent to customers with invalid requests`);
+        // console.log(`⚠️ VALIDATION: ${result.invalid_entries} entries marked as contacted (outside validity or wrong day of week)`);
       }
       
     } catch (cronError) {
@@ -676,8 +676,7 @@ const scheduleWaitingListCron = () => {
   });
 
   console.log("✅ Waiting list cron job scheduled successfully");
-};
-
+};;
 module.exports = {
   scheduleWaitingListCron,
   checkAndNotifyWaitingList // Export untuk manual testing

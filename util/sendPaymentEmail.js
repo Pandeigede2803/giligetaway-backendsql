@@ -1967,7 +1967,7 @@ const sendCancellationEmail = async (customerEmail, booking) => {
                 "en-GB",
                 { day: "2-digit", month: "long", year: "numeric" }
               ).format(new Date(booking.created_at))}</p>
-              <p><strong>Total Payment:</strong> ${booking.gross_total} ${booking.currency}</p>
+              <p><strong>Total Payment:</strong> Rp. ${Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(booking.gross_total)}</p>
               <p><strong>Status:</strong> <span style="color: #d32f2f;">Canceled</span></p>
             </div>
             
@@ -2049,10 +2049,7 @@ const sendCancellationEmailToAgent = async (
            ).format(new Date(booking.created_at))}</p>
 
 
-          <p><strong>Total Payment:</strong> ${booking.gross_total} ${
-      booking.currency
-    }</p>
-        
+          <p><strong>Total Payment:</strong> Rp. ${Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(booking.gross_total)}</p>
         <div style="background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #0066cc;">
           <h3 style="margin-top: 0; color: #0066cc;">Rebooking Instructions:</h3>
           <p>If your client still wishes to travel, please make a new booking and ensure payment is completed within 24 hours to avoid another cancellation.</p>
@@ -2061,7 +2058,7 @@ const sendCancellationEmailToAgent = async (
         </div>
         
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${emailUrl}/booking" style="background-color: #0066cc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+          <a href="${emailUrl}" style="background-color: #0066cc; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
             Create New Booking
           </a>
         </div>

@@ -1136,7 +1136,7 @@ const updateData = {
       include: [{ model: TransportBooking, as: "transportBookings" }],
       transaction,
     });
-    console.log("😻Related booking found:", booking);
+    // console.log("😻Related booking found:", booking);
 
     if (!booking) {
       throw new Error(
