@@ -1994,6 +1994,7 @@ const sendCancellationEmail = async (customerEmail, booking) => {
     const mailOptions = {
       from: `Gili Getaway <${process.env.EMAIL_BOOKING}>`,
       to: customerEmail,
+      cc: process.env.EMAIL_BOOKING,
       subject: subject,
       html: message,
     };
