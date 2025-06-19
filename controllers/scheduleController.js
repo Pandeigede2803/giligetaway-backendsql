@@ -43,6 +43,11 @@ const {
   getTotalRealPassengersRaw,
 } = require("../util/schedulepassenger/getTotalPassenger");
 
+const { 
+  getSchedulesAndSubSchedules, 
+  filterAvailableSchedules, 
+  filterAvailableSubSchedules ,formatScheduleWithClearRoute, formatRouteTimeline, formatRouteString, formatRouteSteps
+} = require('../util/querySchedulesHelper')
 // Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
 
 const isDayAvailable = (date, daysOfWeek) => {
@@ -2179,586 +2184,161 @@ const adjustedAvailableSeats = adjustAvailableSeats(
   }
 };
 
+
+
+
 const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
   const { from, to, date, passengers_total } = req.query;
 
   try {
-    const selectedDate = new Date(date);
-    const selectedDayOfWeek = getDay(selectedDate);
+    // OPTIMIZED: Semua processing sudah ditangani dalam getSchedulesAndSubSchedules
+    const { schedules, subSchedules, selectedDate } = await getSchedulesAndSubSchedules(from, to, date);
 
-    // Original schedules query remains the same
-    const schedules = await Schedule.findAll({
-      where: {
-        destination_from_id: from,
-        destination_to_id: to,
-        availability: 1,
-        validity_start: { [Op.lte]: selectedDate },
-        validity_end: { [Op.gte]: selectedDate },
-        [Op.and]: sequelize.literal(
-          `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
-        ),
-      },
-      include: [
-        {
-          model: Destination,
-          as: "FromDestination",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model:SeatAvailability,
-          as: "SeatAvailabilities",
-        
+    // Filter schedules dan subSchedules yang available
+    const availableSchedules = filterAvailableSchedules(schedules);
+    const availableSubSchedules = filterAvailableSubSchedules(subSchedules);
 
-        },
-        {
-          model: Destination,
-          as: "ToDestination",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model: Boat,
-          as: "Boat",
-          attributes: ["id", "capacity", "boat_name"],
-        },
-        {
-          model: Transit,
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: [
-            {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          ],
-        },
-      ],
-      attributes: [
-        "id",
-        "route_image",
-        "low_season_price",
-        "high_season_price",
-        "peak_season_price",
-        "departure_time",
-        "check_in_time",
-        "arrival_time",
-        "journey_time",
-      ],
-    });
-
-    // Original subSchedules query remains the same
-    const subSchedules = await SubSchedule.findAll({
-      where: {
-        availability: true,
-        [Op.and]: [
-          {
-            [Op.or]: [
-              { destination_from_schedule_id: from },
-              { "$TransitFrom.destination_id$": from },
-            ],
-          },
-          {
-            [Op.or]: [
-              { destination_to_schedule_id: to },
-              { "$TransitTo.destination_id$": to },
-            ],
-          },
-          {
-            validity_start: { [Op.lte]: selectedDate },
-            validity_end: { [Op.gte]: selectedDate },
-            [Op.and]: sequelize.literal(
-              `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
-            ),
-          },
-        ],
-        availability: true,
-      },
-      include: [
-        {
-          model: Destination,
-          as: "DestinationFrom",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model:SeatAvailability,
-          as: "SeatAvailabilities",
-        },
-        {
-          model: Destination,
-          as: "DestinationTo",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model: Transit,
-          as: "TransitFrom",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        {
-          model: Transit,
-          as: "TransitTo",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        // Keep other transit includes
-        {
-          model: Transit,
-          as: "Transit1",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit2",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit3",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        {
-          model: Transit,
-          as: "Transit4",
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: {
-            model: Destination,
-            as: "Destination",
-            attributes: ["id", "name", "port_map_url", "image_url"],
-          },
-        },
-        {
-          model: Schedule,
-          as: "Schedule",
-          attributes: [
-            "id",
-            "departure_time",
-            "check_in_time",
-            "arrival_time",
-            "journey_time",
-          ],
-          include: [
-            {
-              model: Boat,
-              as: "Boat",
-              attributes: ["id", "capacity", "boat_name"],
-            },
-          ],
-        },
-      ],
-    });
-
-    // Array untuk menyimpan semua ID SeatAvailability
-    const seatAvailabilityIds = [];
+    // NEW: Filter berdasarkan passengers_total jika ada
+    let filteredSchedules = availableSchedules;
+    let filteredSubSchedules = availableSubSchedules;
     
-    // Maps untuk memetakan SeatAvailability ID ke data terkait
-    const seatAvailabilityData = new Map();
-
-    // Process seat availability for schedules
-    for (const schedule of schedules) {
-      let seatAvailability = await SeatAvailability.findOne({
-        where: {
-          schedule_id: schedule.id,
-          date: selectedDate,
-          // availability: 1,
-          // available_seats: { [Op.gte]: passengers_total },
-        },
-      });
-
-      if (!seatAvailability) {
-        seatAvailability = await createSeatAvailability(
-          schedule,
-          null,
-          selectedDate
-        );
-      }
-
-      // Simpan ID dan tambahkan ke schedule
-      seatAvailabilityIds.push(seatAvailability.id);
+    if (passengers_total && parseInt(passengers_total) > 0) {
+      const passengerCount = parseInt(passengers_total);
       
-      // Simpan data terkait untuk digunakan nanti
-      seatAvailabilityData.set(seatAvailability.id, {
-        boatData: schedule.Boat,
-        boost: seatAvailability.boost,
-        type: 'schedule'
+      filteredSchedules = availableSchedules.filter(schedule => {
+        const availableSeats = schedule.dataValues?.seatAvailability?.available_seats || 0;
+        return availableSeats >= passengerCount;
       });
-
-      schedule.dataValues.seatAvailability = {
-        id: seatAvailability.id,
-        available_seats: seatAvailability.available_seats,
-        date: selectedDate,
-        availability:seatAvailability.availability
-      };
-    }
-
-    // Process seat availability for subSchedules
-    for (const subSchedule of subSchedules) {
-      let seatAvailability = await SeatAvailability.findOne({
-        where: {
-          subschedule_id: subSchedule.id,
-          date: selectedDate,
-          // availability: true,
-          // available_seats: { [Op.gte]: passengers_total },
-        },
-      });
-
-      if (!seatAvailability) {
-        seatAvailability = await createSeatAvailability(
-          null,
-          subSchedule,
-          selectedDate
-        );
-      }
-
-      // Simpan ID dan tambahkan ke subSchedule
-      seatAvailabilityIds.push(seatAvailability.id);
       
-      // Simpan data terkait untuk digunakan nanti
-      seatAvailabilityData.set(seatAvailability.id, {
-        boatData: subSchedule.Schedule?.Boat,
-        boost: seatAvailability.boost,
-        type: 'subSchedule'
+      filteredSubSchedules = availableSubSchedules.filter(subSchedule => {
+        const availableSeats = subSchedule.dataValues?.seatAvailability?.available_seats || 0;
+        return availableSeats >= passengerCount;
       });
-
-      subSchedule.dataValues.seatAvailability = {
-        id: seatAvailability.id,
-        available_seats: seatAvailability.available_seats,
-        date: selectedDate,
-        availability:seatAvailability.availability
-      };
-    }
-
-    if (seatAvailabilityIds.length > 0) {
-      // Inisialisasi objek untuk menyimpan nomor kursi berdasarkan seat_availability_id
-      const bookedSeatsByAvailabilityId = {};
-      const processedBookedSeatsByAvailabilityId = {};
-
-      // Inisialisasi array kosong untuk setiap seat_availability_id
-      seatAvailabilityIds.forEach((id) => {
-        bookedSeatsByAvailabilityId[id] = [];
-        processedBookedSeatsByAvailabilityId[id] = [];
-      });
-
-      try {
-        // Query untuk mendapatkan booking dengan seat number
-        const bookings = await Booking.findAll({
-          attributes: ["id"],
-          where: {
-            payment_status: ["paid", "invoiced", "pending", "unpaid"],
-          },
-          include: [
-            {
-              model: SeatAvailability,
-              as: "seatAvailabilities",
-              required: true,
-              where: {
-                id: { [Op.in]: seatAvailabilityIds },
-              },
-              attributes: ["id"],
-              through: { attributes: [] },
-            },
-            {
-              model: Passenger,
-              as: "passengers",
-              attributes: ["id", "seat_number"],
-              where: {
-                seat_number: { [Op.ne]: null },
-              },
-            },
-          ],
-        });
-        // console.log(
-        //   "Bookings with seat numbers:",
-        //   JSON.stringify(bookings, null, 2)
-        // );
-
-        // console.log(`Found ${bookings.length} bookings with seat numbers`);
-
-        // Proses setiap booking untuk mengekstrak seat number
-        bookings.forEach((booking) => {
-          // Untuk setiap booking, lihat semua seat availability terkait
-          booking.seatAvailabilities.forEach((seatAvail) => {
-            // Untuk setiap seat availability, tambahkan seat number dari semua penumpang
-            booking.passengers.forEach((passenger) => {
-              if (passenger.seat_number) {
-                // Pastikan array sudah diinisialisasi
-                if (!bookedSeatsByAvailabilityId[seatAvail.id]) {
-                  bookedSeatsByAvailabilityId[seatAvail.id] = [];
-                }
-                // Tambahkan seat number ke array
-                bookedSeatsByAvailabilityId[seatAvail.id].push(
-                  passenger.seat_number
-                );
-              }
-            });
-          });
-        });
-
-        // Log hasil untuk memastikan data telah diproses dengan benar
-        // console.log(
-        //   "Booked seats by availability ID before processing:",
-        //   Object.fromEntries(
-        //     Object.entries(bookedSeatsByAvailabilityId).map(([key, value]) => [
-        //       key,
-        //       `[${value.join(", ")}]`,
-        //     ])
-        //   )
-        // );
-
-        // Proses booked seats untuk mempertimbangkan kursi yang saling berhubungan
-        for (const seatAvailId of seatAvailabilityIds) {
-          const bookedSeats = bookedSeatsByAvailabilityId[seatAvailId] || [];
-          const seatData = seatAvailabilityData.get(seatAvailId);
-          
-          if (seatData) {
-            // Proses booked seats dengan fungsi processBookedSeats
-            const processedSeats = processBookedSeats(
-              new Set(bookedSeats),
-              seatData.boost,
-              seatData.boatData
-            );
-            
-            // Simpan hasil pemrosesan
-            processedBookedSeatsByAvailabilityId[seatAvailId] = processedSeats;
-          } else {
-            // Jika tidak ada data terkait, gunakan booked seats asli
-            processedBookedSeatsByAvailabilityId[seatAvailId] = bookedSeats;
-          }
-        }
-
-        // Log hasil pemrosesan
-        // console.log(
-        //   "Processed booked seats by availability ID:",
-        //   Object.fromEntries(
-        //     Object.entries(processedBookedSeatsByAvailabilityId).map(([key, value]) => [
-        //       key,
-        //       `[${value.join(", ")}]`,
-        //     ])
-        //   )
-        // );
-
-        // Tambahkan processedBookedSeatNumbers ke setiap schedule
-        for (const schedule of schedules) {
-          const seatAvailId = schedule.dataValues.seatAvailability.id;
-          schedule.dataValues.seatAvailability.bookedSeatNumbers =
-            processedBookedSeatsByAvailabilityId[seatAvailId] || [];
-        }
-
-        // Tambahkan processedBookedSeatNumbers ke setiap subSchedule
-        for (const subSchedule of subSchedules) {
-          const seatAvailId = subSchedule.dataValues.seatAvailability.id;
-          subSchedule.dataValues.seatAvailability.bookedSeatNumbers =
-            processedBookedSeatsByAvailabilityId[seatAvailId] || [];
-        }
-
-        const availableSchedules = schedules.filter(schedule => 
-          schedule.dataValues.seatAvailability && 
-          schedule.dataValues.seatAvailability.available_seats > 0 &&
-          schedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
-        );
-
-        // console.log("🫁Available Schedules:", availableSchedules);
-        
-        
-        // Filter subSchedules berdasarkan availability dan available_seats
-        const availableSubSchedules = subSchedules.filter(subSchedule => 
-          subSchedule.dataValues.seatAvailability && 
-          subSchedule.dataValues.seatAvailability.available_seats > 0 &&
-          subSchedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
-        );
-        // console.log("🫁Available Schedules:", availableSubSchedules);
-
-        // Format schedules
-        let formattedSchedules = formatSchedules(availableSchedules, selectedDate);
-
-        // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
-        formattedSchedules = formattedSchedules.map((formatted) => {
-          // Cari schedule asli yang sesuai berdasarkan ID
-          const originalSchedule = schedules.find((s) => s.id === formatted.id);
-          if (
-            originalSchedule &&
-            originalSchedule.dataValues.seatAvailability
-          ) {
-            const seatAvailId = originalSchedule.dataValues.seatAvailability.id;
-            // Modifikasi objek yang sudah diformat
-            return {
-              ...formatted,
-              seatAvailability: {
-                ...formatted.seatAvailability,
-                bookedSeatNumbers:
-                  processedBookedSeatsByAvailabilityId[seatAvailId] || [],
-              },
-            };
-          }
-          return formatted;
-        });
-
-        
-
-        // Format subSchedules
-        let formattedSubSchedules = formatSubSchedules(
-          availableSubSchedules,
-          selectedDate
-        );
-
-        // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
-        formattedSubSchedules = formattedSubSchedules.map((formatted) => {
-          // Cari subSchedule asli yang sesuai berdasarkan ID
-          const originalSubSchedule = subSchedules.find(
-            (s) => s.id === formatted.subschedule_id
-          );
-          if (
-            originalSubSchedule &&
-            originalSubSchedule.dataValues.seatAvailability
-          ) {
-            const seatAvailId =
-              originalSubSchedule.dataValues.seatAvailability.id;
-            // Modifikasi objek yang sudah diformat
-            return {
-              ...formatted,
-              seatAvailability: {
-                ...formatted.seatAvailability,
-                bookedSeatNumbers:
-                  processedBookedSeatsByAvailabilityId[seatAvailId] || [],
-              },
-            };
-          }
-          return formatted;
-        });
-
-        // Combine the results into a single array
-        const combinedSchedules = [
-          ...formattedSchedules,
-          ...formattedSubSchedules,
-        ];
-
-        // Return the combined results
-        res.status(200).json({
+      
+      // Jika tidak ada schedule yang tersedia setelah filter passenger
+      if (filteredSchedules.length === 0 && filteredSubSchedules.length === 0) {
+        return res.status(200).json({
           status: "success",
+          message: `No schedules available for ${passengerCount} passengers. All selected schedules are full.`,
           data: {
-            schedules: combinedSchedules,
+            schedules: [],
+            passenger_count_requested: passengerCount,
+            seats_availability_issue: true
           },
         });
-
-        // Jangan lanjutkan ke kode di bawah
-        return;
-      } catch (error) {
-        console.error("Error fetching booked seats:", error.message);
-        // Jika terjadi error, lanjutkan dengan kode format asli
       }
     }
 
+    // Format dengan fungsi lama dulu (untuk backward compatibility)
+    const formattedSchedules = formatSchedules(filteredSchedules, selectedDate);
+    const formattedSubSchedules = formatSubSchedules(filteredSubSchedules, selectedDate);
 
-    let availableSchedules, availableSubSchedules;
+    // TAMBAH: Ensure bookedSeatNumbers terkopy ke formatted result
+    const formattedSchedulesWithSeats = formattedSchedules.map((formatted) => {
+      const originalSchedule = filteredSchedules.find((s) => s.id === formatted.id);
+      if (originalSchedule?.dataValues?.seatAvailability?.bookedSeatNumbers) {
+        return {
+          ...formatted,
+          seatAvailability: {
+            ...formatted.seatAvailability,
+            bookedSeatNumbers: originalSchedule.dataValues.seatAvailability.bookedSeatNumbers
+          }
+        };
+      }
+      return formatted;
+    });
 
-// Redefine if not already defined
-if (!availableSchedules) {
-  availableSchedules = schedules.filter(schedule => 
-    schedule.dataValues.seatAvailability && 
-    schedule.dataValues.seatAvailability.available_seats > 0 &&
-    schedule.dataValues.seatAvailability.availability === 1
-  );
-}
-// console.log("🫁Available Schedules:", availableSchedules);
-if (!availableSubSchedules) {
-  availableSubSchedules = subSchedules.filter(subSchedule => 
-    subSchedule.dataValues.seatAvailability && 
-    subSchedule.dataValues.seatAvailability.available_seats > 0 &&
-    subSchedule.dataValues.seatAvailability.availability === true
-  );
-}
+    const formattedSubSchedulesWithSeats = formattedSubSchedules.map((formatted) => {
+      const originalSubSchedule = filteredSubSchedules.find((s) => s.id === formatted.subschedule_id);
+      if (originalSubSchedule?.dataValues?.seatAvailability?.bookedSeatNumbers) {
+        return {
+          ...formatted,
+          seatAvailability: {
+            ...formatted.seatAvailability,
+            bookedSeatNumbers: originalSubSchedule.dataValues.seatAvailability.bookedSeatNumbers
+          }
+        };
+      }
+      return formatted;
+    });
 
+    // NEW: Tambahkan route information yang lebih clear dan hapus field yang tidak dibutuhkan
+    const finalFormattedSchedules = formattedSchedulesWithSeats.map((formatted) => {
+      const originalSchedule = filteredSchedules.find((s) => s.id === formatted.id);
+      if (originalSchedule) {
+        const routeInfo = formatRouteTimeline(originalSchedule);
+        
+        // Destructure untuk exclude field yang tidak dibutuhkan
+        const { transits, departure_time, arrival_time, journey_time, check_in_time, ...cleanFormatted } = formatted;
+        
+        return {
+          ...cleanFormatted,
+          boat: {
+            id: originalSchedule.Boat?.id,
+            name: originalSchedule.Boat?.boat_name,
+            capacity: originalSchedule.Boat?.capacity,
+            image: originalSchedule.Boat?.boat_image,
+            seat_layout: {
+              inside_seats: originalSchedule.Boat?.inside_seats || [],
+              outside_seats: originalSchedule.Boat?.outside_seats || [],
+              rooftop_seats: originalSchedule.Boat?.rooftop_seats || []
+            }
+          },
+          route_timeline: routeInfo.timeline,
+          route_description: formatRouteString(originalSchedule),
+          route_steps: formatRouteSteps(originalSchedule),
+          route_summary: routeInfo.route_summary,
+          route_type: routeInfo.route_type,
+          stops_count: routeInfo.stops_count
+        };
+      }
+      return formatted;
+    });
 
-    
-
-    // Kode asli, hanya dijalankan jika tidak ada seatAvailability atau terjadi error
-    // Format schedules dan subSchedules
-    const formattedSchedules = formatSchedules(availableSchedules, selectedDate);
-    const formattedSubSchedules = formatSubSchedules(
-      availableSubSchedules,
-      selectedDate
-    );
+    const finalFormattedSubSchedules = formattedSubSchedulesWithSeats.map((formatted) => {
+      const originalSubSchedule = filteredSubSchedules.find((s) => s.id === formatted.subschedule_id);
+      if (originalSubSchedule) {
+        const routeInfo = formatRouteTimeline(originalSubSchedule);
+        
+        // Destructure untuk exclude field yang tidak dibutuhkan
+        const { transits, departure_time, arrival_time, journey_time, check_in_time, ...cleanFormatted } = formatted;
+        
+        return {
+          ...cleanFormatted,
+          boat: {
+            id: originalSubSchedule.Schedule?.Boat?.id,
+            name: originalSubSchedule.Schedule?.Boat?.boat_name,
+            capacity: originalSubSchedule.Schedule?.Boat?.capacity,
+            image: originalSubSchedule.Schedule?.Boat?.boat_image,
+            seat_layout: {
+              inside_seats: originalSubSchedule.Schedule?.Boat?.inside_seats || [],
+              outside_seats: originalSubSchedule.Schedule?.Boat?.outside_seats || [],
+              rooftop_seats: originalSubSchedule.Schedule?.Boat?.rooftop_seats || []
+            }
+          },
+          route_timeline: routeInfo.timeline,
+          route_description: formatRouteString(originalSubSchedule),
+          route_steps: formatRouteSteps(originalSubSchedule),
+          route_summary: routeInfo.route_summary,
+          route_type: routeInfo.route_type,
+          stops_count: routeInfo.stops_count
+        };
+      }
+      return formatted;
+    });
 
     // Combine the results into a single array
-    const combinedSchedules = [...formattedSchedules, ...formattedSubSchedules];
+    const combinedSchedules = [...finalFormattedSchedules, ...finalFormattedSubSchedules];
 
     // Return the combined results
     res.status(200).json({
       status: "success",
       data: {
         schedules: combinedSchedules,
+        ...(passengers_total && { passenger_count_requested: parseInt(passengers_total) })
       },
     });
+
   } catch (error) {
     console.error("Error searching schedules and subschedules:", error);
     res.status(500).json({
@@ -2767,6 +2347,630 @@ if (!availableSubSchedules) {
     });
   }
 };
+// const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
+//   const { from, to, date, passengers_total } = req.query;
+
+//   try {
+//     const selectedDate = new Date(date);
+//     const selectedDayOfWeek = getDay(selectedDate);
+
+//     // Original schedules query remains the same
+//     const schedules = await Schedule.findAll({
+//       where: {
+//         destination_from_id: from,
+//         destination_to_id: to,
+//         availability: 1,
+//         validity_start: { [Op.lte]: selectedDate },
+//         validity_end: { [Op.gte]: selectedDate },
+//         [Op.and]: sequelize.literal(
+//           `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+//         ),
+//       },
+//       include: [
+//         {
+//           model: Destination,
+//           as: "FromDestination",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model:SeatAvailability,
+//           as: "SeatAvailabilities",
+        
+
+//         },
+//         {
+//           model: Destination,
+//           as: "ToDestination",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model: Boat,
+//           as: "Boat",
+//           attributes: ["id", "capacity", "boat_name"],
+//         },
+//         {
+//           model: Transit,
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: [
+//             {
+//               model: Destination,
+//               as: "Destination",
+//               attributes: ["id", "name"],
+//             },
+//           ],
+//         },
+//       ],
+//       attributes: [
+//         "id",
+//         "route_image",
+//         "low_season_price",
+//         "high_season_price",
+//         "peak_season_price",
+//         "departure_time",
+//         "check_in_time",
+//         "arrival_time",
+//         "journey_time",
+//       ],
+//     });
+
+//     // Original subSchedules query remains the same
+//     const subSchedules = await SubSchedule.findAll({
+//       where: {
+//         availability: true,
+//         [Op.and]: [
+//           {
+//             [Op.or]: [
+//               { destination_from_schedule_id: from },
+//               { "$TransitFrom.destination_id$": from },
+//             ],
+//           },
+//           {
+//             [Op.or]: [
+//               { destination_to_schedule_id: to },
+//               { "$TransitTo.destination_id$": to },
+//             ],
+//           },
+//           {
+//             validity_start: { [Op.lte]: selectedDate },
+//             validity_end: { [Op.gte]: selectedDate },
+//             [Op.and]: sequelize.literal(
+//               `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+//             ),
+//           },
+//         ],
+//         availability: true,
+//       },
+//       include: [
+//         {
+//           model: Destination,
+//           as: "DestinationFrom",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model:SeatAvailability,
+//           as: "SeatAvailabilities",
+//         },
+//         {
+//           model: Destination,
+//           as: "DestinationTo",
+//           attributes: ["id", "name", "port_map_url", "image_url"],
+//         },
+//         {
+//           model: Transit,
+//           as: "TransitFrom",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "TransitTo",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         // Keep other transit includes
+//         {
+//           model: Transit,
+//           as: "Transit1",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit2",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit3",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Transit,
+//           as: "Transit4",
+//           attributes: [
+//             "id",
+//             "destination_id",
+//             "departure_time",
+//             "arrival_time",
+//             "journey_time",
+//             "check_in_time",
+//           ],
+//           include: {
+//             model: Destination,
+//             as: "Destination",
+//             attributes: ["id", "name", "port_map_url", "image_url"],
+//           },
+//         },
+//         {
+//           model: Schedule,
+//           as: "Schedule",
+//           attributes: [
+//             "id",
+//             "departure_time",
+//             "check_in_time",
+//             "arrival_time",
+//             "journey_time",
+//           ],
+//           include: [
+//             {
+//               model: Boat,
+//               as: "Boat",
+//               attributes: ["id", "capacity", "boat_name"],
+//             },
+//           ],
+//         },
+//       ],
+//     });
+
+//     // Array untuk menyimpan semua ID SeatAvailability
+//     const seatAvailabilityIds = [];
+    
+//     // Maps untuk memetakan SeatAvailability ID ke data terkait
+//     const seatAvailabilityData = new Map();
+
+//     // Process seat availability for schedules
+//     for (const schedule of schedules) {
+//       let seatAvailability = await SeatAvailability.findOne({
+//         where: {
+//           schedule_id: schedule.id,
+//           date: selectedDate,
+//           // availability: 1,
+//           // available_seats: { [Op.gte]: passengers_total },
+//         },
+//       });
+
+//       if (!seatAvailability) {
+//         seatAvailability = await createSeatAvailability(
+//           schedule,
+//           null,
+//           selectedDate
+//         );
+//       }
+
+//       // Simpan ID dan tambahkan ke schedule
+//       seatAvailabilityIds.push(seatAvailability.id);
+      
+//       // Simpan data terkait untuk digunakan nanti
+//       seatAvailabilityData.set(seatAvailability.id, {
+//         boatData: schedule.Boat,
+//         boost: seatAvailability.boost,
+//         type: 'schedule'
+//       });
+
+//       schedule.dataValues.seatAvailability = {
+//         id: seatAvailability.id,
+//         available_seats: seatAvailability.available_seats,
+//         date: selectedDate,
+//         availability:seatAvailability.availability
+//       };
+//     }
+
+//     // Process seat availability for subSchedules
+//     for (const subSchedule of subSchedules) {
+//       let seatAvailability = await SeatAvailability.findOne({
+//         where: {
+//           subschedule_id: subSchedule.id,
+//           date: selectedDate,
+//           // availability: true,
+//           // available_seats: { [Op.gte]: passengers_total },
+//         },
+//       });
+
+//       if (!seatAvailability) {
+//         seatAvailability = await createSeatAvailability(
+//           null,
+//           subSchedule,
+//           selectedDate
+//         );
+//       }
+
+//       // Simpan ID dan tambahkan ke subSchedule
+//       seatAvailabilityIds.push(seatAvailability.id);
+      
+//       // Simpan data terkait untuk digunakan nanti
+//       seatAvailabilityData.set(seatAvailability.id, {
+//         boatData: subSchedule.Schedule?.Boat,
+//         boost: seatAvailability.boost,
+//         type: 'subSchedule'
+//       });
+
+//       subSchedule.dataValues.seatAvailability = {
+//         id: seatAvailability.id,
+//         available_seats: seatAvailability.available_seats,
+//         date: selectedDate,
+//         availability:seatAvailability.availability
+//       };
+//     }
+
+//     if (seatAvailabilityIds.length > 0) {
+//       // Inisialisasi objek untuk menyimpan nomor kursi berdasarkan seat_availability_id
+//       const bookedSeatsByAvailabilityId = {};
+//       const processedBookedSeatsByAvailabilityId = {};
+
+//       // Inisialisasi array kosong untuk setiap seat_availability_id
+//       seatAvailabilityIds.forEach((id) => {
+//         bookedSeatsByAvailabilityId[id] = [];
+//         processedBookedSeatsByAvailabilityId[id] = [];
+//       });
+
+//       try {
+//         // Query untuk mendapatkan booking dengan seat number
+//         const bookings = await Booking.findAll({
+//           attributes: ["id"],
+//           where: {
+//             payment_status: ["paid", "invoiced", "pending", "unpaid"],
+//           },
+//           include: [
+//             {
+//               model: SeatAvailability,
+//               as: "seatAvailabilities",
+//               required: true,
+//               where: {
+//                 id: { [Op.in]: seatAvailabilityIds },
+//               },
+//               attributes: ["id"],
+//               through: { attributes: [] },
+//             },
+//             {
+//               model: Passenger,
+//               as: "passengers",
+//               attributes: ["id", "seat_number"],
+//               where: {
+//                 seat_number: { [Op.ne]: null },
+//               },
+//             },
+//           ],
+//         });
+//         // console.log(
+//         //   "Bookings with seat numbers:",
+//         //   JSON.stringify(bookings, null, 2)
+//         // );
+
+//         // console.log(`Found ${bookings.length} bookings with seat numbers`);
+
+//         // Proses setiap booking untuk mengekstrak seat number
+//         bookings.forEach((booking) => {
+//           // Untuk setiap booking, lihat semua seat availability terkait
+//           booking.seatAvailabilities.forEach((seatAvail) => {
+//             // Untuk setiap seat availability, tambahkan seat number dari semua penumpang
+//             booking.passengers.forEach((passenger) => {
+//               if (passenger.seat_number) {
+//                 // Pastikan array sudah diinisialisasi
+//                 if (!bookedSeatsByAvailabilityId[seatAvail.id]) {
+//                   bookedSeatsByAvailabilityId[seatAvail.id] = [];
+//                 }
+//                 // Tambahkan seat number ke array
+//                 bookedSeatsByAvailabilityId[seatAvail.id].push(
+//                   passenger.seat_number
+//                 );
+//               }
+//             });
+//           });
+//         });
+
+//         // Log hasil untuk memastikan data telah diproses dengan benar
+//         // console.log(
+//         //   "Booked seats by availability ID before processing:",
+//         //   Object.fromEntries(
+//         //     Object.entries(bookedSeatsByAvailabilityId).map(([key, value]) => [
+//         //       key,
+//         //       `[${value.join(", ")}]`,
+//         //     ])
+//         //   )
+//         // );
+
+//         // Proses booked seats untuk mempertimbangkan kursi yang saling berhubungan
+//         for (const seatAvailId of seatAvailabilityIds) {
+//           const bookedSeats = bookedSeatsByAvailabilityId[seatAvailId] || [];
+//           const seatData = seatAvailabilityData.get(seatAvailId);
+          
+//           if (seatData) {
+//             // Proses booked seats dengan fungsi processBookedSeats
+//             const processedSeats = processBookedSeats(
+//               new Set(bookedSeats),
+//               seatData.boost,
+//               seatData.boatData
+//             );
+            
+//             // Simpan hasil pemrosesan
+//             processedBookedSeatsByAvailabilityId[seatAvailId] = processedSeats;
+//           } else {
+//             // Jika tidak ada data terkait, gunakan booked seats asli
+//             processedBookedSeatsByAvailabilityId[seatAvailId] = bookedSeats;
+//           }
+//         }
+
+//         // Log hasil pemrosesan
+//         // console.log(
+//         //   "Processed booked seats by availability ID:",
+//         //   Object.fromEntries(
+//         //     Object.entries(processedBookedSeatsByAvailabilityId).map(([key, value]) => [
+//         //       key,
+//         //       `[${value.join(", ")}]`,
+//         //     ])
+//         //   )
+//         // );
+
+//         // Tambahkan processedBookedSeatNumbers ke setiap schedule
+//         for (const schedule of schedules) {
+//           const seatAvailId = schedule.dataValues.seatAvailability.id;
+//           schedule.dataValues.seatAvailability.bookedSeatNumbers =
+//             processedBookedSeatsByAvailabilityId[seatAvailId] || [];
+//         }
+
+//         // Tambahkan processedBookedSeatNumbers ke setiap subSchedule
+//         for (const subSchedule of subSchedules) {
+//           const seatAvailId = subSchedule.dataValues.seatAvailability.id;
+//           subSchedule.dataValues.seatAvailability.bookedSeatNumbers =
+//             processedBookedSeatsByAvailabilityId[seatAvailId] || [];
+//         }
+
+//         const availableSchedules = schedules.filter(schedule => 
+//           schedule.dataValues.seatAvailability && 
+//           schedule.dataValues.seatAvailability.available_seats > 0 &&
+//           schedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
+//         );
+
+//         // console.log("🫁Available Schedules:", availableSchedules);
+        
+        
+//         // Filter subSchedules berdasarkan availability dan available_seats
+//         const availableSubSchedules = subSchedules.filter(subSchedule => 
+//           subSchedule.dataValues.seatAvailability && 
+//           subSchedule.dataValues.seatAvailability.available_seats > 0 &&
+//           subSchedule.dataValues.seatAvailability.availability === true // <-- Tambahkan filter untuk availability
+//         );
+//         // console.log("🫁Available Schedules:", availableSubSchedules);
+
+//         // Format schedules
+//         let formattedSchedules = formatSchedules(availableSchedules, selectedDate);
+
+//         // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
+//         formattedSchedules = formattedSchedules.map((formatted) => {
+//           // Cari schedule asli yang sesuai berdasarkan ID
+//           const originalSchedule = schedules.find((s) => s.id === formatted.id);
+//           if (
+//             originalSchedule &&
+//             originalSchedule.dataValues.seatAvailability
+//           ) {
+//             const seatAvailId = originalSchedule.dataValues.seatAvailability.id;
+//             // Modifikasi objek yang sudah diformat
+//             return {
+//               ...formatted,
+//               seatAvailability: {
+//                 ...formatted.seatAvailability,
+//                 bookedSeatNumbers:
+//                   processedBookedSeatsByAvailabilityId[seatAvailId] || [],
+//               },
+//             };
+//           }
+//           return formatted;
+//         });
+
+        
+
+//         // Format subSchedules
+//         let formattedSubSchedules = formatSubSchedules(
+//           availableSubSchedules,
+//           selectedDate
+//         );
+
+//         // Tambahkan processedBookedSeatNumbers ke hasil yang sudah diformat
+//         formattedSubSchedules = formattedSubSchedules.map((formatted) => {
+//           // Cari subSchedule asli yang sesuai berdasarkan ID
+//           const originalSubSchedule = subSchedules.find(
+//             (s) => s.id === formatted.subschedule_id
+//           );
+//           if (
+//             originalSubSchedule &&
+//             originalSubSchedule.dataValues.seatAvailability
+//           ) {
+//             const seatAvailId =
+//               originalSubSchedule.dataValues.seatAvailability.id;
+//             // Modifikasi objek yang sudah diformat
+//             return {
+//               ...formatted,
+//               seatAvailability: {
+//                 ...formatted.seatAvailability,
+//                 bookedSeatNumbers:
+//                   processedBookedSeatsByAvailabilityId[seatAvailId] || [],
+//               },
+//             };
+//           }
+//           return formatted;
+//         });
+
+//         // Combine the results into a single array
+//         const combinedSchedules = [
+//           ...formattedSchedules,
+//           ...formattedSubSchedules,
+//         ];
+
+//         // Return the combined results
+//         res.status(200).json({
+//           status: "success",
+//           data: {
+//             schedules: combinedSchedules,
+//           },
+//         });
+
+//         // Jangan lanjutkan ke kode di bawah
+//         return;
+//       } catch (error) {
+//         console.error("Error fetching booked seats:", error.message);
+//         // Jika terjadi error, lanjutkan dengan kode format asli
+//       }
+//     }
+
+
+//     let availableSchedules, availableSubSchedules;
+
+// // Redefine if not already defined
+// if (!availableSchedules) {
+//   availableSchedules = schedules.filter(schedule => 
+//     schedule.dataValues.seatAvailability && 
+//     schedule.dataValues.seatAvailability.available_seats > 0 &&
+//     schedule.dataValues.seatAvailability.availability === 1
+//   );
+// }
+// // console.log("🫁Available Schedules:", availableSchedules);
+// if (!availableSubSchedules) {
+//   availableSubSchedules = subSchedules.filter(subSchedule => 
+//     subSchedule.dataValues.seatAvailability && 
+//     subSchedule.dataValues.seatAvailability.available_seats > 0 &&
+//     subSchedule.dataValues.seatAvailability.availability === true
+//   );
+// }
+
+
+    
+
+//     // Kode asli, hanya dijalankan jika tidak ada seatAvailability atau terjadi error
+//     // Format schedules dan subSchedules
+//     const formattedSchedules = formatSchedules(availableSchedules, selectedDate);
+//     const formattedSubSchedules = formatSubSchedules(
+//       availableSubSchedules,
+//       selectedDate
+//     );
+
+//     // Combine the results into a single array
+//     const combinedSchedules = [...formattedSchedules, ...formattedSubSchedules];
+
+//     // Return the combined results
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         schedules: combinedSchedules,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error searching schedules and subschedules:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: error.message,
+//     });
+//   }
+// };
+
+
+// const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
+//   const { from, to, date, passengers_total } = req.query;
+
+//   try {
+//     // OPTIMIZED: Semua processing sudah ditangani dalam getSchedulesAndSubSchedules
+//     const { schedules, subSchedules, selectedDate } = await getSchedulesAndSubSchedules(from, to, date);
+
+//     // Filter schedules dan subSchedules yang available
+//     const availableSchedules = filterAvailableSchedules(schedules);
+//     const availableSubSchedules = filterAvailableSubSchedules(subSchedules);
+
+//     // Format schedules dan subSchedules
+//     const formattedSchedules = formatSchedules(availableSchedules, selectedDate);
+//     const formattedSubSchedules = formatSubSchedules(availableSubSchedules, selectedDate);
+
+//     // Combine the results into a single array
+//     const combinedSchedules = [...formattedSchedules, ...formattedSubSchedules];
+
+//     // Return the combined results
+//     res.status(200).json({
+//       status: "success",
+//       data: {
+//         schedules: combinedSchedules,
+//       },
+//     });
+
+//   } catch (error) {
+//     console.error("Error searching schedules and subschedules:", error);
+//     res.status(500).json({
+//       status: "error",
+//       message: error.message,
+//     });
+//   }
+// };
 
 // Create a new schedule with transits
 const createScheduleWithTransit = async (req, res) => {

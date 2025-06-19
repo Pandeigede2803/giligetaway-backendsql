@@ -4,6 +4,8 @@ const {
   getAllSeatAvailabilityScheduleAndSubSchedule,
   checkAvailableSeats,
   getSeatAvailabilityByMonthYear,
+ getSeatAvailabilityMonthlyView
+ ,
   deleteSeatAvailabilityByIds,
   updateSeatAvailability,
   checkAllAvailableSeats,
@@ -32,6 +34,7 @@ const validateSeatAvailability = require("../middleware/validateSeatAvailability
 router.post('/create-or-get',authenticate, validateSeatAvailability, createOrGetSeatAvailability);
 
 router.get("/get-month", authenticate, getSeatAvailabilityByMonthYear);
+router.get("/get-monthly-view", authenticate,  getSeatAvailabilityMonthlyView);
 router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
 
 

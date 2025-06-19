@@ -389,6 +389,406 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
   }
 };
 
+const getSeatAvailabilityMonthlyView = async (req, res) => {
+  const { year, month, page = 1 } = req.query;
+
+  try {
+    const pageNumber = parseInt(page, 10);
+    
+    // Validasi input
+    if (isNaN(pageNumber) || pageNumber < 1) {
+      return res.status(400).json({ error: "Page must be a positive number." });
+    }
+
+    if (!year || !month) {
+      return res.status(400).json({
+        error: "Both 'year' and 'month' parameters are required.",
+      });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const monthNum = parseInt(month, 10);
+
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        error: "Invalid year or month. Month must be between 1-12.",
+      });
+    }
+
+    console.log(`📅 Fetching monthly view for ${year}-${month.toString().padStart(2, '0')}, page ${pageNumber}`);
+
+    // Generate all dates in the month
+    const startOfMonth = new Date(yearNum, monthNum - 1, 1);
+    const endOfMonth = new Date(yearNum, monthNum, 0); // Last day of month
+    const daysInMonth = endOfMonth.getDate();
+
+    // Generate array of all dates in the month
+    const allDatesInMonth = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      allDatesInMonth.push(dateStr);
+    }
+
+    // Calculate pagination - 14 days (2 weeks) per page
+    const daysPerPage = 14;
+    const totalPages = Math.ceil(daysInMonth / daysPerPage);
+    const startIndex = (pageNumber - 1) * daysPerPage;
+    const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
+    
+    // Get dates for current page
+    const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
+    
+    if (currentPageDates.length === 0) {
+      return res.status(400).json({
+        error: `Page ${pageNumber} is out of range. Total pages: ${totalPages}`,
+      });
+    }
+
+    const firstDate = currentPageDates[0];
+    const lastDate = currentPageDates[currentPageDates.length - 1];
+
+    console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate} (schedule-only, no subschedule)`);
+
+    // Fetch seat availability data for the date range (exclude subschedule)
+    const seatAvailabilities = await SeatAvailability.findAll({
+      where: {
+        date: {
+          [Op.between]: [new Date(firstDate), new Date(lastDate)],
+        },
+        subschedule_id: null, // Only get records without subschedule
+      },
+      attributes: [
+        "id",
+        "schedule_id",
+        "available_seats",
+        "transit_id",
+        "subschedule_id",
+        "availability",
+        "date",
+        "boost",
+        "updated_at",
+        "created_at",
+      ],
+      include: [
+        {
+          model: Schedule,
+          required: true,
+          attributes: ["id", "destination_from_id", "destination_to_id", "departure_time"],
+          include: [
+            {
+              model: Boat,
+              as: "Boat",
+              required: true,
+              attributes: ["id", "capacity", "published_capacity"],
+            },
+            {
+              model: Destination,
+              as: "FromDestination",
+              required: true,
+              attributes: ["id", "name"],
+            },
+            {
+              model: Destination,
+              as: "ToDestination",
+              required: true,
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: SubSchedule,
+          required: false,
+          attributes: ["id", "schedule_id"],
+          as: "SubSchedule",
+          // Since we're filtering out subschedule_id: null, this will always be null
+          // But we keep it for consistency with the interface
+          include: [
+            {
+              model: Destination,
+              as: "DestinationFrom",
+              attributes: ["name"],
+            },
+            {
+              model: Destination,
+              as: "DestinationTo",
+              attributes: ["name"],
+            },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+          ],
+        },
+        {
+          model: BookingSeatAvailability,
+          required: false,
+          as: "BookingSeatAvailabilities",
+          include: [
+            {
+              model: Booking,
+              attributes: ["id"],
+              required: false,
+              where: {
+                payment_status: {
+                  [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                },
+              },
+              include: [
+                {
+                  model: Passenger,
+                  as: "passengers",
+                  required: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["date", "ASC"], ["created_at", "ASC"]], // Sort by date first, then creation time
+    });
+
+    // Group seat availabilities by date
+    const seatAvailabilityByDate = {};
+    seatAvailabilities.forEach((seat) => {
+      // Handle both Date object and string
+      let dateKey;
+      if (seat.date instanceof Date) {
+        dateKey = seat.date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      } else {
+        // If it's already a string, just use it (assuming it's in YYYY-MM-DD format)
+        dateKey = seat.date.toString().split('T')[0];
+      }
+      
+      if (!seatAvailabilityByDate[dateKey]) {
+        seatAvailabilityByDate[dateKey] = [];
+      }
+      seatAvailabilityByDate[dateKey].push(seat);
+    });
+
+    // Process and enhance seat availability data
+    const enhancedSeatAvailabilities = seatAvailabilities.map((seatAvailability) => {
+      const seatAvailabilityObj = seatAvailability.get({ plain: true });
+
+      let totalPassengers = 0;
+      const bookingIds = new Set();
+
+      if (seatAvailabilityObj.BookingSeatAvailabilities) {
+        seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
+          if (bsa.Booking?.passengers?.length > 0) {
+            totalPassengers += bsa.Booking.passengers.length;
+            bookingIds.add(bsa.Booking.id);
+          }
+        });
+      }
+
+      const correctCapacity = seatAvailabilityObj.boost
+        ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
+        : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
+
+      const correctAvailableSeats = correctCapacity - totalPassengers;
+      const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
+
+      const route = seatAvailabilityObj.Schedule
+        ? buildRouteFromScheduleFlatten(
+            seatAvailabilityObj.Schedule,
+            null // Always null since we're excluding subschedule
+          )
+        : null;
+
+      return {
+        ...seatAvailabilityObj,
+        // Ensure date is properly formatted as string
+        date: seatAvailabilityObj.date instanceof Date 
+          ? seatAvailabilityObj.date.toISOString().split('T')[0] 
+          : seatAvailabilityObj.date.toString().split('T')[0],
+        boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
+        total_passengers: totalPassengers,
+        total_bookings: bookingIds.size,
+        correct_capacity: correctCapacity,
+        route: route,
+        capacity_match_status:
+          totalPassengers + seatAvailabilityObj.available_seats === correctCapacity
+            ? "MATCH"
+            : "MISMATCH",
+        miss_seats: miss_seat,
+        BookingSeatAvailabilities: undefined,
+      };
+    });
+
+    // Create ordered calendar data structure
+    const calendarData = currentPageDates.map((dateStr) => {
+      const dateData = seatAvailabilityByDate[dateStr] || [];
+      
+      // Process the seat data for this date
+      const processedSeats = dateData.map((seat) => {
+        const seatObj = seat.get({ plain: true });
+        
+        let totalPassengers = 0;
+        const bookingIds = new Set();
+
+        if (seatObj.BookingSeatAvailabilities) {
+          seatObj.BookingSeatAvailabilities.forEach((bsa) => {
+            if (bsa.Booking?.passengers?.length > 0) {
+              totalPassengers += bsa.Booking.passengers.length;
+              bookingIds.add(bsa.Booking.id);
+            }
+          });
+        }
+
+        const correctCapacity = seatObj.boost
+          ? seatObj.Schedule?.Boat?.capacity || 0
+          : seatObj.Schedule?.Boat?.published_capacity || 0;
+
+        const correctAvailableSeats = correctCapacity - totalPassengers;
+        const miss_seat = correctAvailableSeats - seatObj.available_seats;
+
+        const route = seatObj.Schedule
+          ? buildRouteFromScheduleFlatten(seatObj.Schedule, null) // Always null since we're excluding subschedule
+          : null;
+
+        return {
+          ...seatObj,
+          // Ensure date is properly formatted as string
+          date: seatObj.date instanceof Date 
+            ? seatObj.date.toISOString().split('T')[0] 
+            : seatObj.date.toString().split('T')[0],
+          boat_id: seatObj.Schedule?.Boat?.id,
+          total_passengers: totalPassengers,
+          total_bookings: bookingIds.size,
+          correct_capacity: correctCapacity,
+          route: route,
+          capacity_match_status:
+            totalPassengers + seatObj.available_seats === correctCapacity
+              ? "MATCH"
+              : "MISMATCH",
+          miss_seats: miss_seat,
+          BookingSeatAvailabilities: undefined,
+        };
+      });
+
+      return {
+        date: dateStr,
+        dayOfWeek: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' }),
+        dayOfMonth: new Date(dateStr).getDate(),
+        seatCount: processedSeats.length,
+        seats: processedSeats,
+        totalPassengers: processedSeats.reduce((sum, seat) => sum + seat.total_passengers, 0),
+        totalBookings: processedSeats.reduce((sum, seat) => sum + seat.total_bookings, 0),
+        mismatchCount: processedSeats.filter(seat => seat.capacity_match_status === 'MISMATCH').length,
+      };
+    });
+
+    // Calculate summary statistics for the current page
+    const summary = {
+      dateRange: {
+        start: firstDate,
+        end: lastDate,
+        totalDays: currentPageDates.length,
+      },
+      totals: {
+        totalSeats: enhancedSeatAvailabilities.length,
+        totalPassengers: enhancedSeatAvailabilities.reduce((sum, seat) => sum + seat.total_passengers, 0),
+        totalBookings: enhancedSeatAvailabilities.reduce((sum, seat) => sum + seat.total_bookings, 0),
+        mismatchedSeats: enhancedSeatAvailabilities.filter(seat => seat.capacity_match_status === 'MISMATCH').length,
+        matchedSeats: enhancedSeatAvailabilities.filter(seat => seat.capacity_match_status === 'MATCH').length,
+      },
+      daysWithData: calendarData.filter(day => day.seatCount > 0).length,
+      daysWithoutData: calendarData.filter(day => day.seatCount === 0).length,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, '0')} (${firstDate} to ${lastDate}) - Schedule only`,
+      calendar_data: calendarData, // Ordered by date, 2 weeks per page
+      seat_availabilities: enhancedSeatAvailabilities, // All seat data (flat structure for compatibility)
+      summary: summary,
+      pagination: {
+        total: daysInMonth, // Total days in month
+        page: pageNumber,
+        limit: daysPerPage, // 14 days per page
+        totalPages: totalPages,
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1,
+        dateRange: {
+          start: firstDate,
+          end: lastDate,
+          totalDaysInPage: currentPageDates.length,
+        },
+        monthInfo: {
+          year: yearNum,
+          month: monthNum,
+          totalDaysInMonth: daysInMonth,
+          monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString('en-US', { month: 'long' }),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching monthly seat availability:", error.message);
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+    });
+  }
+};
+
+
+
 // Controllers/SeatAvailabilityController.js
 
 /**
@@ -1188,5 +1588,6 @@ module.exports = {
  getSeatAvailabilityByMonthYear,
  deleteSeatAvailabilityByIds,
  fixSeatMismatch,
- fixSeatMismatchBatch,fixAllSeatMismatches
+ fixSeatMismatchBatch,fixAllSeatMismatches,
+ getSeatAvailabilityMonthlyView
 };
