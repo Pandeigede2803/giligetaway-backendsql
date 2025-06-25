@@ -55,6 +55,22 @@ const Discount = sequelize.define(
       defaultValue: "all",
       comment: "Jenis tiket yang berlaku untuk diskon ini",
     },
+    applicable_direction: {
+      type: DataTypes.ENUM("departure", "return", "all"),
+      allowNull: false,
+      defaultValue: "all",
+      comment: "Diskon ini berlaku untuk arah keberangkatan tertentu",
+    },
+    route_key: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Slug rute spesifik seperti 'gili-trawangan-gili-gede'",
+    },
+    schedule_ids: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: "Array of schedule IDs where the discount applies",
+    },
     updated_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
