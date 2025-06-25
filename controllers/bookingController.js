@@ -1896,15 +1896,50 @@ const generateRoundTripTicketIds = async (req, res) => {
     // Dapatkan timestamp saat ini
     const now = Date.now();
 
-    // Fungsi untuk menghasilkan 6 digit acak yang unik
-    const generateRandomSixDigits = () => {
-      // Angka acak antara 100000-999999
-      const randomNum = 100000 + Math.floor(Math.random() * 900000);
-      // Pastikan angka ganjil untuk tiket keberangkatan
-      return randomNum % 2 === 0 ? randomNum + 1 : randomNum;
+    // Fungsi untuk menghasilkan 6 digit acak yang valid
+    const generateValidSixDigits = () => {
+      let randomNum;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      do {
+        attempts++;
+        // Angka acak antara 100000-999999
+        randomNum = 100000 + Math.floor(Math.random() * 900000);
+        
+        // Pastikan angka ganjil untuk tiket keberangkatan
+        if (randomNum % 2 === 0) randomNum++;
+        
+        // console.log(`🔍 Checking number: ${randomNum}, ends with: ${randomNum.toString().slice(-2)}`);
+        
+        // ✨ VALIDASI UTAMA: Pastikan tidak berakhir 99
+        // Karena jika berakhir 99, maka pasangannya akan berakhir 00
+        if (randomNum.toString().endsWith('99')) {
+          console.log(`❌ Number ${randomNum} ends with 99, will cause 00 pair. Regenerating...`);
+          continue;
+        }
+        
+        // ✨ VALIDASI TAMBAHAN: Pastikan pasangan tidak berakhir 00
+        const pairedNumber = randomNum + 1;
+        if (pairedNumber.toString().endsWith('00')) {
+          console.log(`❌ Paired number ${pairedNumber} ends with 00. Regenerating...`);
+          continue;
+        }
+        
+        // // Jika sampai sini, berarti valid
+        // console.log(`✅ Valid number found: ${randomNum}, pair: ${pairedNumber}`);
+        break;
+        
+      } while (attempts < maxAttempts);
+
+      if (attempts >= maxAttempts) {
+        throw new Error('Could not generate valid number after maximum attempts');
+      }
+
+      return randomNum;
     };
 
-    let baseNumber = generateRandomSixDigits();
+    let baseNumber = generateValidSixDigits();
     let ticketIdDeparture = "";
     let ticketIdReturn = "";
     let attempts = 0;
@@ -1913,8 +1948,15 @@ const generateRoundTripTicketIds = async (req, res) => {
     while (attempts < maxAttempts) {
       attempts++;
 
-      // Pastikan baseNumber selalu ganjil
+      // Pastikan baseNumber selalu ganjil (sudah dihandle di generateValidSixDigits)
       if (baseNumber % 2 === 0) baseNumber++;
+
+      // ✨ DOUBLE CHECK: Pastikan tidak berakhir 99
+      if (baseNumber.toString().endsWith('99')) {
+        console.log(`🔄 Base number ${baseNumber} ends with 99, regenerating...`);
+        baseNumber = generateValidSixDigits();
+        continue;
+      }
 
       // Buat ticket ID dengan format: GG-RT-XXXXXX
       ticketIdDeparture = `GG-RT-${baseNumber}`;
@@ -1923,6 +1965,13 @@ const generateRoundTripTicketIds = async (req, res) => {
       console.log(
         `🔄 Mencoba pasangan ID ke-${attempts}: ${ticketIdDeparture} dan ${ticketIdReturn}`
       );
+
+      // ✨ VALIDASI AKHIR: Pastikan return ticket tidak berakhir 00
+      if ((baseNumber + 1).toString().endsWith('00')) {
+        console.log(`❌ Return ticket ${ticketIdReturn} ends with 00, regenerating base number...`);
+        baseNumber = generateValidSixDigits();
+        continue;
+      }
 
       // Cek apakah ID sudah ada di database
       const existing = await Booking.findAll({
@@ -1938,13 +1987,14 @@ const generateRoundTripTicketIds = async (req, res) => {
         console.log(
           `✅ Menemukan pasangan ID yang tersedia: ${ticketIdDeparture} dan ${ticketIdReturn}`
         );
+        console.log(`🎯 Final validation - Departure ends with: ${baseNumber.toString().slice(-2)}, Return ends with: ${(baseNumber + 1).toString().slice(-2)}`);
         break;
       }
 
       console.log(`⚠️ ID sudah digunakan, mencoba pasangan berikutnya...`);
 
       // Jika terjadi konflik, buat nomor acak baru sepenuhnya
-      baseNumber = generateRandomSixDigits();
+      baseNumber = generateValidSixDigits();
     }
 
     // Jika mencapai batas percobaan, beri tahu pengguna
@@ -1955,10 +2005,31 @@ const generateRoundTripTicketIds = async (req, res) => {
       });
     }
 
+    // ✨ FINAL SAFETY CHECK sebelum return
+    const finalDepartureEnding = baseNumber.toString().slice(-2);
+    const finalReturnEnding = (baseNumber + 1).toString().slice(-2);
+    
+    if (finalReturnEnding === '00') {
+      console.error(`🚨 CRITICAL ERROR: About to return ticket ending with 00!`);
+      return res.status(500).json({
+        error: "Generated invalid ticket ending with 00",
+        message: "Internal validation failed",
+      });
+    }
+
+    console.log(`🎉 SUCCESS: Generated valid ticket pair`);
+    console.log(`📋 Departure: ${ticketIdDeparture} (ends with: ${finalDepartureEnding})`);
+    console.log(`📋 Return: ${ticketIdReturn} (ends with: ${finalReturnEnding})`);
+
     return res.json({
       ticket_id_departure: ticketIdDeparture,
       ticket_id_return: ticketIdReturn,
       timestamp: new Date().toISOString(),
+      validation: {
+        departure_ending: finalDepartureEnding,
+        return_ending: finalReturnEnding,
+        is_valid: finalReturnEnding !== '00' && !finalDepartureEnding.endsWith('99')
+      }
     });
   } catch (error) {
     console.error("❌ Error generating round-trip ticket IDs:", error);
@@ -3519,6 +3590,7 @@ const getBookingByTicketId = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
 const getRelatedBookingsByTicketId = async (req, res) => {
   try {
     const { ticket_id } = req.params;

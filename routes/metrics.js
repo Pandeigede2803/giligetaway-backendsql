@@ -24,7 +24,12 @@ router.get('/agent-statistics', authenticate,metricsController.getAgentStatistic
 
 router.get('/booking-source', authenticate,metricsController.getBookingMetricsBySource);
 router.get('/booking-comparison', authenticate,metricsController.getBookingComparisonMetrics);  
+// get ticket type (GG-OW vs GG-RT) per month
+router.get('/ticket-type-monthly', authenticate, metricsController.getBookingByTicketTypeMonthly);
 
+//   getBookingByTicketTypeMonthlyByBoat
+
+router.get('/ticket-type-monthly-by-boat', authenticate, metricsController.getBookingByTicketTypeMonthlyByBoat);
 
 
 module.exports = router;

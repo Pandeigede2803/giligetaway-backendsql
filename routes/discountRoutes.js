@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const discountController = require('../controllers/discountController');
 const authenticate = require('../middleware/authenticate');
+const validateDiscount = require('../middleware/validateDiscountQuery');
 
 // Create a new discount
 router.post('/',authenticate, discountController.createDiscount);
@@ -10,7 +11,7 @@ router.post('/',authenticate, discountController.createDiscount);
 router.get('/',authenticate, discountController.getAllDiscounts);
 
 // get discount by code
-router.get('/:code',authenticate, discountController.getDiscountByCode);
+router.get('/:code',authenticate,validateDiscount, discountController.getDiscountByCode);
 
 // Get a discount by ID
 router.get('/:id',authenticate, discountController.getDiscountById);

@@ -2815,6 +2815,199 @@ const getAgentStatistics = async (req, res) => {
   }
 };
 
+const getBookingByTicketTypeMonthly = async (req, res) => {
+  try {
+    const { startMonth, endMonth, year } = req.query;
+
+    const numericStart = parseInt(startMonth);
+    const numericEnd = parseInt(endMonth);
+    const numericYear = parseInt(year);
+
+    if (
+      isNaN(numericStart) || isNaN(numericEnd) || isNaN(numericYear) ||
+      numericStart < 1 || numericStart > 12 ||
+      numericEnd < 1 || numericEnd > 12 ||
+      numericStart > numericEnd
+    ) {
+      return res.status(400).json({ error: "Invalid month or year range" });
+    }
+
+    const results = [];
+
+    for (let month = numericStart; month <= numericEnd; month++) {
+      const startDate = moment(`${numericYear}-${month}-01`).startOf("month").format("YYYY-MM-DD HH:mm:ss");
+      const endDate = moment(`${numericYear}-${month}-01`).endOf("month").format("YYYY-MM-DD HH:mm:ss");
+
+      const data = await Booking.findAll({
+        where: {
+          booking_date: {
+            [Op.between]: [startDate, endDate],
+          },
+          payment_status: {
+            [Op.in]: ["paid", "invoiced"],
+          },
+          booking_source: {
+            [Op.ne]: "agent",
+          },
+          ticket_id: {
+            [Op.or]: [
+              { [Op.like]: "GG-OW%" },
+              { [Op.like]: "GG-RT%" },
+            ],
+          },
+        },
+        attributes: [
+          [sequelize.literal(`'${moment(startDate).format("MMMM")}'`), "month"],
+          [sequelize.literal(`CASE WHEN ticket_id LIKE 'GG-OW%' THEN 'one_way' ELSE 'round_trip' END`), "type"],
+          [sequelize.fn("COUNT", sequelize.col("id")), "count"],
+          [sequelize.fn("SUM", sequelize.col("total_passengers")), "total_passengers"],
+        ],
+        group: ["type"],
+        raw: true,
+      });
+
+      const monthData = {
+        month: moment(startDate).format("MMMM"),
+        one_way: 0,
+        round_trip: 0,
+        passengers_one_way: 0,
+        passengers_round_trip: 0,
+      };
+
+      data.forEach((row) => {
+        if (row.type === "one_way") {
+          monthData.one_way = parseInt(row.count);
+          monthData.passengers_one_way = parseInt(row.total_passengers || 0);
+        } else if (row.type === "round_trip") {
+          monthData.round_trip = parseInt(row.count);
+          monthData.passengers_round_trip = parseInt(row.total_passengers || 0);
+        }
+      });
+
+      results.push(monthData);
+    }
+
+    return res.json({
+      status: "success",
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error in getBookingByTicketTypeMonthly:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve booking count by ticket type per month",
+    });
+  }
+};
+
+const getBookingByTicketTypeMonthlyByBoat = async (req, res) => {
+  try {
+    const { startMonth, endMonth, year, boat_id } = req.query;
+    console.log("req query", req.query);
+
+    const numericStart = parseInt(startMonth);
+    const numericEnd = parseInt(endMonth);
+    const numericYear = parseInt(year);
+
+    if (
+      isNaN(numericStart) || isNaN(numericEnd) || isNaN(numericYear) ||
+      numericStart < 1 || numericStart > 12 ||
+      numericEnd < 1 || numericEnd > 12 ||
+      numericStart > numericEnd
+    ) {
+      return res.status(400).json({ error: "Invalid month or year range" });
+    }
+
+    // 🛠️ Convert boat_id to array of integers (support comma separated)
+    let boatIds = [];
+    if (boat_id) {
+      boatIds = boat_id.split(',').map((id) => parseInt(id.trim())).filter((id) => !isNaN(id));
+      if (boatIds.length === 0) {
+        return res.status(400).json({ error: "Invalid boat_id values" });
+      }
+    } else {
+      return res.status(400).json({ error: "boat_id is required" });
+    }
+
+    const results = [];
+
+    for (let month = numericStart; month <= numericEnd; month++) {
+      const startDate = moment(`${numericYear}-${month}-01`).startOf("month").format("YYYY-MM-DD HH:mm:ss");
+      const endDate = moment(`${numericYear}-${month}-01`).endOf("month").format("YYYY-MM-DD HH:mm:ss");
+
+      const data = await Booking.findAll({
+        where: {
+          booking_date: {
+            [Op.between]: [startDate, endDate],
+          },
+          payment_status: {
+            [Op.in]: ["paid", "invoiced"],
+          },
+          booking_source: {
+            [Op.ne]: "agent",
+          },
+          ticket_id: {
+            [Op.or]: [
+              { [Op.like]: "GG-OW%" },
+              { [Op.like]: "GG-RT%" },
+            ],
+          },
+        },
+        include: [
+          {
+            model: Schedule,
+            as: "schedule",
+            where: {
+              boat_id: {
+                [Op.in]: boatIds,
+              },
+            },
+            attributes: [],
+          },
+        ],
+        attributes: [
+          [sequelize.literal(`'${moment(startDate).format("MMMM")}'`), "month"],
+          [sequelize.literal(`CASE WHEN ticket_id LIKE 'GG-OW%' THEN 'one_way' ELSE 'round_trip' END`), "type"],
+          [sequelize.fn("COUNT", sequelize.col("Booking.id")), "count"],
+          [sequelize.fn("SUM", sequelize.col("total_passengers")), "total_passengers"],
+        ],
+        group: ["type"],
+        raw: true,
+      });
+
+      const monthData = {
+        month: moment(startDate).format("MMMM"),
+        one_way: 0,
+        round_trip: 0,
+        passengers_one_way: 0,
+        passengers_round_trip: 0,
+      };
+
+      data.forEach((row) => {
+        if (row.type === "one_way") {
+          monthData.one_way = parseInt(row.count);
+          monthData.passengers_one_way = parseInt(row.total_passengers || 0);
+        } else if (row.type === "round_trip") {
+          monthData.round_trip = parseInt(row.count);
+          monthData.passengers_round_trip = parseInt(row.total_passengers || 0);
+        }
+      });
+
+      results.push(monthData);
+    }
+
+    return res.json({
+      status: "success",
+      data: results,
+    });
+  } catch (error) {
+    console.error("Error in getBookingByTicketTypeMonthlyByBoat:", error);
+    res.status(500).json({
+      status: "error",
+      message: "Failed to retrieve booking count by ticket type per boat",
+    });
+  }
+};
 // create get metrics by agent id
 
 module.exports = {
@@ -2827,4 +3020,6 @@ module.exports = {
   getAgentAnnualyMetrics,
   getAgentStatistics,
   getMetricsBookingDate,
+  getBookingByTicketTypeMonthly,
+  getBookingByTicketTypeMonthlyByBoat
 };

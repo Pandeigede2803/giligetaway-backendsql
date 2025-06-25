@@ -5,7 +5,9 @@ const { Op } = require("sequelize");
 // Create a new discount
 exports.createDiscount = async (req, res) => {
     try {
+           console.log('Discount created:', req.body);
         const discount = await Discount.create(req.body);
+     
         res.status(201).json({ success: true, data: discount });
     } catch (error) {
         console.error('Error creating discount:', error.message);
