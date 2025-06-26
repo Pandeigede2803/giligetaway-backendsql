@@ -97,7 +97,7 @@ exports.getDiscountByCode = async (req, res) => {
       }
     }
 
-    res.status(200).json({ success: true, data: result });
+    res.status(200).json({ success: true, ...result });
   } catch (error) {
     console.error("Error fetching discount:", error.message);
     res.status(500).json({ success: false, error: error.message });

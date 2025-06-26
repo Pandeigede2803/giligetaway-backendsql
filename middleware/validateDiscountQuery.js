@@ -2,7 +2,8 @@ const Discount = require("../models/discount");
 const validateDiscountQuery = async (req, res, next) => {
   console.log("🚦 Start validating discount query...");
 
-  const { type, booking_date, schedule_id_departure, schedule_id_return } = req.query;
+  const { type, booking_date, schedule_id_departure, schedule_id_return } =
+    req.query;
   const { code } = req.params;
   const errors = [];
 
@@ -59,29 +60,24 @@ const validateDiscountQuery = async (req, res, next) => {
         message: "Discount is not valid for selected trip type",
       });
     }
-    // ⛔ Validate schedule_id if provided
-    if (
-      schedule_id_departure &&
-      Array.isArray(discount.schedule_ids) &&
-      discount.schedule_ids.length > 0 &&
-      !discount.schedule_ids.includes(schedule_id)
-    ) {
-      console.log(`❌ Discount not applicable to schedule_id: ${schedule_id}`);
+    // ⛔ Unified schedule_id validation
+    const hasScheduleIds =
+      Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0;
+    const depValid =
+      !schedule_id_departure ||
+      discount.schedule_ids.includes(parseInt(schedule_id_departure));
+    const retValid =
+      schedule_id_return === null ||
+      discount.schedule_ids.includes(parseInt(schedule_id_return));
+
+    if (hasScheduleIds && !depValid && !retValid) {
+      console.log(
+        "❌ Discount not valid for either departure or return schedule."
+      );
       return res.status(400).json({
         success: false,
-        message: "Discount is not valid for the selected schedule",
-      });
-    }
-    if (
-      schedule_id_return !== null &&
-      Array.isArray(discount.schedule_ids) &&
-      discount.schedule_ids.length > 0 &&
-      !discount.schedule_ids.includes(schedule_id_return)
-    ) {
-      console.log(`❌ Discount not applicable to return schedule_id: ${schedule_id_return}`);
-      return res.status(400).json({
-        success: false,
-        message: "Discount is not valid for the selected return schedule",
+        message:
+          "Discount is not valid for either selected schedule (departure or return).",
       });
     }
 
