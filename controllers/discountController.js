@@ -62,10 +62,12 @@ exports.updateDiscount = async (req, res) => {
 // get discount by code
 exports.getDiscountByCode = async (req, res) => {
   console.log("Request params:", req.params);
+  console.log("Request query:", req.query);
   const { type, booking_date, schedule_id_departure, schedule_id_return } =
     req.query;
   try {
     // Strict equality for case-sensitive match
+    console.log("Finding discount by code:", req.params.code);
     const discount = await Discount.findOne({
       where: { code: { [Op.eq]: req.params.code } }, // Ensures exact and strict match
     });
@@ -80,19 +82,31 @@ exports.getDiscountByCode = async (req, res) => {
     const result = {
       discount,
       schedule_ids: discount.schedule_ids || [],
-      valid_schedule_departure: null,
-      valid_schedule_return: null,
+      valid_schedule_departure: true,
+      valid_schedule_return: false,
     };
+
+    console.log("Discount has schedule_ids:", result.schedule_ids);
 
     if (Array.isArray(discount.schedule_ids)) {
       if (schedule_id_departure) {
         result.valid_schedule_departure = discount.schedule_ids.includes(
           parseInt(schedule_id_departure)
         );
+        console.log(
+          `Schedule ID departure ${schedule_id_departure} is ${
+            result.valid_schedule_departure ? "" : "not "
+          }in the list of valid schedule IDs.`
+        );
       }
       if (schedule_id_return) {
         result.valid_schedule_return = discount.schedule_ids.includes(
           parseInt(schedule_id_return)
+        );
+        console.log(
+          `Schedule ID return ${schedule_id_return} is ${
+            result.valid_schedule_return ? "" : "not "
+          }in the list of valid schedule IDs.`
         );
       }
     }
