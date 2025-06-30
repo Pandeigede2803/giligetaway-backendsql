@@ -45,6 +45,23 @@ const validateDiscountQuery = async (req, res, next) => {
 
     req.discount = discount;
 
+    // ⛔ Validate booking_date is within discount validity
+    if (booking_date) {
+      const checkDate = new Date(booking_date);
+      const startDate = new Date(discount.start_date);
+      const endDate = new Date(discount.end_date);
+
+      if (checkDate < startDate || checkDate > endDate) {
+        console.log(
+          `❌ Booking date ${booking_date} is outside discount validity range: ${discount.start_date} - ${discount.end_date}`
+        );
+        return res.status(400).json({
+          success: false,
+          message: `Discount is not valid for the selected booking date: ${booking_date}`,
+        });
+      }
+    }
+
     // ⛔ Validate applicable_types compatibility
     if (
       discount.applicable_types &&

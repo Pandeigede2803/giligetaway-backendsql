@@ -47,7 +47,7 @@ const AgentCommission = sequelize.define('AgentCommission', {
             name: 'unique_booking_agent'
         }
     ]
-});
+});;
 
 // Association
 AgentCommission.associate = (models) => {

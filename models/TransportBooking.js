@@ -32,6 +32,24 @@ const TransportBooking = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
+    other_fee: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.0,
+    },
+    other_fee_type: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    other_fee_payment_method: {
+      type: DataTypes.ENUM('cash', 'cod', 'agent-invoice'),
+      allowNull: true,
+    },
+    other_fee_payment_status: {
+      type: DataTypes.ENUM('pending', 'paid', 'invoiced'),
+      allowNull: false,
+      defaultValue: 'pending',
+    },
     transport_type: {
       type: DataTypes.STRING,
       allowNull: false,
