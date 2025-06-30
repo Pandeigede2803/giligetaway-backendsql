@@ -8,8 +8,11 @@ const {
   Destination,
   BookingSeatAvailability,
   Passenger,
+  sequelize,
+
 
 } = require("../models"); // Adjust the path as needed
+const { QueryTypes } = require("sequelize");
 const cron = require("node-cron");
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require('express-validator');
@@ -389,395 +392,505 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
   }
 };
 
+// Helper Functions
+const validateInput = (year, month, page) => {
+  const pageNumber = parseInt(page, 10);
+  
+  if (isNaN(pageNumber) || pageNumber < 1) {
+    throw new Error("Page must be a positive number.");
+  }
+
+  if (!year || !month) {
+    throw new Error("Both 'year' and 'month' parameters are required.");
+  }
+
+  const yearNum = parseInt(year, 10);
+  const monthNum = parseInt(month, 10);
+
+  if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+    throw new Error("Invalid year or month. Month must be between 1-12.");
+  }
+
+  return { yearNum, monthNum, pageNumber };
+};
+
+const generateMonthDates = (year, month) => {
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0);
+  const daysInMonth = endOfMonth.getDate();
+
+  const allDatesInMonth = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    allDatesInMonth.push(dateStr);
+  }
+
+  return { allDatesInMonth, daysInMonth };
+};
+
+const calculatePagination = (allDatesInMonth, daysInMonth, pageNumber) => {
+  const daysPerPage = 14;
+  const totalPages = Math.ceil(daysInMonth / daysPerPage);
+  const startIndex = (pageNumber - 1) * daysPerPage;
+  const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
+  
+  const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
+  
+  if (currentPageDates.length === 0) {
+    throw new Error(`Page ${pageNumber} is out of range. Total pages: ${totalPages}`);
+  }
+
+  return {
+    currentPageDates,
+    daysPerPage,
+    totalPages,
+    firstDate: currentPageDates[0],
+    lastDate: currentPageDates[currentPageDates.length - 1]
+  };
+};
+
+const buildSeatAvailabilityQuery = () => {
+  return `
+    WITH booking_passengers AS (
+      SELECT 
+        bsa.seat_availability_id,
+        COUNT(p.id) as passenger_count,
+        COUNT(DISTINCT b.id) as booking_count
+      FROM BookingSeatAvailability bsa
+      JOIN Bookings b ON bsa.booking_id = b.id
+      LEFT JOIN Passengers p ON b.id = p.booking_id
+      WHERE b.payment_status IN ('paid', 'invoiced', 'pending', 'unpaid')
+      GROUP BY bsa.seat_availability_id
+    )
+    SELECT 
+      -- SeatAvailability fields
+      sa.id, sa.schedule_id, sa.available_seats, sa.transit_id, sa.subschedule_id,
+      sa.availability, sa.date, sa.boost, sa.updated_at as sa_updated_at, sa.created_at as sa_created_at,
+      
+      -- Schedule fields
+      s.id as schedule_id, s.destination_from_id as schedule_destination_from_id,
+      s.destination_to_id as schedule_destination_to_id, s.departure_time,
+      
+      -- Boat fields
+      b.id as boat_id, b.capacity, b.published_capacity,
+      
+      -- Schedule Destinations
+      df.id as from_destination_id, df.name as from_destination_name,
+      dt.id as to_destination_id, dt.name as to_destination_name,
+      
+      -- SubSchedule fields
+      sub.id as subschedule_id, sub.schedule_id as sub_schedule_id,
+      
+      -- SubSchedule Destinations
+      sub_df.id as sub_from_destination_id, sub_df.name as sub_from_destination_name,
+      sub_dt.id as sub_to_destination_id, sub_dt.name as sub_to_destination_name,
+      
+      -- Transit fields
+      t_from.id as transit_from_id, td_from.id as transit_from_destination_id, td_from.name as transit_from_destination_name,
+      t_to.id as transit_to_id, td_to.id as transit_to_destination_id, td_to.name as transit_to_destination_name,
+      t1.id as transit_1_id, td1.id as transit_1_destination_id, td1.name as transit_1_destination_name,
+      t2.id as transit_2_id, td2.id as transit_2_destination_id, td2.name as transit_2_destination_name,
+      t3.id as transit_3_id, td3.id as transit_3_destination_id, td3.name as transit_3_destination_name,
+      t4.id as transit_4_id, td4.id as transit_4_destination_id, td4.name as transit_4_destination_name,
+      
+      -- Booking data
+      COALESCE(bp.passenger_count, 0) as total_passengers,
+      COALESCE(bp.booking_count, 0) as total_bookings
+      
+    FROM SeatAvailability sa
+    JOIN Schedules s ON sa.schedule_id = s.id
+    JOIN Boats b ON s.boat_id = b.id
+    JOIN Destinations df ON s.destination_from_id = df.id
+    JOIN Destinations dt ON s.destination_to_id = dt.id
+    
+    -- SubSchedule joins
+    LEFT JOIN SubSchedules sub ON sa.subschedule_id = sub.id
+    LEFT JOIN Destinations sub_df ON sub.destination_from_schedule_id = sub_df.id
+    LEFT JOIN Destinations sub_dt ON sub.destination_to_schedule_id = sub_dt.id
+    
+    -- Transit joins
+    LEFT JOIN Transits t_from ON sub.transit_from_id = t_from.id
+    LEFT JOIN Destinations td_from ON t_from.destination_id = td_from.id
+    LEFT JOIN Transits t_to ON sub.transit_to_id = t_to.id
+    LEFT JOIN Destinations td_to ON t_to.destination_id = td_to.id
+    LEFT JOIN Transits t1 ON sub.transit_1 = t1.id
+    LEFT JOIN Destinations td1 ON t1.destination_id = td1.id
+    LEFT JOIN Transits t2 ON sub.transit_2 = t2.id
+    LEFT JOIN Destinations td2 ON t2.destination_id = td2.id
+    LEFT JOIN Transits t3 ON sub.transit_3 = t3.id
+    LEFT JOIN Destinations td3 ON t3.destination_id = td3.id
+    LEFT JOIN Transits t4 ON sub.transit_4 = t4.id
+    LEFT JOIN Destinations td4 ON t4.destination_id = td4.id
+    
+    -- Booking data
+    LEFT JOIN booking_passengers bp ON sa.id = bp.seat_availability_id
+    
+    WHERE sa.date BETWEEN :firstDate AND :lastDate
+    ORDER BY sa.date ASC, sa.created_at ASC
+  `;
+};
+
+const buildRouteFromRawData = (row, isSubschedule = false) => {
+  if (isSubschedule && row.subschedule_id) {
+    const schedule = {
+      FromDestination: { id: row.from_destination_id, name: row.from_destination_name },
+      ToDestination: { id: row.to_destination_id, name: row.to_destination_name }
+    };
+    
+    const subSchedule = {
+      DestinationFrom: row.sub_from_destination_id ? { id: row.sub_from_destination_id, name: row.sub_from_destination_name } : null,
+      DestinationTo: row.sub_to_destination_id ? { id: row.sub_to_destination_id, name: row.sub_to_destination_name } : null,
+      TransitFrom: row.transit_from_id ? { 
+        id: row.transit_from_id, 
+        Destination: { id: row.transit_from_destination_id, name: row.transit_from_destination_name }
+      } : null,
+      TransitTo: row.transit_to_id ? { 
+        id: row.transit_to_id, 
+        Destination: { id: row.transit_to_destination_id, name: row.transit_to_destination_name }
+      } : null,
+      Transit1: row.transit_1_id ? { 
+        id: row.transit_1_id, 
+        Destination: { id: row.transit_1_destination_id, name: row.transit_1_destination_name }
+      } : null,
+      Transit2: row.transit_2_id ? { 
+        id: row.transit_2_id, 
+        Destination: { id: row.transit_2_destination_id, name: row.transit_2_destination_name }
+      } : null,
+      Transit3: row.transit_3_id ? { 
+        id: row.transit_3_id, 
+        Destination: { id: row.transit_3_destination_id, name: row.transit_3_destination_name }
+      } : null,
+      Transit4: row.transit_4_id ? { 
+        id: row.transit_4_id, 
+        Destination: { id: row.transit_4_destination_id, name: row.transit_4_destination_name }
+      } : null,
+    };
+    
+    return buildRouteFromScheduleFlatten(schedule, subSchedule);
+  } else {
+    const schedule = {
+      FromDestination: { id: row.from_destination_id, name: row.from_destination_name },
+      ToDestination: { id: row.to_destination_id, name: row.to_destination_name }
+    };
+    return buildRouteFromScheduleFlatten(schedule, null);
+  }
+};
+
+const processQueryResults = (results) => {
+  const scheduleSeats = [];
+  const subscheduleSeats = [];
+
+  results.forEach(row => {
+    const correctCapacity = row.boost ? row.capacity : row.published_capacity;
+    const correctAvailableSeats = correctCapacity - row.total_passengers;
+    const miss_seat = correctAvailableSeats - row.available_seats;
+    
+    const processedSeat = {
+      id: row.id,
+      schedule_id: row.schedule_id,
+      available_seats: row.available_seats,
+      transit_id: row.transit_id,
+      subschedule_id: row.subschedule_id,
+      availability: row.availability,
+      date: row.date instanceof Date 
+        ? row.date.toISOString().split('T')[0] 
+        : row.date.toString().split('T')[0],
+      boost: row.boost,
+      updated_at: row.sa_updated_at,
+      created_at: row.sa_created_at,
+      boat_id: row.boat_id,
+      total_passengers: row.total_passengers,
+      total_bookings: row.total_bookings,
+      correct_capacity: correctCapacity,
+      route: buildRouteFromRawData(row, row.subschedule_id !== null),
+      capacity_match_status: (row.total_passengers + row.available_seats === correctCapacity) ? "MATCH" : "MISMATCH",
+      miss_seats: miss_seat,
+      Schedule: {
+        id: row.schedule_id,
+        destination_from_id: row.schedule_destination_from_id,
+        destination_to_id: row.schedule_destination_to_id,
+        departure_time: row.departure_time,
+        Boat: {
+          id: row.boat_id,
+          capacity: row.capacity,
+          published_capacity: row.published_capacity
+        },
+        FromDestination: {
+          id: row.from_destination_id,
+          name: row.from_destination_name
+        },
+        ToDestination: {
+          id: row.to_destination_id,
+          name: row.to_destination_name
+        }
+      }
+    };
+
+    if (row.subschedule_id) {
+      processedSeat.SubSchedule = buildSubScheduleObject(row);
+      subscheduleSeats.push(processedSeat);
+    } else {
+      scheduleSeats.push(processedSeat);
+    }
+  });
+
+  return { scheduleSeats, subscheduleSeats };
+};
+
+const buildSubScheduleObject = (row) => {
+  return {
+    id: row.subschedule_id,
+    schedule_id: row.sub_schedule_id,
+    DestinationFrom: row.sub_from_destination_id ? {
+      id: row.sub_from_destination_id,
+      name: row.sub_from_destination_name
+    } : null,
+    DestinationTo: row.sub_to_destination_id ? {
+      id: row.sub_to_destination_id,
+      name: row.sub_to_destination_name
+    } : null,
+    TransitFrom: row.transit_from_id ? {
+      id: row.transit_from_id,
+      Destination: {
+        id: row.transit_from_destination_id,
+        name: row.transit_from_destination_name
+      }
+    } : null,
+    TransitTo: row.transit_to_id ? {
+      id: row.transit_to_id,
+      Destination: {
+        id: row.transit_to_destination_id,
+        name: row.transit_to_destination_name
+      }
+    } : null,
+    Transit1: row.transit_1_id ? {
+      id: row.transit_1_id,
+      Destination: {
+        id: row.transit_1_destination_id,
+        name: row.transit_1_destination_name
+      }
+    } : null,
+    Transit2: row.transit_2_id ? {
+      id: row.transit_2_id,
+      Destination: {
+        id: row.transit_2_destination_id,
+        name: row.transit_2_destination_name
+      }
+    } : null,
+    Transit3: row.transit_3_id ? {
+      id: row.transit_3_id,
+      Destination: {
+        id: row.transit_3_destination_id,
+        name: row.transit_3_destination_name
+      }
+    } : null,
+    Transit4: row.transit_4_id ? {
+      id: row.transit_4_id,
+      Destination: {
+        id: row.transit_4_destination_id,
+        name: row.transit_4_destination_name
+      }
+    } : null,
+  };
+};
+
+const mergeScheduleAndSubscheduleSeats = (scheduleSeats, subscheduleSeats) => {
+  const subscheduleByScheduleAndDate = new Map();
+  
+  subscheduleSeats.forEach(subSeat => {
+    const key = `${subSeat.schedule_id}_${subSeat.date}`;
+    if (!subscheduleByScheduleAndDate.has(key)) {
+      subscheduleByScheduleAndDate.set(key, []);
+    }
+    
+    subscheduleByScheduleAndDate.get(key).push({
+      id: subSeat.id,
+      subschedule_id: subSeat.subschedule_id,
+      available_seats: subSeat.available_seats,
+      transit_id: subSeat.transit_id,
+      availability: subSeat.availability,
+      boost: subSeat.boost,
+      total_passengers: subSeat.total_passengers,
+      total_bookings: subSeat.total_bookings,
+      correct_capacity: subSeat.correct_capacity,
+      route: subSeat.route,
+      capacity_match_status: subSeat.capacity_match_status,
+      miss_seats: subSeat.miss_seats,
+      SubSchedule: subSeat.SubSchedule,
+      updated_at: subSeat.updated_at,
+      created_at: subSeat.created_at,
+    });
+  });
+
+  return scheduleSeats.map(scheduleSeat => {
+    const key = `${scheduleSeat.schedule_id}_${scheduleSeat.date}`;
+    const relatedSubscheduleSeats = subscheduleByScheduleAndDate.get(key) || [];
+    
+    return {
+      ...scheduleSeat,
+      subschedule_seat: relatedSubscheduleSeats,
+    };
+  });
+};
+
+const createCalendarData = (enhancedSeatAvailabilities, currentPageDates) => {
+  const seatAvailabilityByDate = new Map();
+  enhancedSeatAvailabilities.forEach((seat) => {
+    const dateKey = seat.date;
+    if (!seatAvailabilityByDate.has(dateKey)) {
+      seatAvailabilityByDate.set(dateKey, []);
+    }
+    seatAvailabilityByDate.get(dateKey).push(seat);
+  });
+
+  return currentPageDates.map((dateStr) => {
+    const dateData = seatAvailabilityByDate.get(dateStr) || [];
+    
+    let totalPassengers = 0;
+    let totalBookings = 0;
+    let mismatchCount = 0;
+    let totalSubscheduleSeats = 0;
+
+    dateData.forEach(seat => {
+      totalPassengers += seat.total_passengers;
+      totalBookings += seat.total_bookings;
+      if (seat.capacity_match_status === 'MISMATCH') mismatchCount++;
+
+      seat.subschedule_seat.forEach(subSeat => {
+        totalPassengers += subSeat.total_passengers;
+        totalBookings += subSeat.total_bookings;
+        if (subSeat.capacity_match_status === 'MISMATCH') mismatchCount++;
+        totalSubscheduleSeats++;
+      });
+    });
+
+    return {
+      date: dateStr,
+      dayOfWeek: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' }),
+      dayOfMonth: new Date(dateStr).getDate(),
+      seatCount: dateData.length,
+      subscheduleSeatsCount: totalSubscheduleSeats,
+      seats: dateData,
+      totalPassengers: totalPassengers,
+      totalBookings: totalBookings,
+      mismatchCount: mismatchCount,
+    };
+  });
+};
+
+const calculateSummary = (enhancedSeatAvailabilities, currentPageDates, firstDate, lastDate) => {
+  let totalScheduleSeats = enhancedSeatAvailabilities.length;
+  let totalSubscheduleSeats = 0;
+  let totalPassengers = 0;
+  let totalBookings = 0;
+  let mismatchedSeats = 0;
+
+  enhancedSeatAvailabilities.forEach(seat => {
+    totalPassengers += seat.total_passengers;
+    totalBookings += seat.total_bookings;
+    if (seat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+
+    seat.subschedule_seat.forEach(subSeat => {
+      totalSubscheduleSeats++;
+      totalPassengers += subSeat.total_passengers;
+      totalBookings += subSeat.total_bookings;
+      if (subSeat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+    });
+  });
+
+  return {
+    dateRange: {
+      start: firstDate,
+      end: lastDate,
+      totalDays: currentPageDates.length,
+    },
+    totals: {
+      totalScheduleSeats: totalScheduleSeats,
+      totalSubscheduleSeats: totalSubscheduleSeats,
+      totalSeats: totalScheduleSeats + totalSubscheduleSeats,
+      totalPassengers: totalPassengers,
+      totalBookings: totalBookings,
+      mismatchedSeats: mismatchedSeats,
+      matchedSeats: (totalScheduleSeats + totalSubscheduleSeats) - mismatchedSeats,
+    },
+  };
+};
+
+const buildPaginationInfo = (daysInMonth, pageNumber, daysPerPage, totalPages, firstDate, lastDate, currentPageDates, yearNum, monthNum) => {
+  return {
+    total: daysInMonth,
+    page: pageNumber,
+    limit: daysPerPage,
+    totalPages: totalPages,
+    hasNextPage: pageNumber < totalPages,
+    hasPrevPage: pageNumber > 1,
+    dateRange: {
+      start: firstDate,
+      end: lastDate,
+      totalDaysInPage: currentPageDates.length,
+    },
+    monthInfo: {
+      year: yearNum,
+      month: monthNum,
+      totalDaysInMonth: daysInMonth,
+      monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString('en-US', { month: 'long' }),
+    },
+  };
+};
+
+// Main Controller Function
 const getSeatAvailabilityMonthlyView = async (req, res) => {
   const { year, month, page = 1 } = req.query;
 
   try {
-    const pageNumber = parseInt(page, 10);
+    // 1. Validate input
+    const { yearNum, monthNum, pageNumber } = validateInput(year, month, page);
     
-    // Validasi input
-    if (isNaN(pageNumber) || pageNumber < 1) {
-      return res.status(400).json({ error: "Page must be a positive number." });
-    }
-
-    if (!year || !month) {
-      return res.status(400).json({
-        error: "Both 'year' and 'month' parameters are required.",
-      });
-    }
-
-    const yearNum = parseInt(year, 10);
-    const monthNum = parseInt(month, 10);
-
-    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-      return res.status(400).json({
-        error: "Invalid year or month. Month must be between 1-12.",
-      });
-    }
-
     console.log(`📅 Fetching monthly view for ${year}-${month.toString().padStart(2, '0')}, page ${pageNumber}`);
 
-    // Generate all dates in the month
-    const startOfMonth = new Date(yearNum, monthNum - 1, 1);
-    const endOfMonth = new Date(yearNum, monthNum, 0); // Last day of month
-    const daysInMonth = endOfMonth.getDate();
+    // 2. Generate dates and calculate pagination
+    const { allDatesInMonth, daysInMonth } = generateMonthDates(yearNum, monthNum);
+    const { currentPageDates, daysPerPage, totalPages, firstDate, lastDate } = calculatePagination(allDatesInMonth, daysInMonth, pageNumber);
 
-    // Generate array of all dates in the month
-    const allDatesInMonth = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-      allDatesInMonth.push(dateStr);
-    }
+    console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate}`);
 
-    // Calculate pagination - 14 days (2 weeks) per page
-    const daysPerPage = 14;
-    const totalPages = Math.ceil(daysInMonth / daysPerPage);
-    const startIndex = (pageNumber - 1) * daysPerPage;
-    const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
+    // 3. Execute database query
+    const rawQuery = buildSeatAvailabilityQuery();
+    const results = await sequelize.query(rawQuery, {
+      replacements: { firstDate, lastDate },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    console.log(`📊 Raw query returned ${results.length} rows`);
+
+    // 4. Process query results
+    const { scheduleSeats, subscheduleSeats } = processQueryResults(results);
     
-    // Get dates for current page
-    const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
-    
-    if (currentPageDates.length === 0) {
-      return res.status(400).json({
-        error: `Page ${pageNumber} is out of range. Total pages: ${totalPages}`,
-      });
-    }
+    // 5. Merge schedule and subschedule seats
+    const enhancedSeatAvailabilities = mergeScheduleAndSubscheduleSeats(scheduleSeats, subscheduleSeats);
 
-    const firstDate = currentPageDates[0];
-    const lastDate = currentPageDates[currentPageDates.length - 1];
+    // 6. Create calendar data
+    const calendarData = createCalendarData(enhancedSeatAvailabilities, currentPageDates);
 
-    console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate} (schedule-only, no subschedule)`);
+    // 7. Calculate summary
+    const summary = calculateSummary(enhancedSeatAvailabilities, currentPageDates, firstDate, lastDate);
+    summary.daysWithData = calendarData.filter(day => day.seatCount > 0).length;
+    summary.daysWithoutData = calendarData.filter(day => day.seatCount === 0).length;
 
-    // Fetch seat availability data for the date range (exclude subschedule)
-    const seatAvailabilities = await SeatAvailability.findAll({
-      where: {
-        date: {
-          [Op.between]: [new Date(firstDate), new Date(lastDate)],
-        },
-        subschedule_id: null, // Only get records without subschedule
-      },
-      attributes: [
-        "id",
-        "schedule_id",
-        "available_seats",
-        "transit_id",
-        "subschedule_id",
-        "availability",
-        "date",
-        "boost",
-        "updated_at",
-        "created_at",
-      ],
-      include: [
-        {
-          model: Schedule,
-          required: true,
-          attributes: ["id", "destination_from_id", "destination_to_id", "departure_time"],
-          include: [
-            {
-              model: Boat,
-              as: "Boat",
-              required: true,
-              attributes: ["id", "capacity", "published_capacity"],
-            },
-            {
-              model: Destination,
-              as: "FromDestination",
-              required: true,
-              attributes: ["id", "name"],
-            },
-            {
-              model: Destination,
-              as: "ToDestination",
-              required: true,
-              attributes: ["id", "name"],
-            },
-          ],
-        },
-        {
-          model: SubSchedule,
-          required: false,
-          attributes: ["id", "schedule_id"],
-          as: "SubSchedule",
-          // Since we're filtering out subschedule_id: null, this will always be null
-          // But we keep it for consistency with the interface
-          include: [
-            {
-              model: Destination,
-              as: "DestinationFrom",
-              attributes: ["name"],
-            },
-            {
-              model: Destination,
-              as: "DestinationTo",
-              attributes: ["name"],
-            },
-            {
-              model: Transit,
-              as: "TransitFrom",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-            {
-              model: Transit,
-              as: "TransitTo",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-            {
-              model: Transit,
-              as: "Transit1",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-            {
-              model: Transit,
-              as: "Transit2",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-            {
-              model: Transit,
-              as: "Transit3",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-            {
-              model: Transit,
-              as: "Transit4",
-              attributes: ["id"],
-              include: {
-                model: Destination,
-                as: "Destination",
-                attributes: ["name"],
-              },
-            },
-          ],
-        },
-        {
-          model: BookingSeatAvailability,
-          required: false,
-          as: "BookingSeatAvailabilities",
-          include: [
-            {
-              model: Booking,
-              attributes: ["id"],
-              required: false,
-              where: {
-                payment_status: {
-                  [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
-                },
-              },
-              include: [
-                {
-                  model: Passenger,
-                  as: "passengers",
-                  required: false,
-                },
-              ],
-            },
-          ],
-        },
-      ],
-      order: [["date", "ASC"], ["created_at", "ASC"]], // Sort by date first, then creation time
-    });
+    // 8. Build pagination info
+    const paginationInfo = buildPaginationInfo(daysInMonth, pageNumber, daysPerPage, totalPages, firstDate, lastDate, currentPageDates, yearNum, monthNum);
 
-    // Group seat availabilities by date
-    const seatAvailabilityByDate = {};
-    seatAvailabilities.forEach((seat) => {
-      // Handle both Date object and string
-      let dateKey;
-      if (seat.date instanceof Date) {
-        dateKey = seat.date.toISOString().split('T')[0]; // YYYY-MM-DD format
-      } else {
-        // If it's already a string, just use it (assuming it's in YYYY-MM-DD format)
-        dateKey = seat.date.toString().split('T')[0];
-      }
-      
-      if (!seatAvailabilityByDate[dateKey]) {
-        seatAvailabilityByDate[dateKey] = [];
-      }
-      seatAvailabilityByDate[dateKey].push(seat);
-    });
-
-    // Process and enhance seat availability data
-    const enhancedSeatAvailabilities = seatAvailabilities.map((seatAvailability) => {
-      const seatAvailabilityObj = seatAvailability.get({ plain: true });
-
-      let totalPassengers = 0;
-      const bookingIds = new Set();
-
-      if (seatAvailabilityObj.BookingSeatAvailabilities) {
-        seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
-          if (bsa.Booking?.passengers?.length > 0) {
-            totalPassengers += bsa.Booking.passengers.length;
-            bookingIds.add(bsa.Booking.id);
-          }
-        });
-      }
-
-      const correctCapacity = seatAvailabilityObj.boost
-        ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
-        : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
-
-      const correctAvailableSeats = correctCapacity - totalPassengers;
-      const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
-
-      const route = seatAvailabilityObj.Schedule
-        ? buildRouteFromScheduleFlatten(
-            seatAvailabilityObj.Schedule,
-            null // Always null since we're excluding subschedule
-          )
-        : null;
-
-      return {
-        ...seatAvailabilityObj,
-        // Ensure date is properly formatted as string
-        date: seatAvailabilityObj.date instanceof Date 
-          ? seatAvailabilityObj.date.toISOString().split('T')[0] 
-          : seatAvailabilityObj.date.toString().split('T')[0],
-        boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
-        total_passengers: totalPassengers,
-        total_bookings: bookingIds.size,
-        correct_capacity: correctCapacity,
-        route: route,
-        capacity_match_status:
-          totalPassengers + seatAvailabilityObj.available_seats === correctCapacity
-            ? "MATCH"
-            : "MISMATCH",
-        miss_seats: miss_seat,
-        BookingSeatAvailabilities: undefined,
-      };
-    });
-
-    // Create ordered calendar data structure
-    const calendarData = currentPageDates.map((dateStr) => {
-      const dateData = seatAvailabilityByDate[dateStr] || [];
-      
-      // Process the seat data for this date
-      const processedSeats = dateData.map((seat) => {
-        const seatObj = seat.get({ plain: true });
-        
-        let totalPassengers = 0;
-        const bookingIds = new Set();
-
-        if (seatObj.BookingSeatAvailabilities) {
-          seatObj.BookingSeatAvailabilities.forEach((bsa) => {
-            if (bsa.Booking?.passengers?.length > 0) {
-              totalPassengers += bsa.Booking.passengers.length;
-              bookingIds.add(bsa.Booking.id);
-            }
-          });
-        }
-
-        const correctCapacity = seatObj.boost
-          ? seatObj.Schedule?.Boat?.capacity || 0
-          : seatObj.Schedule?.Boat?.published_capacity || 0;
-
-        const correctAvailableSeats = correctCapacity - totalPassengers;
-        const miss_seat = correctAvailableSeats - seatObj.available_seats;
-
-        const route = seatObj.Schedule
-          ? buildRouteFromScheduleFlatten(seatObj.Schedule, null) // Always null since we're excluding subschedule
-          : null;
-
-        return {
-          ...seatObj,
-          // Ensure date is properly formatted as string
-          date: seatObj.date instanceof Date 
-            ? seatObj.date.toISOString().split('T')[0] 
-            : seatObj.date.toString().split('T')[0],
-          boat_id: seatObj.Schedule?.Boat?.id,
-          total_passengers: totalPassengers,
-          total_bookings: bookingIds.size,
-          correct_capacity: correctCapacity,
-          route: route,
-          capacity_match_status:
-            totalPassengers + seatObj.available_seats === correctCapacity
-              ? "MATCH"
-              : "MISMATCH",
-          miss_seats: miss_seat,
-          BookingSeatAvailabilities: undefined,
-        };
-      });
-
-      return {
-        date: dateStr,
-        dayOfWeek: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' }),
-        dayOfMonth: new Date(dateStr).getDate(),
-        seatCount: processedSeats.length,
-        seats: processedSeats,
-        totalPassengers: processedSeats.reduce((sum, seat) => sum + seat.total_passengers, 0),
-        totalBookings: processedSeats.reduce((sum, seat) => sum + seat.total_bookings, 0),
-        mismatchCount: processedSeats.filter(seat => seat.capacity_match_status === 'MISMATCH').length,
-      };
-    });
-
-    // Calculate summary statistics for the current page
-    const summary = {
-      dateRange: {
-        start: firstDate,
-        end: lastDate,
-        totalDays: currentPageDates.length,
-      },
-      totals: {
-        totalSeats: enhancedSeatAvailabilities.length,
-        totalPassengers: enhancedSeatAvailabilities.reduce((sum, seat) => sum + seat.total_passengers, 0),
-        totalBookings: enhancedSeatAvailabilities.reduce((sum, seat) => sum + seat.total_bookings, 0),
-        mismatchedSeats: enhancedSeatAvailabilities.filter(seat => seat.capacity_match_status === 'MISMATCH').length,
-        matchedSeats: enhancedSeatAvailabilities.filter(seat => seat.capacity_match_status === 'MATCH').length,
-      },
-      daysWithData: calendarData.filter(day => day.seatCount > 0).length,
-      daysWithoutData: calendarData.filter(day => day.seatCount === 0).length,
-    };
+    console.log(`📊 Processed ${scheduleSeats.length} schedule seats and ${subscheduleSeats.length} subschedule seats`);
 
     return res.status(200).json({
       success: true,
-      message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, '0')} (${firstDate} to ${lastDate}) - Schedule only`,
-      calendar_data: calendarData, // Ordered by date, 2 weeks per page
-      seat_availabilities: enhancedSeatAvailabilities, // All seat data (flat structure for compatibility)
+      message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, '0')} (${firstDate} to ${lastDate}) - Schedule with nested subschedule`,
+      calendar_data: calendarData,
+      seat_availabilities: enhancedSeatAvailabilities,
       summary: summary,
-      pagination: {
-        total: daysInMonth, // Total days in month
-        page: pageNumber,
-        limit: daysPerPage, // 14 days per page
-        totalPages: totalPages,
-        hasNextPage: pageNumber < totalPages,
-        hasPrevPage: pageNumber > 1,
-        dateRange: {
-          start: firstDate,
-          end: lastDate,
-          totalDaysInPage: currentPageDates.length,
-        },
-        monthInfo: {
-          year: yearNum,
-          month: monthNum,
-          totalDaysInMonth: daysInMonth,
-          monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString('en-US', { month: 'long' }),
-        },
-      },
+      pagination: paginationInfo,
     });
+
   } catch (error) {
     console.error("❌ Error fetching monthly seat availability:", error.message);
     return res.status(500).json({
@@ -786,6 +899,523 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
     });
   }
 };
+
+
+// const getSeatAvailabilityMonthlyView = async (req, res) => {
+//   const { year, month, page = 1 } = req.query;
+
+//   try {
+//     const pageNumber = parseInt(page, 10);
+    
+//     // Validasi input
+//     if (isNaN(pageNumber) || pageNumber < 1) {
+//       return res.status(400).json({ error: "Page must be a positive number." });
+//     }
+
+//     if (!year || !month) {
+//       return res.status(400).json({
+//         error: "Both 'year' and 'month' parameters are required.",
+//       });
+//     }
+
+//     const yearNum = parseInt(year, 10);
+//     const monthNum = parseInt(month, 10);
+
+//     if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+//       return res.status(400).json({
+//         error: "Invalid year or month. Month must be between 1-12.",
+//       });
+//     }
+
+//     console.log(`📅 Fetching monthly view for ${year}-${month.toString().padStart(2, '0')}, page ${pageNumber}`);
+
+//     // Generate all dates in the month
+//     const startOfMonth = new Date(yearNum, monthNum - 1, 1);
+//     const endOfMonth = new Date(yearNum, monthNum, 0); // Last day of month
+//     const daysInMonth = endOfMonth.getDate();
+
+//     // Generate array of all dates in the month
+//     const allDatesInMonth = [];
+//     for (let day = 1; day <= daysInMonth; day++) {
+//       const dateStr = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+//       allDatesInMonth.push(dateStr);
+//     }
+
+//     // Calculate pagination - 14 days (2 weeks) per page
+//     const daysPerPage = 14;
+//     const totalPages = Math.ceil(daysInMonth / daysPerPage);
+//     const startIndex = (pageNumber - 1) * daysPerPage;
+//     const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
+    
+//     // Get dates for current page
+//     const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
+    
+//     if (currentPageDates.length === 0) {
+//       return res.status(400).json({
+//         error: `Page ${pageNumber} is out of range. Total pages: ${totalPages}`,
+//       });
+//     }
+
+//     const firstDate = currentPageDates[0];
+//     const lastDate = currentPageDates[currentPageDates.length - 1];
+
+//     console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate} (including both schedule and subschedule)`);
+
+//     // First, get all schedule seats (subschedule_id = null)
+//     const scheduleSeats = await SeatAvailability.findAll({
+//       where: {
+//         date: {
+//           [Op.between]: [new Date(firstDate), new Date(lastDate)],
+//         },
+//         subschedule_id: null, // Only schedule seats
+//       },
+//       attributes: [
+//         "id",
+//         "schedule_id",
+//         "available_seats",
+//         "transit_id",
+//         "subschedule_id",
+//         "availability",
+//         "date",
+//         "boost",
+//         "updated_at",
+//         "created_at",
+//       ],
+//       include: [
+//         {
+//           model: Schedule,
+//           required: true,
+//           attributes: ["id", "destination_from_id", "destination_to_id", "departure_time"],
+//           include: [
+//             {
+//               model: Boat,
+//               as: "Boat",
+//               required: true,
+//               attributes: ["id", "capacity", "published_capacity"],
+//             },
+//             {
+//               model: Destination,
+//               as: "FromDestination",
+//               required: true,
+//               attributes: ["id", "name"],
+//             },
+//             {
+//               model: Destination,
+//               as: "ToDestination",
+//               required: true,
+//               attributes: ["id", "name"],
+//             },
+//           ],
+//         },
+//         {
+//           model: BookingSeatAvailability,
+//           required: false,
+//           as: "BookingSeatAvailabilities",
+//           include: [
+//             {
+//               model: Booking,
+//               attributes: ["id"],
+//               required: false,
+//               where: {
+//                 payment_status: {
+//                   [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+//                 },
+//               },
+//               include: [
+//                 {
+//                   model: Passenger,
+//                   as: "passengers",
+//                   required: false,
+//                 },
+//               ],
+//             },
+//           ],
+//         },
+//       ],
+//       order: [["date", "ASC"], ["created_at", "ASC"]],
+//     });
+
+//     // Then, get all subschedule seats (subschedule_id IS NOT NULL)
+//     const subscheduleSeats = await SeatAvailability.findAll({
+//       where: {
+//         date: {
+//           [Op.between]: [new Date(firstDate), new Date(lastDate)],
+//         },
+//         subschedule_id: {
+//           [Op.ne]: null, // Only subschedule seats
+//         },
+//       },
+//       attributes: [
+//         "id",
+//         "schedule_id",
+//         "available_seats",
+//         "transit_id",
+//         "subschedule_id",
+//         "availability",
+//         "date",
+//         "boost",
+//         "updated_at",
+//         "created_at",
+//       ],
+//       include: [
+//         {
+//           model: Schedule,
+//           required: true,
+//           attributes: ["id", "destination_from_id", "destination_to_id", "departure_time"],
+//           include: [
+//             {
+//               model: Boat,
+//               as: "Boat",
+//               required: true,
+//               attributes: ["id", "capacity", "published_capacity"],
+//             },
+//             {
+//               model: Destination,
+//               as: "FromDestination",
+//               required: true,
+//               attributes: ["id", "name"],
+//             },
+//             {
+//               model: Destination,
+//               as: "ToDestination",
+//               required: true,
+//               attributes: ["id", "name"],
+//             },
+//           ],
+//         },
+//         {
+//           model: SubSchedule,
+//           required: true,
+//           attributes: [
+//             "id", 
+//             "schedule_id", 
+//             // "destination_from_id", 
+//             // "destination_to_id",
+//             // "transit_from_id",
+//             // "transit_to_id",
+//             // "transit_1_id",
+//             // "transit_2_id", 
+//             // "transit_3_id",
+//             // "transit_4_id"
+//           ],
+//           as: "SubSchedule",
+//           include: [
+//             {
+//               model: Destination,
+//               as: "DestinationFrom",
+//               attributes: ["id", "name"],
+//             },
+//             {
+//               model: Destination,
+//               as: "DestinationTo",
+//               attributes: ["id", "name"],
+//             },
+//             {
+//               model: Transit,
+//               as: "TransitFrom",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//             {
+//               model: Transit,
+//               as: "TransitTo",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit1",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit2",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit3",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit4",
+//               attributes: ["id"],
+//               include: {
+//                 model: Destination,
+//                 as: "Destination",
+//                 attributes: ["id", "name"],
+//               },
+//             },
+//           ],
+//         },
+//         {
+//           model: BookingSeatAvailability,
+//           required: false,
+//           as: "BookingSeatAvailabilities",
+//           include: [
+//             {
+//               model: Booking,
+//               attributes: ["id"],
+//               required: false,
+//               where: {
+//                 payment_status: {
+//                   [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+//                 },
+//               },
+//               include: [
+//                 {
+//                   model: Passenger,
+//                   as: "passengers",
+//                   required: false,
+//                 },
+//               ],
+//             },
+//           ],
+//         },
+//       ],
+//       order: [["date", "ASC"], ["created_at", "ASC"]],
+//     });
+
+//     // Helper function to process seat data
+//     const processSeatData = (seatAvailability, isSubschedule = false) => {
+//       const seatAvailabilityObj = seatAvailability.get({ plain: true });
+
+//       let totalPassengers = 0;
+//       const bookingIds = new Set();
+
+//       if (seatAvailabilityObj.BookingSeatAvailabilities) {
+//         seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
+//           if (bsa.Booking?.passengers?.length > 0) {
+//             totalPassengers += bsa.Booking.passengers.length;
+//             bookingIds.add(bsa.Booking.id);
+//           }
+//         });
+//       }
+
+//       const correctCapacity = seatAvailabilityObj.boost
+//         ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
+//         : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
+
+//       const correctAvailableSeats = correctCapacity - totalPassengers;
+//       const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
+
+//       const route = seatAvailabilityObj.Schedule
+//         ? buildRouteFromScheduleFlatten(
+//             seatAvailabilityObj.Schedule,
+//             isSubschedule ? seatAvailabilityObj.SubSchedule : null
+//           )
+//         : null;
+
+//       return {
+//         ...seatAvailabilityObj,
+//         date: seatAvailabilityObj.date instanceof Date 
+//           ? seatAvailabilityObj.date.toISOString().split('T')[0] 
+//           : seatAvailabilityObj.date.toString().split('T')[0],
+//         boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
+//         total_passengers: totalPassengers,
+//         total_bookings: bookingIds.size,
+//         correct_capacity: correctCapacity,
+//         route: route,
+//         capacity_match_status:
+//           totalPassengers + seatAvailabilityObj.available_seats === correctCapacity
+//             ? "MATCH"
+//             : "MISMATCH",
+//         miss_seats: miss_seat,
+//         BookingSeatAvailabilities: undefined,
+//       };
+//     };
+
+//     // Process schedule seats
+//     const processedScheduleSeats = scheduleSeats.map(seat => processSeatData(seat, false));
+
+//     // Process subschedule seats
+//     const processedSubscheduleSeats = subscheduleSeats.map(seat => processSeatData(seat, true));
+
+//     // Group subschedule seats by schedule_id and date for nesting
+//     const subscheduleByScheduleAndDate = {};
+//     processedSubscheduleSeats.forEach(subSeat => {
+//       const key = `${subSeat.schedule_id}_${subSeat.date}`;
+//       if (!subscheduleByScheduleAndDate[key]) {
+//         subscheduleByScheduleAndDate[key] = [];
+//       }
+//       subscheduleByScheduleAndDate[key].push({
+//         id: subSeat.id,
+//         subschedule_id: subSeat.subschedule_id,
+//         available_seats: subSeat.available_seats,
+//         transit_id: subSeat.transit_id,
+//         availability: subSeat.availability,
+//         boost: subSeat.boost,
+//         total_passengers: subSeat.total_passengers,
+//         total_bookings: subSeat.total_bookings,
+//         correct_capacity: subSeat.correct_capacity,
+//         route: subSeat.route,
+//         capacity_match_status: subSeat.capacity_match_status,
+//         miss_seats: subSeat.miss_seats,
+//         SubSchedule: subSeat.SubSchedule,
+//         updated_at: subSeat.updated_at,
+//         created_at: subSeat.created_at,
+//       });
+//     });
+
+//     // Merge schedule seats with their subschedule seats
+//     const enhancedSeatAvailabilities = processedScheduleSeats.map(scheduleSeat => {
+//       const key = `${scheduleSeat.schedule_id}_${scheduleSeat.date}`;
+//       const relatedSubscheduleSeats = subscheduleByScheduleAndDate[key] || [];
+      
+//       return {
+//         ...scheduleSeat,
+//         subschedule_seat: relatedSubscheduleSeats,
+//       };
+//     });
+
+//     // Group seat availabilities by date
+//     const seatAvailabilityByDate = {};
+//     enhancedSeatAvailabilities.forEach((seat) => {
+//       const dateKey = seat.date;
+      
+//       if (!seatAvailabilityByDate[dateKey]) {
+//         seatAvailabilityByDate[dateKey] = [];
+//       }
+//       seatAvailabilityByDate[dateKey].push(seat);
+//     });
+
+//     // Create ordered calendar data structure
+//     const calendarData = currentPageDates.map((dateStr) => {
+//       const dateData = seatAvailabilityByDate[dateStr] || [];
+      
+//       // Calculate totals including subschedule seats
+//       let totalPassengers = 0;
+//       let totalBookings = 0;
+//       let mismatchCount = 0;
+//       let totalSubscheduleSeats = 0;
+
+//       dateData.forEach(seat => {
+//         // Count schedule seat
+//         totalPassengers += seat.total_passengers;
+//         totalBookings += seat.total_bookings;
+//         if (seat.capacity_match_status === 'MISMATCH') mismatchCount++;
+
+//         // Count subschedule seats
+//         seat.subschedule_seat.forEach(subSeat => {
+//           totalPassengers += subSeat.total_passengers;
+//           totalBookings += subSeat.total_bookings;
+//           if (subSeat.capacity_match_status === 'MISMATCH') mismatchCount++;
+//           totalSubscheduleSeats++;
+//         });
+//       });
+
+//       return {
+//         date: dateStr,
+//         dayOfWeek: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' }),
+//         dayOfMonth: new Date(dateStr).getDate(),
+//         seatCount: dateData.length,
+//         subscheduleSeatsCount: totalSubscheduleSeats,
+//         seats: dateData,
+//         totalPassengers: totalPassengers,
+//         totalBookings: totalBookings,
+//         mismatchCount: mismatchCount,
+//       };
+//     });
+
+//     // Calculate summary statistics
+//     let totalScheduleSeats = enhancedSeatAvailabilities.length;
+//     let totalSubscheduleSeats = 0;
+//     let totalPassengers = 0;
+//     let totalBookings = 0;
+//     let mismatchedSeats = 0;
+
+//     enhancedSeatAvailabilities.forEach(seat => {
+//       // Schedule seat stats
+//       totalPassengers += seat.total_passengers;
+//       totalBookings += seat.total_bookings;
+//       if (seat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+
+//       // Subschedule seat stats
+//       seat.subschedule_seat.forEach(subSeat => {
+//         totalSubscheduleSeats++;
+//         totalPassengers += subSeat.total_passengers;
+//         totalBookings += subSeat.total_bookings;
+//         if (subSeat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+//       });
+//     });
+
+//     const summary = {
+//       dateRange: {
+//         start: firstDate,
+//         end: lastDate,
+//         totalDays: currentPageDates.length,
+//       },
+//       totals: {
+//         totalScheduleSeats: totalScheduleSeats,
+//         totalSubscheduleSeats: totalSubscheduleSeats,
+//         totalSeats: totalScheduleSeats + totalSubscheduleSeats,
+//         totalPassengers: totalPassengers,
+//         totalBookings: totalBookings,
+//         mismatchedSeats: mismatchedSeats,
+//         matchedSeats: (totalScheduleSeats + totalSubscheduleSeats) - mismatchedSeats,
+//       },
+//       daysWithData: calendarData.filter(day => day.seatCount > 0).length,
+//       daysWithoutData: calendarData.filter(day => day.seatCount === 0).length,
+//     };
+
+//     return res.status(200).json({
+//       success: true,
+//       message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, '0')} (${firstDate} to ${lastDate}) - Schedule with nested subschedule`,
+//       calendar_data: calendarData,
+//       seat_availabilities: enhancedSeatAvailabilities,
+//       summary: summary,
+//       pagination: {
+//         total: daysInMonth,
+//         page: pageNumber,
+//         limit: daysPerPage,
+//         totalPages: totalPages,
+//         hasNextPage: pageNumber < totalPages,
+//         hasPrevPage: pageNumber > 1,
+//         dateRange: {
+//           start: firstDate,
+//           end: lastDate,
+//           totalDaysInPage: currentPageDates.length,
+//         },
+//         monthInfo: {
+//           year: yearNum,
+//           month: monthNum,
+//           totalDaysInMonth: daysInMonth,
+//           monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString('en-US', { month: 'long' }),
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     console.error("❌ Error fetching monthly seat availability:", error.message);
+//     return res.status(500).json({
+//       error: "Internal server error",
+//       message: error.message,
+//     });
+//   }
+// };
 
 
 
