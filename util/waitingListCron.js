@@ -434,14 +434,14 @@ const checkAndNotifyWaitingList = async () => {
 
     // Process invalid entries - Send follow-up emails dan update status
     if (invalidWaitingListIds.length > 0) {
-      console.log(`\n💾 Processing ${invalidWaitingListIds.length} invalid entries...`);
+      // console.log(`\n💾 Processing ${invalidWaitingListIds.length} invalid entries...`);
       
       const invalidEntriesWithSchedule = pendingWaitingList.filter(entry =>
         invalidWaitingListIds.includes(entry.id)
       );
 
-      // Send follow-up emails to customers
-      console.log(`📧 Sending follow-up emails to customers for invalid entries...`);
+      // // Send follow-up emails to customers
+      // console.log(`📧 Sending follow-up emails to customers for invalid entries...`);
       const followUpResult = await sendInvalidWaitingListFollowUp(invalidEntriesWithSchedule);
       
       if (followUpResult.success) {
@@ -450,9 +450,9 @@ const checkAndNotifyWaitingList = async () => {
         
         // Log failed emails if any
         if (followUpResult.failed_count > 0) {
-          console.log(`⚠️ Failed to send ${followUpResult.failed_count} follow-up emails`);
+          // console.log(`⚠️ Failed to send ${followUpResult.failed_count} follow-up emails`);
           followUpResult.results.filter(r => !r.success).forEach(result => {
-            console.log(`   - Failed: ${result.email} - ${result.error}`);
+            // console.log(`   - Failed: ${result.email} - ${result.error}`);
           });
         }
 
@@ -465,7 +465,7 @@ const checkAndNotifyWaitingList = async () => {
       }
 
       // Update database status
-      console.log(`💾 Updating invalid entries status in database...`);
+      // console.log(`💾 Updating invalid entries status in database...`);
       try {
         const updatePromises = invalidEntriesWithSchedule.map(entry => {
           const existingNote = entry.follow_up_notes || '';
@@ -497,7 +497,7 @@ const checkAndNotifyWaitingList = async () => {
         });
 
         await Promise.all(updatePromises);
-        console.log(`✅ Successfully updated ${invalidWaitingListIds.length} invalid entries as contacted`);
+        // console.log(`✅ Successfully updated ${invalidWaitingListIds.length} invalid entries as contacted`);
 
       } catch (updateError) {
         console.error(`❌ Failed to update invalid entries:`, updateError);
@@ -551,8 +551,8 @@ const checkAndNotifyWaitingList = async () => {
             notified_entries: notifyResult.notified_entries
           });
 
-          // Log detail customer yang dinotify
-          console.log(`✅ Successfully notified ${notifyResult.notified_count} customers:`);
+          // // Log detail customer yang dinotify
+          // console.log(`✅ Successfully notified ${notifyResult.notified_count} customers:`);
           notifyResult.notified_entries?.forEach(entry => {
             console.log(`   - ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
           });
@@ -565,7 +565,7 @@ const checkAndNotifyWaitingList = async () => {
       }
     }
 
-    console.log(`\n🎉 Cron waiting list check completed`);
+    // console.log(`\n🎉 Cron waiting list check completed`);
     // console.log(`📊 Processed ${processedGroups.length} groups with notifications`);
     // console.log(`📧 Total customers notified (valid entries): ${totalNotified}`);
     // console.log(`📤 Follow-up emails sent (invalid entries): ${followUpEmailsSent}`);

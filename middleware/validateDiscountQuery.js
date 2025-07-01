@@ -1,4 +1,44 @@
 const Discount = require("../models/discount");
+
+/**
+ * Strip the time component so date–only comparisons work in local timezone.
+ */
+const stripTime = (dateInput) => {
+  const d = new Date(dateInput);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Parse booking_date sent from the front‑end.
+ * Accepts either ISO “YYYY-MM-DD”  **or**  “DD MMM, YYYY” / “DD MMM YYYY”
+ * (e.g. “10 Jan, 2026”). Returns an invalid Date (NaN) if parsing fails.
+ */
+const parseBookingDate = (str) => {
+  if (!str) return new Date(NaN);
+
+  // Remove commas and trim extra spaces, then try native parser first
+  const cleaned = str.replace(/,/g, "").trim();
+  const direct = new Date(cleaned);
+  if (!isNaN(direct)) return direct;
+
+  // Manual fallback for “DD MMM YYYY” pattern
+  const parts = cleaned.split(/\s+/);
+  if (parts.length === 3) {
+    const [dayStr, monthStr, yearStr] = parts;
+    const day = parseInt(dayStr, 10);
+    const year = parseInt(yearStr, 10);
+    const months = [
+      "jan","feb","mar","apr","may","jun",
+      "jul","aug","sep","oct","nov","dec"
+    ];
+    const monthIdx = months.indexOf(monthStr.toLowerCase().slice(0,3));
+    if (monthIdx !== -1) {
+      return new Date(year, monthIdx, day);
+    }
+  }
+  return new Date(NaN);
+};
 const validateDiscountQuery = async (req, res, next) => {
   console.log("🚦 Start validating discount query...");
 
@@ -16,9 +56,10 @@ const validateDiscountQuery = async (req, res, next) => {
   }
 
   // 🔍 Validate 'booking_date'
-  if (booking_date && isNaN(Date.parse(booking_date))) {
+  const parsedBookingDate = booking_date ? parseBookingDate(booking_date) : null;
+  if (booking_date && isNaN(parsedBookingDate)) {
     console.log("❌ Invalid booking_date:", booking_date);
-    errors.push("Invalid booking_date format. Expected YYYY-MM-DD.");
+    errors.push("Invalid booking_date format. Expected YYYY-MM-DD or 'DD MMM, YYYY'.");
   }
 
   // ❌ If there are format errors
@@ -47,9 +88,9 @@ const validateDiscountQuery = async (req, res, next) => {
 
     // ⛔ Validate booking_date is within discount validity
     if (booking_date) {
-      const checkDate = new Date(booking_date);
-      const startDate = new Date(discount.start_date);
-      const endDate = new Date(discount.end_date);
+      const checkDate = stripTime(parsedBookingDate);          // booking date from request
+      const startDate = stripTime(discount.start_date);        // discount start
+      const endDate   = stripTime(discount.end_date);          // discount end
 
       if (checkDate < startDate || checkDate > endDate) {
         console.log(
