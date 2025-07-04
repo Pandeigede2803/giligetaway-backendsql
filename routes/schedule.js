@@ -28,9 +28,9 @@ router.get('/search/v2',authenticate,
     
 // multiple params agent
 router.get('/search/v3', validateApiKey, (req, res, next) => {
-  console.log('=== V3 Search Debug ===');
-  console.log('Query params:', req.query);
-  console.log('Headers:', req.headers);
+//   console.log('=== V3 Search Debug ===');
+//   console.log('Query params:', req.query);
+//   console.log('Headers:', req.headers);
   next();
 }, scheduleController.searchSchedulesAndSubSchedulesAgent);
 

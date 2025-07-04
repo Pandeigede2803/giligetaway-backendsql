@@ -11,9 +11,9 @@ const cors = require('cors');
 
 // api for search the schedule
 router.get('/search-schedule/v3', validateApiKey, (req, res, next) => {
-  console.log('=== V3 Search Debug ===');
-  console.log('Query params:', req.query);
-  console.log('Headers:', req.headers);
+  // console.log('=== V3 Search Debug ===');
+  // console.log('Query params:', req.query);
+  // console.log('Headers:', req.headers);
   next();
 }, scheduleController.searchSchedulesAndSubSchedulesAgent);
 

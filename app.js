@@ -96,7 +96,7 @@ const waitingListRoutes = require('./routes/waitingtListRoutes');
 // ========== ROUTES ==========
 // PUBLIC API AGENT (sudah di-handle CORS di middleware atas)
 app.use('/api/agent-access', (req, res, next) => {
-  console.log(`🔑 Agent API: ${req.method} ${req.originalUrl}`);
+  // console.log(`🔑 Agent API: ${req.method} ${req.originalUrl}`);
   next();
 }, agentRoutesApi);
 
