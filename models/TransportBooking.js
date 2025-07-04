@@ -47,7 +47,7 @@ const TransportBooking = sequelize.define(
     },
     other_fee_payment_status: {
       type: DataTypes.ENUM('pending', 'paid', 'invoiced'),
-      allowNull: false,
+      allowNull: true,
       defaultValue: 'pending',
     },
     transport_type: {
