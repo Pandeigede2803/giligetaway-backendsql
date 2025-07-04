@@ -575,13 +575,13 @@ exports.addTransportBooking = async (req, res) => {
     transport_id,
     quantity,
     transport_type,
-    payment_method,
-    payment_status,
-    note,
-    other_fee,
-    other_fee_type,
-    other_fee_payment_method,
-    other_fee_payment_status,
+    payment_method = 'booking-payment',
+    payment_status = 'booking-payment',
+    note = '',
+    other_fee = 0,
+    other_fee_type = '',
+    other_fee_payment_method = 'cash',
+    other_fee_payment_status = 'pending',
   } = req.body;
 
   console.log("Adding new transport booking with data:", req.body);
