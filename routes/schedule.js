@@ -15,7 +15,7 @@ const cors = require('cors');
 router.post('/withtransits', authenticate, upload, scheduleController.createScheduleWithTransit);
 
 // for availabilty seat table
-router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);;
+router.get('/total-passengers',authenticate, scheduleController.getAllSchedulesWithSubSchedules);
 
 
 //multiple params
@@ -27,8 +27,8 @@ router.get('/search/v2',authenticate,
 
     
 // multiple params agent
-router.get('/search/v3',cors(), // ⬅️ Ini izinkan semua origin
-    validateApiKey,  scheduleController.searchSchedulesAndSubSchedulesAgent);
+router.get('/search/v3',cors(),validateApiKey,  scheduleController.searchSchedulesAndSubSchedulesAgent);
+router.options('/search/v3', cors());
 
 //multiple params
 router.get('/fetchtimetable/',authenticate, scheduleController.getScheduleSubschedule);

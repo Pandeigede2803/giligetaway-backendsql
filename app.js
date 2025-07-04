@@ -43,7 +43,15 @@ const corsOptions = {
 };
 
 const app = express();
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/schedules/search/v2')) {
+    next(); // skip cors global untuk route ini saja
+  } else {
+    cors(corsOptions)(req, res, next); // gunakan cors global untuk route lainnya
+  }
+});
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
