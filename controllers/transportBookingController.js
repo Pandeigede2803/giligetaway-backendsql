@@ -584,6 +584,18 @@ exports.addTransportBooking = async (req, res) => {
     other_fee_payment_status = 'pending',
   } = req.body;
 
+  // ENUM validation/sanitization for other_fee_payment_method and other_fee_payment_status
+  const validFeeMethods = ['cash', 'cod', 'agent-invoice'];
+  const validFeeStatuses = ['pending', 'paid', 'invoiced'];
+
+  const sanitizedFeePaymentMethod = validFeeMethods.includes(other_fee_payment_method)
+    ? other_fee_payment_method
+    : 'cash';
+
+  const sanitizedFeePaymentStatus = validFeeStatuses.includes(other_fee_payment_status)
+    ? other_fee_payment_status
+    : 'pending';
+
   console.log("Adding new transport booking with data:", req.body);
 
   if (!booking_id || !transport_id || !quantity || !transport_type) {
@@ -649,8 +661,8 @@ exports.addTransportBooking = async (req, res) => {
         note,
         other_fee: parsedOtherFee,
         other_fee_type,
-        other_fee_payment_method,
-        other_fee_payment_status,
+        other_fee_payment_method: sanitizedFeePaymentMethod,
+        other_fee_payment_status: sanitizedFeePaymentStatus,
       },
       { transaction }
     );
