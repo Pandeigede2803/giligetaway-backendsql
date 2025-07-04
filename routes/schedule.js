@@ -6,6 +6,7 @@ const authenticate = require('../middleware/authenticate');
 const validateApiKey = require('../middleware/validateKey');
 const { upload,uploadImageToImageKit } = require('../middleware/upload');
 const transitController = require('../controllers/transitController');
+const cors = require('cors');
 
 // const upload = require('../middleware/upload');
 
@@ -26,7 +27,8 @@ router.get('/search/v2',authenticate,
 
     
 // multiple params agent
-router.get('/search/v3',validateApiKey, scheduleController.searchSchedulesAndSubSchedulesAgent);
+router.get('/search/v3',cors(), // ⬅️ Ini izinkan semua origin
+    validateApiKey,  scheduleController.searchSchedulesAndSubSchedulesAgent);
 
 //multiple params
 router.get('/fetchtimetable/',authenticate, scheduleController.getScheduleSubschedule);
