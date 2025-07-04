@@ -8,7 +8,7 @@ const { Agent } = require('../models'); // sesuaikan path dengan struktur Anda
  */
 const checkAgentExist = (req, res, next) => {
   // Misalnya: ambil agentId dari query
-  const agentId = req.query.agent_id || req.params.agent_id;
+const agentId = req.query.agent_id || req.params.agent_id || req.body.agent_id;
 
   // Validasi: pastikan agent_id disertakan
   if (!agentId) {

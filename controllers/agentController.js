@@ -16,12 +16,46 @@ const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { Resend } = require("resend");
-
+const crypto = require('crypto');
 
 
 // Create the HTML email template as a separate function
 // Email template function - moved out for cleaner code
 // Email template function with spam-prevention measures
+
+
+// controllers/agentController.js
+
+exports.generateApiKey = async (req, res) => {
+  try {
+    console.log('Generating API key...');
+    const agent = req.agent;
+
+    // Cek kalau sudah ada api_key
+    if (agent.api_key) {
+      console.log('API key already exists for this agent');
+      return res.status(400).json({ message: 'API key already exists for this agent' });
+    }
+
+    console.log('Generating random API key...');
+    const apiKey = crypto.randomBytes(32).toString('hex');
+
+    console.log('Saving API key...');
+    agent.api_key = apiKey;
+    await agent.save();
+
+    console.log('API key generated successfully');
+    return res.status(200).json({
+      message: 'API key generated successfully',
+      agent_id: agent.id,
+      api_key: apiKey,
+    });
+  } catch (error) {
+    console.error('Error generating API key:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 const createAgentWelcomeEmailTemplate = (agent, randomPassword) => {
   const currentYear = new Date().getFullYear();
   

@@ -4,6 +4,7 @@ const router = express.Router();
 const agentController = require('../controllers/agentController');
 const authenticate = require('../middleware/authenticate');
 const validateAgent = require('../middleware/validateAgent');
+const checkAgentExist = require('../middleware/checkAgentExist');
 const multer = require("multer");
 const upload = multer({ dest: "uploads/" });
 
@@ -15,6 +16,10 @@ const checkEmailUnique = require('../middleware/checkUniqueEmail');
 
 
 router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);
+
+// generateApiKey
+
+router.get('/generate-api-key', authenticate,checkAgentExist, agentController.generateApiKey);
 
 // GET all agents
 // router.get('/', authenticate, agentController.getAllAgents);

@@ -27,17 +27,18 @@ const { getDay } = require('date-fns');
  * @returns {Object} Formatted route object
  */
 const formatRouteTimeline = (schedule) => {
+  // console.log("🧠 schedule", JSON.stringify(schedule, null, 2));
   const isSubSchedule = schedule.subschedule_id || schedule.DestinationFrom;
   
   // Ambil data dari schedule atau subschedule
   const fromDestination = isSubSchedule ? 
-    schedule.DestinationFrom?.name : 
-    schedule.FromDestination?.name;
-    
+    schedule.DestinationFrom?.name || schedule.from : 
+    schedule.FromDestination?.name || schedule.from;
+  // Updated: fallback to TransitTo.Destination.name for toDestination
   const toDestination = isSubSchedule ? 
-    schedule.DestinationTo?.name : 
-    schedule.ToDestination?.name;
-    
+    schedule.DestinationTo?.name || schedule.TransitTo?.Destination?.name || schedule.to : 
+    schedule.ToDestination?.name || schedule.TransitTo?.Destination?.name || schedule.to;
+  
   const departureTime = schedule.departure_time || schedule.Schedule?.departure_time;
   const arrivalTime = schedule.arrival_time || schedule.Schedule?.arrival_time;
   const transits = schedule.transits || schedule.Transits || [];
@@ -219,7 +220,7 @@ const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
       destination_to_id: to,
       availability: 1,
       validity_start: { [Op.lte]: selectedDate },
-      validity_end: { [Op.gte]: selectedDate },
+      validity_end: { [Op.gt]: selectedDate },
       [Op.and]: sequelize.literal(
         `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
       ),
@@ -252,7 +253,8 @@ const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
           "boat_image",
           "inside_seats",
           "outside_seats", 
-          "rooftop_seats"
+          "rooftop_seats",
+          "published_capacity",
         ],
       },
       {
@@ -310,7 +312,7 @@ const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
         },
         {
           validity_start: { [Op.lte]: selectedDate },
-          validity_end: { [Op.gte]: selectedDate },
+          validity_end: { [Op.gt]: selectedDate },
           [Op.and]: sequelize.literal(
             `(SubSchedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
           ),
@@ -458,7 +460,8 @@ const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
               "boat_image",
               "inside_seats",
               "outside_seats", 
-              "rooftop_seats"
+              "rooftop_seats",
+              "published_capacity"
             ],
           },
         ],
@@ -548,7 +551,8 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
-        availability: seatAvailability.availability
+        availability: seatAvailability.availability,
+        boost: seatAvailability.boost
       };
     }
   });
@@ -569,7 +573,9 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
         id: seatAvailability.id,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
-        availability: seatAvailability.availability
+        availability: seatAvailability.availability,
+        boost: seatAvailability.boost
+
       };
     }
   });

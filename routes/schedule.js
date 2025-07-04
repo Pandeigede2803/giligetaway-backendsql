@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const scheduleController = require('../controllers/scheduleController');
 const authenticate = require('../middleware/authenticate');
+const validateApiKey = require('../middleware/validateKey');
 const { upload,uploadImageToImageKit } = require('../middleware/upload');
 const transitController = require('../controllers/transitController');
 
@@ -22,8 +23,10 @@ router.get('/search',authenticate, scheduleController.getSchedulesByMultiplePara
 //multiple params
 router.get('/search/v2',authenticate, 
     scheduleController.searchSchedulesAndSubSchedules);
+
+    
 // multiple params agent
-router.get('/search/v3',authenticate, scheduleController.searchSchedulesAndSubSchedulesAgent);
+router.get('/search/v3',validateApiKey, scheduleController.searchSchedulesAndSubSchedulesAgent);
 
 //multiple params
 router.get('/fetchtimetable/',authenticate, scheduleController.getScheduleSubschedule);

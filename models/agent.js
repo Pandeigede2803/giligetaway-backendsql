@@ -90,6 +90,11 @@ const Agent = sequelize.define(
       allowNull: false,
       defaultValue:"unknown",
     },
+      api_key: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
     
     // add owner
     owner: {
