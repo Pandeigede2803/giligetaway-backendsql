@@ -1797,7 +1797,9 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     // Helper function to check if date is in July or August
     const isJulyOrAugust = (date) => {
       const month = date.getMonth(); // 0-based: 6 = July, 7 = August
-      return month === 6 || month === 7;
+      return month !== 6 &&
+        //  return month === 6 ||
+       month === 7;
     };
 
     // Helper function to adjust available seats for boat ID 1 in July/August
@@ -1809,6 +1811,11 @@ const adjustAvailableSeats = (originalSeats, boatId, date, boost) => {
   }
   return originalSeats;
 };
+
+
+
+
+
     const schedules = await Schedule.findAll({
       where: {
         destination_from_id: from,
