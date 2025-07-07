@@ -13,6 +13,7 @@ const {
   checkAllAvailableSeatsBookingCount,
   handleSeatAvailability,createOrGetSeatAvailability,
   fixSeatMismatch,
+findMissingRelatedBySeatId,
   fixSeatMismatchBatch,
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 
@@ -42,6 +43,10 @@ router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
 
 
 router.get("/check-available", authenticate, checkAvailableSeats);
+
+
+
+router.get('/missing-related-seat-availability',findMissingRelatedBySeatId);
 
 // Route to check all available seats for a specific schedule and date
 router.get("/check-all", authenticate, checkAllAvailableSeats);

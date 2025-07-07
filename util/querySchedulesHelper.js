@@ -713,6 +713,13 @@ const getSchedulesAndSubSchedules = async (from, to, date) => {
   };
 };
 
+
+
+
+
+
+
+
 module.exports = {
   querySchedules,
   querySubSchedules,
@@ -726,5 +733,6 @@ module.exports = {
     formatRouteTimeline,
   formatRouteString,
   formatRouteSteps,
-  formatScheduleWithClearRoute
+  formatScheduleWithClearRoute,
+
 };

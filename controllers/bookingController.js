@@ -6278,6 +6278,180 @@ const deleteAbandonedPayment = async (req, res) => {
   }
 };
 
+// agent api booking one way
+
+
+
+
+
+const calculateTotals = (transports = []) => {
+  const transportTotal = Array.isArray(transports)
+    ? transports.reduce(
+        (total, transport) =>
+          total + parseFloat(transport.transport_price) * transport.quantity,
+        0
+      )
+    : 0;
+
+  return { transportTotal };
+};
+
+// ============= MAIN CONTROLLER =============
+// ============= MAIN CONTROLLER =============
+const createAgentBooking = async (req, res) => {
+  const bookingData = req.body;
+
+  try {
+    // 1. Validate passenger counts
+    validatePassengerCounts(
+      bookingData.adult_passengers,
+      bookingData.child_passengers,
+      bookingData.infant_passengers || 0,
+      bookingData.total_passengers
+    );
+
+    // 2. Calculate ticket total from backend based on schedule prices
+    const ticketCalculation = await calculateTicketTotal(
+      bookingData.schedule_id,
+      bookingData.subschedule_id || null, // Handle null/undefined subschedule_id
+      bookingData.booking_date,
+      bookingData.adult_passengers,
+      bookingData.child_passengers,
+      bookingData.infant_passengers || 0
+    );
+
+    if (!ticketCalculation.success) {
+      return res.status(400).json({
+        error: "Ticket calculation failed",
+        message: ticketCalculation.error
+      });
+    }
+
+    const calculatedTicketTotal = ticketCalculation.ticketTotal;
+
+    // 3. Generate ticket ID
+    const ticket_id = await generateAgentTicketId();
+
+    // 4. Check for duplicate ticket (extra safety)
+    const existingBooking = await Booking.findOne({ where: { ticket_id } });
+    if (existingBooking) {
+      return res.status(400).json({
+        error: "Ticket ID collision",
+        message: "Please try again"
+      });
+    }
+
+    // 5. Calculate transport totals
+    const { transportTotal } = calculateTotals(bookingData.transports);
+    const grossTotal = calculatedTicketTotal + transportTotal;
+
+    // 6. Process booking in transaction
+    const result = await sequelize.transaction(async (t) => {
+      // Validate seat availability
+      const seatAvailabilityResult = await validateSeatAvailabilitySingleTrip(
+        bookingData.schedule_id,
+        bookingData.subschedule_id,
+        bookingData.booking_date,
+        bookingData.total_passengers
+      );
+
+      if (!seatAvailabilityResult.success) {
+        throw new Error(seatAvailabilityResult.message);
+      }
+
+      // Create booking record
+      const booking = await Booking.create(
+        {
+          ...bookingData,
+          ticket_id,
+          ticket_total: calculatedTicketTotal, // Use calculated ticket total
+          gross_total: grossTotal,
+          payment_status: 'invoiced',
+          payment_method: 'invoiced',
+          booking_source: 'agent',
+          expiration_time: new Date(
+            Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
+          )
+        },
+        { transaction: t }
+      );
+
+      // Create transaction record
+      const shortTransactionId = uuidv4().replace(/-/g, "").substring(0, 16);
+      const transactionEntry = await createTransaction(
+        {
+          transaction_id: `TRANS-${shortTransactionId}`,
+          payment_method: 'invoiced',
+          payment_gateway: null,
+          amount: grossTotal,
+          currency: bookingData.currency || 'IDR',
+          transaction_type: bookingData.transaction_type || 'booking',
+          booking_id: booking.id,
+          status: "success"
+        },
+        t
+      );
+
+      // Add to processing queue
+      bookingQueue.add({
+        ...bookingData,
+        booking_id: booking.id,
+        ticket_total: calculatedTicketTotal,
+        gross_total: grossTotal,
+        ticket_id,
+        payment_status: 'invoiced'
+      });
+
+      return {
+        booking,
+        transaction: transactionEntry,
+        ticket_id,
+        ticketCalculation
+      };
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Agent booking created successfully",
+      data: {
+        booking_id: result.booking.id,
+        ticket_id: result.ticket_id,
+        transaction_id: result.transaction.transaction_id,
+        ticket_total: calculatedTicketTotal,
+        transport_total: transportTotal,
+        gross_total: grossTotal,
+        payment_status: "invoiced",
+        status: "processing",
+        pricing_breakdown: result.ticketCalculation.breakdown,
+        schedule_info: result.ticketCalculation.scheduleInfo
+      }
+    });
+
+  } catch (error) {
+    console.error("Agent booking error:", error.message);
+
+    // Handle specific error types
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        error: "Validation error",
+        message: error.message
+      });
+    }
+
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(400).json({
+        error: "Duplicate data",
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   updateMultipleBookingPayment,
@@ -6310,4 +6484,5 @@ module.exports = {
   cancelBooking,
   findRelatedSubSchedulesGet,
   createRoundBookingWithTransitQueue,
+  createAgentBooking
 };

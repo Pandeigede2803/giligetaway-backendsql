@@ -8,6 +8,7 @@ const {
   Destination,
   BookingSeatAvailability,
   Passenger,
+  SubScheduleRelation,
   sequelize,
 
 
@@ -2197,6 +2198,98 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
 };
 
 
+
+const findMissingRelatedBySeatId = async (req, res) => {
+  const { seat_availability_id } = req.query;
+
+  if (!seat_availability_id) {
+    return res.status(400).json({
+      success: false,
+      message: 'seat_availability_id is required',
+    });
+  }
+
+  try {
+    const mainSeat = await SeatAvailability.findByPk(seat_availability_id);
+
+    if (!mainSeat) {
+      return res.status(404).json({
+        success: false,
+        message: 'SeatAvailability not found',
+      });
+    }
+
+    const { subschedule_id, date } = mainSeat;
+
+    if (!subschedule_id || !date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing subschedule_id or date in seat availability',
+      });
+    }
+
+    console.log(`🧠 SeatAvailability ID: ${seat_availability_id}`);
+    console.log(`📅 Date: ${date}`);
+    console.log(`🔗 Main SubSchedule ID: ${subschedule_id}`);
+
+    const relations = await SubScheduleRelation.findAll({
+      where: { main_subschedule_id: subschedule_id },
+      attributes: ['related_subschedule_id'],
+    });
+
+    const relatedIds = relations.map(r => r.related_subschedule_id);
+
+    console.log(`📎 Related SubSchedule IDs:`, relatedIds);
+
+    const foundRelations = [];
+    const missingRelations = [];
+
+    for (const relatedId of relatedIds) {
+      const existing = await SeatAvailability.findOne({
+        where: {
+          subschedule_id: relatedId,
+          date: date,
+        },
+      });
+
+      if (existing) {
+        console.log(`✅ Related ID ${relatedId} FOUND for date ${date}, SeatAvailability ID: ${existing.id}`);
+        foundRelations.push({
+          related_subschedule_id: relatedId,
+          seat_availability_id: existing.id,
+          date,
+        });
+      } else {
+        console.log(`❌ Related ID ${relatedId} MISSING for date ${date}`);
+        missingRelations.push({
+          main_seat_availability_id: mainSeat.id,
+          date,
+          main_subschedule_id: subschedule_id,
+          related_subschedule_id: relatedId,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      base: {
+        seat_availability_id: mainSeat.id,
+        subschedule_id: mainSeat.subschedule_id,
+        date: mainSeat.date,
+      },
+      related_found: foundRelations,
+      related_missing: missingRelations,
+    });
+  } catch (error) {
+    console.error('❌ Error in findMissingRelatedBySeatId:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+
 const cronFrequencySeatMatches = process.env.CRON_FREQUENCY_SEAT_MISMATCH || "0 */3 * * *"; // Default setiap 3 jam
 
 // Jalankan setiap 3 jam sekali
@@ -2219,5 +2312,6 @@ module.exports = {
  deleteSeatAvailabilityByIds,
  fixSeatMismatch,
  fixSeatMismatchBatch,fixAllSeatMismatches,
- getSeatAvailabilityMonthlyView
+ getSeatAvailabilityMonthlyView,
+findMissingRelatedBySeatId
 };

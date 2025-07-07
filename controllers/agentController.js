@@ -32,10 +32,10 @@ exports.generateApiKey = async (req, res) => {
     const agent = req.agent;
 
     // Cek kalau sudah ada api_key
-    if (agent.api_key) {
-      console.log('API key already exists for this agent');
-      return res.status(400).json({ message: 'API key already exists for this agent' });
-    }
+    // if (agent.api_key) {
+    //   console.log('API key already exists for this agent');
+    //   return res.status(400).json({ message: 'API key already exists for this agent' });
+    // }
 
     console.log('Generating random API key...');
     const apiKey = crypto.randomBytes(32).toString('hex');
