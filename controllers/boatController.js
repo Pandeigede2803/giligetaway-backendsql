@@ -37,7 +37,7 @@ const getBoats = async (req, res) => {
             boatData.scheduleCount = boat.Schedules.length;
             // boatData.bookingCount = boat.Schedules.reduce((total, schedule) => total + schedule.Bookings.length, 0);
             boatData.publicCapacity = boatData.published_capacity;
-            console.log('Boat retrieved:', boatData);
+            // console.log('Boat retrieved:', boatData);
             return boatData;
         });
 
@@ -72,7 +72,7 @@ const getBoatById = async (req, res) => {
             boatData.scheduleCount = boat.Schedules.length;
             boatData.bookingCount = boat.Schedules.reduce((total, schedule) => total + schedule.Bookings.length, 0);
 
-            console.log('Boat retrieved:', boatData);
+            // console.log('Boat retrieved:', boatData);
             res.status(200).json(boatData);
         } else {
             console.log('Boat not found with id:', req.params.id);

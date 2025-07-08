@@ -188,11 +188,13 @@ exports.updateTransportBooking = async (req, res) => {
     payment_method,
     payment_status,
     transport_price,
-    other_fee,
-    other_fee_type,
-    other_fee_payment_method,
-    other_fee_payment_status,
+    other_fee = 0,
+    other_fee_type = '',
+    other_fee_payment_method = 'cash',
+    other_fee_payment_status = 'pending',
   } = req.body;
+
+  console.log("Updating transport booking ID", id, "with data:", req.body);
 
   if (!id)
     return res
@@ -207,67 +209,89 @@ exports.updateTransportBooking = async (req, res) => {
   if (isNaN(quantity) || quantity <= 0)
     return res.status(400).json({ message: "Invalid quantity" });
 
+  // ENUM validation/sanitization for other_fee_payment_method and other_fee_payment_status
+  const validFeeMethods = ['cash', 'cod', 'agent-invoice', 'none'];
+  const validFeeStatuses = ['pending', 'paid', 'invoiced', 'none'];
+
+  const sanitizedFeePaymentMethod = validFeeMethods.includes(other_fee_payment_method)
+    ? other_fee_payment_method
+    : null;
+
+  const sanitizedFeePaymentStatus = validFeeStatuses.includes(other_fee_payment_status)
+    ? other_fee_payment_status
+    : null;
+
   const transaction = await sequelize.transaction();
   try {
+    // Fetch the transport cost from the Transport table
     const transport = await Transport.findByPk(transport_id);
     if (!transport) {
       await transaction.rollback();
       return res.status(404).json({ message: "Transport not found" });
     }
 
+    // Calculate base transport price (cost * quantity) with fallback logic
     const baseTransportPrice =
       transport_price && parseFloat(transport_price) > 0
         ? parseFloat(transport_price)
         : parseFloat(transport.cost) * quantity;
 
+    // Parse other_fee
     const parsedOtherFee = parseFloat(other_fee) || 0;
+    // Calculate final transport price
     const transportPriceFinal = baseTransportPrice + parsedOtherFee;
 
-    const transportBooking = await TransportBooking.findByPk(id, {
-      transaction,
-    });
+    // Fetch the transport booking to update
+    const transportBooking = await TransportBooking.findByPk(id, { transaction });
     if (!transportBooking) {
       await transaction.rollback();
       return res.status(404).json({ message: "Transport booking not found" });
     }
 
+    // Fetch the booking data
     const booking = await Booking.findByPk(booking_id, { transaction });
     if (!booking) {
       await transaction.rollback();
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    const exchangeRate = await getExchangeRate("IDR");
+    // ticket_total (not gross_total) is the original ticket price (boat ticket only)
+    // gross_total = ticket_total + transportPriceFinal
+    const ticketTotal = parseFloat(booking.ticket_total) || 0;
+    const newGrossTotal = ticketTotal + transportPriceFinal;
 
-    const newGrossTotal =
-      parseFloat(booking.ticket_total) + transportPriceFinal;
+    const exchangeRate = await getExchangeRate("IDR"); // Fetch USD to IDR rate
+    // Convert IDR to USD correctly
     const newGrossTotalInUSD = parseFloat(
       (newGrossTotal / exchangeRate).toFixed(2)
     );
 
+    // Update Transport Booking, include other_fee fields and set transport_price to final value
     await TransportBooking.update(
       {
         booking_id,
         transport_id,
         quantity,
-        transport_price: transportPriceFinal, // sudah termasuk other_fee
+        transport_price: transportPriceFinal, // Save final price (base + other_fee)
         transport_type,
         note,
         payment_method,
         payment_status,
         other_fee: parsedOtherFee,
         other_fee_type,
-        other_fee_payment_method,
-        other_fee_payment_status,
+        other_fee_payment_method: sanitizedFeePaymentMethod,
+        other_fee_payment_status: sanitizedFeePaymentStatus,
       },
       { where: { id }, transaction }
     );
 
+    // Update the Booking `gross_total` and `gross_total_in_usd`
     await Booking.update(
       { gross_total: newGrossTotal, gross_total_in_usd: newGrossTotalInUSD },
       { where: { id: booking_id }, transaction }
     );
 
+    // Fetch updated booking
     const updatedBooking = await Booking.findByPk(booking_id, { transaction });
     const contactEmail = booking.contact_email;
     const ticketId = booking.ticket_id;
@@ -276,6 +300,7 @@ exports.updateTransportBooking = async (req, res) => {
 
     await transaction.commit();
 
+    // Fetch updated transport booking after commit
     const updatedTransportBooking = await TransportBooking.findByPk(id);
 
     try {
