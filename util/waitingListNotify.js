@@ -291,7 +291,7 @@ const waitingListNotify = async (params, transaction = null) => {
       status: 'pending' // Hanya yang belum dinotifikasi
     };
 
-    console.log('\n🔍 Searching waiting list with PRIMARY filter (seat_availability_ids):', whereCondition);
+    // console.log('\n🔍 Searching waiting list with PRIMARY filter (seat_availability_ids):', whereCondition);
 
     // Cari waiting list yang matching dengan seat availability IDs (PRIMARY FILTER)
     const waitingListEntries = await WaitingList.findAll({
@@ -383,7 +383,7 @@ const waitingListNotify = async (params, transaction = null) => {
         // console.log(`   ⚠️ This entry should not be notified - schedule not available on this date`);
         continue;
       }
-      console.log(`✅ Booking date is within schedule validity period`);
+      // console.log(`✅ Booking date is within schedule validity period`);
 
       // ← NEW: Validasi 3: Apakah booking date sesuai dengan days_of_week schedule?
       const bookingDayOfWeek = entryBookingDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -402,7 +402,7 @@ const waitingListNotify = async (params, transaction = null) => {
         // console.log(`   ⚠️ This entry should not be notified - schedule not available on this day of week`);
         continue;
       }
-      console.log(`✅ Schedule operates on ${getDayName(bookingDayOfWeek)}`);
+      // console.log(`✅ Schedule operates on ${getDayName(bookingDayOfWeek)}`);
 
       // Validasi 4: Apakah seat availability masih cukup untuk required passengers
       if (!seatAvailability || seatAvailability.available_seats < entry.total_passengers) {
@@ -415,7 +415,7 @@ const waitingListNotify = async (params, transaction = null) => {
       console.log(`✅ Entry ${entry.id} is valid for notification`);
     }
 
-    console.log(`\n📊 Valid entries after all validations: ${validEntries.length}`);
+    // console.log(`\n📊 Valid entries after all validations: ${validEntries.length}`);
 
     if (validEntries.length === 0) {
       console.log('ℹ️ No valid waiting list entries after validation (schedule validity + days_of_week check included)');

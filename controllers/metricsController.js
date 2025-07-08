@@ -2166,6 +2166,7 @@ function isInDateRange(date, dateRange) {
 const getAnnualyMetrics = async (req, res) => {
   try {
     const { timeframe } = req.query;
+    console.log("TIMEFRAME 🧠",req.query)
     const today = moment();
     let startDate,
       endDate,
@@ -2183,7 +2184,7 @@ const getAnnualyMetrics = async (req, res) => {
         // Get paid/invoiced bookings
         const paidBookings = await Booking.findAll({
           where: {
-            created_at: {
+            booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -2199,7 +2200,7 @@ const getAnnualyMetrics = async (req, res) => {
         // Get all bookings
         const allBookings = await Booking.findAll({
           where: {
-            created_at: {
+             booking_date: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -2276,7 +2277,7 @@ const getAnnualyMetrics = async (req, res) => {
           weeks.map(async (week) => {
             const totalBookings = await Booking.count({
               where: {
-                created_at: {
+                 booking_date: {
                   [Op.between]: [
                     week.start.format("YYYY-MM-DD"),
                     week.end.format("YYYY-MM-DD"),
@@ -2288,7 +2289,7 @@ const getAnnualyMetrics = async (req, res) => {
 
             const totalAllBookings = await Booking.count({
               where: {
-                created_at: {
+                 booking_date: {
                   [Op.between]: [
                     week.start.format("YYYY-MM-DD"),
                     week.end.format("YYYY-MM-DD"),
@@ -2312,7 +2313,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const paidMonthlyBookings = await Booking.findAll({
           where: {
-            created_at: {
+             booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -2327,7 +2328,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const allMonthlyBookings = await Booking.findAll({
           where: {
-            created_at: {
+             booking_date: {
               [Op.between]: [startDate, endDate],
             },
           },
@@ -2361,7 +2362,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const paidYearlyBookings = await Booking.findAll({
           where: {
-            created_at: {
+             booking_date: {
               [Op.between]: [startDate, endDate],
             },
             payment_status: ["paid", "invoiced"],
@@ -2376,7 +2377,7 @@ const getAnnualyMetrics = async (req, res) => {
 
         const allYearlyBookings = await Booking.findAll({
           where: {
-            created_at: {
+             booking_date: {
               [Op.between]: [startDate, endDate],
             },
           },
