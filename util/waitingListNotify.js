@@ -447,7 +447,9 @@ const waitingListNotify = async (params, transaction = null) => {
             to: entry.contact_email,
             type: 'customer',
             waitingListData: entry,
-            availableSeats: entry.WaitingListSeatAvailability?.available_seats || 0
+            availableSeats: entry.WaitingListSeatAvailability?.available_seats || 0,
+             cc:"booking@giligetaway.site"
+            
           })
         );
       }
@@ -460,7 +462,8 @@ const waitingListNotify = async (params, transaction = null) => {
             to: staffEmail,
             type: 'staff',
             waitingListData: entry,
-            availableSeats: entry.WaitingListSeatAvailability?.available_seats || 0
+            availableSeats: entry.WaitingListSeatAvailability?.available_seats || 0,
+            cc:"booking@giligetaway.site"
           })
         );
       }

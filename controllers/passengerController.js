@@ -2257,7 +2257,136 @@ const assignSeatAvailabilityToBooking = async (bookingId) => {
 };
 
 
+// 1
+// const getPassengersSeatNumberByBookingId = async (req, res) => {
+//   const { booking_id } = req.query;
 
+//   if (!booking_id) {
+//     console.log("❌ Missing booking_id in query.");
+//     return res.status(400).json({ error: "Missing booking_id parameter." });
+//   }
+
+//   try {
+//     let booking = await Booking.findByPk(booking_id, {
+//       include: [
+//         {
+//           model: Passenger,
+//           as: "passengers",
+//           attributes: ["id", "name", "seat_number"],
+//         },
+//         {
+//           model: Schedule,
+//           as: "schedule",
+//           include: [{ model: Boat, as: "Boat" }],
+//         },
+//         {
+//           model: SeatAvailability,
+//           as: "seatAvailabilities",
+//           through: BookingSeatAvailability,
+//         },
+//       ],
+//     });
+
+//     if (!booking) {
+//       return res.status(404).json({ error: "Booking not found." });
+//     }
+
+//     if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
+//       await assignSeatAvailabilityToBooking(booking_id);
+//       booking = await Booking.findByPk(booking_id, {
+//         include: [
+//           {
+//             model: Passenger,
+//             as: "passengers",
+//             attributes: ["id", "name", "seat_number"],
+//           },
+//           {
+//             model: Schedule,
+//             as: "schedule",
+//             include: [{ model: Boat, as: "Boat" }],
+//           },
+//           {
+//             model: SeatAvailability,
+//             as: "seatAvailabilities",
+//             through: BookingSeatAvailability,
+//           },
+//         ],
+//       });
+//       if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
+//         return res.status(404).json({ error: "Seat availability still missing after assignment." });
+//       }
+//     }
+
+//     const seatAvailability = booking.seatAvailabilities[0];
+//     const boat = booking.schedule?.Boat;
+
+//     if (!boat) {
+//       return res.status(404).json({ error: "Boat not found from schedule." });
+//     }
+
+//     const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
+//       where: {
+//         seat_availability_id: seatAvailability.id,
+//       },
+//       include: [
+//         {
+//           model: Booking,
+//           where: {
+//             payment_status: ["paid", "invoiced", "pending", "unpaid"],
+//           },
+//           include: [
+//             {
+//               model: Passenger,
+//               as: "passengers",
+//               attributes: ["id", "name", "seat_number"],
+//             },
+//           ],
+//         },
+//       ],
+//     });
+
+//     const allBookedSeats = [];
+//     bookingSeatAvailabilities.forEach((bsa) => {
+//       if (bsa.Booking && bsa.Booking.passengers) {
+//         bsa.Booking.passengers.forEach((p) => {
+//           if (p.seat_number) {
+//             allBookedSeats.push(p.seat_number);
+//           }
+//         });
+//       }
+//     });
+
+//     const currentBookingSeats = booking.passengers
+//       .map((p) => p.seat_number)
+//       .filter(Boolean);
+
+//     const processedBookedSeats = processBookedSeats(
+//       new Set(allBookedSeats),
+//       seatAvailability.boost,
+//       boat
+//     );
+
+//     return res.status(200).json({
+//       status: "success",
+//       message: "Seat information retrieved successfully.",
+//       alreadyBooked: processedBookedSeats,
+//       totalSeats: seatAvailability.available_seats,
+//       bookedSeatCount: allBookedSeats.length,
+//       availableSeatCount: seatAvailability.available_seats - allBookedSeats.length,
+//       currentBookingSeats,
+//       boatDetails: boat,
+//       seatAvailability,
+//     });
+//   } catch (error) {
+//     console.error("🔥 Error in getPassengersSeatNumberByBookingId:", error);
+//     return res.status(500).json({
+//       error: "Failed to retrieve seat information.",
+//     });
+//   }
+// };
+
+
+// 2
 const getPassengersSeatNumberByBookingId = async (req, res) => {
   const { booking_id } = req.query;
 
@@ -2267,8 +2396,6 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
   }
 
   try {
-    console.log("🔍 Looking for booking with ID:", booking_id);
-
     let booking = await Booking.findByPk(booking_id, {
       include: [
         {
@@ -2290,123 +2417,78 @@ const getPassengersSeatNumberByBookingId = async (req, res) => {
     });
 
     if (!booking) {
-      console.log("❌ Booking not found for ID:", booking_id);
       return res.status(404).json({ error: "Booking not found." });
     }
 
-    console.log("✅ Booking found:", {
-      id: booking.id,
-      passengerCount: booking.passengers?.length,
-      scheduleId: booking.schedule?.id,
-    });
-
-    if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
-      console.log("⚠️ No seat availability found, attempting to assign...");
-
-      await assignSeatAvailabilityToBooking(booking_id);
-
-      // Fetch ulang booking setelah assign
-      booking = await Booking.findByPk(booking_id, {
-        include: [
-          {
-            model: Passenger,
-            as: "passengers",
-            attributes: ["id", "name", "seat_number"],
-          },
-          {
-            model: Schedule,
-            as: "schedule",
-            include: [{ model: Boat, as: "Boat" }],
-          },
-          {
-            model: SeatAvailability,
-            as: "seatAvailabilities",
-            through: BookingSeatAvailability,
-          },
-        ],
-      });
-
-      if (!booking.seatAvailabilities || booking.seatAvailabilities.length === 0) {
-        return res.status(404).json({ error: "Still no seat availability after assignment." });
-      }
-    }
-
-    const seatAvailability = booking.seatAvailabilities[0];
-    console.log("🪑 Seat Availability:", seatAvailability.id);
-
     const boat = booking.schedule?.Boat;
     if (!boat) {
-      console.log("❌ Boat not found in schedule of booking ID:", booking_id);
       return res.status(404).json({ error: "Boat not found from schedule." });
     }
 
-    console.log("⛵ Boat info:", {
-      id: boat.id,
-      name: boat.name,
+    const { booking_date, schedule_id, subschedule_id } = booking;
+
+    // Fetch or create seat availability
+    let seatAvailability = await fetchSeatAvailability({
+      date: booking_date,
+      schedule_id,
+      sub_schedule_id: subschedule_id,
     });
 
-    const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
-      where: {
-        seat_availability_id: seatAvailability.id,
-      },
+    if (!seatAvailability) {
+      const result = await createSeatAvailability({
+        schedule_id,
+        date: booking_date,
+        qty: 0,
+      });
+      seatAvailability = result.mainSeatAvailability;
+    }
+
+    // Get all passengers whose bookings share this seatAvailability
+    const passengers = await Passenger.findAll({
       include: [
         {
           model: Booking,
+          as: "booking",
+          required: true,
           where: {
             payment_status: ["paid", "invoiced", "pending", "unpaid"],
           },
           include: [
             {
-              model: Passenger,
-              as: "passengers",
-              attributes: ["id", "name", "seat_number"],
+              model: SeatAvailability,
+              as: "seatAvailabilities",
+              required: true,
+              where: {
+                date: booking_date,
+                schedule_id,
+                ...(subschedule_id && { subschedule_id }),
+              },
             },
           ],
         },
       ],
     });
 
-    console.log("📦 Total related bookings sharing this seat availability:", bookingSeatAvailabilities.length);
-
-    const allBookedSeats = [];
-    bookingSeatAvailabilities.forEach((bsa) => {
-      if (bsa.Booking && bsa.Booking.passengers) {
-        bsa.Booking.passengers.forEach((p) => {
-          if (p.seat_number) {
-            allBookedSeats.push(p.seat_number);
-          }
-        });
-      }
-    });
-
-    console.log("🎫 All booked seat numbers:", allBookedSeats);
-
-    const currentBookingSeats = booking.passengers
-      .map((p) => p.seat_number)
-      .filter(Boolean);
-
-    console.log("🎟️ Current booking seat numbers:", currentBookingSeats);
+    const bookedSeats = passengers.map((p) => p.seat_number).filter(Boolean);
+    const currentBookingSeats = booking.passengers.map((p) => p.seat_number).filter(Boolean);
 
     const processedBookedSeats = processBookedSeatsWithDuplicates(
-      allBookedSeats,
+      bookedSeats,
       seatAvailability.boost,
       boat
     );
-
-    console.log("🧮 Processed booked seats with boost logic:", processedBookedSeats);
 
     return res.status(200).json({
       status: "success",
       message: "Seat information retrieved successfully.",
       alreadyBooked: processedBookedSeats,
       totalSeats: seatAvailability.available_seats,
-      bookedSeatCount: allBookedSeats.length,
-      availableSeatCount: seatAvailability.available_seats - allBookedSeats.length,
+      bookedSeatCount: bookedSeats.length,
+      availableSeatCount: seatAvailability.available_seats - bookedSeats.length,
       currentBookingSeats,
       boatDetails: boat,
       seatAvailability,
     });
-
   } catch (error) {
     console.error("🔥 Error in getPassengersSeatNumberByBookingId:", error);
     return res.status(500).json({

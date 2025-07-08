@@ -225,17 +225,7 @@ const processBookedSeatsWithDuplicates = (bookedSeatsInput, boost, boatData) => 
   // ✅ Gunakan ARRAY untuk pertahankan duplikasi
   const resultArray = [...bookedSeatsArray];
 
-  // Jika boost enabled dan boat ID = 2
-  if (boost && boatData?.id === 2) {
-    console.log("🚤 Boost enabled for Boat ID 2 (with duplicates)");
-    // ✅ PERHATIKAN: Jangan gunakan Set di loop ini!
-    for (const seat of bookedSeatsArray) {
-      console.log(`🔍 Processing: ${seat}`);
-       addSeatPairWithDuplicates(resultArray, seat);
-    }
-    console.log("🎯 Boat2 result with duplicates:", resultArray);
-    return resultArray;
-  }
+
 
   // Jika boost enabled tapi bukan boat ID 2
   if (boost) {

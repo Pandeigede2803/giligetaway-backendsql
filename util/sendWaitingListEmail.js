@@ -21,9 +21,9 @@ const transporter = nodemailer.createTransport({
  */
 const sendWaitingListEmail = async (params) => {
   try {
-    const { to, type, waitingListData, availableSeats } = params;
+    const { to, type, waitingListData, availableSeats,cc } = params;
 
-    console.log(`📧 Preparing ${type} waiting list email to: ${to}`);
+    console.log(`📧 Preparing ${type} waiting list email to: ${to} AND CC TO ${cc}`);
 
     // Generate email content based on type
     const emailContent = generateWaitingListEmailContent(type, waitingListData, availableSeats);
@@ -31,7 +31,7 @@ const sendWaitingListEmail = async (params) => {
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
       to: to,
-      // cc: type === 'staff' ? process.env.EMAIL_BOOKING : undefined,
+      cc: cc,
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text
