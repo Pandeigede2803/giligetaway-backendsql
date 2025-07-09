@@ -307,7 +307,7 @@ const checkAndNotifyWaitingList = async () => {
       where: {
         status: 'pending',
         booking_date: {
-          [Op.gte]: today // Hanya booking yang belum lewat
+          [Op.gt]: today // Lewati booking untuk hari ini juga
         }
       },
       include: [
