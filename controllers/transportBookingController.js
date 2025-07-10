@@ -258,7 +258,8 @@ exports.updateTransportBooking = async (req, res) => {
     // ticket_total (not gross_total) is the original ticket price (boat ticket only)
     // gross_total = ticket_total + transportPriceFinal
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
-    const newGrossTotal = ticketTotal + transportPriceFinal;
+    const bankFee = booking.bank_fee || 0; // Use bank_fee from booking if available
+    const newGrossTotal = ticketTotal + transportPriceFinal+bankFee;
 
     const exchangeRate = await getExchangeRate("IDR"); // Fetch USD to IDR rate
     // Convert IDR to USD correctly
@@ -662,7 +663,8 @@ const sanitizedFeePaymentStatus = validFeeStatuses.includes(other_fee_payment_st
     // ticket_total (not gross_total) is the original ticket price (boat ticket only)
     // gross_total = ticket_total + transportPriceFinal
     const ticketTotal = parseFloat(booking.ticket_total) || 0;
-    const newGrossTotal = ticketTotal + transportPriceFinal;
+    const bankFee = booking.bank_fee || 0; // Use bank_fee from booking if available
+    const newGrossTotal = ticketTotal + transportPriceFinal+ bankFee;
 
     const exchangeRate = await getExchangeRate("IDR"); // Fetch USD to IDR rate
     // Convert IDR to USD correctly
