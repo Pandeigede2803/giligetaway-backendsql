@@ -1376,21 +1376,21 @@ const getScheduleFormatted = async (req, res) => {
 };
 
 const createSeatAvailability = async (schedule, subschedule, date) => {
-  console.log("start query", schedule, subschedule, date);
+  // console.log("start query", schedule, subschedule, date);
   try {
     // Get relevant boat and calculate public capacity
     const relevantBoat = schedule ? schedule.Boat : subschedule.Schedule.Boat;
     const publicCapacity = calculatePublicCapacity(relevantBoat);
 
-    console.log("\n=== CREATE SEAT AVAILABILITY ===");
-    console.log("Source:", schedule ? "Direct Schedule" : "SubSchedule");
-    console.log(
-      "Schedule ID:",
-      schedule ? schedule.id : subschedule.Schedule.id
-    );
-    console.log("SubSchedule ID:", subschedule ? subschedule.id : null);
-    console.log("Date:", date);
-    console.log("Public Capacity:", publicCapacity);
+    // console.log("\n=== CREATE SEAT AVAILABILITY ===");
+    // console.log("Source:", schedule ? "Direct Schedule" : "SubSchedule");
+    // console.log(
+    //   "Schedule ID:",
+    //   schedule ? schedule.id : subschedule.Schedule.id
+    // );
+    // console.log("SubSchedule ID:", subschedule ? subschedule.id : null);
+    // console.log("Date:", date);
+    // console.log("Public Capacity:", publicCapacity);
 
     // Create the seat availability record
     const newSeatAvailability = await SeatAvailability.create({
@@ -1402,13 +1402,13 @@ const createSeatAvailability = async (schedule, subschedule, date) => {
       boost: false,
     });
 
-    console.log("Created Seat Availability:", {
-      id: newSeatAvailability.id,
-      available_seats: newSeatAvailability.available_seats,
-      schedule_id: newSeatAvailability.schedule_id,
-      subschedule_id: newSeatAvailability.subschedule_id,
-    });
-    console.log("=== END CREATE SEAT AVAILABILITY ===\n");
+    // console.log("Created Seat Availability:", {
+    //   id: newSeatAvailability.id,
+    //   available_seats: newSeatAvailability.available_seats,
+    //   schedule_id: newSeatAvailability.schedule_id,
+    //   subschedule_id: newSeatAvailability.subschedule_id,
+    // });
+    // console.log("=== END CREATE SEAT AVAILABILITY ===\n");
 
     return newSeatAvailability;
   } catch (error) {

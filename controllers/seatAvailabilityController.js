@@ -21,7 +21,7 @@ const { buildRouteFromSchedule, buildRouteFromScheduleFlatten } = require("../ut
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
 const { Op } = require('sequelize'); // Import Sequelize operators
-const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
+const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability,createSeatAvailability2, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
 const { sub } = require("date-fns/sub");
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
@@ -54,7 +54,7 @@ const createOrGetSeatAvailability = async (req, res) => {
 
     if (!mainSeatAvailability) {
       console.log("2. Main seat not found, creating main schedule seat availability...");
-      const result = await createSeatAvailability({
+      const result = await createSeatAvailability2({
         schedule_id,
         date,
         subschedule_id: null,
@@ -80,7 +80,7 @@ const createOrGetSeatAvailability = async (req, res) => {
 
     if (!seatAvailability) {
       console.log("5. Requested seat not found, creating...");
-      const result = await createSeatAvailability({
+      const result = await createSeatAvailability2({
         schedule_id,
         date,
         subschedule_id: subschedule_id ?? null,
@@ -2201,6 +2201,7 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
 
 const findMissingRelatedBySeatId = async (req, res) => {
   const { seat_availability_id } = req.query;
+  console.log(`🔍 Finding missing related subschedules for seat_availability_id: ${seat_availability_id}`);
 
   if (!seat_availability_id) {
     return res.status(400).json({
@@ -2219,25 +2220,54 @@ const findMissingRelatedBySeatId = async (req, res) => {
       });
     }
 
-    const { subschedule_id, date } = mainSeat;
+    const { subschedule_id, schedule_id, date } = mainSeat;
 
-    if (!subschedule_id || !date) {
+    if (!date) {
       return res.status(400).json({
         success: false,
-        message: 'Missing subschedule_id or date in seat availability',
+        message: 'Missing date in seat availability',
       });
     }
 
-    console.log(`🧠 SeatAvailability ID: ${seat_availability_id}`);
-    console.log(`📅 Date: ${date}`);
-    console.log(`🔗 Main SubSchedule ID: ${subschedule_id}`);
+    let relatedIds = [];
 
-    const relations = await SubScheduleRelation.findAll({
-      where: { main_subschedule_id: subschedule_id },
-      attributes: ['related_subschedule_id'],
-    });
+    // ✅ CASE A: Jika ada subschedule_id → gunakan relasi biasa
+    if (subschedule_id) {
+      console.log(`🧠 Seat with subschedule_id: ${subschedule_id}`);
+      const relations = await SubScheduleRelation.findAll({
+        where: { main_subschedule_id: subschedule_id },
+        attributes: ['related_subschedule_id'],
+      });
 
-    const relatedIds = relations.map(r => r.related_subschedule_id);
+      relatedIds = relations.map(r => r.related_subschedule_id);
+    } 
+    // ✅ CASE B: subschedule_id null → seat utama, pakai semua SubSchedule dari schedule_id
+    else {
+      console.log(`🧠 Seat with NULL subschedule_id. Using schedule_id: ${schedule_id} to infer related subschedules`);
+
+      const allSubSchedules = await SubSchedule.findAll({
+        where: { schedule_id },
+        attributes: ['id'],
+      });
+
+      relatedIds = allSubSchedules.map(s => s.id);
+
+      // ✅ Tambahkan pengecualian: jika tidak ada SubSchedule, langsung return found kosong
+      if (relatedIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          base: {
+            seat_availability_id: mainSeat.id,
+            schedule_id,
+            subschedule_id: null,
+            date,
+          },
+          related_found: [],
+          related_missing: [],
+          note: 'No related subschedules exist under this schedule_id',
+        });
+      }
+    }
 
     console.log(`📎 Related SubSchedule IDs:`, relatedIds);
 
@@ -2248,7 +2278,7 @@ const findMissingRelatedBySeatId = async (req, res) => {
       const existing = await SeatAvailability.findOne({
         where: {
           subschedule_id: relatedId,
-          date: date,
+          date,
         },
       });
 
@@ -2264,7 +2294,7 @@ const findMissingRelatedBySeatId = async (req, res) => {
         missingRelations.push({
           main_seat_availability_id: mainSeat.id,
           date,
-          main_subschedule_id: subschedule_id,
+          schedule_id: mainSeat.schedule_id,
           related_subschedule_id: relatedId,
         });
       }
@@ -2274,8 +2304,9 @@ const findMissingRelatedBySeatId = async (req, res) => {
       success: true,
       base: {
         seat_availability_id: mainSeat.id,
-        subschedule_id: mainSeat.subschedule_id,
-        date: mainSeat.date,
+        schedule_id,
+        subschedule_id: subschedule_id || null,
+        date,
       },
       related_found: foundRelations,
       related_missing: missingRelations,

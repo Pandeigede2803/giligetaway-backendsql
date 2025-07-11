@@ -2,6 +2,60 @@ const { sequelize, Booking, SeatAvailability,Destination,Transport, Schedule,Sub
 const moment = require('moment');
 const { findRelatedSubSchedules } = require('../util/handleSubScheduleBooking');
 
+
+
+
+const validateSeatAvailabilityExist = async (req, res, next) => {
+  const { schedule_id, subschedule_id,  date } = req.body;
+
+  console.log('🧭 Validating seat availability existence...');
+  console.log('📦 Input:', { schedule_id, subschedule_id, date });
+
+  if (!schedule_id || !date) {
+    console.warn('⚠️ Missing schedule_id or date in request body.');
+    return res.status(400).json({
+      success: false,
+      message: 'schedule_id and date are required',
+    });
+  }
+
+  try {
+    const existing = await SeatAvailability.findOne({
+      where: {
+        schedule_id,
+        date,
+        subschedule_id: subschedule_id || null,
+       
+      },
+    });
+
+    if (existing) {
+      console.warn('🚫 SeatAvailability already exists:', {
+        id: existing.id,
+        date: existing.date,
+        subschedule_id: existing.subschedule_id,
+ 
+      });
+      return res.status(409).json({
+        success: false,
+        message: 'Seat availability already exists for this schedule and date.',
+        seat_availability: existing,
+      });
+    }
+
+    console.log('✅ No duplicate seat availability found. Proceeding...');
+    next();
+  } catch (error) {
+    console.error('❌ Error checking seat availability:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while checking seat availability',
+    });
+  }
+};
+
+
+
 const checkSeatAvailabilityForUpdate = async (req, res, next) => {
     const { id } = req.params;
     const { booking_date } = req.body;
@@ -1391,5 +1445,6 @@ module.exports = {
     validateSeatNumberConflictOnDateChange,
   
     checkBookingDateUpdateDirect,
-    checkAgentPassword
+    checkAgentPassword,
+    validateSeatAvailabilityExist
 };

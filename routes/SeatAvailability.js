@@ -23,7 +23,7 @@ const { body } = require("express-validator");
 // module.exports = boostSeatMiddleware;
 // const 
 const boostSeatMiddleware = require("../middleware/boostSeatMiddleware");
-const { checkMaximumCapacity,validateSeatAvailabilityDate } = require("../middleware/checkSeatAvailabilityForUpdate");
+const { checkMaximumCapacity,validateSeatAvailabilityDate,validateSeatAvailabilityExist } = require("../middleware/checkSeatAvailabilityForUpdate");
 const validateSeatAvailability = require("../middleware/validateSeatAvailability");
 
 
@@ -32,7 +32,7 @@ const validateSeatAvailability = require("../middleware/validateSeatAvailability
 
 
 
-router.post('/create-or-get',authenticate, validateSeatAvailability, createOrGetSeatAvailability);
+router.post('/create-or-get',authenticate, validateSeatAvailabilityExist, createOrGetSeatAvailability);
 
 router.get("/get-month", authenticate, getSeatAvailabilityByMonthYear);
 router.get("/get-monthly-view", authenticate,  getSeatAvailabilityMonthlyView);

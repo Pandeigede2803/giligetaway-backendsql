@@ -33,7 +33,9 @@ const getYesterdayPaidBookings = async () => {
   try {
     const paidBookings = await Booking.findAll({
       where: {
-        payment_status: "paid",
+        payment_status: {
+          [Op.in]: ["paid", "invoiced"]
+        },
         created_at: {
           [Op.gte]: yesterday.toDate(),
           [Op.lt]: today.toDate(),
@@ -112,46 +114,280 @@ const formatBookingsToHtmlTable = (bookings) => {
   return emailText;
 };
 
+// const formatBookingsToText = (bookings) => {
+//   if (!bookings || bookings.length === 0) {
+//     return "No paid bookings were created yesterday.";
+//   }
+
+//   const totalAmount = bookings.reduce((sum, booking) => sum + parseFloat(booking.gross_total || 0), 0);
+//   const totalBookings = bookings.length;
+//   const totalPassengers = bookings.reduce((sum, booking) => sum + (booking.total_passengers || 0), 0);
+
+  
+//   // Format date for the summary
+//   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
+  
+//   // Create summary text
+//   let emailText = `DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
+//   emailText += `SUMMARY:\n`;
+//   emailText += `Total Bookings: ${totalBookings}\n`;
+//   emailText += `Total Passengers: ${totalPassengers}\n`;
+//   emailText += `Total Revenue: ${totalAmount.toLocaleString()} ${bookings[0]?.currency || 'IDR'}\n\n`;
+  
+//   emailText += `BOOKING DETAILS:\n\n`;
+  
+//   // Add each booking as a simple text entry
+//   bookings.forEach((booking, index) => {
+//     emailText += `${index + 1}. Booking ID: ${booking.id}\n`;
+//     emailText += `   Ticket ID: ${booking.ticket_id}\n`;
+//     emailText += `   Contact: ${booking.contact_name}\n`;
+//     emailText += `   Phone: ${booking.contact_phone}\n`;
+//     emailText += `   Email: ${booking.contact_email}\n`;
+//     // route
+//     emailText += `   Route: ${booking.final_state.bookingData.from||'N/A'} - ${booking.final_state.bookingData.to|| 'N/A'}\n`;
+//     emailText += `   Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})\n`;
+//     emailText += `   Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}\n`;
+//     emailText += `   Booking Source: ${booking.booking_source || 'N/A'}\n`;
+//     emailText += `   Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}\n`;
+//     emailText += `   Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}\n\n`;
+//     // add link for giligetaway-widget/check-ticket/${ticket_id}
+//     emailText += `   Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}\n\n`;
+//   });
+  
+//   return emailText;
+// };
+
+const formatBookingsToHTML = (bookings) => {
+  if (!bookings || bookings.length === 0) {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+          <h2 style="color: #6c757d; margin: 0;">No paid bookings were created yesterday.</h2>
+        </div>
+      </div>
+    `;
+  }
+
+  const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
+  
+  const grouped = {
+    website: [],
+    agent: [],
+    staff: []
+  };
+
+  bookings.forEach((b) => {
+    const source = b.booking_source || 'unknown';
+    if (grouped[source]) {
+      grouped[source].push(b);
+    }
+  });
+
+  let htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+      <div style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 600;">📊 DAILY BOOKING SUMMARY</h1>
+          <p style="margin: 8px 0 0 0; font-size: 16px; opacity: 0.9;">${yesterdayDate}</p>
+        </div>
+        
+        <div style="padding: 24px;">
+  `;
+
+  for (const [source, entries] of Object.entries(grouped)) {
+    if (entries.length === 0) continue;
+
+    const totalAmount = entries.reduce((sum, b) => sum + parseFloat(b.gross_total || 0), 0);
+    const totalBookings = entries.length;
+    const totalPassengers = entries.reduce((sum, b) => sum + (b.total_passengers || 0), 0);
+
+    // Source section header
+    const sourceColors = {
+      website: '#28a745',
+      agent: '#007bff', 
+      staff: '#ffc107'
+    };
+    
+    const sourceIcons = {
+      website: '🌐',
+      agent: '👥',
+      staff: '👨‍💼'
+    };
+
+    htmlContent += `
+      <div style="margin-bottom: 32px;">
+        <div style="background-color: ${sourceColors[source] || '#6c757d'}; color: white; padding: 16px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">${sourceIcons[source] || '📋'}</span>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">${source.toUpperCase()} BOOKINGS</h2>
+        </div>
+        
+        <!-- Summary Stats -->
+        <div style="background-color: #f8f9fa; padding: 16px; border: 1px solid #e9ecef; display: flex; justify-content: space-around; text-align: center; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #495057;">${totalBookings}</div>
+            <div style="font-size: 14px; color: #6c757d;">Bookings</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #495057;">${totalPassengers}</div>
+            <div style="font-size: 14px; color: #6c757d;">Passengers</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: bold; color: #28a745;">${totalAmount.toLocaleString()}</div>
+            <div style="font-size: 14px; color: #6c757d;">${entries[0]?.currency || 'IDR'}</div>
+          </div>
+        </div>
+        
+        <!-- Booking Details -->
+        <div style="background-color: white; border: 1px solid #e9ecef; border-top: none; border-radius: 0 0 8px 8px;">
+    `;
+
+    entries.forEach((booking, index) => {
+      htmlContent += `
+        <div style="padding: 20px; border-bottom: ${index === entries.length - 1 ? 'none' : '1px solid #e9ecef'};">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="background-color: #e9ecef; color: #495057; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500;">
+              #${index + 1}
+            </div>
+            <div style="font-size: 18px; font-weight: bold; color: #28a745;">
+              ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}
+            </div>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Booking Details</div>
+              <div style="font-size: 14px; color: #495057; line-height: 1.5;">
+                <strong>ID:</strong> ${booking.id}<br>
+                <strong>Ticket:</strong> ${booking.ticket_id}<br>
+                <strong>Source:</strong> ${booking.booking_source || 'N/A'}
+              </div>
+            </div>
+            
+            <div>
+              <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Contact Information</div>
+              <div style="font-size: 14px; color: #495057; line-height: 1.5;">
+                <strong>Name:</strong> ${booking.contact_name}<br>
+                <strong>Phone:</strong> ${booking.contact_phone}<br>
+                <strong>Email:</strong> ${booking.contact_email}
+              </div>
+            </div>
+            
+            <div>
+              <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Travel Details</div>
+              <div style="font-size: 14px; color: #495057; line-height: 1.5;">
+                <strong>Route:</strong> ${booking.final_state.bookingData?.from || 'N/A'} → ${booking.final_state.bookingData?.to || 'N/A'}<br>
+                <strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}<br>
+                <strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
+              </div>
+            </div>
+            
+            <div>
+              <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Passengers</div>
+              <div style="font-size: 14px; color: #495057; line-height: 1.5;">
+                <strong>Total:</strong> ${booking.total_passengers}<br>
+                <strong>Adults:</strong> ${booking.adult_passengers} | <strong>Children:</strong> ${booking.child_passengers} | <strong>Infants:</strong> ${booking.infant_passengers}
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 16px;">
+            <a href="https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}" 
+               style="background-color: #007bff; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500; display: inline-block;">
+              🎫 Check Ticket
+            </a>
+          </div>
+        </div>
+      `;
+    });
+
+    htmlContent += `
+        </div>
+      </div>
+    `;
+  }
+
+  htmlContent += `
+        </div>
+      </div>
+    </div>
+  `;
+
+  return htmlContent;
+};
+
+// Alternative: Text version with improved formatting
 const formatBookingsToText = (bookings) => {
   if (!bookings || bookings.length === 0) {
     return "No paid bookings were created yesterday.";
   }
 
-  const totalAmount = bookings.reduce((sum, booking) => sum + parseFloat(booking.gross_total || 0), 0);
-  const totalBookings = bookings.length;
-  const totalPassengers = bookings.reduce((sum, booking) => sum + (booking.total_passengers || 0), 0);
-
-  
-  // Format date for the summary
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
-  
-  // Create summary text
-  let emailText = `DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
-  emailText += `SUMMARY:\n`;
-  emailText += `Total Bookings: ${totalBookings}\n`;
-  emailText += `Total Passengers: ${totalPassengers}\n`;
-  emailText += `Total Revenue: ${totalAmount.toLocaleString()} ${bookings[0]?.currency || 'IDR'}\n\n`;
-  
-  emailText += `BOOKING DETAILS:\n\n`;
-  
-  // Add each booking as a simple text entry
-  bookings.forEach((booking, index) => {
-    emailText += `${index + 1}. Booking ID: ${booking.id}\n`;
-    emailText += `   Ticket ID: ${booking.ticket_id}\n`;
-    emailText += `   Contact: ${booking.contact_name}\n`;
-    emailText += `   Phone: ${booking.contact_phone}\n`;
-    emailText += `   Email: ${booking.contact_email}\n`;
-    // route
-    emailText += `   Route: ${booking.final_state.bookingData.from||'N/A'} - ${booking.final_state.bookingData.to|| 'N/A'}\n`;
-    emailText += `   Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})\n`;
-    emailText += `   Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}\n`;
-    emailText += `   Booking Source: ${booking.booking_source || 'N/A'}\n`;
-    emailText += `   Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}\n`;
-    emailText += `   Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}\n\n`;
-    // add link for giligetaway-widget/check-ticket/${ticket_id}
-    emailText += `   Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}\n\n`;
+  let emailText = `
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                        📊 DAILY BOOKING SUMMARY                                                   ║
+║                                              ${yesterdayDate}                                                    ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+`;
+
+  const grouped = {
+    website: [],
+    agent: [],
+    staff: []
+  };
+
+  bookings.forEach((b) => {
+    const source = b.booking_source || 'unknown';
+    if (grouped[source]) {
+      grouped[source].push(b);
+    }
   });
-  
+
+  const sourceIcons = {
+    website: '🌐',
+    agent: '👥',
+    staff: '👨‍💼'
+  };
+
+  for (const [source, entries] of Object.entries(grouped)) {
+    if (entries.length === 0) continue;
+
+    const totalAmount = entries.reduce((sum, b) => sum + parseFloat(b.gross_total || 0), 0);
+    const totalBookings = entries.length;
+    const totalPassengers = entries.reduce((sum, b) => sum + (b.total_passengers || 0), 0);
+
+    emailText += `
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ${sourceIcons[source] || '📋'} ${source.toUpperCase()} BOOKINGS                                                                                      │
+├─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 📊 SUMMARY: ${totalBookings} Bookings | ${totalPassengers} Passengers | ${totalAmount.toLocaleString()} ${entries[0]?.currency || 'IDR'}                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+`;
+
+    entries.forEach((booking, index) => {
+      emailText += `
+📌 BOOKING #${index + 1}
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+🆔 Booking ID: ${booking.id}
+🎫 Ticket ID: ${booking.ticket_id}
+👤 Contact: ${booking.contact_name}
+📞 Phone: ${booking.contact_phone}
+📧 Email: ${booking.contact_email}
+🛣️  Route: ${booking.final_state.bookingData?.from || 'N/A'} → ${booking.final_state.bookingData?.to || 'N/A'}
+👥 Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})
+💰 Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}
+📍 Source: ${booking.booking_source || 'N/A'}
+📅 Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}
+🕐 Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
+🔗 Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}
+
+`;
+    });
+  }
+
   return emailText;
 };
 

@@ -771,6 +771,250 @@ bookingQueueMultiple.process(async (job, done) => {
 //   }
 // };
 
+
+// without add pasengger inside
+// const createRoundBookingWithTransitQueue = async (req, res) => {
+//   console.log("\n[Step 1] 🎯 Starting round trip booking process...");
+
+//   const { departure, return: returnData } = req.body;
+
+//   try {
+//     console.log("\n[Step 2] 🔄 Starting database transaction...");
+//     const result = await sequelize.transaction(async (t) => {
+//       const handleBooking = async (data, type) => {
+//         // console.log(
+//         //   `\n[Step 3.${
+//         //     type === "departure" ? 1 : 2
+//         //   }] 📋 Processing ${type} booking...`
+//         // );
+//         // console.log(
+//         //   `[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`,
+//         //   data.schedule_id
+//         // );
+
+//         const {
+//           schedule_id,
+//           subschedule_id,
+//           total_passengers,
+//           booking_date,
+//           passengers,
+//           agent_id,
+//           gross_total,
+//           ticket_total,
+//           payment_status,
+//           transports,
+//           contact_name,
+//           contact_phone,
+//           contact_passport_id,
+//           contact_nationality,
+//           contact_email,
+//           payment_method,
+//           booking_source,
+//           adult_passengers,
+//           child_passengers,
+//           infant_passengers,
+//           ticket_id,
+//           bank_fee,
+//           transaction_type,
+//           currency,
+//           gross_total_in_usd,
+//           exchange_rate,
+//           note,
+//           final_state,
+//           discount_data,
+//           booked_by,
+//         } = data;
+
+//         // console.log("note from frontend type", type, note);
+
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.2] 🔍 Checking for existing booking with ticket ID:`,
+//           ticket_id
+//         );
+//         const existingBooking = await Booking.findOne({ where: { ticket_id } });
+//         if (existingBooking) {
+//           console.log(
+//             `[Step 3.${
+//               type === "departure" ? 1 : 2
+//             }.2.1] ⚠️ Duplicate ticket ID found`
+//           );
+//           throw new Error(`Ticket ID '${ticket_id}' is already in use.`);
+//         }
+
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.3] 💺 Validating seat availability...`
+//         );
+//         const seatAvailability = await validateSeatAvailabilitySingleTrip(
+//           schedule_id,
+//           subschedule_id,
+//           booking_date,
+//           total_passengers
+//         );
+
+//         if (!seatAvailability.success) {
+//           console.log(
+//             `[Step 3.${
+//               type === "departure" ? 1 : 2
+//             }.3.1] ⚠️ Seat validation failed:`,
+//             seatAvailability.message
+//           );
+//           throw new Error(seatAvailability.message);
+//         }
+
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.4] 💰 Calculating transport total...`
+//         );
+//         const transportTotal = Array.isArray(transports)
+//           ? transports.reduce(
+//               (total, { transport_price, quantity }) =>
+//                 total + parseFloat(transport_price) * quantity,
+//               0
+//             )
+//           : 0;
+
+//         const totalAmount = ticket_total + transportTotal;
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.5] 📊 Total amount calculated:`,
+//           totalAmount
+//         );
+
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.6] 💾 Creating booking record...`
+//         );
+
+//         const booking = await Booking.create(
+//           {
+//             schedule_id,
+//             subschedule_id,
+//             total_passengers,
+//             booking_date,
+//             agent_id,
+//             gross_total,
+//             ticket_total,
+//             payment_status,
+//             contact_name,
+//             contact_phone,
+//             contact_passport_id,
+//             contact_nationality,
+//             contact_email,
+//             payment_method,
+//             booking_source,
+//             adult_passengers,
+//             child_passengers,
+//             infant_passengers,
+//             ticket_id,
+//             bank_fee,
+//             transaction_type,
+//             currency,
+//             gross_total_in_usd,
+//             exchange_rate,
+//             note,
+//             discount_data,
+//             final_state,
+//             booked_by,
+//             expiration_time: new Date(
+//               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
+//             ), // Default 30 minutes
+//           },
+//           { transaction: t }
+//         );
+
+//         // console.log(
+//         //   `[Step 3.${
+//         //     type === "departure" ? 1 : 2
+//         //   }.7] 💳 Creating transaction entry...`
+//         // );
+//         const transactionEntry = await createTransaction(
+//           {
+//             transaction_id: `TRANS-${Date.now()}`,
+//             payment_method,
+//             amount: gross_total,
+//             currency,
+//             transaction_type,
+//             booking_id: booking.id,
+//             status: "pending",
+//           },
+//           t
+//         );
+
+//         // console.log(
+//         //   `[Step 3.${
+//         //     type === "departure" ? 1 : 2
+//         //   }.8] 📤 Adding to booking queue...`
+//         // );
+
+//         bookingRoundQueue.add({
+//           schedule_id,
+//           subschedule_id,
+//           booking_date,
+//           total_passengers,
+//           passengers,
+//           transports,
+//           booking_id: booking.id,
+//           agent_id,
+//           gross_total: totalAmount,
+//           payment_status,
+//           type,
+//         });
+
+//         console.log(
+//           `[Step 3.${
+//             type === "departure" ? 1 : 2
+//           }.9] ✅ ${type} booking process completed`
+//         );
+//         return { booking, transaction: transactionEntry };
+//       };
+
+//       console.log("\n[Step 3.1] 🛫 Processing departure booking...");
+//       const departureResult = await handleBooking(departure, "departure");
+
+//       console.log("\n[Step 3.2] 🛬 Processing return booking...");
+//       const returnResult = await handleBooking(returnData, "return");
+
+//       // console.log("\n[Step 4] 📝 Compiling final results...");
+//       return { departure: departureResult, return: returnResult };
+//     });
+
+//     const totalGross = departure.gross_total + returnData.gross_total;
+//     // console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
+//     // console.log("Total gross amount:", totalGross);
+//     const bookings = [result.departure.booking, result.return.booking];
+//     const transactions = [
+//       result.departure.transaction,
+//       result.return.transaction,
+//     ];
+//     const transports = [
+//       ...(departure.transports || []),
+//       ...(returnData.transports || []),
+//     ];
+
+//     res.status(201).json({
+//       message: "Round trip booking created successfully",
+//       bookings,
+//       transactions,
+//       transports,
+//       total_gross: totalGross,
+//     });
+//   } catch (error) {
+//     console.log(
+//       "\n[Error] ❌ Error creating round trip booking:",
+//       error.message
+//     );
+//     res.status(400).json({ error: error.message });
+//   }
+// };
+
+
 const createRoundBookingWithTransitQueue = async (req, res) => {
   console.log("\n[Step 1] 🎯 Starting round trip booking process...");
 
@@ -780,16 +1024,6 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
     console.log("\n[Step 2] 🔄 Starting database transaction...");
     const result = await sequelize.transaction(async (t) => {
       const handleBooking = async (data, type) => {
-        // console.log(
-        //   `\n[Step 3.${
-        //     type === "departure" ? 1 : 2
-        //   }] 📋 Processing ${type} booking...`
-        // );
-        // console.log(
-        //   `[Step 3.${type === "departure" ? 1 : 2}.1] ${type} schedule_id:`,
-        //   data.schedule_id
-        // );
-
         const {
           schedule_id,
           subschedule_id,
@@ -823,29 +1057,16 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           booked_by,
         } = data;
 
-        // console.log("note from frontend type", type, note);
-
         console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.2] 🔍 Checking for existing booking with ticket ID:`,
+          `[Step 3.${type === "departure" ? 1 : 2}.2] 🔍 Checking for existing ticket ID:`,
           ticket_id
         );
         const existingBooking = await Booking.findOne({ where: { ticket_id } });
         if (existingBooking) {
-          console.log(
-            `[Step 3.${
-              type === "departure" ? 1 : 2
-            }.2.1] ⚠️ Duplicate ticket ID found`
-          );
           throw new Error(`Ticket ID '${ticket_id}' is already in use.`);
         }
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.3] 💺 Validating seat availability...`
-        );
+        console.log(`[Step 3.${type === "departure" ? 1 : 2}.3] 💺 Validating seat availability...`);
         const seatAvailability = await validateSeatAvailabilitySingleTrip(
           schedule_id,
           subschedule_id,
@@ -854,20 +1075,9 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
         );
 
         if (!seatAvailability.success) {
-          console.log(
-            `[Step 3.${
-              type === "departure" ? 1 : 2
-            }.3.1] ⚠️ Seat validation failed:`,
-            seatAvailability.message
-          );
           throw new Error(seatAvailability.message);
         }
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.4] 💰 Calculating transport total...`
-        );
         const transportTotal = Array.isArray(transports)
           ? transports.reduce(
               (total, { transport_price, quantity }) =>
@@ -877,19 +1087,8 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           : 0;
 
         const totalAmount = ticket_total + transportTotal;
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.5] 📊 Total amount calculated:`,
-          totalAmount
-        );
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.6] 💾 Creating booking record...`
-        );
-
+        console.log(`[Step 3.${type === "departure" ? 1 : 2}.4] 💾 Creating booking record...`);
         const booking = await Booking.create(
           {
             schedule_id,
@@ -922,16 +1121,11 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             booked_by,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
-            ), // Default 30 minutes
+            ),
           },
           { transaction: t }
         );
 
-        // console.log(
-        //   `[Step 3.${
-        //     type === "departure" ? 1 : 2
-        //   }.7] 💳 Creating transaction entry...`
-        // );
         const transactionEntry = await createTransaction(
           {
             transaction_id: `TRANS-${Date.now()}`,
@@ -945,18 +1139,18 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           t
         );
 
-        // console.log(
-        //   `[Step 3.${
-        //     type === "departure" ? 1 : 2
-        //   }.8] 📤 Adding to booking queue...`
-        // );
+        // ✅ Add passengers directly here
+        console.log(`[Step 3.${type === "departure" ? 1 : 2}.5] 👥 Adding passengers...`);
+        await addPassengers(passengers, booking.id, t);
+        console.log(`[Step 3.${type === "departure" ? 1 : 2}.6] ✅ Passengers added.`);
 
+        // ✅ Queue remaining heavy processes
         bookingRoundQueue.add({
           schedule_id,
           subschedule_id,
           booking_date,
           total_passengers,
-          passengers,
+          passengers, // Optional for syncing
           transports,
           booking_id: booking.id,
           agent_id,
@@ -965,11 +1159,6 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           type,
         });
 
-        console.log(
-          `[Step 3.${
-            type === "departure" ? 1 : 2
-          }.9] ✅ ${type} booking process completed`
-        );
         return { booking, transaction: transactionEntry };
       };
 
@@ -979,13 +1168,10 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
       console.log("\n[Step 3.2] 🛬 Processing return booking...");
       const returnResult = await handleBooking(returnData, "return");
 
-      // console.log("\n[Step 4] 📝 Compiling final results...");
       return { departure: departureResult, return: returnResult };
     });
 
     const totalGross = departure.gross_total + returnData.gross_total;
-    // console.log("\n[Step 5] 🎉 Round trip booking completed successfully!");
-    // console.log("Total gross amount:", totalGross);
     const bookings = [result.departure.booking, result.return.booking];
     const transactions = [
       result.departure.transaction,
@@ -1004,13 +1190,120 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
       total_gross: totalGross,
     });
   } catch (error) {
-    console.log(
-      "\n[Error] ❌ Error creating round trip booking:",
-      error.message
-    );
+    console.log("\n[Error] ❌ Error creating round trip booking:", error.message);
     res.status(400).json({ error: error.message });
   }
 };
+
+// bookingRoundQueue.process(async (job, done) => {
+//   const {
+//     schedule_id,
+//     subschedule_id,
+//     booking_date,
+//     total_passengers,
+//     passengers,
+//     transports,
+//     transit_details,
+//     booking_id,
+//     agent_id,
+//     gross_total,
+//     payment_status,
+//     type, // Add 'type' to differentiate between departure and return
+//   } = job.data;
+
+//   // console.log("---START OF JOB---");
+//   // console.log(`[INFO] Processing ${type.toUpperCase()} booking queue`);
+
+//   const transaction = await sequelize.transaction();
+//   try {
+//     // Step 2: Handle Seat Availability
+//     let remainingSeatAvailabilities;
+//     if (subschedule_id) {
+//       console.log(
+//         `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleSubScheduleBooking(
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers,
+//         // transit_details,
+//         transaction
+//       );
+//     } else {
+//       console.log(
+//         `Processing main schedule booking for schedule_id ${schedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleMainScheduleBooking(
+//         schedule_id,
+//         booking_date,
+//         total_passengers,
+//         transaction
+//       );
+//     }
+
+//     // console.log(
+//     //   `Remaining Seat Availabilities for ${type} booking:`,
+//     //   remainingSeatAvailabilities
+//     // );
+
+//     // Step 5: Add Remaining Seat Availabilities
+//     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+//       const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
+//         (sa) => ({
+//           booking_id,
+//           seat_availability_id: sa.id,
+//         })
+//       );
+
+//       // console.log(
+//       //   "Data to Insert into BookingSeatAvailability:",
+//       //   bookingSeatAvailabilityData
+//       // );
+
+//       const result = await BookingSeatAvailability.bulkCreate(
+//         bookingSeatAvailabilityData,
+//         { transaction }
+//       );
+
+//       // console.log(
+//       //   `Successfully created ${result.length} BookingSeatAvailability records.`
+//       // );
+//       // console.log(
+//       //   "Created BookingSeatAvailability entries with seat_availability_id values:",
+//       //   result.map((record) => record.seat_availability_id)
+//       // );
+//     } else {
+//       console.log("No seat availabilities found.");
+//     }
+
+//     // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+
+//     // Step 3: Add Passengers
+//     // console.log(`Adding passengers for ${type}  booking_id ${booking_id}
+//     //   `);
+
+//     // console.log("✅ DATA PASSENGER IS", passengers);
+//     await addPassengers(passengers, booking_id, transaction);
+
+//     // Step 4: Add Transport Bookings
+//     console.log(`Adding transport bookings for booking_id ${booking_id}`);
+//     await addTransportBookings(
+//       transports,
+//       booking_id,
+//       total_passengers,
+//       transaction
+//     );
+
+//     await transaction.commit(); // Commit the transaction if successful
+//     console.log(`Booking queue success for booking ${booking_id}`);
+//     done(); // Mark the job as done
+//   } catch (error) {
+//     await transaction.rollback(); // Rollback transaction if any error occurs
+//     console.error("Error processing booking queue:", error.message);
+//     done(error); // Mark the job as failed
+//   }
+// });
 
 bookingRoundQueue.process(async (job, done) => {
   const {
@@ -1018,39 +1311,27 @@ bookingRoundQueue.process(async (job, done) => {
     subschedule_id,
     booking_date,
     total_passengers,
-    passengers,
     transports,
-    transit_details,
     booking_id,
     agent_id,
     gross_total,
     payment_status,
-    type, // Add 'type' to differentiate between departure and return
+    type,
   } = job.data;
-
-  // console.log("---START OF JOB---");
-  // console.log(`[INFO] Processing ${type.toUpperCase()} booking queue`);
 
   const transaction = await sequelize.transaction();
   try {
-    // Step 2: Handle Seat Availability
+    // Step 1: Handle Seat Availability
     let remainingSeatAvailabilities;
     if (subschedule_id) {
-      console.log(
-        `Processing sub-schedule booking for subschedule_id ${subschedule_id}`
-      );
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
         subschedule_id,
         booking_date,
         total_passengers,
-        // transit_details,
         transaction
       );
     } else {
-      console.log(
-        `Processing main schedule booking for schedule_id ${schedule_id}`
-      );
       remainingSeatAvailabilities = await handleMainScheduleBooking(
         schedule_id,
         booking_date,
@@ -1059,66 +1340,30 @@ bookingRoundQueue.process(async (job, done) => {
       );
     }
 
-    // console.log(
-    //   `Remaining Seat Availabilities for ${type} booking:`,
-    //   remainingSeatAvailabilities
-    // );
-
-    // Step 5: Add Remaining Seat Availabilities
+    // Step 2: BookingSeatAvailability
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-      const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
-        (sa) => ({
-          booking_id,
-          seat_availability_id: sa.id,
-        })
-      );
+      const pivotData = remainingSeatAvailabilities.map((sa) => ({
+        booking_id,
+        seat_availability_id: sa.id,
+      }));
 
-      // console.log(
-      //   "Data to Insert into BookingSeatAvailability:",
-      //   bookingSeatAvailabilityData
-      // );
-
-      const result = await BookingSeatAvailability.bulkCreate(
-        bookingSeatAvailabilityData,
-        { transaction }
-      );
-
-      // console.log(
-      //   `Successfully created ${result.length} BookingSeatAvailability records.`
-      // );
-      // console.log(
-      //   "Created BookingSeatAvailability entries with seat_availability_id values:",
-      //   result.map((record) => record.seat_availability_id)
-      // );
-    } else {
-      console.log("No seat availabilities found.");
+      await BookingSeatAvailability.bulkCreate(pivotData, { transaction });
+      console.log(`✅ BookingSeatAvailability created for booking ${booking_id}`);
     }
 
-    // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+    // Step 3: Add Transport Bookings
+    if (transports && transports.length > 0) {
+      await addTransportBookings(transports, booking_id, total_passengers, transaction);
+      console.log(`🚐 Transport bookings added for booking ${booking_id}`);
+    }
 
-    // Step 3: Add Passengers
-    // console.log(`Adding passengers for ${type}  booking_id ${booking_id}
-    //   `);
-
-    // console.log("✅ DATA PASSENGER IS", passengers);
-    await addPassengers(passengers, booking_id, transaction);
-
-    // Step 4: Add Transport Bookings
-    console.log(`Adding transport bookings for booking_id ${booking_id}`);
-    await addTransportBookings(
-      transports,
-      booking_id,
-      total_passengers,
-      transaction
-    );
-
-    await transaction.commit(); // Commit the transaction if successful
-    console.log(`Booking queue success for booking ${booking_id}`);
-    done(); // Mark the job as done
+    await transaction.commit();
+    console.log(`🎉 BookingRoundQueue success for booking ${booking_id}`);
+    done();
   } catch (error) {
-    await transaction.rollback(); // Rollback transaction if any error occurs
-    console.error("Error processing booking queue:", error.message);
-    done(error); // Mark the job as failed
+    await transaction.rollback();
+    console.error(`❌ Error in bookingRoundQueue:`, error.message);
+    done(error);
   }
 });
 
@@ -1157,8 +1402,6 @@ const createBookingWithTransitQueue = async (req, res) => {
     booked_by,
   } = req.body;
 
-  // console.log("🙀REQUEST FROM BODY:", req.body,final_state);
-  // Validasi final_state kalau diperlukan
   if (typeof final_state !== "object" || final_state === null) {
     return res.status(400).json({
       error: "Invalid final_state",
@@ -1175,8 +1418,8 @@ const createBookingWithTransitQueue = async (req, res) => {
           message: `The ticket ID '${ticket_id}' is already in use. Click try again.`,
         });
       }
-      console.log("🚀 final_state typeof:", typeof final_state);
-      // Step 1: Validate seat availability for the single trip
+
+      // ✅ Step 1: Validasi seat availability
       const seatAvailabilityResult = await validateSeatAvailabilitySingleTrip(
         schedule_id,
         subschedule_id,
@@ -1185,11 +1428,9 @@ const createBookingWithTransitQueue = async (req, res) => {
       );
 
       if (!seatAvailabilityResult.success) {
-        // Return error if seats are not available
         return res.status(400).json({ error: seatAvailabilityResult.message });
       }
 
-      console.log("Step 1: Calculate transport_total if transports exist");
       const transportTotal = Array.isArray(transports)
         ? transports.reduce(
             (total, transport) =>
@@ -1200,7 +1441,6 @@ const createBookingWithTransitQueue = async (req, res) => {
         : 0;
 
       const totalAmount = ticket_total + transportTotal;
-      console.log(`Gross total: ${totalAmount}`);
 
       const booking = await Booking.create(
         {
@@ -1210,7 +1450,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           booking_date,
           agent_id,
           bank_fee,
-          gross_total: gross_total,
+          gross_total,
           gross_total_in_usd,
           exchange_rate,
           ticket_total: parseFloat(ticket_total),
@@ -1237,7 +1477,6 @@ const createBookingWithTransitQueue = async (req, res) => {
         { transaction: t }
       );
 
-      console.log(`Booking created with ID: ${booking.id}`);
       const shortTransactionId = uuidv4().replace(/-/g, "").substring(0, 16);
 
       const transactionEntry = await createTransaction(
@@ -1254,18 +1493,18 @@ const createBookingWithTransitQueue = async (req, res) => {
         t
       );
 
-      // Step 3: Add Passengers
+      // ✅ Step 2: Tambahkan langsung penumpang
+      console.log(`➡️ Adding ${passengers.length} passengers...`);
+      await addPassengers(passengers, booking.id, t);
+      console.log(`✅ Passengers added for booking ${booking.id}`);
 
-      // await addPassengers(passengers, booking.id, t);
-
-      console.log(`Initial transaction created for booking ID: ${booking.id}`);
-
+      // ✅ Step 3: Sisanya masuk ke queue (tidak berat)
       bookingQueue.add({
         schedule_id,
         subschedule_id,
         booking_date,
         total_passengers,
-        passengers,
+        passengers, // optional
         transports,
         transit_details,
         booking_id: booking.id,
@@ -1283,7 +1522,7 @@ const createBookingWithTransitQueue = async (req, res) => {
       });
     });
   } catch (error) {
-    console.log("Error:", error.message);
+    console.log("❌ Error:", error.message);
 
     if (
       error.name === "SequelizeValidationError" ||
@@ -1300,13 +1539,307 @@ const createBookingWithTransitQueue = async (req, res) => {
   }
 };
 
+// create booking non direct passenger
+// const createBookingWithTransitQueue = async (req, res) => {
+//   const {
+//     schedule_id,
+//     subschedule_id,
+//     total_passengers,
+//     booking_date,
+//     passengers,
+//     agent_id,
+//     gross_total,
+//     ticket_total,
+//     payment_status,
+//     transports,
+//     contact_name,
+//     contact_phone,
+//     contact_passport_id,
+//     contact_nationality,
+//     contact_email,
+//     payment_method,
+//     booking_source,
+//     adult_passengers,
+//     child_passengers,
+//     infant_passengers,
+//     ticket_id,
+//     bank_fee,
+//     transit_details,
+//     transaction_type,
+//     currency,
+//     gross_total_in_usd,
+//     exchange_rate,
+//     note,
+//     final_state,
+//     discount_data,
+//     booked_by,
+//   } = req.body;
+
+//   // console.log("🙀REQUEST FROM BODY:", req.body,final_state);
+//   // Validasi final_state kalau diperlukan
+//   if (typeof final_state !== "object" || final_state === null) {
+//     return res.status(400).json({
+//       error: "Invalid final_state",
+//       message: "final_state must be a valid JSON object",
+//     });
+//   }
+
+//   try {
+//     const result = await sequelize.transaction(async (t) => {
+//       const existingBooking = await Booking.findOne({ where: { ticket_id } });
+//       if (existingBooking) {
+//         return res.status(400).json({
+//           error: "Ticket ID already exists",
+//           message: `The ticket ID '${ticket_id}' is already in use. Click try again.`,
+//         });
+//       }
+//       console.log("🚀 final_state typeof:", typeof final_state);
+//       // Step 1: Validate seat availability for the single trip
+//       const seatAvailabilityResult = await validateSeatAvailabilitySingleTrip(
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers
+//       );
+
+//       if (!seatAvailabilityResult.success) {
+//         // Return error if seats are not available
+//         return res.status(400).json({ error: seatAvailabilityResult.message });
+//       }
+
+//       console.log("Step 1: Calculate transport_total if transports exist");
+//       const transportTotal = Array.isArray(transports)
+//         ? transports.reduce(
+//             (total, transport) =>
+//               total +
+//               parseFloat(transport.transport_price) * transport.quantity,
+//             0
+//           )
+//         : 0;
+
+//       const totalAmount = ticket_total + transportTotal;
+//       console.log(`Gross total: ${totalAmount}`);
+
+//       const booking = await Booking.create(
+//         {
+//           schedule_id,
+//           subschedule_id,
+//           total_passengers,
+//           booking_date,
+//           agent_id,
+//           bank_fee,
+//           gross_total: gross_total,
+//           gross_total_in_usd,
+//           exchange_rate,
+//           ticket_total: parseFloat(ticket_total),
+//           payment_status,
+//           contact_name,
+//           contact_phone,
+//           contact_passport_id,
+//           contact_nationality,
+//           contact_email,
+//           payment_method,
+//           booking_source,
+//           adult_passengers,
+//           child_passengers,
+//           infant_passengers,
+//           ticket_id,
+//           final_state,
+//           discount_data,
+//           note,
+//           booked_by,
+//           expiration_time: new Date(
+//             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
+//           ),
+//         },
+//         { transaction: t }
+//       );
+
+//       console.log(`Booking created with ID: ${booking.id}`);
+//       const shortTransactionId = uuidv4().replace(/-/g, "").substring(0, 16);
+
+//       const transactionEntry = await createTransaction(
+//         {
+//           transaction_id: `TRANS-${shortTransactionId}`,
+//           payment_method,
+//           payment_gateway: null,
+//           amount: gross_total,
+//           currency,
+//           transaction_type,
+//           booking_id: booking.id,
+//           status: "pending",
+//         },
+//         t
+//       );
+
+//       // Step 3: Add Passengers
+
+//       // await addPassengers(passengers, booking.id, t);
+
+//       console.log(`Initial transaction created for booking ID: ${booking.id}`);
+
+//       bookingQueue.add({
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers,
+//         passengers,
+//         transports,
+//         transit_details,
+//         booking_id: booking.id,
+//         agent_id,
+//         gross_total: totalAmount,
+//         payment_status,
+//       });
+
+//       return res.status(201).json({
+//         booking,
+//         status: "processing",
+//         transaction: transactionEntry,
+//         transports,
+//         remainingSeatAvailabilities: null,
+//       });
+//     });
+//   } catch (error) {
+//     console.log("Error:", error.message);
+
+//     if (
+//       error.name === "SequelizeValidationError" ||
+//       error.name === "SequelizeUniqueConstraintError"
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ error: "Invalid input data", details: error.message });
+//     }
+
+//     return res
+//       .status(500)
+//       .json({ error: "Internal server error", details: error.message });
+//   }
+// };
+
+// bookingQueue.process(async (job, done) => {
+//   const {
+//     schedule_id,
+//     subschedule_id,
+//     booking_date,
+//     total_passengers,
+//     passengers,
+//     transports,
+//     transit_details,
+//     booking_id,
+//     agent_id,
+//     gross_total,
+//     payment_status,
+//   } = job.data;
+
+//   console.log("---START OF JOB QUEUE---");
+
+//   const transaction = await sequelize.transaction();
+//   try {
+//     // Step 2: Handle Seat Availability
+//     let remainingSeatAvailabilities;
+//     if (subschedule_id) {
+//       console.log(
+//         `😻Processing sub-schedule booking for subschedule_id ${subschedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleSubScheduleBooking(
+//         schedule_id,
+//         subschedule_id,
+//         booking_date,
+//         total_passengers,
+//         // transit_details,
+//         transaction
+//       );
+//     } else {
+//       console.log(
+//         `Processing main schedule booking for schedule_id ${schedule_id}`
+//       );
+//       remainingSeatAvailabilities = await handleMainScheduleBooking(
+//         schedule_id,
+//         booking_date,
+//         total_passengers,
+//         transaction
+//       );
+//     }
+
+//     // console.log(
+//     //   "THIS ISRemaining Seat Availabilities:",
+//     //   remainingSeatAvailabilities
+//     // );
+//     // ======================
+//     // Step 2: Buat Record Pivot BookingSeatAvailability
+//     // ======================
+//     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
+//       // Siapkan data pivot
+//       const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
+//         (sa) => ({
+//           booking_id,
+//           seat_availability_id: sa.id,
+//         })
+//       );
+
+//       // console.log(
+//       //   "=======Data to Insert into BookingSeatAvailability:=======",
+//       //   bookingSeatAvailabilityData
+//       // );
+
+//       // Eksekusi bulkCreate
+//       const result = await BookingSeatAvailability.bulkCreate(
+//         bookingSeatAvailabilityData,
+//         { transaction }
+//       );
+
+//       // Log hasil
+//       console.log(
+//         `Successfully created ${result.length} BookingSeatAvailability records.`
+//       );
+//       console.log(
+//         "Created BookingSeatAvailability entries with seat_availability_id values:",
+//         result.map((record) => record.seat_availability_id)
+//       );
+//     } else {
+//       console.log("No seat availabilities found.");
+//     }
+
+//     // Step 3: Add Passengers
+//     console.log(`Adding passengers for booking_id ${booking_id}`);
+//     await addPassengers(passengers, booking_id, transaction);
+
+//     // Step 4: Add Transport Bookings
+//     console.log(`Adding transport bookings for booking_id ${booking_id}`);
+//     await addTransportBookings(
+//       transports,
+//       booking_id,
+//       total_passengers,
+//       transaction
+//     );
+
+//     // Step 5: Update Agent Metrics (if needed)
+//     // if (agent_id && payment_status === 'paid') {
+//     //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
+//     //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
+//     // }
+
+//     // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
+//     // console.log("Booking ID:", booking_id);
+
+//     await transaction.commit(); // Commit the transaction if successful
+//     console.log(`Booking queue success for booking ${booking_id}`);
+//     done(); // Mark the job as done
+//   } catch (error) {
+//     await transaction.rollback(); // Rollback transaction if any error occurs
+//     console.error("Error processing booking queue:", error.message);
+//     done(error); // Mark the job as failed
+//   }
+// });
+
 bookingQueue.process(async (job, done) => {
   const {
     schedule_id,
     subschedule_id,
     booking_date,
     total_passengers,
-    passengers,
     transports,
     transit_details,
     booking_id,
@@ -1319,24 +1852,19 @@ bookingQueue.process(async (job, done) => {
 
   const transaction = await sequelize.transaction();
   try {
-    // Step 2: Handle Seat Availability
+    // Step 1: Handle Seat Availability
     let remainingSeatAvailabilities;
     if (subschedule_id) {
-      console.log(
-        `😻Processing sub-schedule booking for subschedule_id ${subschedule_id}`
-      );
+      console.log(`😻 Processing sub-schedule booking for subschedule_id ${subschedule_id}`);
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
         subschedule_id,
         booking_date,
         total_passengers,
-        // transit_details,
         transaction
       );
     } else {
-      console.log(
-        `Processing main schedule booking for schedule_id ${schedule_id}`
-      );
+      console.log(`🚢 Processing main schedule booking for schedule_id ${schedule_id}`);
       remainingSeatAvailabilities = await handleMainScheduleBooking(
         schedule_id,
         booking_date,
@@ -1345,74 +1873,46 @@ bookingQueue.process(async (job, done) => {
       );
     }
 
-    // console.log(
-    //   "THIS ISRemaining Seat Availabilities:",
-    //   remainingSeatAvailabilities
-    // );
-    // ======================
-    // Step 2: Buat Record Pivot BookingSeatAvailability
-    // ======================
+    // Step 2: Create BookingSeatAvailability pivot records
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
-      // Siapkan data pivot
-      const bookingSeatAvailabilityData = remainingSeatAvailabilities.map(
-        (sa) => ({
-          booking_id,
-          seat_availability_id: sa.id,
-        })
-      );
+      const bookingSeatAvailabilityData = remainingSeatAvailabilities.map((sa) => ({
+        booking_id,
+        seat_availability_id: sa.id,
+      }));
 
-      // console.log(
-      //   "=======Data to Insert into BookingSeatAvailability:=======",
-      //   bookingSeatAvailabilityData
-      // );
-
-      // Eksekusi bulkCreate
       const result = await BookingSeatAvailability.bulkCreate(
         bookingSeatAvailabilityData,
         { transaction }
       );
 
-      // Log hasil
+      console.log(`✅ Created ${result.length} BookingSeatAvailability records`);
       console.log(
-        `Successfully created ${result.length} BookingSeatAvailability records.`
-      );
-      console.log(
-        "Created BookingSeatAvailability entries with seat_availability_id values:",
-        result.map((record) => record.seat_availability_id)
+        "🪑 SeatAvailability IDs:",
+        result.map((r) => r.seat_availability_id)
       );
     } else {
-      console.log("No seat availabilities found.");
+      console.log("⚠️ No seat availabilities found.");
     }
 
-    // Step 3: Add Passengers
-    console.log(`Adding passengers for booking_id ${booking_id}`);
-    await addPassengers(passengers, booking_id, transaction);
+    // Step 3: Add Transport Bookings
+    if (transports && transports.length > 0) {
+      console.log(`🚐 Adding transport bookings for booking_id ${booking_id}`);
+      await addTransportBookings(
+        transports,
+        booking_id,
+        total_passengers,
+        transaction
+      );
+    }
 
-    // Step 4: Add Transport Bookings
-    console.log(`Adding transport bookings for booking_id ${booking_id}`);
-    await addTransportBookings(
-      transports,
-      booking_id,
-      total_passengers,
-      transaction
-    );
-
-    // Step 5: Update Agent Metrics (if needed)
-    // if (agent_id && payment_status === 'paid') {
-    //   console.log(`Updating agent metrics for agent_id ${agent_id}`);
-    //   await updateAgentMetrics(agent_id, gross_total, total_passengers, payment_status, transaction);
-    // }
-
-    // console.log("Remaining Seat Availabilities:", remainingSeatAvailabilities);
-    // console.log("Booking ID:", booking_id);
-
-    await transaction.commit(); // Commit the transaction if successful
-    console.log(`Booking queue success for booking ${booking_id}`);
-    done(); // Mark the job as done
+    // ✅ Commit
+    await transaction.commit();
+    console.log(`🎉 BookingQueue success for booking ${booking_id}`);
+    done();
   } catch (error) {
-    await transaction.rollback(); // Rollback transaction if any error occurs
-    console.error("Error processing booking queue:", error.message);
-    done(error); // Mark the job as failed
+    await transaction.rollback();
+    console.error(`❌ Error in bookingQueue for booking ${booking_id}:`, error.message);
+    done(error);
   }
 });
 

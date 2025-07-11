@@ -24,12 +24,15 @@ const updateScheduleSeats = async (schedule, total_passengers, transaction) => {
 };
 
 const addPassengers = async (passengers, booking_id, transaction) => {
-    console.log('Adding passengers:', passengers);
+    
     const passengerData = passengers.map((passenger) => ({
         booking_id,
         ...passenger
     }));
+
+    
     await Passenger.bulkCreate(passengerData, { transaction });
+    console.log(`Added ${passengerData.length} passengers to booking ID: ${booking_id}`);
 };
 
 const addTransportBookings = async (transports, booking_id, total_passengers, transaction) => {

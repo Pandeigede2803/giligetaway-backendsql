@@ -6,9 +6,9 @@ const { isException, checkExceptions } = require('./isExceptionV2');
 
 
 const findRelatedSubSchedulesGet = async (schedule_id, subSchedule, transaction) => {
-    console.log('Schedule ID anjiung:', schedule_id);
-console.log('SubSchedule ID: anjing', subSchedule);
-console.log('Transaction ID: anjing', transaction);
+//     console.log('Schedule ID anjiung:', schedule_id);
+// console.log('SubSchedule ID: anjing', subSchedule);
+// console.log('Transaction ID: anjing', transaction);
 if (!subSchedule || !schedule_id) {
     throw new Error('SubSchedule atau Schedule ID tidak valid');
 }
@@ -355,81 +355,81 @@ const findRelatedSubSchedules = async (schedule_id, subSchedule, transaction) =>
       schedule_id: schedule_id,
       id: [...relatedIds, subSchedule.id] // Include both the main subschedule ID and related IDs
     },
-    include: [
-      // TransitFrom with destination
-      {
-        model: Transit,
-        as: 'TransitFrom',
-        attributes: ['id'],
-        include: [
-          {
-            model: Destination,
-            as: 'Destination',
-            attributes: ['id']
-          }
-        ],
-        required: false
-      },
-      // TransitTo with destination
-      {
-        model: Transit,
-        as: 'TransitTo',
-        attributes: ['id'],
-        include: [
-          {
-            model: Destination,
-            as: 'Destination',
-            attributes: ['id']
-          }
-        ],
-        required: false
-      },
-      // Include Transit1-4 with their destinations
-      {
-        model: Transit,
-        as: 'Transit1',
-        attributes: ['id'],
-        include: [{
-          model: Destination,
-          as: 'Destination',
-          attributes: ['id']
-        }],
-        required: false
-      },
-      {
-        model: Transit,
-        as: 'Transit2',
-        attributes: ['id'],
-        include: [{
-          model: Destination,
-          as: 'Destination',
-          attributes: ['id']
-        }],
-        required: false
-      },
-      {
-        model: Transit,
-        as: 'Transit3',
-        attributes: ['id'],
-        include: [{
-          model: Destination,
-          as: 'Destination',
-          attributes: ['id']
-        }],
-        required: false
-      },
-      {
-        model: Transit,
-        as: 'Transit4',
-        attributes: ['id'],
-        include: [{
-          model: Destination,
-          as: 'Destination',
-          attributes: ['id']
-        }],
-        required: false
-      }
-    ],
+    // include: [
+    //   // TransitFrom with destination
+    //   {
+    //     model: Transit,
+    //     as: 'TransitFrom',
+    //     attributes: ['id'],
+    //     include: [
+    //       {
+    //         model: Destination,
+    //         as: 'Destination',
+    //         attributes: ['id']
+    //       }
+    //     ],
+    //     required: false
+    //   },
+    //   // TransitTo with destination
+    //   {
+    //     model: Transit,
+    //     as: 'TransitTo',
+    //     attributes: ['id'],
+    //     include: [
+    //       {
+    //         model: Destination,
+    //         as: 'Destination',
+    //         attributes: ['id']
+    //       }
+    //     ],
+    //     required: false
+    //   },
+    //   // Include Transit1-4 with their destinations
+    //   {
+    //     model: Transit,
+    //     as: 'Transit1',
+    //     attributes: ['id'],
+    //     include: [{
+    //       model: Destination,
+    //       as: 'Destination',
+    //       attributes: ['id']
+    //     }],
+    //     required: false
+    //   },
+    //   {
+    //     model: Transit,
+    //     as: 'Transit2',
+    //     attributes: ['id'],
+    //     include: [{
+    //       model: Destination,
+    //       as: 'Destination',
+    //       attributes: ['id']
+    //     }],
+    //     required: false
+    //   },
+    //   {
+    //     model: Transit,
+    //     as: 'Transit3',
+    //     attributes: ['id'],
+    //     include: [{
+    //       model: Destination,
+    //       as: 'Destination',
+    //       attributes: ['id']
+    //     }],
+    //     required: false
+    //   },
+    //   {
+    //     model: Transit,
+    //     as: 'Transit4',
+    //     attributes: ['id'],
+    //     include: [{
+    //       model: Destination,
+    //       as: 'Destination',
+    //       attributes: ['id']
+    //     }],
+    //     required: false
+    //   }
+    // ],
     transaction
   });
 
@@ -461,79 +461,79 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
           schedule_id: schedule_id,
           // availability: true,
         },
-        include: [
-          {
-            model: Transit,
-            as: "TransitFrom",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
+        // include: [
+        //   {
+        //     model: Transit,
+        //     as: "TransitFrom",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
   
-          {
-            model: Transit,
-            as: "TransitTo",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
-          {
-            model: Transit,
+        //   {
+        //     model: Transit,
+        //     as: "TransitTo",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
+        //   {
+        //     model: Transit,
   
-            as: "Transit1",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
-          {
-            model: Transit,
+        //     as: "Transit1",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
+        //   {
+        //     model: Transit,
   
-            as: "Transit2",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
-          {
-            model: Transit,
+        //     as: "Transit2",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
+        //   {
+        //     model: Transit,
           
-            as: "Transit3",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
-          {
-            model: Transit,
+        //     as: "Transit3",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
+        //   {
+        //     model: Transit,
         
-            as: "Transit4",
-            include: [
-              {
-                model: Destination,
-                as: "Destination",
-                attributes: ["id"],
-              },
-            ],
-          },
-        ],
+        //     as: "Transit4",
+        //     include: [
+        //       {
+        //         model: Destination,
+        //         as: "Destination",
+        //         attributes: ["id"],
+        //       },
+        //     ],
+        //   },
+        // ],
         transaction,
       });
       

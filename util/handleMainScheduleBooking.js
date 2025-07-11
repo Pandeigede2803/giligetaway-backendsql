@@ -159,18 +159,18 @@ const handleMainScheduleBooking = async (
       throw new Error('Boat capacity tidak ditemukan');
     }
     const publicCapacity = calculatePublicCapacity(schedule.Boat);
-    console.log(
-      `Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`
-    );
+    // console.log(
+    //   `Schedule ID: ${schedule_id} - Original Capacity: ${schedule.Boat.capacity}, Public Capacity: ${publicCapacity}`
+    // );
   
     // Step 3: Format the date (YYYY-MM-DD)
     const formattedDate = booking_date.split('T')[0];
-    console.log(`Step 3: Formatted date used for query: ${formattedDate}`);
+    // console.log(`Step 3: Formatted date used for query: ${formattedDate}`);
   
-    // Step 4: Check if SeatAvailability exists for MainSchedule
-    console.log(
-      `Step 4: Checking for SeatAvailability for MainSchedule on date: ${formattedDate}`
-    );
+    // // Step 4: Check if SeatAvailability exists for MainSchedule
+    // console.log(
+    //   `Step 4: Checking for SeatAvailability for MainSchedule on date: ${formattedDate}`
+    // );
     let seatAvailability = await SeatAvailability.findOne({
       where: {
         schedule_id: schedule_id,
@@ -216,9 +216,9 @@ const handleMainScheduleBooking = async (
     if (seatAvailability.available_seats < 0) {
       throw new Error('Seat availability cannot go below zero for the main schedule');
     }
-    console.log(
-      `Step 7: Available seats after subtraction: ${seatAvailability.available_seats}`
-    );
+    // console.log(
+    //   `Step 7: Available seats after subtraction: ${seatAvailability.available_seats}`
+    // );
   
     // Step 8: Save
     await seatAvailability.save({ transaction });
@@ -230,9 +230,9 @@ const handleMainScheduleBooking = async (
   
     // Step 9: Update each SubSchedule seat availability
     for (const subSchedule of schedule.SubSchedules) {
-      console.log(
-        `Step 9: Updating SeatAvailability for SubSchedule ID: ${subSchedule.id}`
-      );
+      // console.log(
+      //   `Step 9: Updating SeatAvailability for SubSchedule ID: ${subSchedule.id}`
+      // );
   
       let subScheduleSeatAvailability = await SeatAvailability.findOne({
         where: {
@@ -245,9 +245,9 @@ const handleMainScheduleBooking = async (
       });
   
       if (!subScheduleSeatAvailability) {
-        console.log(
-          `Step 9: Creating new SeatAvailability for SubSchedule ID: ${subSchedule.id}`
-        );
+        // console.log(
+        //   `Step 9: Creating new SeatAvailability for SubSchedule ID: ${subSchedule.id}`
+        // );
         subScheduleSeatAvailability = await SeatAvailability.create(
           {
             schedule_id: schedule_id,
@@ -278,9 +278,9 @@ const handleMainScheduleBooking = async (
       allSeatAvailabilities.push(subScheduleSeatAvailability);
     }
   
-    console.log(
-      'Step 10: Seat availability successfully updated for MainSchedule and related SubSchedules'
-    );
+    // console.log(
+    //   'Step 10: Seat availability successfully updated for MainSchedule and related SubSchedules'
+    // );
   
     // Kembalikan semua seatAvailabilities (main + subSchedules) dalam array
     return allSeatAvailabilities;

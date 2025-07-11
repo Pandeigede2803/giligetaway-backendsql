@@ -38,7 +38,7 @@ const validateSeatAvailability = async (trips, total_passengers) => {
         })),
       },
     });
-    console.log('Seat availabilities found:', seatAvailabilities);
+    // console.log('Seat availabilities found:', seatAvailabilities);
 
     // Step 4: Check if seat availability is found
     if (!seatAvailabilities.length) {
