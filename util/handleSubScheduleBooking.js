@@ -565,18 +565,18 @@ const handleSubScheduleBooking = async (schedule_id, subschedule_id, booking_dat
             }, { transaction });
         }
 
-        if (mainScheduleSeatAvailability.available_seats < total_passengers) {
-            throw new Error('KURSI TIDAK CUKUP TERSEDIA DI MAIN SCHEDULE');
+        if (mainScheduleSeatAvailability.available_seats >= total_passengers) {
+            mainScheduleSeatAvailability.available_seats -= total_passengers;
+
+            if (mainScheduleSeatAvailability.available_seats < 0) {
+                throw new Error('Seat availability cannot go below zero in the main schedule');
+            }
+
+            await mainScheduleSeatAvailability.save({ transaction });
+            seatAvailabilities.push(mainScheduleSeatAvailability);
+        } else {
+            console.warn(`⚠️ Kursi tidak cukup di Main Schedule, dilewati. Tersedia: ${mainScheduleSeatAvailability.available_seats}, Dibutuhkan: ${total_passengers}`);
         }
-
-        mainScheduleSeatAvailability.available_seats -= total_passengers;
-
-        if (mainScheduleSeatAvailability.available_seats < 0) {
-            throw new Error('Seat availability cannot go below zero in the main schedule');
-        }
-
-        await mainScheduleSeatAvailability.save({ transaction });
-        seatAvailabilities.push(mainScheduleSeatAvailability);
     }
 
     // Find related sub-schedules
