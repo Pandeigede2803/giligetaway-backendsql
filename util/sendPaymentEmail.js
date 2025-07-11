@@ -66,6 +66,122 @@ const sendBackupEmail = async (recipientEmail, booking) => {
   await transporter.sendMail(mailOptions);
 };
 
+const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
+    agentEmail) => {
+  const emailUrl = process.env.FRONTEND_URL;
+  const subject = `BACKUP TICKET AGENT BOOKING - ${agentName} - Gili Getaway ${booking.ticket_id}`;
+  const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+
+  const bookingData = booking.final_state?.bookingData || {};
+
+  const message = `
+    <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
+      <p>Hi ${booking.contact_name},</p>
+      <p>This is a backup email for agent booking with Gili Getaway.</p>
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Booking ID:</strong> ${booking.id}</li>
+        <li><strong>Ticket ID:</strong> ${booking.ticket_id}</li>
+        <li><strong>Contact:</strong> ${booking.contact_name}</li>
+        <li><strong>Phone:</strong> ${booking.contact_phone}</li>
+        <li><strong>Email:</strong> ${booking.contact_email}</li>
+           <li><strong>Email:</strong> ${agentName}-${agentEmail}</li>
+        <li><strong>Route:</strong> ${bookingData.from || 'N/A'} - ${bookingData.to || 'N/A'}</li>
+        <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})</li>
+        <li><strong>Amount:</strong> ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}</li>
+        <li><strong>Booking Source:</strong> ${booking.booking_source || 'N/A'}</li>
+        <li><strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}</li>
+        <li><strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}</li>
+      </ul>
+
+      <p>You can download your documents below:</p>
+
+      <div style="margin: 25px 0; text-align: center;">
+        <a href="${invoiceDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#165297; color:white; text-decoration:none; border-radius:6px; margin-bottom:10px;">View/Download Invoice</a>
+        <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceDownloadUrl}</p>
+
+        <a href="${ticketDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:6px; margin-top:10px;">View/Download Ticket</a>
+        <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketDownloadUrl}</p>
+      </div>
+
+      <p><strong>If you already get the notification, please ignore this email.</strong></p>
+
+      <p>Thank you,<br><strong>The Gili Getaway Team</strong></p>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_AGENT,
+    subject,
+    html: message,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, secondBooking,agentName,
+    agentEmail) => {
+
+      console.log("firstBooking",firstBooking,secondBooking);
+  const emailUrl = process.env.FRONTEND_URL;
+  const subject = `BACKUP ROUND TRIP TICKET – ${agentName} Gili Getaway ${firstBooking.ticket_id}`;
+
+  const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
+  const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
+
+  const bookingDataDeparture = firstBooking.final_state?.bookingData || {};
+  const bookingDataReturn = secondBooking.final_state?.bookingData || {};
+
+  const message = `
+    <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
+      <p>Dear staff ,</p>
+      <p>This is a backup email for agent ${agentName}-customer:${firstBooking.contact_name} <strong>round-trip booking</strong> with Gili Getaway.</p>
+
+      <h3 style="color:#165297;">Departure</h3>
+      <ul>
+        <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
+        <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
+        <li><strong>Route:</strong> ${bookingDataDeparture.from || 'N/A'} - ${bookingDataDeparture.to || 'N/A'}</li>
+        <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
+        <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
+        <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+      </ul>
+
+      <h3 style="color:#165297; margin-top: 30px;">Return</h3>
+      <ul>
+        <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
+        <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
+        <li><strong>Route:</strong> ${bookingDataReturn.from || 'N/A'} - ${bookingDataReturn.to || 'N/A'}</li>
+        <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
+        <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+      </ul>
+
+      <p>You can download your documents below (departure and return included):</p>
+
+      <div style="margin: 20px 0; text-align: center;">
+        <a href="${invoiceUrl}" style="display:inline-block; padding:10px 20px; background:#165297; color:white; text-decoration:none; border-radius:6px;">View/Download Invoice</a>
+        <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceUrl}</p>
+
+        <a href="${ticketUrl}" style="display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:6px; margin-top:10px;">View/Download Ticket</a>
+        <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketUrl}</p>
+      </div>
+
+      <p>If you have any questions, just reply to this email or contact us at <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a>.</p>
+
+      <p>Thank you,<br><strong>The Gili Getaway Team</strong></p>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_AGENT,
+    subject,
+    html: message,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
 
 const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBooking) => {
   const emailUrl = process.env.FRONTEND_URL;
@@ -2352,5 +2468,8 @@ module.exports = {
   sendEmailNotificationAgentDateChange,
   sendPaymentEmailAgent,
   sendBackupEmail,
-  sendBackupEmailRoundTrip
+  sendBackupEmailRoundTrip,
+  sendBackupEmailAgentStaff,
+   sendBackupEmailRoundTripAgentStaff,
+   
 };

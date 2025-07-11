@@ -39,10 +39,10 @@ const updateAgentCommission = async (
     // Step 2: Get trip type
     let tripType;
     if (subschedule_id) {
-      console.log(`Fetching trip type from SubSchedule with subschedule_id: ${subschedule_id}`);
+      // console.log(`Fetching trip type from SubSchedule with subschedule_id: ${subschedule_id}`);
       const subschedule = await SubSchedule.findOne({ where: { id: subschedule_id } });
       tripType = subschedule ? subschedule.trip_type : null;
-      console.log(`Trip type from SubSchedule: ${tripType}`);
+      // console.log(`Trip type from SubSchedule: ${tripType}`);
     } else if (schedule_id) {
       console.log(`Fetching trip type from Schedule with schedule_id: ${schedule_id}`);
       const schedule = await Schedule.findOne({ where: { id: schedule_id } });
@@ -52,10 +52,10 @@ const updateAgentCommission = async (
 
     if (!tripType) throw new Error("❌ Trip type not found");
 
-    console.log(`✅ Trip type determined: ${tripType}`);
+    // console.log(`✅ Trip type determined: ${tripType}`);
 
-    // Step 3: Fetch agent's commission data
-    console.log(`Fetching commission rates for agent_id: ${agent_id}`);
+    // // Step 3: Fetch agent's commission data
+    // console.log(`Fetching commission rates for agent_id: ${agent_id}`);
     const agent = await Agent.findOne({ where: { id: agent_id } });
     if (!agent) throw new Error(`Agent with id ${agent_id} not found`);
 

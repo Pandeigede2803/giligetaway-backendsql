@@ -66,6 +66,7 @@ const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
 const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
+const {formatBookingsToText} = require('../util/bookingSummaryCron');
 
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
@@ -301,6 +302,48 @@ const getBookingsByDate = async (req, res) => {
 //     });
 //   }
 // };
+
+const sendMissBooking = async (req, res) => {
+  try {
+    const { ticket_ids } = req.body;
+    console.log("sendMissBooking: start with ticket_ids:", ticket_ids);
+    if (!Array.isArray(ticket_ids) || ticket_ids.length === 0) {
+      return res.status(400).json({ message: "ticket_ids must be a non-empty array." });
+    }
+
+    const bookings = await Booking.findAll({
+      where: {
+        ticket_id: {
+          [Op.in]: ticket_ids
+        }
+      }
+    });
+
+    const emailContent = formatBookingsToText(bookings);
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST_BREVO,
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_LOGIN_BREVO,
+        pass: process.env.EMAIL_PASS_BREVO,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `Gili Getaway <${process.env.EMAIL_BOOKING}>`,
+      to: process.env.EMAIL_BOOKING,
+      subject: `Missed Booking Summary – ${moment().format("MMM D, YYYY")}`,
+      text: emailContent,
+    });
+
+    return res.status(200).json({ message: "Missed bookings summary sent." });
+  } catch (err) {
+    console.error("❌ Error sending missed bookings:", err);
+    return res.status(500).json({ message: "Failed to send missed bookings." });
+  }
+};
 
 const createBookingMultiple = async (req, res) => {
   const {
@@ -6984,5 +7027,6 @@ module.exports = {
   cancelBooking,
   findRelatedSubSchedulesGet,
   createRoundBookingWithTransitQueue,
-  createAgentBooking
+  createAgentBooking,
+  sendMissBooking
 };

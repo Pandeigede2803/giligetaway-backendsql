@@ -39,6 +39,8 @@ const bookingSummaryCron = require("../util/bookingSummaryCron");
 
 // Setup multer untuk upload file
 
+router.get("/send-miss-booking", bookingController.sendMissBooking);
+
 // / Route untuk menjalankan laporan booking harian segera (untuk testing)
 router.get("/test-daily-summary", async (req, res) => {
   try {
@@ -229,6 +231,9 @@ router.post("/bulk-multi-csv", (req, res, next) => {
   bulkBookingController.bulkBookingFromMultiCSV(req, res, next);
 });
 
+
+
+
 // Route untuk bulk booking dengan CSV
 
 // Route untuk mendapatkan history bulk booking
@@ -263,6 +268,8 @@ router.get(
   authenticate,
   bulkBookingController.getTransportsTemplate
 );
+
+
 
 // Route untuk memeriksa status bulk booking
 

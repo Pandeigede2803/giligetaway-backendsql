@@ -491,5 +491,6 @@ const scheduleDailySummary = () => {
 module.exports = {
   scheduleDailySummary,
   sendDailyBookingSummary,
-  runTestIn15Minutes // Function to trigger a test run in 15 minutes
+  runTestIn15Minutes, // Function to trigger a test run in 15 minutes,\
+  formatBookingsToText
 };
