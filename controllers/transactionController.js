@@ -15,6 +15,10 @@ const {
 const { Op } = require("sequelize"); // Import Sequelize operators
 
 const {sendEmailNotificationAgent} = require("../util/sendPaymentEmail");
+const {
+  sendBackupEmail,
+  sendBackupEmailRoundTrip,
+} = require("../util/sendPaymentEmail");
 
 // const updateMultiTransactionStatusHandler = async (req, res) => {
 //   const { transaction_ids } = req.body; // transaction_ids is now an array of transaction IDs
@@ -1074,6 +1078,124 @@ const updateTransactionStatusHandler = async (req, res) => {
   }
 };
 
+// const updateAgentTransactionStatusHandler = async (req, res) => {
+//   const { transaction_id } = req.params;
+//   const {
+//     status,
+//     booking_status,
+//     failure_reason,
+//     refund_reason,
+//     payment_method,
+//     payment_gateway,
+//     amount_in_usd,
+//     exchange_rate,
+//     amount,
+//     currency,
+//   } = req.body;
+
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     console.log("Starting transaction update for ID:", transaction_id);
+
+//     // Retrieve the existing transaction
+//     const existingTransaction = await Transaction.findOne({
+//       where: { transaction_id },
+//       transaction,
+//     });
+
+//     if (!existingTransaction) {
+//       throw new Error(`Transaction with ID ${transaction_id} not found`);
+//     }
+
+//     if (existingTransaction.status === "paid") {
+//       throw new Error(
+//         `Cannot update transaction with ID ${transaction_id} as it is already paid`
+//       );
+//     }
+
+//     // Prepare the data to update transaction
+//   // Prepare the data to update transaction
+// const updateData = {
+//   status: status || "pending",
+//   failure_reason: failure_reason || null,
+//   refund_reason: refund_reason || null,
+//   payment_method: payment_method || null,
+//   payment_gateway: payment_gateway || null,
+//   // Allow amount to be 0 when payment_method is 'foc'
+//   amount: (payment_method === 'foc' && amount === 0) ? 0 : (amount || null),
+//   amount_in_usd: amount_in_usd || 0,
+//   exchange_rate: exchange_rate || 0,
+//   currency: currency || null,
+// };
+
+//     console.log("Updating transaction details:", updateData);
+
+//     // Update the transaction details
+//     await updateTransactionStatus(transaction_id, updateData);
+
+//     // Find the related booking using booking_id from the transaction
+//     const booking = await Booking.findOne({
+//       where: { id: existingTransaction.booking_id },
+//       include: [{ model: TransportBooking, as: "transportBookings" }],
+//       transaction,
+//     });
+//     // console.log("😻Related booking found:", booking);
+
+//     if (!booking) {
+//       throw new Error(
+//         `Booking with ID ${existingTransaction.booking_id} not found`
+//       );
+//     }
+
+//     let commissionResponse = { success: false, commission: 0 };
+
+//     // If the transaction status is "paid" or "invoiced", update booking and calculate commission
+//     if (status === "paid" || status === "invoiced" || status === "unpaid") {
+//       console.log("Updating booking payment status for status:", status);
+
+//       await Booking.update(
+//         {
+//           payment_status: status,
+//           payment_method: payment_method || booking.payment_method,
+//           expiration_time: null,
+//         },
+//         { where: { id: booking.id }, transaction }
+//       );
+
+//       // Calculate commission if booking is linked to an agent
+//       if (booking.agent_id) {
+//         console.log("Calculating commission for agent ID:", booking.agent_id);
+//         commissionResponse = await updateAgentCommission(
+//           booking.agent_id,
+//           booking.gross_total,
+//           booking.total_passengers,
+//           status,
+//           booking.schedule_id,
+//           booking.subschedule_id,
+//           booking.id,
+//           transaction,
+//           booking.transportBookings
+//         );
+//       }
+//     }
+
+//     await transaction.commit(); // Commit transaction if successful
+
+//     res.status(200).json({
+//       message: `Transaction ${transaction_id} and related booking updated successfully`,
+//       commission: commissionResponse.commission,
+//       agent_id: booking.agent_id,
+//       success: commissionResponse.success
+//         ? "Commission calculated successfully"
+//         : "No commission calculated",
+//     });
+//   } catch (error) {
+//     await transaction.rollback(); // Rollback transaction if any error occurs
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
 const updateAgentTransactionStatusHandler = async (req, res) => {
   const { transaction_id } = req.params;
   const {
@@ -1089,15 +1211,14 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
     currency,
   } = req.body;
 
-  const transaction = await sequelize.transaction();
+  const dbTransaction = await sequelize.transaction();
 
   try {
     console.log("Starting transaction update for ID:", transaction_id);
 
-    // Retrieve the existing transaction
     const existingTransaction = await Transaction.findOne({
       where: { transaction_id },
-      transaction,
+      transaction: dbTransaction,
     });
 
     if (!existingTransaction) {
@@ -1110,44 +1231,35 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
       );
     }
 
-    // Prepare the data to update transaction
-  // Prepare the data to update transaction
-const updateData = {
-  status: status || "pending",
-  failure_reason: failure_reason || null,
-  refund_reason: refund_reason || null,
-  payment_method: payment_method || null,
-  payment_gateway: payment_gateway || null,
-  // Allow amount to be 0 when payment_method is 'foc'
-  amount: (payment_method === 'foc' && amount === 0) ? 0 : (amount || null),
-  amount_in_usd: amount_in_usd || 0,
-  exchange_rate: exchange_rate || 0,
-  currency: currency || null,
-};
+    const updateData = {
+      status: status || "pending",
+      failure_reason: failure_reason || null,
+      refund_reason: refund_reason || null,
+      payment_method: payment_method || null,
+      payment_gateway: payment_gateway || null,
+      amount: (payment_method === "foc" && amount === 0) ? 0 : (amount || null),
+      amount_in_usd: amount_in_usd || 0,
+      exchange_rate: exchange_rate || 0,
+      currency: currency || null,
+    };
 
     console.log("Updating transaction details:", updateData);
 
-    // Update the transaction details
     await updateTransactionStatus(transaction_id, updateData);
 
-    // Find the related booking using booking_id from the transaction
     const booking = await Booking.findOne({
       where: { id: existingTransaction.booking_id },
       include: [{ model: TransportBooking, as: "transportBookings" }],
-      transaction,
+      transaction: dbTransaction,
     });
-    // console.log("😻Related booking found:", booking);
 
     if (!booking) {
-      throw new Error(
-        `Booking with ID ${existingTransaction.booking_id} not found`
-      );
+      throw new Error(`Booking with ID ${existingTransaction.booking_id} not found`);
     }
 
     let commissionResponse = { success: false, commission: 0 };
 
-    // If the transaction status is "paid" or "invoiced", update booking and calculate commission
-    if (status === "paid" || status === "invoiced" || status === "unpaid") {
+    if (["paid", "invoiced", "unpaid"].includes(status)) {
       console.log("Updating booking payment status for status:", status);
 
       await Booking.update(
@@ -1156,10 +1268,9 @@ const updateData = {
           payment_method: payment_method || booking.payment_method,
           expiration_time: null,
         },
-        { where: { id: booking.id }, transaction }
+        { where: { id: booking.id }, transaction: dbTransaction }
       );
 
-      // Calculate commission if booking is linked to an agent
       if (booking.agent_id) {
         console.log("Calculating commission for agent ID:", booking.agent_id);
         commissionResponse = await updateAgentCommission(
@@ -1170,13 +1281,21 @@ const updateData = {
           booking.schedule_id,
           booking.subschedule_id,
           booking.id,
-          transaction,
+          dbTransaction,
           booking.transportBookings
         );
       }
+
+      // ✅ Send backup email for one-way trip only
+      try {
+        await sendBackupEmail(booking.contact_email, booking);
+        console.log("✅ Backup email sent to", booking.contact_email);
+      } catch (emailErr) {
+        console.error("❌ Failed to send backup email:", emailErr);
+      }
     }
 
-    await transaction.commit(); // Commit transaction if successful
+    await dbTransaction.commit();
 
     res.status(200).json({
       message: `Transaction ${transaction_id} and related booking updated successfully`,
@@ -1187,7 +1306,7 @@ const updateData = {
         : "No commission calculated",
     });
   } catch (error) {
-    await transaction.rollback(); // Rollback transaction if any error occurs
+    await dbTransaction.rollback();
     res.status(500).json({ error: error.message });
   }
 };
