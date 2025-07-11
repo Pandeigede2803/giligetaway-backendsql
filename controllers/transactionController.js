@@ -1469,14 +1469,15 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
     currency,
   } = req.body;
 
-  const dbTransaction = await sequelize.transaction();
+  const transaction = await sequelize.transaction();
 
   try {
     console.log("Starting transaction update for ID:", transaction_id);
 
+    // Retrieve the existing transaction
     const existingTransaction = await Transaction.findOne({
       where: { transaction_id },
-      transaction: dbTransaction,
+      transaction,
     });
 
     if (!existingTransaction) {
@@ -1489,27 +1490,33 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
       );
     }
 
-    const updateData = {
-      status: status || "pending",
-      failure_reason: failure_reason || null,
-      refund_reason: refund_reason || null,
-      payment_method: payment_method || null,
-      payment_gateway: payment_gateway || null,
-      amount: payment_method === "foc" && amount === 0 ? 0 : amount || null,
-      amount_in_usd: amount_in_usd || 0,
-      exchange_rate: exchange_rate || 0,
-      currency: currency || null,
-    };
+    // Prepare the data to update transaction
+  // Prepare the data to update transaction
+const updateData = {
+  status: status || "pending",
+  failure_reason: failure_reason || null,
+  refund_reason: refund_reason || null,
+  payment_method: payment_method || null,
+  payment_gateway: payment_gateway || null,
+  // Allow amount to be 0 when payment_method is 'foc'
+  amount: (payment_method === 'foc' && amount === 0) ? 0 : (amount || null),
+  amount_in_usd: amount_in_usd || 0,
+  exchange_rate: exchange_rate || 0,
+  currency: currency || null,
+};
 
     console.log("Updating transaction details:", updateData);
 
+    // Update the transaction details
     await updateTransactionStatus(transaction_id, updateData);
 
+    // Find the related booking using booking_id from the transaction
     const booking = await Booking.findOne({
       where: { id: existingTransaction.booking_id },
       include: [{ model: TransportBooking, as: "transportBookings" }],
-      transaction: dbTransaction,
+      transaction,
     });
+    // console.log("😻Related booking found:", booking);
 
     if (!booking) {
       throw new Error(
@@ -1519,7 +1526,8 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
 
     let commissionResponse = { success: false, commission: 0 };
 
-    if (["paid", "invoiced", "unpaid"].includes(status)) {
+    // If the transaction status is "paid" or "invoiced", update booking and calculate commission
+    if (status === "paid" || status === "invoiced" || status === "unpaid") {
       console.log("Updating booking payment status for status:", status);
 
       await Booking.update(
@@ -1528,9 +1536,10 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
           payment_method: payment_method || booking.payment_method,
           expiration_time: null,
         },
-        { where: { id: booking.id }, transaction: dbTransaction }
+        { where: { id: booking.id }, transaction }
       );
 
+      // Calculate commission if booking is linked to an agent
       if (booking.agent_id) {
         console.log("Calculating commission for agent ID:", booking.agent_id);
         commissionResponse = await updateAgentCommission(
@@ -1541,21 +1550,13 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
           booking.schedule_id,
           booking.subschedule_id,
           booking.id,
-          dbTransaction,
+          transaction,
           booking.transportBookings
         );
       }
-
-      // ✅ Send backup email for one-way trip only
-      try {
-        await sendBackupEmail(booking.contact_email, booking);
-        console.log("✅ Backup email sent to", booking.contact_email);
-      } catch (emailErr) {
-        console.error("❌ Failed to send backup email:", emailErr);
-      }
     }
 
-    await dbTransaction.commit();
+    await transaction.commit(); // Commit transaction if successful
 
     res.status(200).json({
       message: `Transaction ${transaction_id} and related booking updated successfully`,
@@ -1566,10 +1567,12 @@ const updateAgentTransactionStatusHandler = async (req, res) => {
         : "No commission calculated",
     });
   } catch (error) {
-    await dbTransaction.rollback();
+    await transaction.rollback(); // Rollback transaction if any error occurs
     res.status(500).json({ error: error.message });
   }
 };
+
+
 const updateAgentTransactionStatusHandlerWithEmail = async (req, res) => {
   const { transaction_id } = req.params;
   const {

@@ -50,8 +50,8 @@ exports.getPaymentChannels = async (req, res) => {
 
 // Fungsi untuk membuat pembayaran di DOKU
 exports.createPayment = async (req, res) => {
-  console.log("=== PAYMENT REQUEST STARTED ===");
-  console.log("Request body:", JSON.stringify(req.body, null, 2));
+  // console.log("=== PAYMENT REQUEST STARTED ===");
+  // console.log("Request body:", JSON.stringify(req.body, null, 2));
 
   try {
     // Step 1: Create Request-Id (must be unique for each request)
@@ -69,10 +69,10 @@ exports.createPayment = async (req, res) => {
     // Step 4: Get body from incoming request
     const body = req.body;
 
-    // Log the specific fields that DOKU requires
-    console.log("Invoice Number:", body.order?.invoice_number);
-    console.log("Amount:", body.order?.amount);
-    console.log("Currency:", body.order?.currency);
+    // // Log the specific fields that DOKU requires
+    // console.log("Invoice Number:", body.order?.invoice_number);
+    // console.log("Amount:", body.order?.amount);
+    // console.log("Currency:", body.order?.currency);
 
     // Step 5: Create Signature for the request
     const signature = generateSignature(
@@ -83,17 +83,17 @@ exports.createPayment = async (req, res) => {
     );
     console.log("Signature generated successfully");
 
-    // Log the complete request that will be sent to DOKU
-    console.log("Full DOKU API request:", {
-      url: `${DOKU_BASE_URL}${requestTarget}`,
-      headers: {
-        "Client-Id": CLIENT_ID,
-        "Request-Id": requestId,
-        "Request-Timestamp": timestamp,
-        "Content-Type": "application/json",
-      },
-      body: body,
-    });
+    // // Log the complete request that will be sent to DOKU
+    // console.log("Full DOKU API request:", {
+    //   url: `${DOKU_BASE_URL}${requestTarget}`,
+    //   headers: {
+    //     "Client-Id": CLIENT_ID,
+    //     "Request-Id": requestId,
+    //     "Request-Timestamp": timestamp,
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: body,
+    // });
 
     // Step 6: Send request to DOKU API
     console.log("Sending request to DOKU...");
@@ -112,15 +112,15 @@ exports.createPayment = async (req, res) => {
     );
 
     // Log the complete response from DOKU
-    console.log("DOKU API Response Status:", response.status);
-    console.log(
-      "DOKU API Response Headers:",
-      JSON.stringify(response.headers, null, 2)
-    );
-    console.log(
-      "DOKU API Response Data:",
-      JSON.stringify(response.data, null, 2)
-    );
+    // console.log("DOKU API Response Status:", response.status);
+    // console.log(
+    //   "DOKU API Response Headers:",
+    //   JSON.stringify(response.headers, null, 2)
+    // );
+    // console.log(
+    //   "DOKU API Response Data:",
+    //   JSON.stringify(response.data, null, 2)
+    // );
 
     // Check if the response contains payment_url
     if (response.data && response.data.payment_url) {
