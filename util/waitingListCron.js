@@ -407,7 +407,7 @@ const checkAndNotifyWaitingList = async () => {
 
       // Process berdasarkan hasil validasi
       if (isValid) {
-        console.log(`✅ Entry ${entry.id} - VALID for notification`);
+        // console.log(`✅ Entry ${entry.id} - VALID for notification`);
         
         // Group valid entries by seat_availability_id
         const seatId = entry.seat_availability_id;

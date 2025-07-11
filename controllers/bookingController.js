@@ -1547,7 +1547,7 @@ const createBookingWithTransitQueue = async (req, res) => {
         subschedule_id,
         booking_date,
         total_passengers,
-        passengers, // optional
+        // passengers, // optional
         transports,
         transit_details,
         booking_id: booking.id,
