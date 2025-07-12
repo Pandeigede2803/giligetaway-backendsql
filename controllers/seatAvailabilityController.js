@@ -310,6 +310,11 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
                   model: Passenger,
                   as: "passengers",
                   required: false,
+                where: {
+                        passenger_type: {
+                          [Op.ne]: "infant", // ⛔ exclude infant
+                        },
+                      },
                 },
               ],
             },
