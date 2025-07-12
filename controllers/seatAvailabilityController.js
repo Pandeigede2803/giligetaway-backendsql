@@ -11,7 +11,7 @@ const {
   SubScheduleRelation,
   sequelize,
 } = require("../models"); // Adjust the path as needed
-const { QueryTypes, where } = require("sequelize");
+const { QueryTypes } = require("sequelize");
 const cron = require("node-cron");
 const formatScheduleResponse = require("../util/formatScheduleResponse");
 const { validationResult } = require("express-validator");
@@ -2161,11 +2161,6 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
             include: {
               model: Passenger,
               as: "passengers",
-              where: {
-                passenger_type: {
-                  [Op.ne]: "infant", // Exclude infants
-                },
-              },
             },
           },
         });
