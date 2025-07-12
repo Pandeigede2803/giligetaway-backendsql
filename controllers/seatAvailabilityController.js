@@ -10,18 +10,25 @@ const {
   Passenger,
   SubScheduleRelation,
   sequelize,
-
-
 } = require("../models"); // Adjust the path as needed
 const { QueryTypes } = require("sequelize");
 const cron = require("node-cron");
 const formatScheduleResponse = require("../util/formatScheduleResponse");
-const { validationResult } = require('express-validator');
-const { buildRouteFromSchedule, buildRouteFromScheduleFlatten } = require("../util/buildRoute");
+const { validationResult } = require("express-validator");
+const {
+  buildRouteFromSchedule,
+  buildRouteFromScheduleFlatten,
+} = require("../util/buildRoute");
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
-const { Op } = require('sequelize'); // Import Sequelize operators
-const { adjustSeatAvailability,boostSeatAvailability,createSeatAvailability,createSeatAvailability2, createSeatAvailabilityMax } = require('../util/seatAvailabilityUtils');
+const { Op } = require("sequelize"); // Import Sequelize operators
+const {
+  adjustSeatAvailability,
+  boostSeatAvailability,
+  createSeatAvailability,
+  createSeatAvailability2,
+  createSeatAvailabilityMax,
+} = require("../util/seatAvailabilityUtils");
 const { sub } = require("date-fns/sub");
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
@@ -53,7 +60,9 @@ const createOrGetSeatAvailability = async (req, res) => {
     });
 
     if (!mainSeatAvailability) {
-      console.log("2. Main seat not found, creating main schedule seat availability...");
+      console.log(
+        "2. Main seat not found, creating main schedule seat availability..."
+      );
       const result = await createSeatAvailability2({
         schedule_id,
         date,
@@ -99,7 +108,6 @@ const createOrGetSeatAvailability = async (req, res) => {
       message: "Seat availability retrieved or created successfully",
       seat_availability: seatAvailability,
     });
-
   } catch (error) {
     console.error("❌ Error in createOrGetSeatAvailability:", error.message);
     return res.status(500).json({
@@ -129,7 +137,9 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
     if (date) {
       const parsedDate = new Date(date);
       if (isNaN(parsedDate)) {
-        return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD." });
+        return res
+          .status(400)
+          .json({ error: "Invalid date format. Use YYYY-MM-DD." });
       }
 
       dateCondition = { date: parsedDate };
@@ -176,7 +186,12 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
         {
           model: Schedule,
           required: true,
-          attributes: ["id","destination_from_id", "destination_to_id", "departure_time"],
+          attributes: [
+            "id",
+            "destination_from_id",
+            "destination_to_id",
+            "departure_time",
+          ],
           include: [
             {
               model: Boat,
@@ -196,91 +211,86 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
               required: true,
               attributes: ["id", "name"],
             },
-       
           ],
-   
-
-      
-          
         },
-      {
-        model: SubSchedule,
-        required: false,
-        attributes: ["id", "schedule_id",],
-        as: "SubSchedule",
-        include: [
-          {
-            model: Destination,
-            as: "DestinationFrom",
-            attributes: ["name"],
-          },
-          {
-            model: Destination,
-            as: "DestinationTo",
-            attributes: ["name"],
-          },
-          {
-            model: Transit,
-            as: "TransitFrom",
-            attributes: ["id"],
-            include: {
+        {
+          model: SubSchedule,
+          required: false,
+          attributes: ["id", "schedule_id"],
+          as: "SubSchedule",
+          include: [
+            {
               model: Destination,
-              as: "Destination",
+              as: "DestinationFrom",
               attributes: ["name"],
             },
-          },
-          {
-            model: Transit,
-            as: "TransitTo",
-            attributes: ["id"],
-            include: {
+            {
               model: Destination,
-              as: "Destination",
+              as: "DestinationTo",
               attributes: ["name"],
             },
-          },
-          {
-            model: Transit,
-            as: "Transit1",
-            attributes: ["id"],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["name"],
+            {
+              model: Transit,
+              as: "TransitFrom",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
             },
-          },
-          {
-            model: Transit,
-            as: "Transit2",
-            attributes: ["id"],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["name"],
+            {
+              model: Transit,
+              as: "TransitTo",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
             },
-          },
-          {
-            model: Transit,
-            as: "Transit3",
-            attributes: ["id"],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["name"],
+            {
+              model: Transit,
+              as: "Transit1",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
             },
-          },
-          {
-            model: Transit,
-            as: "Transit4",
-            attributes: ["id"],
-            include: {
-              model: Destination,
-              as: "Destination",
-              attributes: ["name"],
+            {
+              model: Transit,
+              as: "Transit2",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
             },
-          },
-        ],
-      },
+            {
+              model: Transit,
+              as: "Transit3",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              attributes: ["id"],
+              include: {
+                model: Destination,
+                as: "Destination",
+                attributes: ["name"],
+              },
+            },
+          ],
+        },
         {
           model: BookingSeatAvailability,
           required: false,
@@ -288,7 +298,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
           include: [
             {
               model: Booking,
-              attributes: ["id",],
+              attributes: ["id"],
               required: false,
               where: {
                 payment_status: {
@@ -311,65 +321,54 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
       offset: offset,
     });
 
- 
+    const enhancedSeatAvailabilities = seatAvailabilities.map(
+      (seatAvailability) => {
+        const seatAvailabilityObj = seatAvailability.get({ plain: true });
 
+        let totalPassengers = 0;
+        const bookingIds = new Set();
 
+        if (seatAvailabilityObj.BookingSeatAvailabilities) {
+          seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
+            if (bsa.Booking?.passengers?.length > 0) {
+              totalPassengers += bsa.Booking.passengers.length;
+              bookingIds.add(bsa.Booking.id);
+            }
+          });
+        }
 
-    const enhancedSeatAvailabilities = seatAvailabilities.map((seatAvailability) => {
-      const seatAvailabilityObj = seatAvailability.get({ plain: true });
+        const correctCapacity = seatAvailabilityObj.boost
+          ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
+          : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
 
-      let totalPassengers = 0;
-      const bookingIds = new Set();
+        const correctAvailableSeats = correctCapacity - totalPassengers;
+        const miss_seat =
+          correctAvailableSeats - seatAvailabilityObj.available_seats;
 
-      if (seatAvailabilityObj.BookingSeatAvailabilities) {
-        seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
-          if (bsa.Booking?.passengers?.length > 0) {
-            totalPassengers += bsa.Booking.passengers.length;
-            bookingIds.add(bsa.Booking.id);
-          }
-        });
+        const route = seatAvailabilityObj.Schedule
+          ? buildRouteFromScheduleFlatten(
+              seatAvailabilityObj.Schedule,
+              seatAvailabilityObj.SubSchedule
+            )
+          : null;
+
+        return {
+          ...seatAvailabilityObj,
+          boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
+          total_passengers: totalPassengers,
+          total_bookings: bookingIds.size,
+          correct_capacity: correctCapacity,
+          route: route,
+          capacity_match_status:
+            totalPassengers + seatAvailabilityObj.available_seats ===
+            correctCapacity
+              ? "MATCH"
+              : "MISMATCH",
+          miss_seats: miss_seat,
+          BookingSeatAvailabilities: undefined,
+        };
       }
-
-      const correctCapacity = seatAvailabilityObj.boost
-        ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
-        : seatAvailabilityObj.Schedule?.Boat?.published_capacity || 0;
-
-      const correctAvailableSeats = correctCapacity - totalPassengers;
-      const miss_seat = correctAvailableSeats - seatAvailabilityObj.available_seats;
-
-      const route = seatAvailabilityObj.Schedule
-      ? buildRouteFromScheduleFlatten(
-          seatAvailabilityObj.Schedule,
-          seatAvailabilityObj.SubSchedule
-        )
-      : null;;
-
-     
-
-
-
-
-
-
-      return {
-        ...seatAvailabilityObj,
-        boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
-        total_passengers: totalPassengers,
-        total_bookings: bookingIds.size,
-        correct_capacity: correctCapacity,
-        route: route,
-        capacity_match_status:
-          totalPassengers + seatAvailabilityObj.available_seats === correctCapacity
-            ? "MATCH"
-            : "MISMATCH",
-        miss_seats: miss_seat,
-        BookingSeatAvailabilities: undefined,
-      };
-    });;
-
-
-
-
+    );
 
     return res.status(200).json({
       success: true,
@@ -396,7 +395,7 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
 // Helper Functions
 const validateInput = (year, month, page) => {
   const pageNumber = parseInt(page, 10);
-  
+
   if (isNaN(pageNumber) || pageNumber < 1) {
     throw new Error("Page must be a positive number.");
   }
@@ -422,7 +421,7 @@ const generateMonthDates = (year, month) => {
 
   const allDatesInMonth = [];
   for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const dateStr = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
     allDatesInMonth.push(dateStr);
   }
 
@@ -434,11 +433,13 @@ const calculatePagination = (allDatesInMonth, daysInMonth, pageNumber) => {
   const totalPages = Math.ceil(daysInMonth / daysPerPage);
   const startIndex = (pageNumber - 1) * daysPerPage;
   const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
-  
+
   const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
-  
+
   if (currentPageDates.length === 0) {
-    throw new Error(`Page ${pageNumber} is out of range. Total pages: ${totalPages}`);
+    throw new Error(
+      `Page ${pageNumber} is out of range. Total pages: ${totalPages}`
+    );
   }
 
   return {
@@ -446,7 +447,7 @@ const calculatePagination = (allDatesInMonth, daysInMonth, pageNumber) => {
     daysPerPage,
     totalPages,
     firstDate: currentPageDates[0],
-    lastDate: currentPageDates[currentPageDates.length - 1]
+    lastDate: currentPageDates[currentPageDates.length - 1],
   };
 };
 
@@ -534,44 +535,93 @@ const buildSeatAvailabilityQuery = () => {
 const buildRouteFromRawData = (row, isSubschedule = false) => {
   if (isSubschedule && row.subschedule_id) {
     const schedule = {
-      FromDestination: { id: row.from_destination_id, name: row.from_destination_name },
-      ToDestination: { id: row.to_destination_id, name: row.to_destination_name }
+      FromDestination: {
+        id: row.from_destination_id,
+        name: row.from_destination_name,
+      },
+      ToDestination: {
+        id: row.to_destination_id,
+        name: row.to_destination_name,
+      },
     };
-    
+
     const subSchedule = {
-      DestinationFrom: row.sub_from_destination_id ? { id: row.sub_from_destination_id, name: row.sub_from_destination_name } : null,
-      DestinationTo: row.sub_to_destination_id ? { id: row.sub_to_destination_id, name: row.sub_to_destination_name } : null,
-      TransitFrom: row.transit_from_id ? { 
-        id: row.transit_from_id, 
-        Destination: { id: row.transit_from_destination_id, name: row.transit_from_destination_name }
-      } : null,
-      TransitTo: row.transit_to_id ? { 
-        id: row.transit_to_id, 
-        Destination: { id: row.transit_to_destination_id, name: row.transit_to_destination_name }
-      } : null,
-      Transit1: row.transit_1_id ? { 
-        id: row.transit_1_id, 
-        Destination: { id: row.transit_1_destination_id, name: row.transit_1_destination_name }
-      } : null,
-      Transit2: row.transit_2_id ? { 
-        id: row.transit_2_id, 
-        Destination: { id: row.transit_2_destination_id, name: row.transit_2_destination_name }
-      } : null,
-      Transit3: row.transit_3_id ? { 
-        id: row.transit_3_id, 
-        Destination: { id: row.transit_3_destination_id, name: row.transit_3_destination_name }
-      } : null,
-      Transit4: row.transit_4_id ? { 
-        id: row.transit_4_id, 
-        Destination: { id: row.transit_4_destination_id, name: row.transit_4_destination_name }
-      } : null,
+      DestinationFrom: row.sub_from_destination_id
+        ? {
+            id: row.sub_from_destination_id,
+            name: row.sub_from_destination_name,
+          }
+        : null,
+      DestinationTo: row.sub_to_destination_id
+        ? { id: row.sub_to_destination_id, name: row.sub_to_destination_name }
+        : null,
+      TransitFrom: row.transit_from_id
+        ? {
+            id: row.transit_from_id,
+            Destination: {
+              id: row.transit_from_destination_id,
+              name: row.transit_from_destination_name,
+            },
+          }
+        : null,
+      TransitTo: row.transit_to_id
+        ? {
+            id: row.transit_to_id,
+            Destination: {
+              id: row.transit_to_destination_id,
+              name: row.transit_to_destination_name,
+            },
+          }
+        : null,
+      Transit1: row.transit_1_id
+        ? {
+            id: row.transit_1_id,
+            Destination: {
+              id: row.transit_1_destination_id,
+              name: row.transit_1_destination_name,
+            },
+          }
+        : null,
+      Transit2: row.transit_2_id
+        ? {
+            id: row.transit_2_id,
+            Destination: {
+              id: row.transit_2_destination_id,
+              name: row.transit_2_destination_name,
+            },
+          }
+        : null,
+      Transit3: row.transit_3_id
+        ? {
+            id: row.transit_3_id,
+            Destination: {
+              id: row.transit_3_destination_id,
+              name: row.transit_3_destination_name,
+            },
+          }
+        : null,
+      Transit4: row.transit_4_id
+        ? {
+            id: row.transit_4_id,
+            Destination: {
+              id: row.transit_4_destination_id,
+              name: row.transit_4_destination_name,
+            },
+          }
+        : null,
     };
-    
+
     return buildRouteFromScheduleFlatten(schedule, subSchedule);
   } else {
     const schedule = {
-      FromDestination: { id: row.from_destination_id, name: row.from_destination_name },
-      ToDestination: { id: row.to_destination_id, name: row.to_destination_name }
+      FromDestination: {
+        id: row.from_destination_id,
+        name: row.from_destination_name,
+      },
+      ToDestination: {
+        id: row.to_destination_id,
+        name: row.to_destination_name,
+      },
     };
     return buildRouteFromScheduleFlatten(schedule, null);
   }
@@ -581,11 +631,11 @@ const processQueryResults = (results) => {
   const scheduleSeats = [];
   const subscheduleSeats = [];
 
-  results.forEach(row => {
+  results.forEach((row) => {
     const correctCapacity = row.boost ? row.capacity : row.published_capacity;
     const correctAvailableSeats = correctCapacity - row.total_passengers;
     const miss_seat = correctAvailableSeats - row.available_seats;
-    
+
     const processedSeat = {
       id: row.id,
       schedule_id: row.schedule_id,
@@ -593,9 +643,10 @@ const processQueryResults = (results) => {
       transit_id: row.transit_id,
       subschedule_id: row.subschedule_id,
       availability: row.availability,
-      date: row.date instanceof Date 
-        ? row.date.toISOString().split('T')[0] 
-        : row.date.toString().split('T')[0],
+      date:
+        row.date instanceof Date
+          ? row.date.toISOString().split("T")[0]
+          : row.date.toString().split("T")[0],
       boost: row.boost,
       updated_at: row.sa_updated_at,
       created_at: row.sa_created_at,
@@ -604,7 +655,10 @@ const processQueryResults = (results) => {
       total_bookings: row.total_bookings,
       correct_capacity: correctCapacity,
       route: buildRouteFromRawData(row, row.subschedule_id !== null),
-      capacity_match_status: (row.total_passengers + row.available_seats === correctCapacity) ? "MATCH" : "MISMATCH",
+      capacity_match_status:
+        row.total_passengers + row.available_seats === correctCapacity
+          ? "MATCH"
+          : "MISMATCH",
       miss_seats: miss_seat,
       Schedule: {
         id: row.schedule_id,
@@ -614,17 +668,17 @@ const processQueryResults = (results) => {
         Boat: {
           id: row.boat_id,
           capacity: row.capacity,
-          published_capacity: row.published_capacity
+          published_capacity: row.published_capacity,
         },
         FromDestination: {
           id: row.from_destination_id,
-          name: row.from_destination_name
+          name: row.from_destination_name,
         },
         ToDestination: {
           id: row.to_destination_id,
-          name: row.to_destination_name
-        }
-      }
+          name: row.to_destination_name,
+        },
+      },
     };
 
     if (row.subschedule_id) {
@@ -642,68 +696,84 @@ const buildSubScheduleObject = (row) => {
   return {
     id: row.subschedule_id,
     schedule_id: row.sub_schedule_id,
-    DestinationFrom: row.sub_from_destination_id ? {
-      id: row.sub_from_destination_id,
-      name: row.sub_from_destination_name
-    } : null,
-    DestinationTo: row.sub_to_destination_id ? {
-      id: row.sub_to_destination_id,
-      name: row.sub_to_destination_name
-    } : null,
-    TransitFrom: row.transit_from_id ? {
-      id: row.transit_from_id,
-      Destination: {
-        id: row.transit_from_destination_id,
-        name: row.transit_from_destination_name
-      }
-    } : null,
-    TransitTo: row.transit_to_id ? {
-      id: row.transit_to_id,
-      Destination: {
-        id: row.transit_to_destination_id,
-        name: row.transit_to_destination_name
-      }
-    } : null,
-    Transit1: row.transit_1_id ? {
-      id: row.transit_1_id,
-      Destination: {
-        id: row.transit_1_destination_id,
-        name: row.transit_1_destination_name
-      }
-    } : null,
-    Transit2: row.transit_2_id ? {
-      id: row.transit_2_id,
-      Destination: {
-        id: row.transit_2_destination_id,
-        name: row.transit_2_destination_name
-      }
-    } : null,
-    Transit3: row.transit_3_id ? {
-      id: row.transit_3_id,
-      Destination: {
-        id: row.transit_3_destination_id,
-        name: row.transit_3_destination_name
-      }
-    } : null,
-    Transit4: row.transit_4_id ? {
-      id: row.transit_4_id,
-      Destination: {
-        id: row.transit_4_destination_id,
-        name: row.transit_4_destination_name
-      }
-    } : null,
+    DestinationFrom: row.sub_from_destination_id
+      ? {
+          id: row.sub_from_destination_id,
+          name: row.sub_from_destination_name,
+        }
+      : null,
+    DestinationTo: row.sub_to_destination_id
+      ? {
+          id: row.sub_to_destination_id,
+          name: row.sub_to_destination_name,
+        }
+      : null,
+    TransitFrom: row.transit_from_id
+      ? {
+          id: row.transit_from_id,
+          Destination: {
+            id: row.transit_from_destination_id,
+            name: row.transit_from_destination_name,
+          },
+        }
+      : null,
+    TransitTo: row.transit_to_id
+      ? {
+          id: row.transit_to_id,
+          Destination: {
+            id: row.transit_to_destination_id,
+            name: row.transit_to_destination_name,
+          },
+        }
+      : null,
+    Transit1: row.transit_1_id
+      ? {
+          id: row.transit_1_id,
+          Destination: {
+            id: row.transit_1_destination_id,
+            name: row.transit_1_destination_name,
+          },
+        }
+      : null,
+    Transit2: row.transit_2_id
+      ? {
+          id: row.transit_2_id,
+          Destination: {
+            id: row.transit_2_destination_id,
+            name: row.transit_2_destination_name,
+          },
+        }
+      : null,
+    Transit3: row.transit_3_id
+      ? {
+          id: row.transit_3_id,
+          Destination: {
+            id: row.transit_3_destination_id,
+            name: row.transit_3_destination_name,
+          },
+        }
+      : null,
+    Transit4: row.transit_4_id
+      ? {
+          id: row.transit_4_id,
+          Destination: {
+            id: row.transit_4_destination_id,
+            name: row.transit_4_destination_name,
+          },
+        }
+      : null,
   };
 };
 
 const mergeScheduleAndSubscheduleSeats = (scheduleSeats, subscheduleSeats) => {
   const subscheduleByScheduleAndDate = new Map();
-  
-  subscheduleSeats.forEach(subSeat => {
+
+  subscheduleSeats.forEach((subSeat) => {
     const key = `${subSeat.schedule_id}_${subSeat.date}`;
     if (!subscheduleByScheduleAndDate.has(key)) {
       subscheduleByScheduleAndDate.set(key, []);
     }
-    
+
     subscheduleByScheduleAndDate.get(key).push({
       id: subSeat.id,
       subschedule_id: subSeat.subschedule_id,
@@ -723,10 +793,10 @@ const mergeScheduleAndSubscheduleSeats = (scheduleSeats, subscheduleSeats) => {
     });
   });
 
-  return scheduleSeats.map(scheduleSeat => {
+  return scheduleSeats.map((scheduleSeat) => {
     const key = `${scheduleSeat.schedule_id}_${scheduleSeat.date}`;
     const relatedSubscheduleSeats = subscheduleByScheduleAndDate.get(key) || [];
-    
+
     return {
       ...scheduleSeat,
       subschedule_seat: relatedSubscheduleSeats,
@@ -746,28 +816,30 @@ const createCalendarData = (enhancedSeatAvailabilities, currentPageDates) => {
 
   return currentPageDates.map((dateStr) => {
     const dateData = seatAvailabilityByDate.get(dateStr) || [];
-    
+
     let totalPassengers = 0;
     let totalBookings = 0;
     let mismatchCount = 0;
     let totalSubscheduleSeats = 0;
 
-    dateData.forEach(seat => {
+    dateData.forEach((seat) => {
       totalPassengers += seat.total_passengers;
       totalBookings += seat.total_bookings;
-      if (seat.capacity_match_status === 'MISMATCH') mismatchCount++;
+      if (seat.capacity_match_status === "MISMATCH") mismatchCount++;
 
-      seat.subschedule_seat.forEach(subSeat => {
+      seat.subschedule_seat.forEach((subSeat) => {
         totalPassengers += subSeat.total_passengers;
         totalBookings += subSeat.total_bookings;
-        if (subSeat.capacity_match_status === 'MISMATCH') mismatchCount++;
+        if (subSeat.capacity_match_status === "MISMATCH") mismatchCount++;
         totalSubscheduleSeats++;
       });
     });
 
     return {
       date: dateStr,
-      dayOfWeek: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' }),
+      dayOfWeek: new Date(dateStr).toLocaleDateString("en-US", {
+        weekday: "long",
+      }),
       dayOfMonth: new Date(dateStr).getDate(),
       seatCount: dateData.length,
       subscheduleSeatsCount: totalSubscheduleSeats,
@@ -779,23 +851,28 @@ const createCalendarData = (enhancedSeatAvailabilities, currentPageDates) => {
   });
 };
 
-const calculateSummary = (enhancedSeatAvailabilities, currentPageDates, firstDate, lastDate) => {
+const calculateSummary = (
+  enhancedSeatAvailabilities,
+  currentPageDates,
+  firstDate,
+  lastDate
+) => {
   let totalScheduleSeats = enhancedSeatAvailabilities.length;
   let totalSubscheduleSeats = 0;
   let totalPassengers = 0;
   let totalBookings = 0;
   let mismatchedSeats = 0;
 
-  enhancedSeatAvailabilities.forEach(seat => {
+  enhancedSeatAvailabilities.forEach((seat) => {
     totalPassengers += seat.total_passengers;
     totalBookings += seat.total_bookings;
-    if (seat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+    if (seat.capacity_match_status === "MISMATCH") mismatchedSeats++;
 
-    seat.subschedule_seat.forEach(subSeat => {
+    seat.subschedule_seat.forEach((subSeat) => {
       totalSubscheduleSeats++;
       totalPassengers += subSeat.total_passengers;
       totalBookings += subSeat.total_bookings;
-      if (subSeat.capacity_match_status === 'MISMATCH') mismatchedSeats++;
+      if (subSeat.capacity_match_status === "MISMATCH") mismatchedSeats++;
     });
   });
 
@@ -812,12 +889,23 @@ const calculateSummary = (enhancedSeatAvailabilities, currentPageDates, firstDat
       totalPassengers: totalPassengers,
       totalBookings: totalBookings,
       mismatchedSeats: mismatchedSeats,
-      matchedSeats: (totalScheduleSeats + totalSubscheduleSeats) - mismatchedSeats,
+      matchedSeats:
+        totalScheduleSeats + totalSubscheduleSeats - mismatchedSeats,
     },
   };
 };
 
-const buildPaginationInfo = (daysInMonth, pageNumber, daysPerPage, totalPages, firstDate, lastDate, currentPageDates, yearNum, monthNum) => {
+const buildPaginationInfo = (
+  daysInMonth,
+  pageNumber,
+  daysPerPage,
+  totalPages,
+  firstDate,
+  lastDate,
+  currentPageDates,
+  yearNum,
+  monthNum
+) => {
   return {
     total: daysInMonth,
     page: pageNumber,
@@ -834,7 +922,10 @@ const buildPaginationInfo = (daysInMonth, pageNumber, daysPerPage, totalPages, f
       year: yearNum,
       month: monthNum,
       totalDaysInMonth: daysInMonth,
-      monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString('en-US', { month: 'long' }),
+      monthName: new Date(yearNum, monthNum - 1, 1).toLocaleDateString(
+        "en-US",
+        { month: "long" }
+      ),
     },
   };
 };
@@ -846,12 +937,18 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
   try {
     // 1. Validate input
     const { yearNum, monthNum, pageNumber } = validateInput(year, month, page);
-    
-    console.log(`📅 Fetching monthly view for ${year}-${month.toString().padStart(2, '0')}, page ${pageNumber}`);
+
+    console.log(
+      `📅 Fetching monthly view for ${year}-${month.toString().padStart(2, "0")}, page ${pageNumber}`
+    );
 
     // 2. Generate dates and calculate pagination
-    const { allDatesInMonth, daysInMonth } = generateMonthDates(yearNum, monthNum);
-    const { currentPageDates, daysPerPage, totalPages, firstDate, lastDate } = calculatePagination(allDatesInMonth, daysInMonth, pageNumber);
+    const { allDatesInMonth, daysInMonth } = generateMonthDates(
+      yearNum,
+      monthNum
+    );
+    const { currentPageDates, daysPerPage, totalPages, firstDate, lastDate } =
+      calculatePagination(allDatesInMonth, daysInMonth, pageNumber);
 
     console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate}`);
 
@@ -859,41 +956,70 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
     const rawQuery = buildSeatAvailabilityQuery();
     const results = await sequelize.query(rawQuery, {
       replacements: { firstDate, lastDate },
-      type: sequelize.QueryTypes.SELECT
+      type: sequelize.QueryTypes.SELECT,
     });
 
     console.log(`📊 Raw query returned ${results.length} rows`);
 
     // 4. Process query results
     const { scheduleSeats, subscheduleSeats } = processQueryResults(results);
-    
+
     // 5. Merge schedule and subschedule seats
-    const enhancedSeatAvailabilities = mergeScheduleAndSubscheduleSeats(scheduleSeats, subscheduleSeats);
+    const enhancedSeatAvailabilities = mergeScheduleAndSubscheduleSeats(
+      scheduleSeats,
+      subscheduleSeats
+    );
 
     // 6. Create calendar data
-    const calendarData = createCalendarData(enhancedSeatAvailabilities, currentPageDates);
+    const calendarData = createCalendarData(
+      enhancedSeatAvailabilities,
+      currentPageDates
+    );
 
     // 7. Calculate summary
-    const summary = calculateSummary(enhancedSeatAvailabilities, currentPageDates, firstDate, lastDate);
-    summary.daysWithData = calendarData.filter(day => day.seatCount > 0).length;
-    summary.daysWithoutData = calendarData.filter(day => day.seatCount === 0).length;
+    const summary = calculateSummary(
+      enhancedSeatAvailabilities,
+      currentPageDates,
+      firstDate,
+      lastDate
+    );
+    summary.daysWithData = calendarData.filter(
+      (day) => day.seatCount > 0
+    ).length;
+    summary.daysWithoutData = calendarData.filter(
+      (day) => day.seatCount === 0
+    ).length;
 
     // 8. Build pagination info
-    const paginationInfo = buildPaginationInfo(daysInMonth, pageNumber, daysPerPage, totalPages, firstDate, lastDate, currentPageDates, yearNum, monthNum);
+    const paginationInfo = buildPaginationInfo(
+      daysInMonth,
+      pageNumber,
+      daysPerPage,
+      totalPages,
+      firstDate,
+      lastDate,
+      currentPageDates,
+      yearNum,
+      monthNum
+    );
 
-    console.log(`📊 Processed ${scheduleSeats.length} schedule seats and ${subscheduleSeats.length} subschedule seats`);
+    console.log(
+      `📊 Processed ${scheduleSeats.length} schedule seats and ${subscheduleSeats.length} subschedule seats`
+    );
 
     return res.status(200).json({
       success: true,
-      message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, '0')} (${firstDate} to ${lastDate}) - Schedule with nested subschedule`,
+      message: `Monthly seat availability fetched for ${year}-${month.toString().padStart(2, "0")} (${firstDate} to ${lastDate}) - Schedule with nested subschedule`,
       calendar_data: calendarData,
       seat_availabilities: enhancedSeatAvailabilities,
       summary: summary,
       pagination: paginationInfo,
     });
-
   } catch (error) {
-    console.error("❌ Error fetching monthly seat availability:", error.message);
+    console.error(
+      "❌ Error fetching monthly seat availability:",
+      error.message
+    );
     return res.status(500).json({
       error: "Internal server error",
       message: error.message,
@@ -901,13 +1027,12 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
   }
 };
 
-
 // const getSeatAvailabilityMonthlyView = async (req, res) => {
 //   const { year, month, page = 1 } = req.query;
 
 //   try {
 //     const pageNumber = parseInt(page, 10);
-    
+
 //     // Validasi input
 //     if (isNaN(pageNumber) || pageNumber < 1) {
 //       return res.status(400).json({ error: "Page must be a positive number." });
@@ -947,10 +1072,10 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //     const totalPages = Math.ceil(daysInMonth / daysPerPage);
 //     const startIndex = (pageNumber - 1) * daysPerPage;
 //     const endIndex = Math.min(startIndex + daysPerPage, daysInMonth);
-    
+
 //     // Get dates for current page
 //     const currentPageDates = allDatesInMonth.slice(startIndex, endIndex);
-    
+
 //     if (currentPageDates.length === 0) {
 //       return res.status(400).json({
 //         error: `Page ${pageNumber} is out of range. Total pages: ${totalPages}`,
@@ -1088,14 +1213,14 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //           model: SubSchedule,
 //           required: true,
 //           attributes: [
-//             "id", 
-//             "schedule_id", 
-//             // "destination_from_id", 
+//             "id",
+//             "schedule_id",
+//             // "destination_from_id",
 //             // "destination_to_id",
 //             // "transit_from_id",
 //             // "transit_to_id",
 //             // "transit_1_id",
-//             // "transit_2_id", 
+//             // "transit_2_id",
 //             // "transit_3_id",
 //             // "transit_4_id"
 //           ],
@@ -1233,8 +1358,8 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 
 //       return {
 //         ...seatAvailabilityObj,
-//         date: seatAvailabilityObj.date instanceof Date 
-//           ? seatAvailabilityObj.date.toISOString().split('T')[0] 
+//         date: seatAvailabilityObj.date instanceof Date
+//           ? seatAvailabilityObj.date.toISOString().split('T')[0]
 //           : seatAvailabilityObj.date.toString().split('T')[0],
 //         boat_id: seatAvailabilityObj.Schedule?.Boat?.id,
 //         total_passengers: totalPassengers,
@@ -1286,7 +1411,7 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //     const enhancedSeatAvailabilities = processedScheduleSeats.map(scheduleSeat => {
 //       const key = `${scheduleSeat.schedule_id}_${scheduleSeat.date}`;
 //       const relatedSubscheduleSeats = subscheduleByScheduleAndDate[key] || [];
-      
+
 //       return {
 //         ...scheduleSeat,
 //         subschedule_seat: relatedSubscheduleSeats,
@@ -1297,7 +1422,7 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //     const seatAvailabilityByDate = {};
 //     enhancedSeatAvailabilities.forEach((seat) => {
 //       const dateKey = seat.date;
-      
+
 //       if (!seatAvailabilityByDate[dateKey]) {
 //         seatAvailabilityByDate[dateKey] = [];
 //       }
@@ -1307,7 +1432,7 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //     // Create ordered calendar data structure
 //     const calendarData = currentPageDates.map((dateStr) => {
 //       const dateData = seatAvailabilityByDate[dateStr] || [];
-      
+
 //       // Calculate totals including subschedule seats
 //       let totalPassengers = 0;
 //       let totalBookings = 0;
@@ -1418,8 +1543,6 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
 //   }
 // };
 
-
-
 // Controllers/SeatAvailabilityController.js
 
 /**
@@ -1429,14 +1552,14 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
  */
 const fixSeatMismatch = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Temukan SeatAvailability dengan relasi yang dibutuhkan
     const seatAvailability = await SeatAvailability.findByPk(id, {
       include: [
         {
           model: Schedule,
-          include: [{ model: Boat, as: "Boat" }]
+          include: [{ model: Boat, as: "Boat" }],
         },
         {
           model: BookingSeatAvailability,
@@ -1446,47 +1569,51 @@ const fixSeatMismatch = async (req, res) => {
               model: Booking,
               where: {
                 payment_status: {
-                  [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
-                }
+                  [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                },
               },
               include: [
                 {
                   model: Passenger,
                   as: "passengers",
-                }
-              ]
-            }
-          ]
-        }
-      ]
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
-    
+
     if (!seatAvailability) {
       return res.status(404).json({
         success: false,
         message: "Seat availability not found",
       });
     }
-    
+
     // Hitung total penumpang
     let totalPassengers = 0;
-    seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+    seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
       if (bsa.Booking && bsa.Booking.passengers) {
         totalPassengers += bsa.Booking.passengers.length;
       }
     });
-    
+
     // Tentukan kapasitas yang benar
     const correctCapacity = seatAvailability.boost
       ? seatAvailability.Schedule.Boat.capacity
       : seatAvailability.Schedule.Boat.published_capacity;
-    
+
     // Hitung available_seats yang benar
-    const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
-    
+    const correctAvailableSeats = Math.max(
+      0,
+      correctCapacity - totalPassengers
+    );
+
     // Hitung miss_seat sebelum perbaikan
-    const originalMissSeat = correctAvailableSeats - seatAvailability.available_seats;
-    
+    const originalMissSeat =
+      correctAvailableSeats - seatAvailability.available_seats;
+
     // Jika tidak ada ketidakcocokan, tidak perlu update
     if (originalMissSeat === 0) {
       return res.status(200).json({
@@ -1497,25 +1624,25 @@ const fixSeatMismatch = async (req, res) => {
         fixed: false,
       });
     }
-    
+
     // Update available_seats
     const updatedSeatAvailability = await seatAvailability.update({
-      available_seats: correctAvailableSeats
+      available_seats: correctAvailableSeats,
     });
-    
+
     return res.status(200).json({
       success: true,
       message: "Seat availability mismatch fixed",
       seatAvailability: updatedSeatAvailability,
       originalMissSeat,
-      fixed: true
+      fixed: true,
     });
   } catch (error) {
     console.error("Error fixing seat mismatch:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fix seat mismatch",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -1527,7 +1654,7 @@ const fixAllSeatMismatches = async () => {
     include: [
       {
         model: Schedule,
-        include: [{ model: Boat, as: "Boat" }]
+        include: [{ model: Boat, as: "Boat" }],
       },
       {
         model: BookingSeatAvailability,
@@ -1537,19 +1664,19 @@ const fixAllSeatMismatches = async () => {
             model: Booking,
             where: {
               payment_status: {
-                [Op.in]: ['paid', 'invoiced', 'unpaid']
-              }
+                [Op.in]: ["paid", "invoiced", "unpaid"],
+              },
             },
             include: [
               {
                 model: Passenger,
                 as: "passengers",
-              }
-            ]
-          }
-        ]
-      }
-    ]
+              },
+            ],
+          },
+        ],
+      },
+    ],
   });
 
   let totalFixed = 0;
@@ -1557,7 +1684,7 @@ const fixAllSeatMismatches = async () => {
   for (const seatAvailability of seatAvailabilities) {
     let totalPassengers = 0;
 
-    seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+    seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
       if (bsa.Booking?.passengers?.length) {
         totalPassengers += bsa.Booking.passengers.length;
       }
@@ -1567,18 +1694,22 @@ const fixAllSeatMismatches = async () => {
       ? seatAvailability.Schedule.Boat.capacity
       : seatAvailability.Schedule.Boat.published_capacity;
 
-    const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
+    const correctAvailableSeats = Math.max(
+      0,
+      correctCapacity - totalPassengers
+    );
 
     if (seatAvailability.available_seats !== correctAvailableSeats) {
       await seatAvailability.update({ available_seats: correctAvailableSeats });
-      console.log(`✅ Fix Seat ID ${seatAvailability.id} date: ${seatAvailability.date}`);
+      console.log(
+        `✅ Fix Seat ID ${seatAvailability.id} date: ${seatAvailability.date}`
+      );
       totalFixed++;
     }
   }
 
   console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
 };
-
 
 /**
  * Memperbaiki miss_seat untuk beberapa SeatAvailability secara batch
@@ -1587,14 +1718,14 @@ const fixAllSeatMismatches = async () => {
  */
 const fixSeatMismatchBatch = async (req, res) => {
   const { ids } = req.body;
-  
+
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({
       success: false,
-      message: "Please provide an array of seat availability IDs"
+      message: "Please provide an array of seat availability IDs",
     });
   }
-  
+
   try {
     // Hasil dari operasi batch
     const results = {
@@ -1602,9 +1733,9 @@ const fixSeatMismatchBatch = async (req, res) => {
       fixed: 0,
       alreadyCorrect: 0,
       failed: 0,
-      details: []
+      details: [],
     };
-    
+
     // Proses setiap SeatAvailability
     for (const id of ids) {
       try {
@@ -1613,7 +1744,7 @@ const fixSeatMismatchBatch = async (req, res) => {
           include: [
             {
               model: Schedule,
-              include: [{ model: Boat, as: "Boat" }]
+              include: [{ model: Boat, as: "Boat" }],
             },
             {
               model: BookingSeatAvailability,
@@ -1623,99 +1754,106 @@ const fixSeatMismatchBatch = async (req, res) => {
                   model: Booking,
                   where: {
                     payment_status: {
-                      [Op.in]: ['paid', 'invoiced', 'pending', 'unpaid']
-                    }
+                      [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                    },
                   },
                   include: [
                     {
                       model: Passenger,
                       as: "passengers",
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
+                      where: {
+                        passenger_type: {
+                          [Op.ne]: "infant", // ⛔ exclude infant
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
         });
-        
+
         if (!seatAvailability) {
           results.failed++;
           results.details.push({
             id,
-            status: 'failed',
-            message: 'Seat availability not found'
+            status: "failed",
+            message: "Seat availability not found",
           });
           continue;
         }
-        
+
         // Hitung total penumpang
         let totalPassengers = 0;
-        seatAvailability.BookingSeatAvailabilities.forEach(bsa => {
+        seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
           if (bsa.Booking && bsa.Booking.passengers) {
             totalPassengers += bsa.Booking.passengers.length;
           }
         });
-        
+
         // Tentukan kapasitas yang benar
         const correctCapacity = seatAvailability.boost
           ? seatAvailability.Schedule.Boat.capacity
           : seatAvailability.Schedule.Boat.published_capacity;
-        
+
         // Hitung available_seats yang benar
-        const correctAvailableSeats = Math.max(0, correctCapacity - totalPassengers);
-        
+        const correctAvailableSeats = Math.max(
+          0,
+          correctCapacity - totalPassengers
+        );
+
         // Hitung miss_seat
-        const miss_seat = correctAvailableSeats - seatAvailability.available_seats;
-        
+        const miss_seat =
+          correctAvailableSeats - seatAvailability.available_seats;
+
         // Jika tidak ada ketidakcocokan, tidak perlu update
         if (miss_seat === 0) {
           results.alreadyCorrect++;
           results.details.push({
             id,
-            status: 'already_correct',
-            miss_seat: 0
+            status: "already_correct",
+            miss_seat: 0,
           });
           continue;
         }
-        
+
         // Update available_seats
         await seatAvailability.update({
-          available_seats: correctAvailableSeats
+          available_seats: correctAvailableSeats,
         });
-        
+
         results.fixed++;
         results.details.push({
           id,
-          status: 'fixed',
+          status: "fixed",
           original_miss_seat: miss_seat,
-          new_available_seats: correctAvailableSeats
+          new_available_seats: correctAvailableSeats,
         });
       } catch (error) {
         results.failed++;
         results.details.push({
           id,
-          status: 'error',
-          message: error.message
+          status: "error",
+          message: error.message,
         });
       }
     }
-    
+
     return res.status(200).json({
       success: true,
       message: `Fixed ${results.fixed} seat availabilities, ${results.alreadyCorrect} already correct, ${results.failed} failed`,
-      results
+      results,
     });
   } catch (error) {
     console.error("Error fixing seat mismatches in batch:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to fix seat mismatches",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
-
 
 const deleteSeatAvailabilityByIds = async (req, res) => {
   const { ids } = req.query;
@@ -1732,18 +1870,18 @@ const deleteSeatAvailabilityByIds = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: `Seat availability with IDs ${ids.join(', ')} has been deleted`,
+        message: `Seat availability with IDs ${ids.join(", ")} has been deleted`,
       });
     }
 
     return res.status(400).json({
-      error: 'Bad request',
-      message: 'Ids must be an array with at least one element',
+      error: "Bad request",
+      message: "Ids must be an array with at least one element",
     });
   } catch (error) {
-    console.log('Error:', error.message);
+    console.log("Error:", error.message);
     return res.status(500).json({
-      error: 'Internal server error',
+      error: "Internal server error",
       message: error.message,
     });
   }
@@ -1754,23 +1892,27 @@ const handleSeatAvailability = async (req, res) => {
   try {
     if (seat_availability_id && boost === true) {
       // Scenario 1: Boost existing seat availability to the maximum capacity
-      console.log('🛠 Scenario 1: Boost existing seat availability to maximum');
-      const seatAvailability = await boostSeatAvailability({ id: seat_availability_id, boost });
+      console.log("🛠 Scenario 1: Boost existing seat availability to maximum");
+      const seatAvailability = await boostSeatAvailability({
+        id: seat_availability_id,
+        boost,
+      });
       return res.status(200).json({
         success: true,
-        message: 'Seat availability boosted to maximum successfully.',
+        message: "Seat availability boosted to maximum successfully.",
         seat_availability: seatAvailability,
       });
     } else if (schedule_id && date) {
       // Scenario 2: Create new seat availability
-      console.log('🛠 Scenario 2: Create new seat availability');
-      const { mainSeatAvailability, subscheduleSeatAvailabilities } = await createSeatAvailabilityMax({
-        schedule_id,
-        date,
-      });
+      console.log("🛠 Scenario 2: Create new seat availability");
+      const { mainSeatAvailability, subscheduleSeatAvailabilities } =
+        await createSeatAvailabilityMax({
+          schedule_id,
+          date,
+        });
       return res.status(201).json({
         success: true,
-        message: 'Seat availabilities created successfully.',
+        message: "Seat availabilities created successfully.",
         mainSeatAvailability,
         subscheduleSeatAvailabilities,
       });
@@ -1779,13 +1921,14 @@ const handleSeatAvailability = async (req, res) => {
     // Invalid request
     return res.status(400).json({
       success: false,
-      message: 'Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.',
+      message:
+        "Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.",
     });
   } catch (error) {
-    console.error('Error handling seat availability:', error.message);
+    console.error("Error handling seat availability:", error.message);
     return res.status(500).json({
       success: false,
-      message: 'An error occurred while processing seat availability.',
+      message: "An error occurred while processing seat availability.",
       error: error.message,
     });
   }
@@ -1801,11 +1944,11 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
       include: [
         {
           model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
+          as: "BookingSeatAvailabilities",
           include: [
             {
               model: Booking,
-              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
+              where: { payment_status: ["paid", "invoiced", "unpaid"] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },
@@ -1814,7 +1957,7 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
 
     if (!seatAvailability) {
       return res.status(404).json({
-        status: 'fail',
+        status: "fail",
         message: `Seat availability not found for ID ${id}.`,
       });
     }
@@ -1829,11 +1972,11 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
       include: [
         {
           model: BookingSeatAvailability,
-          as: 'BookingSeatAvailabilities',
+          as: "BookingSeatAvailabilities",
           include: [
             {
               model: Booking,
-              where: { payment_status:[ 'paid','invoiced','unpaid'] }, // Only include bookings with payment_status 'paid'
+              where: { payment_status: ["paid", "invoiced", "unpaid"] }, // Only include bookings with payment_status 'paid'
             },
           ],
         },
@@ -1841,24 +1984,22 @@ const getFilteredSeatAvailabilityById = async (req, res) => {
     });
 
     // Return only the seat_availability_id of the related records
-    const seatAvailabilityIds = relatedSeatAvailabilities.map(sa => sa.id);
+    const seatAvailabilityIds = relatedSeatAvailabilities.map((sa) => sa.id);
 
     return res.status(200).json({
-      status: 'success',
-      message: 'Related seat availabilities retrieved successfully',
+      status: "success",
+      message: "Related seat availabilities retrieved successfully",
       seatAvailabilityIds, // Return the list of seat_availability_ids
     });
   } catch (error) {
-    console.error('Error fetching related seat availabilities:', error.message);
+    console.error("Error fetching related seat availabilities:", error.message);
     return res.status(500).json({
-      status: 'error',
-      message: 'An error occurred while fetching seat availabilities',
+      status: "error",
+      message: "An error occurred while fetching seat availabilities",
       error: error.message,
     });
   }
 };
-
-
 
 const checkAvailableSeats = async (req, res) => {
   const { schedule_id, booking_date } = req.query;
@@ -1878,11 +2019,9 @@ const checkAvailableSeats = async (req, res) => {
     });
 
     if (!seatAvailability) {
-      return res
-        .status(404)
-        .json({
-          error: `Seat availability not found for schedule ID ${schedule_id} on date ${booking_date}.`,
-        });
+      return res.status(404).json({
+        error: `Seat availability not found for schedule ID ${schedule_id} on date ${booking_date}.`,
+      });
     }
 
     // Return available seats
@@ -1991,38 +2130,38 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
           where: { seat_availability_id: seatAvailability.id },
           include: {
             model: Booking,
-            attributes: ['id',
-              'contact_name',
-              'contact_phone',
-              'contact_passport_id',
-              'contact_nationality',
-              'contact_email',
-              'schedule_id',
-              'agent_id',
-              'payment_method',
-              'gross_total',
-              'total_passengers',
-              'adult_passengers',
-              'child_passengers',
-              'infant_passengers',
-              'payment_status',
-              'booking_source',
-              'booking_date',
-              'ticket_id',
-              'created_at',
-              'updated_at'
+            attributes: [
+              "id",
+              "contact_name",
+              "contact_phone",
+              "contact_passport_id",
+              "contact_nationality",
+              "contact_email",
+              "schedule_id",
+              "agent_id",
+              "payment_method",
+              "gross_total",
+              "total_passengers",
+              "adult_passengers",
+              "child_passengers",
+              "infant_passengers",
+              "payment_status",
+              "booking_source",
+              "booking_date",
+              "ticket_id",
+              "created_at",
+              "updated_at",
             ],
             include: {
               model: Passenger,
-              as:'passengers',
-            }
-
+              as: "passengers",
+            },
           },
         });
         return {
           ...seatAvailability.get({ plain: true }),
           available_seats: seatAvailability.available_seats, // Ensure available_seats is included
-          bookings: bookings.map(bsa => ({ id: bsa.Booking.id })),
+          bookings: bookings.map((bsa) => ({ id: bsa.Booking.id })),
         };
       })
     );
@@ -2053,7 +2192,7 @@ const updateSeatAvailability = async (req, res) => {
     subschedule_id,
     availability,
     boost,
-    date
+    date,
   } = req.body;
 
   const errors = validationResult(req);
@@ -2065,7 +2204,9 @@ const updateSeatAvailability = async (req, res) => {
     const seatAvailability = await SeatAvailability.findByPk(id);
 
     if (!seatAvailability) {
-      return res.status(404).json({ error: `Seat availability not found for ID ${id}.` });
+      return res
+        .status(404)
+        .json({ error: `Seat availability not found for ID ${id}.` });
     }
 
     const updatedSeatAvailability = await seatAvailability.update({
@@ -2075,23 +2216,22 @@ const updateSeatAvailability = async (req, res) => {
       subschedule_id,
       availability,
       boost,
-      date
+      date,
     });
 
     return res.status(200).json({
       status: "success",
       message: "Seat availability updated successfully",
-      seat_availability: updatedSeatAvailability
+      seat_availability: updatedSeatAvailability,
     });
   } catch (error) {
     return res.status(500).json({
       status: "error",
       message: "An error occurred while updating seat availability",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
   const { schedule_id } = req.query;
@@ -2100,8 +2240,10 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
     let seatAvailabilities;
 
     if (schedule_id) {
-      console.log(`Fetching seat availabilities for schedule_id: ${schedule_id}`);
-      
+      console.log(
+        `Fetching seat availabilities for schedule_id: ${schedule_id}`
+      );
+
       // Fetch specific seat availability for the given schedule_id
       seatAvailabilities = await SeatAvailability.findAll({
         where: { schedule_id },
@@ -2112,8 +2254,8 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
             include: [
               { model: Boat, as: "Boat" },
               { model: Destination, as: "DestinationFrom" },
-              { model: Destination, as: "DestinationTo" }
-            ]
+              { model: Destination, as: "DestinationTo" },
+            ],
           },
           {
             model: SubSchedule,
@@ -2125,16 +2267,16 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
                 include: [
                   { model: Boat, as: "Boat" },
                   { model: Destination, as: "DestinationFrom" },
-                  { model: Destination, as: "DestinationTo" }
-                ]
-              }
-            ]
-          }
-        ]
+                  { model: Destination, as: "DestinationTo" },
+                ],
+              },
+            ],
+          },
+        ],
       });
     } else {
-      console.log('Fetching all seat availabilities');
-      
+      console.log("Fetching all seat availabilities");
+
       // Fetch all seat availabilities
       seatAvailabilities = await SeatAvailability.findAll({
         include: [
@@ -2144,8 +2286,8 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
             include: [
               { model: Boat, as: "Boat" },
               { model: Destination, as: "DestinationFrom" },
-              { model: Destination, as: "DestinationTo" }
-            ]
+              { model: Destination, as: "DestinationTo" },
+            ],
           },
           {
             model: SubSchedule,
@@ -2157,20 +2299,20 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
                 include: [
                   { model: Boat, as: "Boat" },
                   { model: Destination, as: "DestinationFrom" },
-                  { model: Destination, as: "DestinationTo" }
-                ]
-              }
-            ]
-          }
-        ]
+                  { model: Destination, as: "DestinationTo" },
+                ],
+              },
+            ],
+          },
+        ],
       });
     }
 
     if (!seatAvailabilities || seatAvailabilities.length === 0) {
-      console.log('No seat availabilities found.');
+      console.log("No seat availabilities found.");
       return res.status(404).json({
         status: "fail",
-        message: "No seat availabilities found."
+        message: "No seat availabilities found.",
       });
     }
 
@@ -2179,34 +2321,35 @@ const getAllSeatAvailabilityScheduleAndSubSchedule = async (req, res) => {
     // Format the response using formatScheduleResponse utility
     const responseData = seatAvailabilities.map(formatScheduleResponse);
 
-    console.log('Returning formatted seat availabilities data');
-    
+    console.log("Returning formatted seat availabilities data");
+
     // Return the response
     return res.status(200).json({
       status: "success",
-      message: "Seat availabilities with schedules and subschedules retrieved successfully",
-      seat_availabilities: responseData
+      message:
+        "Seat availabilities with schedules and subschedules retrieved successfully",
+      seat_availabilities: responseData,
     });
   } catch (error) {
     console.error("Error retrieving seat availabilities:", error.message);
     return res.status(500).json({
       status: "error",
       message: "An error occurred while retrieving seat availabilities",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-
-
 const findMissingRelatedBySeatId = async (req, res) => {
   const { seat_availability_id } = req.query;
-  console.log(`🔍 Finding missing related subschedules for seat_availability_id: ${seat_availability_id}`);
+  console.log(
+    `🔍 Finding missing related subschedules for seat_availability_id: ${seat_availability_id}`
+  );
 
   if (!seat_availability_id) {
     return res.status(400).json({
       success: false,
-      message: 'seat_availability_id is required',
+      message: "seat_availability_id is required",
     });
   }
 
@@ -2216,7 +2359,7 @@ const findMissingRelatedBySeatId = async (req, res) => {
     if (!mainSeat) {
       return res.status(404).json({
         success: false,
-        message: 'SeatAvailability not found',
+        message: "SeatAvailability not found",
       });
     }
 
@@ -2225,7 +2368,7 @@ const findMissingRelatedBySeatId = async (req, res) => {
     if (!date) {
       return res.status(400).json({
         success: false,
-        message: 'Missing date in seat availability',
+        message: "Missing date in seat availability",
       });
     }
 
@@ -2236,21 +2379,23 @@ const findMissingRelatedBySeatId = async (req, res) => {
       console.log(`🧠 Seat with subschedule_id: ${subschedule_id}`);
       const relations = await SubScheduleRelation.findAll({
         where: { main_subschedule_id: subschedule_id },
-        attributes: ['related_subschedule_id'],
+        attributes: ["related_subschedule_id"],
       });
 
-      relatedIds = relations.map(r => r.related_subschedule_id);
-    } 
+      relatedIds = relations.map((r) => r.related_subschedule_id);
+    }
     // ✅ CASE B: subschedule_id null → seat utama, pakai semua SubSchedule dari schedule_id
     else {
-      console.log(`🧠 Seat with NULL subschedule_id. Using schedule_id: ${schedule_id} to infer related subschedules`);
+      console.log(
+        `🧠 Seat with NULL subschedule_id. Using schedule_id: ${schedule_id} to infer related subschedules`
+      );
 
       const allSubSchedules = await SubSchedule.findAll({
         where: { schedule_id },
-        attributes: ['id'],
+        attributes: ["id"],
       });
 
-      relatedIds = allSubSchedules.map(s => s.id);
+      relatedIds = allSubSchedules.map((s) => s.id);
 
       // ✅ Tambahkan pengecualian: jika tidak ada SubSchedule, langsung return found kosong
       if (relatedIds.length === 0) {
@@ -2264,7 +2409,7 @@ const findMissingRelatedBySeatId = async (req, res) => {
           },
           related_found: [],
           related_missing: [],
-          note: 'No related subschedules exist under this schedule_id',
+          note: "No related subschedules exist under this schedule_id",
         });
       }
     }
@@ -2283,7 +2428,9 @@ const findMissingRelatedBySeatId = async (req, res) => {
       });
 
       if (existing) {
-        console.log(`✅ Related ID ${relatedId} FOUND for date ${date}, SeatAvailability ID: ${existing.id}`);
+        console.log(
+          `✅ Related ID ${relatedId} FOUND for date ${date}, SeatAvailability ID: ${existing.id}`
+        );
         foundRelations.push({
           related_subschedule_id: relatedId,
           seat_availability_id: existing.id,
@@ -2312,23 +2459,22 @@ const findMissingRelatedBySeatId = async (req, res) => {
       related_missing: missingRelations,
     });
   } catch (error) {
-    console.error('❌ Error in findMissingRelatedBySeatId:', error);
+    console.error("❌ Error in findMissingRelatedBySeatId:", error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 };
 
-
-const cronFrequencySeatMatches = process.env.CRON_FREQUENCY_SEAT_MISMATCH || "0 */3 * * *"; // Default setiap 3 jam
+const cronFrequencySeatMatches =
+  process.env.CRON_FREQUENCY_SEAT_MISMATCH || "0 */3 * * *"; // Default setiap 3 jam
 
 // Jalankan setiap 3 jam sekali
-cron.schedule('0 */3 * * *', async () => {
+cron.schedule("0 */3 * * *", async () => {
   console.log("🚀 Starting scheduled job for seat mismatch correction...");
   await fixAllSeatMismatches();
 });
-
 
 module.exports = {
   checkAvailableSeats,
@@ -2338,11 +2484,12 @@ module.exports = {
   updateSeatAvailability,
   getAllSeatAvailabilityScheduleAndSubSchedule,
   getFilteredSeatAvailabilityById,
- handleSeatAvailability,
- getSeatAvailabilityByMonthYear,
- deleteSeatAvailabilityByIds,
- fixSeatMismatch,
- fixSeatMismatchBatch,fixAllSeatMismatches,
- getSeatAvailabilityMonthlyView,
-findMissingRelatedBySeatId
+  handleSeatAvailability,
+  getSeatAvailabilityByMonthYear,
+  deleteSeatAvailabilityByIds,
+  fixSeatMismatch,
+  fixSeatMismatchBatch,
+  fixAllSeatMismatches,
+  getSeatAvailabilityMonthlyView,
+  findMissingRelatedBySeatId,
 };
