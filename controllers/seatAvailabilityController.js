@@ -1671,6 +1671,12 @@ const fixAllSeatMismatches = async () => {
               {
                 model: Passenger,
                 as: "passengers",
+                   where: {
+                        passenger_type: {
+                          [Op.ne]: "infant", // ⛔ exclude infant
+                        },
+                      },
+                
               },
             ],
           },
