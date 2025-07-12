@@ -317,14 +317,7 @@ const checkAndNotifyWaitingList = async () => {
           attributes: ['id', 'validity_start', 'validity_end', 'days_of_week'], // ← Added days_of_week
           required: true // Schedule harus ada
         },
-        {
-  model: SeatAvailability,
-  as: 'SeatAvailability',
-  where: {
-    availability: true // ⛔ hanya ambil seat yang TIDAK diblokir
-  },
-  required: true // ⛔ hanya masukkan WaitingList yang punya SeatAvailability valid
-}
+        
       ],
       attributes: [
         'id',
