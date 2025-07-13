@@ -2,7 +2,8 @@ const { SeatAvailability, BookingSeatAvailability,Boat, Booking, Passenger,Sched
 const { Op } = require('sequelize');
 const { findRelatedSubSchedulesGet, findRelatedSubSchedules } = require('../util/handleSubScheduleBooking');
 const { findSeatAvailabilityWithDetails } = require('../util/findSeatQuery');
-const {buildRouteFromSchedule} = require('../util/buildRoute');
+const {buildRouteFromSchedule,buildRouteFromScheduleFlatten} = require('../util/buildRoute');
+
 //ReferenceError: sequelize is not defined
 const sequelize = require('../config/database');
 
@@ -172,6 +173,125 @@ const findSeatAvailabilityById = async (req, res) => {
           message: 'An error occurred while finding seat availability',
           error: error.message,
       });
+  }
+};
+
+const findSeatAvailabilityByTicketId = async (req, res) => {
+  const { ticket_id } = req.query;
+  console.log("🔍 DEBUG findSeatAvailabilityByTicketId called with ticket_id:", ticket_id);
+
+  try {
+    const bookingSeatAvailabilities = await BookingSeatAvailability.findAll({
+      include: [
+        {
+          model: Booking,
+          as: 'Booking',
+          attributes: ['id', 'booking_date',"schedule_id","subschedule_id", 'ticket_id', 'payment_status'],
+          where: { ticket_id },
+          include: [
+            {
+              model: Passenger,
+              as: 'passengers',
+              attributes: ['id', 'name', 'passenger_type'],
+            },
+            {
+              model: Schedule,
+              as: 'schedule',
+              attributes: ['id', 'destination_from_id', 'destination_to_id'],
+              include: [
+                { model: Destination, as: 'FromDestination', attributes: ['name'] },
+                { model: Destination, as: 'ToDestination', attributes: ['name'] },
+              ],
+            },
+            {
+              model: SubSchedule,
+              as: 'subSchedule',
+              attributes: ['id'],
+              include: [
+                { model: Destination, as: "DestinationFrom", attributes: ["id", "name"] },
+                { model: Destination, as: "DestinationTo", attributes: ["id", "name"] },
+                {
+                  model: Transit,
+                  as: "TransitFrom",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                },
+                {
+                  model: Transit,
+                  as: "TransitTo",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                },
+                {
+                  model: Transit,
+                  as: "Transit1",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name", "port_map_url", "image_url"] },
+                },
+                {
+                  model: Transit,
+                  as: "Transit2",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                },
+                {
+                  model: Transit,
+                  as: "Transit3",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                },
+                {
+                  model: Transit,
+                  as: "Transit4",
+                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
+                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                },
+                {
+                  model: Schedule,
+                  as: "Schedule",
+                  attributes: ["id", "departure_time", "check_in_time", "arrival_time", "journey_time"],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: SeatAvailability,
+          as: 'SeatAvailability',
+          attributes: ['id', 'available_seats', 'date'],
+        },
+      ],
+    });
+
+    if (!bookingSeatAvailabilities || bookingSeatAvailabilities.length === 0) {
+      return res.status(404).json({
+        status: 'fail',
+        message: `No seat availability found for ticket ID ${ticket_id}.`,
+      });
+    }
+
+    // Flatten results and build route
+    const enrichedResults = bookingSeatAvailabilities.map(item => {
+      const plain = item.get({ plain: true });
+      const route = buildRouteFromScheduleFlatten(plain.Booking?.schedule, plain.Booking?.subSchedule);
+      return {
+        ...plain,
+        route,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Booking seat availability retrieved successfully',
+      booking_seat_availabilities: enrichedResults,
+    });
+  } catch (error) {
+    console.error('Error finding booking seat availability:', error.message);
+    return res.status(500).json({
+      status: 'error',
+      message: 'An error occurred while finding booking seat availability',
+      error: error.message,
+    });
   }
 };
 
@@ -933,6 +1053,7 @@ module.exports = {
     findSeatAvailabilityById,
     getFilteredBookingsBySeatAvailability,
     findRelatedPassengerBySeatAvailabilityId,
-    findSeatAvailabilityByIdSimple 
+    findSeatAvailabilityByIdSimple,
+    findSeatAvailabilityByTicketId 
 };
 

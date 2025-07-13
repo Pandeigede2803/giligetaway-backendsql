@@ -46,7 +46,7 @@ bookingQueue.process(async (job, done) => {
     subschedule_id,
     booking_date,
     total_passengers,
-    passengers,
+
     transports,
     transit_details,
     booking_id,
@@ -134,7 +134,7 @@ bookingQueue.process(async (job, done) => {
 
     // Step 3: Add Passengers
     console.log(`Adding passengers for booking_id ${booking_id}`);
-    await addPassengers(passengers, booking_id, transaction);
+    // await addPassengers(passengers, booking_id, transaction);
 
     // Step 4: Add Transport Bookings (skipped if already processed)
     if (transport_processed) {

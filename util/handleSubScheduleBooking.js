@@ -446,7 +446,7 @@ const handleSubScheduleBooking = async (
 ) => {
   console.log("masuk handleSubScheduleBooking");
 
-  /* ── 1. Ambil Schedule + Boat ─────────────────────────────── */
+  // ── 1. Ambil Schedule + Boat ───────────────────────────────
   const schedule = await Schedule.findByPk(schedule_id, {
     include: [{ model: sequelize.models.Boat, as: "Boat" }],
     transaction,
@@ -454,10 +454,9 @@ const handleSubScheduleBooking = async (
   if (!schedule || !schedule.Boat)
     throw new Error("Boat information is missing or invalid");
 
-  /* hitung kapasitas publik */
   const publicCapacity = calculatePublicCapacity(schedule.Boat);
 
-  /* ── 2. Ambil subschedule yang dipilih ─────────────────────── */
+  // ── 2. Ambil SubSchedule ──────────────────────────────────
   const subSchedule = await SubSchedule.findOne({
     where: { id: subschedule_id, schedule_id },
     transaction,
@@ -466,7 +465,7 @@ const handleSubScheduleBooking = async (
 
   const seatAvailabilities = [];
 
-  /* ── 3. Main-schedule seat availability ───────────────────── */
+  // ── 3. Main Schedule SeatAvailability ─────────────────────
   if (subschedule_id !== schedule_id) {
     let mainSeat = await SeatAvailability.findOne({
       where: { schedule_id, subschedule_id: null, date: booking_date },
@@ -487,22 +486,13 @@ const handleSubScheduleBooking = async (
       );
     }
 
-    if (mainSeat.available_seats >= total_passengers) {
-      mainSeat.available_seats -= total_passengers;
-      if (mainSeat.available_seats < 0)
-        throw new Error("Seat availability cannot go below zero in main schedule");
-      await mainSeat.save({ transaction });
-    } else {
-      console.warn(
-        `⚠️ Kursi tidak cukup di Main Schedule, dilewati. Tersedia: ${mainSeat.available_seats}, Dibutuhkan: ${total_passengers}`
-      );
-    }
+    mainSeat.available_seats -= total_passengers;
+    await mainSeat.save({ transaction });
 
-    // Selalu push agar pivot ter-link
     seatAvailabilities.push(mainSeat);
   }
 
-  /* ── 4. Related sub-schedules ─────────────────────────────── */
+  // ── 4. Related SubSchedules ───────────────────────────────
   const relatedSubSchedules = await findRelatedSubSchedules(
     schedule_id,
     subSchedule,
@@ -510,7 +500,7 @@ const handleSubScheduleBooking = async (
   );
 
   for (const relSub of relatedSubSchedules) {
-    if (relSub.id === subschedule_id) continue; // skip yang dipilih
+    if (relSub.id === subschedule_id) continue;
 
     let relSeat = await SeatAvailability.findOne({
       where: { schedule_id, subschedule_id: relSub.id, date: booking_date },
@@ -531,24 +521,13 @@ const handleSubScheduleBooking = async (
       );
     }
 
-    if (relSeat.available_seats >= total_passengers) {
-      relSeat.available_seats -= total_passengers;
-      if (relSeat.available_seats < 0)
-        throw new Error(
-          `Seat availability cannot go below zero in SubSchedule ID: ${relSub.id}`
-        );
-      await relSeat.save({ transaction });
-    } else {
-      console.warn(
-        `⚠️ Skip deduction – SubSchedule ${relSub.id}. ` +
-          `Available ${relSeat.available_seats}, need ${total_passengers}`
-      );
-    }
+    relSeat.available_seats -= total_passengers;
+    await relSeat.save({ transaction });
 
-    seatAvailabilities.push(relSeat); // tetap link
+    seatAvailabilities.push(relSeat);
   }
 
-  /* ── 5. Selected sub-schedule (wajib seat cukup) ───────────── */
+  // ── 5. Selected SubSchedule ───────────────────────────────
   let selectedSeat = await SeatAvailability.findOne({
     where: { schedule_id, subschedule_id, transit_id: null, date: booking_date },
     transaction,
@@ -568,20 +547,14 @@ const handleSubScheduleBooking = async (
     );
   }
 
-  if (selectedSeat.available_seats < total_passengers)
-    throw new Error("KURSI TIDAK CUKUP TERSEDIA DI SubSchedule yang dipilih");
-
   selectedSeat.available_seats -= total_passengers;
-  if (selectedSeat.available_seats < 0)
-    throw new Error("Seat availability cannot go below zero in selected sub-schedule");
   await selectedSeat.save({ transaction });
 
   seatAvailabilities.push(selectedSeat);
 
-  /* ── 6. Return semua seat availability yang ter-link ───────── */
+  // ── 6. Return All ─────────────────────────────────────────
   return seatAvailabilities;
 };
-
 
 
 

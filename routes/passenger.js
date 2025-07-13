@@ -30,6 +30,8 @@ router.get('/count-by-month', authenticate, passengerController.getPassengerCoun
 
 router.get('/count-by-schedule', authenticate, passengerController.getPassengerCountBySchedule);
 
+
+router.get('/count-by-schedule-and-booking-date', authenticate, passengerController.getPassengerCountByBookingDateAndSchedule);
 // READ passengers by schedule and subschedule
 router.get('/by', authenticate, passengerController.getPassengersByScheduleAndSubSchedule);
 
@@ -45,5 +47,6 @@ router.delete('/:id', authenticate, passengerController.deletePassenger);
 
 // DELETE passenger booking id
 router.delete('/booking/:booking_id', authenticate, passengerController.deletePassenger);
+
 
 module.exports = router;

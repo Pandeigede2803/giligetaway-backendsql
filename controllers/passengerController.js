@@ -648,6 +648,154 @@ const getPassengerCountBySchedule = async (req, res) => {
   }
 };
 
+const getPassengerCountByBookingDateAndSchedule = async (req, res) => {
+  const { booking_date, schedule_id } = req.query;
+
+  if (!booking_date || !schedule_id) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide booking_date and schedule_id.",
+    });
+  }
+
+  try {
+    const date = booking_date;
+
+    // Fetch Schedule with associations
+    const schedule = await Schedule.findOne({
+      where: { id: schedule_id },
+      include: [
+        { model: Boat, as: "Boat" },
+        { model: Destination, as: "FromDestination", attributes: ["name"] },
+        { model: Destination, as: "ToDestination", attributes: ["name"] },
+        {
+          model: Transit,
+          as: "Transits",
+          include: [{ model: Destination, as: "Destination", attributes: ["name"] }],
+        },
+      ],
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ success: false, message: "Schedule not found." });
+    }
+
+    // Fetch SubSchedules for this schedule and date
+    const subSchedules = await SubSchedule.findAll({
+      where: {
+        schedule_id,
+        validity_start: { [Op.lte]: date },
+        validity_end: { [Op.gte]: date },
+      },
+      include: [
+        { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+        { model: Destination, as: "DestinationTo", attributes: ["name"] },
+        {
+          model: Schedule,
+          as: "Schedule",
+          include: [{ model: Boat, as: "Boat", attributes: ["capacity", "published_capacity"] }],
+        },
+      ],
+    });
+
+    // Fetch SeatAvailabilities for the date, schedule_id, and subschedules
+    const seatAvailabilities = await SeatAvailability.findAll({
+      where: {
+        date,
+        schedule_id,
+      },
+      include: [
+        {
+          model: BookingSeatAvailability,
+          as: "BookingSeatAvailabilities",
+          include: [{ model: Booking, attributes: ["subschedule_id", "total_passengers"] }],
+        },
+      ],
+    });
+
+    const seatAvailabilitiesBySubschedule = seatAvailabilities.reduce((acc, sa) => {
+      acc[sa.subschedule_id || 'main'] = sa;
+      return acc;
+    }, {});
+
+    const mainAvailability = seatAvailabilitiesBySubschedule['main'];
+
+    const totalPassengersMain = mainAvailability
+      ? mainAvailability.BookingSeatAvailabilities.reduce(
+          (sum, bsa) => sum + (bsa.Booking.total_passengers || 0),
+          0
+        )
+      : 0;
+
+    const capacityMain = mainAvailability?.boost
+      ? schedule.Boat.capacity
+      : schedule.Boat.published_capacity;
+
+    const remainingSeatsMain = capacityMain - totalPassengersMain;
+
+    const subschedulesResult = subSchedules.map((sub) => {
+      const sa = seatAvailabilitiesBySubschedule[sub.id];
+
+      const totalPassengersSub = sa
+        ? sa.BookingSeatAvailabilities.reduce(
+            (sum, bsa) =>
+              bsa.Booking.subschedule_id === sub.id
+                ? sum + (bsa.Booking.total_passengers || 0)
+                : sum,
+            0
+          )
+        : 0;
+
+      const capacitySub = sa
+        ? sa.available_seats + totalPassengersSub
+        : schedule.Boat.published_capacity;
+
+      const remainingSeatsSub = capacitySub - totalPassengersSub;
+
+      return {
+        seatavailability_id: sa?.id || null,
+        date,
+        availability: sa?.availability,
+        schedule_id,
+        subschedule_id: sub.id,
+        boost: sa?.boost || false,
+        total_passengers: totalPassengersSub,
+        capacity: capacitySub,
+        remainingSeats: remainingSeatsSub,
+        route: buildRouteFromSchedule(schedule, sub),
+      };
+    });
+
+    const result = {
+      seatavailability_id: mainAvailability?.id || null,
+      date,
+      schedule_id,
+      subschedule_id: null,
+      route: buildRouteFromSchedule(schedule, null),
+      availability: mainAvailability?.availability,
+      boost: mainAvailability?.boost || false,
+      capacity: capacityMain,
+      remainingSeats: remainingSeatsMain,
+      total_passengers: totalPassengersMain,
+      departure_time: schedule.departure_time,
+      arrival_time: schedule.arrival_time,
+      journey_time: schedule.journey_time,
+      subschedules: subschedulesResult,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve passenger count.",
+    });
+  }
+};
+
 const getPassengerCountByMonth = async (req, res) => {
   const { month, year, boat_id } = req.query;
 
@@ -2588,7 +2736,8 @@ module.exports = {
   deletePassenger,
   getPassengersSeatNumber,
   updateBookingPassengers,
-  getPassengersSeatNumberByBookingId
+  getPassengersSeatNumberByBookingId,
+  getPassengerCountByBookingDateAndSchedule
 };
 
 // const getPassengerCountByMonth = async (req, res) => {
