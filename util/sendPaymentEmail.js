@@ -13,6 +13,11 @@ const transporter = nodemailer.createTransport({
 
 
 const sendBackupEmail = async (recipientEmail, booking) => {
+
+    const fallbackEmail = process.env.EMAIL_BOOKING;
+
+  // ⛑️ Gunakan fallback jika recipient tidak valid
+  const toEmail = recipientEmail && recipientEmail.includes('@') ? recipientEmail : fallbackEmail;
   const emailUrl = process.env.FRONTEND_URL;
   const subject = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
@@ -57,7 +62,7 @@ const sendBackupEmail = async (recipientEmail, booking) => {
 
   const mailOptions = {
     from: process.env.EMAIL_BOOKING,
-    to: recipientEmail,
+    to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,

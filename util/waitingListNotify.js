@@ -260,7 +260,7 @@ const waitingListNotify = async (params, transaction = null) => {
 
     // Validasi input - seat_availability_ids harus ada dan tidak kosong
     if (!seat_availability_ids || seat_availability_ids.length === 0) {
-      console.log('⚠️ No seat availability IDs provided, skipping notification');
+      // console.log('⚠️ No seat availability IDs provided, skipping notification');
       return {
         success: false,
         message: 'No seat availability IDs provided',
@@ -274,7 +274,7 @@ const waitingListNotify = async (params, transaction = null) => {
     const bookingDateObj = new Date(booking_date);
     
     if (bookingDateObj < currentDate.setHours(0, 0, 0, 0)) {
-      console.log('⚠️ Booking date has passed, skipping notification');
+      // console.log('⚠️ Booking date has passed, skipping notification');
       return {
         success: false,
         message: 'Booking date has passed',
@@ -331,7 +331,7 @@ const waitingListNotify = async (params, transaction = null) => {
       transaction
     });
 
-    console.log(`🔍 Found ${waitingListEntries.length} waiting list entries with matching seat_availability_ids`);
+    // console.log(`🔍 Found ${waitingListEntries.length} waiting list entries with matching seat_availability_ids`);
 
     if (waitingListEntries.length === 0) {
       console.log('ℹ️ No matching waiting list entries found');
@@ -363,13 +363,13 @@ const waitingListNotify = async (params, transaction = null) => {
       // Validasi 1: Apakah booking date masih valid (belum lewat)
       const entryBookingDate = new Date(entry.booking_date);
       if (entryBookingDate < currentDate.setHours(0, 0, 0, 0)) {
-        console.log(`❌ Booking date has passed for entry ${entry.id}, skipping`);
+        // console.log(`❌ Booking date has passed for entry ${entry.id}, skipping`);
         continue;
       }
 
       // ← NEW: Validasi 2: Apakah booking date dalam periode validity schedule?
       if (!schedule) {
-        console.log(`❌ No schedule data found for entry ${entry.id}, skipping`);
+        // console.log(`❌ No schedule data found for entry ${entry.id}, skipping`);
         continue;
       }
 
@@ -406,13 +406,13 @@ const waitingListNotify = async (params, transaction = null) => {
 
       // Validasi 4: Apakah seat availability masih cukup untuk required passengers
       if (!seatAvailability || seatAvailability.available_seats < entry.total_passengers) {
-        console.log(`❌ Not enough available seats in system for entry ${entry.id} (need ${entry.total_passengers}, available ${seatAvailability?.available_seats || 0})`);
+        // console.log(`❌ Not enough available seats in system for entry ${entry.id} (need ${entry.total_passengers}, available ${seatAvailability?.available_seats || 0})`);
         continue;
       }
 
       // Entry valid, tambahkan ke validEntries
       validEntries.push(entry);
-      console.log(`✅ Entry ${entry.id} is valid for notification`);
+      // console.log(`✅ Entry ${entry.id} is valid for notification`);
     }
 
     // console.log(`\n📊 Valid entries after all validations: ${validEntries.length}`);
