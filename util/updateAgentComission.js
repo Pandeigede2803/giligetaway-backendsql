@@ -138,6 +138,83 @@ const updateAgentCommission = async (
   }
 };
 
+const updateAgentCommissionOptimize = async (
+  agent_id,
+  gross_total,
+  total_passengers,
+  payment_status,
+  schedule_id,
+  subschedule_id,
+  booking_id,
+  transaction,
+  transportBookings,
+  tripType,
+  agent // ← sudah preload
+) => {
+  try {
+    if (!agent) throw new Error(`Agent data missing for agent_id ${agent_id}`);
+
+    const existingCommission = await AgentCommission.findOne({
+      where: { booking_id, agent_id },
+      transaction,
+    });
+
+    if (existingCommission) {
+      return {
+        success: false,
+        commission: existingCommission.amount,
+      };
+    }
+
+    let commissionAmount = 0;
+
+    if (parseFloat(agent.commission_rate) > 0) {
+      commissionAmount = gross_total * (agent.commission_rate / 100);
+    } else {
+      switch (tripType) {
+        case "long":
+          commissionAmount = parseFloat(agent.commission_long) * total_passengers;
+          break;
+        case "short":
+          commissionAmount = parseFloat(agent.commission_short) * total_passengers;
+          break;
+        case "mid":
+          commissionAmount = parseFloat(agent.commission_mid) * total_passengers;
+          break;
+        case "intermediate":
+          commissionAmount = parseFloat(agent.commission_intermediate) * total_passengers;
+          break;
+        default:
+          throw new Error("Invalid trip type");
+      }
+    }
+
+    const hasTransport = Array.isArray(transportBookings) && transportBookings.some(
+      (t) => ["pickup", "dropoff"].includes(t.transport_type)
+    );
+
+    if (!hasTransport) {
+      commissionAmount += parseFloat(agent.commission_transport) * total_passengers;
+    }
+
+    await AgentCommission.create(
+      {
+        booking_id,
+        agent_id,
+        amount: commissionAmount,
+      },
+      { transaction }
+    );
+
+    return {
+      success: true,
+      commission: commissionAmount,
+    };
+  } catch (error) {
+    console.error("❌ Error in updateAgentCommission:", error.message);
+    throw error;
+  }
+};
 
 
 
@@ -362,4 +439,5 @@ const updateAgentCommissionBulk = async (
 module.exports = {
   updateAgentCommission,
   updateAgentCommissionBulk,
+  updateAgentCommissionOptimize
 };

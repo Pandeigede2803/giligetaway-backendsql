@@ -1,4 +1,4 @@
-const { SeatAvailability, BookingSeatAvailability,Boat, Booking, Passenger,Schedule,Destination,Transit, SubSchedule  } = require('../models');
+const { SeatAvailability,SubScheduleRelation, BookingSeatAvailability,Boat, Booking, Passenger,Schedule,Destination,Transit, SubSchedule  } = require('../models');
 const { Op } = require('sequelize');
 const { findRelatedSubSchedulesGet, findRelatedSubSchedules } = require('../util/handleSubScheduleBooking');
 const { findSeatAvailabilityWithDetails } = require('../util/findSeatQuery');
@@ -176,6 +176,41 @@ const findSeatAvailabilityById = async (req, res) => {
   }
 };
 
+
+const deleteBookingSeatAvailabilityById = async (req, res) => {
+  const { id } = req.params;
+
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid or missing ID.',
+    });
+  }
+
+  try {
+    const deleted = await BookingSeatAvailability.destroy({ where: { id } });
+
+    if (deleted === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `BookingSeatAvailability with ID ${id} not found.`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `BookingSeatAvailability with ID ${id} deleted successfully.`,
+    });
+  } catch (error) {
+    console.error('Error deleting BookingSeatAvailability:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error during delete.',
+      error: error.message,
+    });
+  }
+};
+
 const findSeatAvailabilityByTicketId = async (req, res) => {
   const { ticket_id } = req.query;
   console.log("🔍 DEBUG findSeatAvailabilityByTicketId called with ticket_id:", ticket_id);
@@ -186,17 +221,17 @@ const findSeatAvailabilityByTicketId = async (req, res) => {
         {
           model: Booking,
           as: 'Booking',
-          attributes: ['id', 'booking_date',"schedule_id","subschedule_id", 'ticket_id', 'payment_status'],
+          attributes: ['id', 'booking_date', 'schedule_id', 'contact_name', 'subschedule_id', 'ticket_id', 'payment_status',"final_state"],
           where: { ticket_id },
+        },
+        {
+          model: SeatAvailability,
+          as: 'SeatAvailability',
+          attributes: ['id', 'available_seats', 'date'],
           include: [
             {
-              model: Passenger,
-              as: 'passengers',
-              attributes: ['id', 'name', 'passenger_type'],
-            },
-            {
               model: Schedule,
-              as: 'schedule',
+              as: 'Schedule',
               attributes: ['id', 'destination_from_id', 'destination_to_id'],
               include: [
                 { model: Destination, as: 'FromDestination', attributes: ['name'] },
@@ -205,60 +240,55 @@ const findSeatAvailabilityByTicketId = async (req, res) => {
             },
             {
               model: SubSchedule,
-              as: 'subSchedule',
+              as: 'SubSchedule',
               attributes: ['id'],
               include: [
-                { model: Destination, as: "DestinationFrom", attributes: ["id", "name"] },
-                { model: Destination, as: "DestinationTo", attributes: ["id", "name"] },
+                { model: Destination, as: 'DestinationFrom', attributes: ['id', 'name'] },
+                { model: Destination, as: 'DestinationTo', attributes: ['id', 'name'] },
                 {
                   model: Transit,
-                  as: "TransitFrom",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                  as: 'TransitFrom',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name'] },
                 },
                 {
                   model: Transit,
-                  as: "TransitTo",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                  as: 'TransitTo',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name'] },
                 },
                 {
                   model: Transit,
-                  as: "Transit1",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name", "port_map_url", "image_url"] },
+                  as: 'Transit1',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name', 'port_map_url', 'image_url'] },
                 },
                 {
                   model: Transit,
-                  as: "Transit2",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                  as: 'Transit2',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name'] },
                 },
                 {
                   model: Transit,
-                  as: "Transit3",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                  as: 'Transit3',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name'] },
                 },
                 {
                   model: Transit,
-                  as: "Transit4",
-                  attributes: ["id", "destination_id", "departure_time", "arrival_time", "journey_time", "check_in_time"],
-                  include: { model: Destination, as: "Destination", attributes: ["id", "name"] },
+                  as: 'Transit4',
+                  attributes: ['id', 'destination_id'],
+                  include: { model: Destination, as: 'Destination', attributes: ['id', 'name'] },
                 },
                 {
                   model: Schedule,
-                  as: "Schedule",
-                  attributes: ["id", "departure_time", "check_in_time", "arrival_time", "journey_time"],
+                  as: 'Schedule',
+                  attributes: ['id'],
                 },
               ],
             },
-          ],
-        },
-        {
-          model: SeatAvailability,
-          as: 'SeatAvailability',
-          attributes: ['id', 'available_seats', 'date'],
+          ]
         },
       ],
     });
@@ -270,10 +300,12 @@ const findSeatAvailabilityByTicketId = async (req, res) => {
       });
     }
 
-    // Flatten results and build route
+    // Build route from SeatAvailability sub/schedule
     const enrichedResults = bookingSeatAvailabilities.map(item => {
       const plain = item.get({ plain: true });
-      const route = buildRouteFromScheduleFlatten(plain.Booking?.schedule, plain.Booking?.subSchedule);
+      const schedule = plain.SeatAvailability?.Schedule;
+      const subSchedule = plain.SeatAvailability?.SubSchedule;
+      const route = buildRouteFromScheduleFlatten(schedule, subSchedule);
       return {
         ...plain,
         route,
@@ -290,6 +322,207 @@ const findSeatAvailabilityByTicketId = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: 'An error occurred while finding booking seat availability',
+      error: error.message,
+    });
+  }
+};
+
+const assignBookingSeatIfMissing = async (ticket_id) => {
+  console.log(`🎯 Assigning BookingSeatAvailability for ticket_id: ${ticket_id}`);
+
+  // Step 1: Get the Booking
+  const booking = await Booking.findOne({ where: { ticket_id } });
+
+  if (!booking) {
+    throw new Error(`❌ Booking not found for ticket_id ${ticket_id}`);
+  }
+
+  // Step 2: Check if BookingSeatAvailability already exists
+  const existing = await BookingSeatAvailability.findOne({
+    where: { booking_id: booking.id },
+  });
+
+  if (existing) {
+    console.log(`✅ BookingSeatAvailability already exists for booking_id ${booking.id}`);
+    return existing; // return if already exists
+  }
+
+  // Step 3: Find matching SeatAvailability
+  const seat = await SeatAvailability.findOne({
+    where: {
+      schedule_id: booking.schedule_id,
+      subschedule_id: booking.subschedule_id || null,
+      date: booking.booking_date,
+    },
+  });
+
+  if (!seat) {
+    throw new Error(
+      `❌ No matching SeatAvailability found for schedule_id ${booking.schedule_id}, subschedule_id ${booking.subschedule_id}, date ${booking.booking_date}`
+    );
+  }
+
+  // Step 4: Create the link
+  const created = await BookingSeatAvailability.create({
+    booking_id: booking.id,
+    seat_availability_id: seat.id,
+  });
+
+  console.log(`🎫 BookingSeatAvailability created: ID ${created.id}`);
+  return created;
+};
+
+
+const findMissingRelatedByTicketId = async (req, res) => {
+  const { ticket_id } = req.query;
+  if (!ticket_id) {
+    return res.status(400).json({ success: false, message: 'ticket_id is required' });
+  }
+
+  try {
+    /* 1️⃣ Ambil booking (tanpa eager-load apa pun) */
+    const booking = await Booking.findOne({
+      where: { ticket_id },
+      attributes: ['id', 'ticket_id', 'schedule_id', 'subschedule_id', 'booking_date'],
+      raw: true,
+    });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    /* 2️⃣ Ambil semua BookingSeatAvailability milik booking */
+    let bsaList = await BookingSeatAvailability.findAll({
+      where: { booking_id: booking.id },
+      include: [{ model: SeatAvailability, as: 'SeatAvailability' }],
+      raw: true,
+      nest: true,
+    });
+
+    /* 3️⃣ Kalau belum ada seat, assign minimal 1 lalu re-fetch */
+    if (bsaList.length === 0) {
+      await assignBookingSeatIfMissing(ticket_id);
+      bsaList = await BookingSeatAvailability.findAll({
+        where: { booking_id: booking.id },
+        include: [{ model: SeatAvailability, as: 'SeatAvailability' }],
+        raw: true,
+        nest: true,
+      });
+      if (bsaList.length === 0)
+        return res.status(404).json({ success: false, message: 'Seat still missing after auto-assign' });
+    }
+
+    /* 4️⃣ Kelompokkan seat booking per jadwal+tanggal */
+    const groups = new Map(); // key: `${schedule_id}-${date}`
+
+    bsaList.forEach(({ SeatAvailability: seat }) => {
+      if (!seat) return;
+      const key = `${seat.schedule_id}-${seat.date}`;
+      if (!groups.has(key))
+        groups.set(key, { schedule_id: seat.schedule_id, date: seat.date, seatList: [] });
+      groups.get(key).seatList.push(seat);
+    });
+
+    const related_found = [];
+    const related_missing = [];
+
+    /* 5️⃣ Proses tiap grup */
+    for (const { schedule_id, date, seatList } of groups.values()) {
+      const subsFromBooking = new Set(seatList.map((s) => s.subschedule_id));
+      const expectedSubs = new Set();
+
+   for (const subId of subsFromBooking) {
+  if (subId === null) {
+    // Booking pakai main schedule  →  semua subs + null
+    const allSubs = await SubSchedule.findAll({ where: { schedule_id }, attributes: ['id'] });
+    allSubs.forEach(s => expectedSubs.add(s.id));
+    expectedSubs.add(null);
+  } else {
+    // Booking pakai SUBSCHEDULE
+    expectedSubs.add(subId);                // ←✨ tambahkan diri sendiri!
+    const rels = await SubScheduleRelation.findAll({
+      where: { main_subschedule_id: subId },
+      attributes: ['related_subschedule_id'],
+    });
+    rels.forEach(r => expectedSubs.add(r.related_subschedule_id));
+    expectedSubs.add(null);                 // main schedule
+  }
+}
+
+      /* 6️⃣ Cek setiap subschedule yang seharusnya ada */
+      for (const subId of expectedSubs) {
+        const seat = await SeatAvailability.findOne({
+          where: { schedule_id, subschedule_id: subId, date },
+          raw: true,
+        });
+
+        if (!seat) {
+          related_missing.push({ schedule_id, date, related_subschedule_id: subId, reason: 'seat_absent' });
+          continue;
+        }
+
+        const linked = await BookingSeatAvailability.findOne({
+          where: { seat_availability_id: seat.id, booking_id: booking.id },
+        });
+
+        if (linked) {
+          related_found.push({
+            schedule_id,
+            date,
+            related_subschedule_id: subId,
+            seat_availability_id: seat.id,
+          });
+        } else {
+          related_missing.push({
+            schedule_id,
+            date,
+            related_subschedule_id: subId,
+            seat_availability_id: seat.id,
+            reason: 'not_linked',
+          });
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      ticket_id,
+      related_found,
+      related_missing,
+    });
+  } catch (err) {
+    console.error('Controller error:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
+
+const createBookingSeatAvailabilityBatch = async (req, res) => {
+  const { booking_id, seat_availability_ids } = req.body;
+
+  if (!booking_id || !Array.isArray(seat_availability_ids) || seat_availability_ids.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'booking_id and seat_availability_ids[] are required.',
+    });
+  }
+
+  try {
+    const recordsToCreate = seat_availability_ids.map((seat_availability_id) => ({
+      booking_id,
+      seat_availability_id,
+    }));
+
+    const created = await BookingSeatAvailability.bulkCreate(recordsToCreate);
+
+    return res.status(201).json({
+      success: true,
+      message: 'BookingSeatAvailability records created successfully.',
+      data: created,
+    });
+  } catch (error) {
+    console.error('Error inserting BookingSeatAvailability:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while inserting records.',
       error: error.message,
     });
   }
@@ -1054,6 +1287,8 @@ module.exports = {
     getFilteredBookingsBySeatAvailability,
     findRelatedPassengerBySeatAvailabilityId,
     findSeatAvailabilityByIdSimple,
-    findSeatAvailabilityByTicketId 
+    findSeatAvailabilityByTicketId ,
+    createBookingSeatAvailabilityBatch,deleteBookingSeatAvailabilityById,
+    findMissingRelatedByTicketId
 };
 
