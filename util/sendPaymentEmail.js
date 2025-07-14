@@ -11,65 +11,129 @@ const transporter = nodemailer.createTransport({
   },
 });;
 
+const transporterBackup = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST_BREVO, // smtp-relay.brevo.com
+  port: 587,                          // STARTTLS
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_LOGIN_BREVO,
+    pass: process.env.EMAIL_PASS_BREVO,
+  },
+
+  // ⬇️ tambahan agar tak gampang timeout
+  connectionTimeout: 60000,   // 60 s tunggu TCP connect
+  greetingTimeout:   30000,   // 30 s tunggu banner “220”
+  socketTimeout:     60000,   // 60 s idle tiap command
+  pool: true,                 // pakai koneksi ulang
+  maxConnections: 3,
+});
+
+  const transporterGmail = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER_GMAIL,
+        pass: process.env.EMAIL_PASS_GMAIL,
+      },
+    });
+
+
+    // EMAIL_USER=booking@giligetaway.site
+// EMAIL_PASS="Fastboat2025))"
+// EMAIL_HOST=smtp.titan.email
+
+// create new transporter with titan host
+const transporterTitan = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
+  port: 587, // Use port 465 for SSL
+  secure: false, // Use SSL
+  auth: {
+    user: process.env.EMAIL_USER_TITAN, // Your email
+    pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
+  },
+  // ⬇️ tambahan agar tak gampang timeout
+  connectionTimeout: 60000,   // 60 s tunggu TCP connect
+  greetingTimeout:   30000,   // 30 s tunggu banner “220”
+  socketTimeout:     60000,   // 60 s idle tiap command
+  pool: true,                 // pakai koneksi ulang
+  maxConnections: 3,
+});
+
+
+
 
 const sendBackupEmail = async (recipientEmail, booking) => {
+  const fallbackEmail = process.env.EMAIL_BOOKING;
+  const toEmail =
+    recipientEmail && recipientEmail.includes("@") ? recipientEmail : fallbackEmail;
 
-    const fallbackEmail = process.env.EMAIL_BOOKING;
-
-  // ⛑️ Gunakan fallback jika recipient tidak valid
-  const toEmail = recipientEmail && recipientEmail.includes('@') ? recipientEmail : fallbackEmail;
-  const emailUrl = process.env.FRONTEND_URL;
-  const subject = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
+  /* ▸ Generate HTML body */
+  const emailUrl           = process.env.FRONTEND_URL;
+  const subject            = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
-  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
-
-  const bookingData = booking.final_state?.bookingData || {};
+  const ticketDownloadUrl  = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+  const bookingData        = booking.final_state?.bookingData || {};
 
   const message = `
-    <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
+    <div style="font-family:Arial,sans-serif;font-size:15px;color:#333">
       <p>Hi ${booking.contact_name},</p>
-      <p>This is a backup email for your booking with Gili Getaway.</p>
+      <p>This is a backup email for your booking with Gili&nbsp;Getaway.</p>
+
       <p><strong>Booking Details:</strong></p>
       <ul>
         <li><strong>Booking ID:</strong> ${booking.id}</li>
-        <li><strong>Ticket ID:</strong> ${booking.ticket_id}</li>
-        <li><strong>Contact:</strong> ${booking.contact_name}</li>
-        <li><strong>Phone:</strong> ${booking.contact_phone}</li>
-        <li><strong>Email:</strong> ${booking.contact_email}</li>
-        <li><strong>Route:</strong> ${bookingData.from || 'N/A'} - ${bookingData.to || 'N/A'}</li>
-        <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})</li>
-        <li><strong>Amount:</strong> ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}</li>
-        <li><strong>Booking Source:</strong> ${booking.booking_source || 'N/A'}</li>
+        <li><strong>Ticket ID:</strong>  ${booking.ticket_id}</li>
+        <li><strong>Contact:</strong>    ${booking.contact_name}</li>
+        <li><strong>Phone:</strong>      ${booking.contact_phone}</li>
+        <li><strong>Email:</strong>      ${booking.contact_email}</li>
+        <li><strong>Route:</strong>      ${bookingData.from || "N/A"} – ${bookingData.to || "N/A"}</li>
+        <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults ${booking.adult_passengers}, Children ${booking.child_passengers}, Infants ${booking.infant_passengers})</li>
+        <li><strong>Amount:</strong>     ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}</li>
+        <li><strong>Booking Source:</strong> ${booking.booking_source || "N/A"}</li>
         <li><strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}</li>
       </ul>
 
       <p>You can download your documents below:</p>
-
-      <div style="margin: 25px 0; text-align: center;">
-        <a href="${invoiceDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#165297; color:white; text-decoration:none; border-radius:6px; margin-bottom:10px;">View/Download Invoice</a>
-        <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceDownloadUrl}</p>
-
-        <a href="${ticketDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:6px; margin-top:10px;">View/Download Ticket</a>
-        <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketDownloadUrl}</p>
+      <div style="margin:25px 0;text-align:center">
+        <a href="${invoiceDownloadUrl}" style="display:inline-block;padding:10px 20px;background:#165297;color:#fff;text-decoration:none;border-radius:6px;margin-bottom:10px">View/Download Invoice</a><br/>
+        <a href="${ticketDownloadUrl}"  style="display:inline-block;padding:10px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;margin-top:10px">View/Download Ticket</a>
       </div>
 
-      <p>If you have any questions, just reply to this email or contact us at <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a>.</p>
-
-      <p>Thank you,<br><strong>The Gili Getaway Team</strong></p>
+      <p>Questions? Reply to this email or contact <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a>.</p>
+      <p>Thank you,<br/><strong>The Gili Getaway Team</strong></p>
     </div>
   `;
 
   const mailOptions = {
     from: process.env.EMAIL_BOOKING,
-    to: toEmail,
-    cc: process.env.EMAIL_BOOKING,
+    to:   toEmail,
+    cc:   process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-  await transporter.sendMail(mailOptions);
+
+  const mailOptionsTitan = {
+    from: process.env.EMAIL_BOOKING,
+    to:   toEmail,
+    cc:   process.env.EMAIL_BOOKING,
+    subject,
+    html: message,
+  };
+
+  /* ① Coba Brevo (timeout panjang) lebih dulu */
+  try {
+    await transporterBackup.sendMail(mailOptions);
+    console.log("✅ Backup email sent via Brevo");
+  } catch (brevoErr) {
+    console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
+    /* ② Jika Brevo tetap gagal, pakai titan */
+    await transporterTitan.sendMail(mailOptionsTitan);
+    console.log("✅ Backup email sent via Gmail");
+  }
 };
+
+
 
 const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
     agentEmail) => {
@@ -334,7 +398,7 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
       html: message,
     };
 
-    await transporter.sendMail(mailOptions);
+    await transporterBackup.sendMail(mailOptions);
     console.log(`📧 Expired booking email sent to ${recipientEmail}`);
     return true;
   } catch (error) {

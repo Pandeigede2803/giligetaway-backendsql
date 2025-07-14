@@ -3,6 +3,10 @@ const router = express.Router();
 const validateSeatRelation = require('../middleware/seatRelation');
 const { findSeatAvailabilityById,getFilteredBookingsBySeatAvailability,findMissingRelatedByTicketId,createBookingSeatAvailabilityBatch,findSeatAvailabilityByTicketId,findSeatAvailabilityByIdSimple,findRelatedPassengerBySeatAvailabilityId } = require('../controllers/bookingSeatAvailabilityController');
 
+const {testTelegram} = require('../controllers/telegramController');
+
+
+
 // Route untuk mencari seat availability berdasarkan ID
 router.get('/seat-availability/:id', findSeatAvailabilityById);
 router.get('/seat-availability-simple/:id', findSeatAvailabilityByIdSimple);
@@ -14,5 +18,9 @@ router.get('/booking-ticket',validateSeatRelation, findSeatAvailabilityByTicketI
 router.post('/booking-seat-availability/batch', createBookingSeatAvailabilityBatch);
 // GET /seat/missing-related-by-ticket
 router.get('/missing-related-by-ticket', findMissingRelatedByTicketId);
+
+router.get('/test-telegram', testTelegram);
+
+
 
 module.exports = router;

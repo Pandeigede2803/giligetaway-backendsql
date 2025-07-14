@@ -10,99 +10,22 @@ const {
  * @param {Object} booking - Data booking dari database
  * @returns {Promise<Object>} - Status pengiriman email
  */
-// const sendInvoiceAndTicketEmail = async (
-//   recipientEmail,
-//   booking,
-//   transactionId,
-//   agentCommission,
-//   agent
-// ) => {
-//   try {
-//     // console.log("Preparing to send invoice email for booking:", booking.id);
-//     // console.log("booking data:", booking);
+const sendTelegramError = async (message) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
-//     // console.log("agentCommission data:", agentCommission, agent);
+  if (!token || !chatId) return;
 
-//     // Parse finalState if it's a string
-//     const finalState =
-//       typeof booking.final_state === "string"
-//         ? JSON.parse(booking.final_state)
-//         : booking.final_state;
-
-//     // Prepare payload for email API
-//     const emailPayload = {
-//       booking,
-//       transactionId: transactionId,
-//       email: recipientEmail,
-//       finalState: finalState,
-//       discountData: booking.discount_data,
-//       paymentMethod: booking.payment_method,
-//       agentCommission: agentCommission, // ✅ Add this
-//     };
-
-//     // console.log(
-//     //   `Sending invoice email to ${recipientEmail} for booking ${booking.id}`
-//     // );
-
-//     // Send request to email API
-//     const emailResponse = await axios.post(
-//       `${process.env.FRONTEND_URL}/api/payment/send-email-customer-express`,
-//       emailPayload,
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         timeout: 30000, // 30 seconds timeout
-//       }
-//     );
-
-//     console.log("Email API Response:", emailResponse.data);
-
-//     // Prepare simplified payload for notification API
-//     const notificationPayload = {
-//       transactionId: transactionId,
-//       finalState: finalState,
-//       discountValue: booking.discount_data?.discountValue || 0,
-//       paymentMethod: booking.payment_method,
-//       agentCommission: agentCommission, // ✅ Add this
-//     };
-
-//     // Send to notification API with minimal data
-//     try {
-//       console.log(`Sending to notification API for booking ${booking.id}`);
-
-//       const notificationResponse = await axios.post(
-//         `${process.env.FRONTEND_URL}/api/payment/send-notification`,
-//         notificationPayload,
-//         {
-//           headers: {
-//             "Content-Type": "application/json",
-//           },
-//           timeout: 30000,
-//         }
-//       );
-
-//       console.log("Notification API Response:", notificationResponse.data);
-//     } catch (notificationError) {
-//       // Log error but don't fail the primary email flow
-//       console.error("Error sending notification:", notificationError.message);
-//     }
-
-//     return {
-//       success: true,
-//       message: "Email and notification sent successfully",
-//       data: emailResponse.data,
-//     };
-//   } catch (error) {
-//     console.error("Error sending email via API:", error);
-//     console.error("Error details:", error.response?.data || error.message);
-
-//     return {
-//       success: false,
-//       error: error.response?.data?.error || error.message,
-//     };
-//   }
-// };
+  try {
+    await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "HTML",
+    });
+  } catch (err) {
+    console.error("❌ Failed to notify Telegram:", err.message);
+  }
+};
 
 const sendInvoiceAndTicketEmail = async (
   recipientEmail,
@@ -156,12 +79,20 @@ const sendInvoiceAndTicketEmail = async (
     console.error("Error sending email via API:", error);
     console.error("Error details:", error.response?.data || error.message);
 
+    // 🔔 Notify Telegram
+    await sendTelegramError(
+      `❌ <b>EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nTo: ${recipientEmail}\nError: ${error.message}`
+    );
+
     // Fallback to simple backup email
     try {
       await sendBackupEmail(recipientEmail, booking);
       console.log("✅ Fallback email sent successfully");
     } catch (fallbackErr) {
-      console.error(`❌ Failed to send fallback email for booking ${booking.id}:`, fallbackErr);
+      console.error(
+        `❌ Failed to send fallback email for booking ${booking.id}:`,
+        fallbackErr
+      );
     }
 
     return {
@@ -288,3 +219,97 @@ module.exports = {
   sendInvoiceAndTicketEmail,
   sendInvoiceAndTicketEmailRoundTrip,
 };
+
+// const sendInvoiceAndTicketEmail = async (
+//   recipientEmail,
+//   booking,
+//   transactionId,
+//   agentCommission,
+//   agent
+// ) => {
+//   try {
+//     // console.log("Preparing to send invoice email for booking:", booking.id);
+//     // console.log("booking data:", booking);
+
+//     // console.log("agentCommission data:", agentCommission, agent);
+
+//     // Parse finalState if it's a string
+//     const finalState =
+//       typeof booking.final_state === "string"
+//         ? JSON.parse(booking.final_state)
+//         : booking.final_state;
+
+//     // Prepare payload for email API
+//     const emailPayload = {
+//       booking,
+//       transactionId: transactionId,
+//       email: recipientEmail,
+//       finalState: finalState,
+//       discountData: booking.discount_data,
+//       paymentMethod: booking.payment_method,
+//       agentCommission: agentCommission, // ✅ Add this
+//     };
+
+//     // console.log(
+//     //   `Sending invoice email to ${recipientEmail} for booking ${booking.id}`
+//     // );
+
+//     // Send request to email API
+//     const emailResponse = await axios.post(
+//       `${process.env.FRONTEND_URL}/api/payment/send-email-customer-express`,
+//       emailPayload,
+//       {
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         timeout: 30000, // 30 seconds timeout
+//       }
+//     );
+
+//     console.log("Email API Response:", emailResponse.data);
+
+//     // Prepare simplified payload for notification API
+//     const notificationPayload = {
+//       transactionId: transactionId,
+//       finalState: finalState,
+//       discountValue: booking.discount_data?.discountValue || 0,
+//       paymentMethod: booking.payment_method,
+//       agentCommission: agentCommission, // ✅ Add this
+//     };
+
+//     // Send to notification API with minimal data
+//     try {
+//       console.log(`Sending to notification API for booking ${booking.id}`);
+
+//       const notificationResponse = await axios.post(
+//         `${process.env.FRONTEND_URL}/api/payment/send-notification`,
+//         notificationPayload,
+//         {
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//           timeout: 30000,
+//         }
+//       );
+
+//       console.log("Notification API Response:", notificationResponse.data);
+//     } catch (notificationError) {
+//       // Log error but don't fail the primary email flow
+//       console.error("Error sending notification:", notificationError.message);
+//     }
+
+//     return {
+//       success: true,
+//       message: "Email and notification sent successfully",
+//       data: emailResponse.data,
+//     };
+//   } catch (error) {
+//     console.error("Error sending email via API:", error);
+//     console.error("Error details:", error.response?.data || error.message);
+
+//     return {
+//       success: false,
+//       error: error.response?.data?.error || error.message,
+//     };
+//   }
+// };

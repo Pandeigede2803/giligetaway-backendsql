@@ -50,8 +50,8 @@ exports.getPaymentChannels = async (req, res) => {
 
 // Fungsi untuk membuat pembayaran di DOKU
 exports.createPayment = async (req, res) => {
-  // console.log("=== PAYMENT REQUEST STARTED ===");
-  // console.log("Request body:", JSON.stringify(req.body, null, 2));
+  console.log("=== PAYMENT REQUEST STARTED ===");
+  console.log("Request body:", JSON.stringify(req.body, null, 2));
 
   try {
     // Step 1: Create Request-Id (must be unique for each request)
@@ -285,7 +285,7 @@ exports.handleNotification = async (req, res) => {
             console.log(`📧 Email sent for booking ${booking.id}`);
           } catch (emailError) {
             console.error(
-              `Error sending email for booking ${booking.id}:`,
+              `😻Error sending email for booking ${booking.id}:`,
               emailError.message
             );
           }

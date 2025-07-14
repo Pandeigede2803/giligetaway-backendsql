@@ -15,6 +15,7 @@ router.get('/:id', authenticate, boatController.getBoatById);
 // UPDATE boat
 router.put('/:id', authenticate, boatController.updateBoat);
 
+
 // DELETE boat
 router.delete('/:id', authenticate, boatController.deleteBoat);
 

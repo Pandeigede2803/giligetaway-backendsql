@@ -146,6 +146,36 @@ const configureTransporter = () => {
   });
 };;
 
+
+// const transporterTitan = nodemailer.createTransport({
+//   host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
+//   port: 587, // Use port 465 for SSL
+//   secure: false, // Use SSL
+//   auth: {
+//     user: process.env.EMAIL_USER_TITAN, // Your email
+//     pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
+//   },
+//   // ⬇️ tambahan agar tak gampang timeout
+//   connectionTimeout: 60000,   // 60 s tunggu TCP connect
+//   greetingTimeout:   30000,   // 30 s tunggu banner “220”
+//   socketTimeout:     60000,   // 60 s idle tiap command
+//   pool: true,                 // pakai koneksi ulang
+//   maxConnections: 3,
+// });
+// create new configureTransporterTitan function
+const configureTransporterTitan = () => {
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
+    port: 587, // Use port 465 for SSL
+    secure: false, // Use SSL
+    auth: {
+      user: process.env.EMAIL_USER_TITAN, // Your email
+      pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
+    }
+  });
+}
+
+
 // Function to prepare agent data
 const prepareAgentData = async (req) => {
   // Generate and hash password
@@ -551,6 +581,8 @@ exports.requestPasswordResetLink = async (req, res) => {
       logger: true,
       debug: true, // show debug output
     });
+
+    
     
 
 
@@ -562,6 +594,7 @@ exports.requestPasswordResetLink = async (req, res) => {
       html: `<p>Please click on the link below to reset your password:</p><p><a href="${resetLink}">reset your password</a></p>`,
     };
 
+    
     // Gili Getaway <onboarding@resend.dev>
      // Try sending email via SMTP
 
@@ -593,7 +626,7 @@ transporter.sendMail(mailOptions, async (error, info) => {
         return res.status(500).json({ message: "Error sending reset link." });
       }
     } catch (resendError) {
-      console.log("🔥 Resend API failed:", resendError);
+      // console.log("🔥 Resend API failed:", resendError);
       return res.status(500).json({ message: "Error sending reset link via both SMTP and Resend API." });
     }
   } else {

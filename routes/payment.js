@@ -33,7 +33,7 @@ router.post('/midtrans/link-multi', validateMidtransPaymentMethodMulti, paymentC
 // Rute untuk menerima notifikasi dari Midtrans
 router.post('/midtrans-notification', handleMidtransNotification);
 // Rute untuk menerima notifikasi dari Midtrans
-router.post('/paypal/webhook', handleWebhook);
+router.post('/paypal/webhook', handleWebhook);;
 
 
 
