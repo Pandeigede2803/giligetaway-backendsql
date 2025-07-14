@@ -161,7 +161,7 @@ const sendInvoiceAndTicketEmail = async (
       await sendBackupEmail(recipientEmail, booking);
       console.log("✅ Fallback email sent successfully");
     } catch (fallbackErr) {
-      console.error("❌ Failed to send fallback email:", fallbackErr);
+      console.error(`❌ Failed to send fallback email for booking ${booking.id}:`, fallbackErr);
     }
 
     return {
