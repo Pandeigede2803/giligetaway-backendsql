@@ -59,7 +59,7 @@ const getYesterdayPaidBookings = async () => {
         'booking_date',
         'ticket_id',
         'created_at',
-        'final_state'
+        'final_state',"booked_by" // Include booked_by field
       ],
       order: [["created_at", "ASC"]],
     });
@@ -344,6 +344,125 @@ const formatBookingsToText = (bookings) => {
       grouped[source].push(b);
     }
   });
+  // console log the first booking
+  console.log("First booking for debugging:", bookings[0].final_state.bookingData);
+
+//   {
+//     "note": "",
+//     "agentId": "",
+//     "bank_fee": 32000,
+//     "bookedBy": "",
+//     "order_Id": "GG-OW-104157",
+//     "tripType": "One Way Trip",
+//     "pickupTime": "08:15",
+//     "bookingData": {
+//         "id": 113,
+//         "to": "Gili Trawangan",
+//         "from": "Serangan, Bali",
+//         "toId": 2,
+//         "price": "800000.00",
+//         "fromId": 8,
+//         "transit": 1,
+//         "boatName": "Giligetaway 3",
+//         "imageUrl": "https://ik.imagekit.io/m1akscp5q/SERANGAN-NUSA_PENIDA_-_GILI_TRAWANGAN_VKWR9msbz.png",
+//         "toMapUrl": "https://maps.app.goo.gl/qy2kNeurQntdFwNb9###https://ik.imagekit.io/m1akscp5q/gili%20trawangan%20endpoint?updatedAt=1732686816086",
+//         "travelers": 2,
+//         "fromMapUrl": "https://maps.app.goo.gl/cQ3CQS5888yi9bU7A###https://ik.imagekit.io/m1akscp5q/port%20images/serangan.webp?updatedAt=1738230642741",
+//         "isHydrated": false,
+//         "returnDate": "",
+//         "scheduleId": 60,
+//         "totalPrice": 1600000,
+//         "checkinTime": "08:15:00",
+//         "journeySteps": [
+//             {
+//                 "arrived": "Nusa Penida",
+//                 "duration": "01:00:00",
+//                 "departure": "Serangan, Bali",
+//                 "checkInTime": "08:15:00",
+//                 "timearrived": "10:00:00",
+//                 "departuretime": "09:00:00"
+//             },
+//             {
+//                 "arrived": "Gili Trawangan",
+//                 "duration": "01:45:00",
+//                 "departure": "Nusa Penida",
+//                 "checkInTime": "08:30:00",
+//                 "timearrived": "11:45:00",
+//                 "departuretime": "10:00:00"
+//             }
+//         ],
+//         "totalPayment": 1600000,
+//         "departureDate": "19 Jul, 2025",
+//         "selectedSeats": [
+//             "C4",
+//             "C3"
+//         ],
+//         "subScheduleId": 113,
+//         "totalTravelers": 2,
+//         "travelersAdult": 2,
+//         "travelersChild": 0,
+//         "selectedServiceId": 0,
+//         "travelersunderthree": 0
+//     },
+//     "checkinTime": null,
+//     "gross_amount": 1632000,
+//     "orderDetails": {
+//         "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
+//         "email": "melissa.maffei@hotmail.com",
+//         "phone": "6282221644539",
+//         "passportId": "18DI56930",
+//         "nationality": "France"
+//     },
+//     "paymentMethod": "Doku",
+//     "booking_source": "website",
+//     "passengersAdult": [
+//         {
+//             "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
+//             "passportId": "18DI56930",
+//             "nationality": "France",
+//             "seat_number": "C3"
+//         },
+//         {
+//             "name": "Leo PADROUTTE",
+//             "passportId": "",
+//             "nationality": "France",
+//             "seat_number": "C4"
+//         }
+//     ],
+//     "passengersChild": [],
+//     "transportStatus": {
+//         "pickupDetails": {
+//             "area": "",
+//             "note": "",
+//             "type": "",
+//             "price": 0,
+//             "duration": 0,
+//             "quantity": 1,
+//             "basePrice": 0,
+//             "PickupArea": "",
+//             "description": "Provide Transport Details Later",
+//             "transport_id": 126,
+//             "interval_time": 0,
+//             "transport_type": "pickup"
+//         },
+//         "dropOffDetails": {
+//             "area": "",
+//             "note": "",
+//             "type": "",
+//             "price": 0,
+//             "duration": 0,
+//             "quantity": 0,
+//             "basePrice": 0,
+//             "PickupArea": "",
+//             "description": "",
+//             "transport_id": "",
+//             "interval_time": 0,
+//             "transport_type": "dropoff"
+//         }
+//     },
+//     "gross_total_in_usd": 99.55,
+//     "passengerunderthree": []
+// }
 
   const sourceIcons = {
     website: '🌐',
@@ -375,6 +494,7 @@ const formatBookingsToText = (bookings) => {
 🎫 Ticket ID: ${booking.ticket_id}
 👤 Contact: ${booking.contact_name}
 📞 Phone: ${booking.contact_phone}
+👨🏻‍🚀 booking by : ${booking.booked_by}
 📧 Email: ${booking.contact_email}
 🛣️  Route: ${booking.final_state.bookingData?.from || 'N/A'} → ${booking.final_state.bookingData?.to || 'N/A'}
 👥 Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})
@@ -383,6 +503,17 @@ const formatBookingsToText = (bookings) => {
 📅 Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}
 🕐 Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
 🔗 Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}
+🚗 Transport Details:
+   Pickup Area: ${booking.final_state.transportStatus.pickupDetails.area || '-'}
+     Pickup Note: ${booking.final_state.transportStatus.pickupDetails.note|| '-'}
+    Pickup description: ${booking.final_state.transportStatus.pickupDetails.description || '-'}
+
+   Pickup Price: ${booking.final_state.transportStatus.pickupDetails.price || '-'}
+   Dropoff Area: ${booking.final_state.transportStatus.dropOffDetails.area || '-'}
+      Dropoff Note: ${booking.final_state.transportStatus.dropOffDetails.note || '-'}
+
+   Dropoff description: ${booking.final_state.transportStatus.dropOffDetails.description || '-'}
+   Dropoff Price: ${booking.final_state.transportStatus.dropOffDetails.price || '-'}
 
 `;
     });
