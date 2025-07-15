@@ -4,6 +4,11 @@ require("dotenv").config();
 const {
   sendBackupEmail,
   sendBackupEmailRoundTrip,
+  sendEmailBackupAgentStaff,
+  sendBackupEmailAlways,
+  sendBackupEmailAgentStaff,
+  sendBackupEmailRoundTripAgentStaff,
+  sendBackupEmailRoundTripAlways,
 } = require("../util/sendPaymentEmail");
 /**
  * Fungsi untuk mengirim email invoice dan ticket melalui API Next.js
@@ -27,6 +32,7 @@ const sendTelegramError = async (message) => {
   }
 };
 
+
 const sendInvoiceAndTicketEmail = async (
   recipientEmail,
   booking,
@@ -34,18 +40,17 @@ const sendInvoiceAndTicketEmail = async (
   agentCommission,
   agent
 ) => {
-  // ✅ Move finalState and notificationPayload above
   const finalState =
     typeof booking.final_state === "string"
       ? JSON.parse(booking.final_state)
       : booking.final_state;
 
   const notificationPayload = {
-    transactionId: transactionId,
-    finalState: finalState,
+    transactionId,
+    finalState,
     discountValue: booking.discount_data?.discountValue || 0,
     paymentMethod: booking.payment_method,
-    agentCommission: agentCommission,
+    agentCommission,
   };
 
   try {
@@ -68,7 +73,7 @@ const sendInvoiceAndTicketEmail = async (
       }
     );
 
-    console.log("Email API Response:", emailResponse.data);
+    console.log("✅ Email API Response:", emailResponse.data);
 
     return {
       success: true,
@@ -76,10 +81,9 @@ const sendInvoiceAndTicketEmail = async (
       data: emailResponse.data,
     };
   } catch (error) {
-    console.error("Error sending email via API:", error);
-    console.error("Error details:", error.response?.data || error.message);
+    console.error("❌ Error sending email via API:", error);
+    console.error("🔍 Error details:", error.response?.data || error.message);
 
-    // 🔔 Notify Telegram
     await sendTelegramError(
       `❌ <b>EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nTo: ${recipientEmail}\nError: ${error.message}`
     );
@@ -101,7 +105,13 @@ const sendInvoiceAndTicketEmail = async (
     };
   } finally {
     try {
-      console.log(`Sending to notification API for booking ${booking.id}`);
+      sendBackupEmailAlways(booking);
+    } catch (backupErr) {
+      console.error("❌ Failed to run sendBackupEmailAlways:", backupErr.message);
+    }
+
+    try {
+      console.log(`📨 Sending to notification API for booking ${booking.id}`);
       const notificationResponse = await axios.post(
         `${process.env.FRONTEND_URL}/api/payment/send-notification`,
         notificationPayload,
@@ -110,13 +120,12 @@ const sendInvoiceAndTicketEmail = async (
           timeout: 30000,
         }
       );
-      console.log("Notification API Response:", notificationResponse.data);
+      console.log("✅ Notification API Response:", notificationResponse.data);
     } catch (notificationError) {
-      console.error("Error sending notification:", notificationError.message);
+      console.error("❌ Error sending notification:", notificationError.message);
     }
   }
 };
-
 const sendInvoiceAndTicketEmailRoundTrip = async (
   recipientEmail,
   firstBooking,
@@ -144,18 +153,18 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       isRoundTrip: true,
     };
 
-    console.log(`Sending round trip email to ${recipientEmail}`);
+    console.log(`📧 Sending round trip email to ${recipientEmail}`);
 
     const response = await axios.post(
       `${process.env.FRONTEND_URL}/api/payment/send-email-round-customer-express`,
       emailPayload,
       {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         timeout: 30000,
       }
     );
+
+    console.log("✅ Email API Response:", response.data);
 
     return {
       success: true,
@@ -163,10 +172,15 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       data: response.data,
     };
   } catch (error) {
-    console.error("Error sending round trip email:", error);
-    console.error("Error details:", error.response?.data || error.message);
+    console.error("❌ Error sending round trip email:", error);
+    console.error("🔍 Error details:", error.response?.data || error.message);
 
-    // Fallback to simple backup email
+    // 🔔 Notify Telegram
+    await sendTelegramError(
+      `❌ <b>ROUNDTRIP EMAIL FAILED</b>\nBooking ID: ${firstBooking?.id}\nTo: ${recipientEmail}\nError: ${error.message}`
+    );
+
+    // 🔁 Fallback simple email
     try {
       await sendBackupEmailRoundTrip(
         recipientEmail,
@@ -175,10 +189,7 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       );
       console.log("✅ Fallback round trip email sent successfully");
     } catch (fallbackErr) {
-      console.error(
-        "❌ Failed to send fallback round trip email:",
-        fallbackErr
-      );
+      console.error("❌ Failed to send fallback round trip email:", fallbackErr);
     }
 
     return {
@@ -186,31 +197,34 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       error: error.response?.data?.error || error.message,
     };
   } finally {
+    // ✅ Always send backup email (safe, only once)
+    try {
+      sendBackupEmailRoundTripAlways(firstBooking, secondBooking);
+    } catch (err) {
+      console.error("❌ Failed to run sendBackupEmailRoundTripAlways:", err.message);
+    }
+
+    // 📤 Send notification to frontend
     try {
       console.log(
-        `Sending to notification API for round trip bookings ${firstBooking.id}`
+        `📨 Sending to notification API for round trip booking ID ${firstBooking.id}`
       );
 
       const notificationResponse = await axios.post(
         `${process.env.FRONTEND_URL}/api/payment/send-notification-round`,
         notificationPayload,
         {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           timeout: 30000,
         }
       );
 
       console.log(
-        "Notification API Response for round trip:",
+        "✅ Notification API Response for round trip:",
         notificationResponse.data
       );
     } catch (notificationError) {
-      console.error(
-        "Error sending round trip notification:",
-        notificationError.message
-      );
+      console.error("❌ Error sending round trip notification:", notificationError.message);
     }
   }
 };
