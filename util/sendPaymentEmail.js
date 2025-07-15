@@ -9,11 +9,11 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_LOGIN_BREVO, // Your email
     pass: process.env.EMAIL_PASS_BREVO, // Your email password or app password
   },
-});;
+});
 
 const transporterBackup = nodemailer.createTransport({
   host: process.env.EMAIL_HOST_BREVO, // smtp-relay.brevo.com
-  port: 587,                          // STARTTLS
+  port: 587, // STARTTLS
   secure: false,
   auth: {
     user: process.env.EMAIL_LOGIN_BREVO,
@@ -21,23 +21,22 @@ const transporterBackup = nodemailer.createTransport({
   },
 
   // ⬇️ tambahan agar tak gampang timeout
-  connectionTimeout: 60000,   // 60 s tunggu TCP connect
-  greetingTimeout:   30000,   // 30 s tunggu banner “220”
-  socketTimeout:     60000,   // 60 s idle tiap command
-  pool: true,                 // pakai koneksi ulang
+  connectionTimeout: 60000, // 60 s tunggu TCP connect
+  greetingTimeout: 30000, // 30 s tunggu banner “220”
+  socketTimeout: 60000, // 60 s idle tiap command
+  pool: true, // pakai koneksi ulang
   maxConnections: 3,
 });
 
-  const transporterGmail = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER_GMAIL,
-        pass: process.env.EMAIL_PASS_GMAIL,
-      },
-    });
+const transporterGmail = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER_GMAIL,
+    pass: process.env.EMAIL_PASS_GMAIL,
+  },
+});
 
-
-    // EMAIL_USER=booking@giligetaway.site
+// EMAIL_USER=booking@giligetaway.site
 // EMAIL_PASS="Fastboat2025))"
 // EMAIL_HOST=smtp.titan.email
 
@@ -51,27 +50,26 @@ const transporterTitan = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
   },
   // ⬇️ tambahan agar tak gampang timeout
-  connectionTimeout: 60000,   // 60 s tunggu TCP connect
-  greetingTimeout:   30000,   // 30 s tunggu banner “220”
-  socketTimeout:     60000,   // 60 s idle tiap command
-  pool: true,                 // pakai koneksi ulang
+  connectionTimeout: 60000, // 60 s tunggu TCP connect
+  greetingTimeout: 30000, // 30 s tunggu banner “220”
+  socketTimeout: 60000, // 60 s idle tiap command
+  pool: true, // pakai koneksi ulang
   maxConnections: 3,
 });
-
-
-
 
 const sendBackupEmail = async (recipientEmail, booking) => {
   const fallbackEmail = process.env.EMAIL_BOOKING;
   const toEmail =
-    recipientEmail && recipientEmail.includes("@") ? recipientEmail : fallbackEmail;
+    recipientEmail && recipientEmail.includes("@")
+      ? recipientEmail
+      : fallbackEmail;
 
   /* ▸ Generate HTML body */
-  const emailUrl           = process.env.FRONTEND_URL;
-  const subject            = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
+  const emailUrl = process.env.FRONTEND_URL;
+  const subject = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
-  const ticketDownloadUrl  = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
-  const bookingData        = booking.final_state?.bookingData || {};
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+  const bookingData = booking.final_state?.bookingData || {};
 
   const message = `
     <div style="font-family:Arial,sans-serif;font-size:15px;color:#333">
@@ -106,17 +104,16 @@ const sendBackupEmail = async (recipientEmail, booking) => {
 
   const mailOptions = {
     from: process.env.EMAIL_BOOKING,
-    to:   toEmail,
-    cc:   process.env.EMAIL_BOOKING,
+    to: toEmail,
+    cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-
   const mailOptionsTitan = {
     from: process.env.EMAIL_BOOKING,
-    to:   toEmail,
-    cc:   process.env.EMAIL_BOOKING,
+    to: toEmail,
+    cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
@@ -133,21 +130,18 @@ const sendBackupEmail = async (recipientEmail, booking) => {
   }
 };
 
-const sendBackupEmailAlways = async ( booking) => {
-
-
-
+const sendBackupEmailAlways = async (booking) => {
   /* ▸ Generate HTML body */
-  const emailUrl           = process.env.FRONTEND_URL;
-  const subject            = `‼️BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
+  const bookingData = booking.final_state?.bookingData || {};
+  const emailUrl = process.env.FRONTEND_URL;
+  const subject = `!!BACKUP TICKET One Way Trip Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
-  const ticketDownloadUrl  = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
-  const bookingData        = booking.final_state?.bookingData || {};
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
 
   const message = `
     <div style="font-family:Arial,sans-serif;font-size:15px;color:#333">
-      <p>Hi ${booking.contact_name},</p>
-      <p>This is a backup email for your booking with Gili&nbsp;Getaway. If you only get this backup email please notify the customer again</p>
+      <p>ATT STAFF</p>
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest with their booking confirmation</p>
 
       <p><strong>Booking Details:</strong></p>
       <ul>
@@ -176,16 +170,15 @@ const sendBackupEmailAlways = async ( booking) => {
   `;
 
   const mailOptionsGmail = {
-    from:  process.env.EMAIL_USER_GMAIG,
-    to:   process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_USER_GMAIG,
+    to: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
-     to:   process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
@@ -202,10 +195,12 @@ const sendBackupEmailAlways = async ( booking) => {
   }
 };
 
-
-
-const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
-    agentEmail) => {
+const sendBackupEmailAgentStaff = async (
+  recipientEmail,
+  booking,
+  agentName,
+  agentEmail
+) => {
   const emailUrl = process.env.FRONTEND_URL;
   const subject = `BACKUP TICKET AGENT BOOKING - ${agentName} - Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
@@ -225,10 +220,10 @@ const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
         <li><strong>Phone:</strong> ${booking.contact_phone}</li>
         <li><strong>Email:</strong> ${booking.contact_email}</li>
            <li><strong>Email:</strong> ${agentName}-${agentEmail}</li>
-        <li><strong>Route:</strong> ${bookingData.from || 'N/A'} - ${bookingData.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingData.from || "N/A"} - ${bookingData.to || "N/A"}</li>
         <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})</li>
-        <li><strong>Amount:</strong> ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}</li>
-        <li><strong>Booking Source:</strong> ${booking.booking_source || 'N/A'}</li>
+        <li><strong>Amount:</strong> ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}</li>
+        <li><strong>Booking Source:</strong> ${booking.booking_source || "N/A"}</li>
         <li><strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}</li>
       </ul>
@@ -258,10 +253,14 @@ const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
 
   await transporterTitan.sendMail(mailOptions);
 };
-const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, secondBooking,agentName,
-    agentEmail) => {
-
-      console.log("firstBooking",firstBooking,secondBooking);
+const sendBackupEmailRoundTripAgentStaff = async (
+  recipientEmail,
+  firstBooking,
+  secondBooking,
+  agentName,
+  agentEmail
+) => {
+  console.log("firstBooking", firstBooking, secondBooking);
   const emailUrl = process.env.FRONTEND_URL;
   const subject = `BACKUP ROUND TRIP TICKET – ${agentName} Gili Getaway ${firstBooking.ticket_id}`;
 
@@ -280,7 +279,7 @@ const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, 
       <ul>
         <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataDeparture.from || 'N/A'} - ${bookingDataDeparture.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataDeparture.from || "N/A"} - ${bookingDataDeparture.to || "N/A"}</li>
         <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
         <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
@@ -290,7 +289,7 @@ const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, 
       <ul>
         <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataReturn.from || 'N/A'} - ${bookingDataReturn.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataReturn.from || "N/A"} - ${bookingDataReturn.to || "N/A"}</li>
         <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
       </ul>
@@ -321,7 +320,11 @@ const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, 
   await transporterTitan.sendMail(mailOptions);
 };
 
-const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBooking) => {
+const sendBackupEmailRoundTrip = async (
+  recipientEmail,
+  firstBooking,
+  secondBooking
+) => {
   const emailUrl = process.env.FRONTEND_URL;
   const subject = `BACKUP ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}`;
 
@@ -340,7 +343,7 @@ const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBook
       <ul>
         <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataDeparture.from || 'N/A'} - ${bookingDataDeparture.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataDeparture.from || "N/A"} - ${bookingDataDeparture.to || "N/A"}</li>
         <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
         <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
@@ -350,7 +353,7 @@ const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBook
       <ul>
         <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataReturn.from || 'N/A'} - ${bookingDataReturn.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataReturn.from || "N/A"} - ${bookingDataReturn.to || "N/A"}</li>
         <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
       </ul>
@@ -382,26 +385,28 @@ const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBook
   await transporter.sendMail(mailOptions);
 };
 
-const sendBackupEmailRoundTripAlways = async ( firstBooking, secondBooking) => {
+const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `‼️BACKUP ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}-${secondBooking.ticket_id}`;
+
+  const bookingDataDeparture = firstBooking.final_state?.bookingData || {};
+  const bookingDataReturn = secondBooking.final_state?.bookingData || {};
+  const subject = `!! Backup  notification Round Trip – Gili Getaway ${firstBooking.ticket_id}-${secondBooking.ticket_id}`;
 
   const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
 
-  const bookingDataDeparture = firstBooking.final_state?.bookingData || {};
-  const bookingDataReturn = secondBooking.final_state?.bookingData || {};
-
   const message = `
     <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
-      <p>Hi ${firstBooking.contact_name},</p>
-      <p>This is a backup email for your <strong>round-trip booking</strong> with Gili Getaway.  If you only get this backup email please notify the customer again</p>
+      <p>ATT STAFF</p>
+ 
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION,
+       please contact the guest with their booking confirmation</p>
 
       <h3 style="color:#165297;">Departure</h3>
       <ul>
         <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataDeparture.from || 'N/A'} - ${bookingDataDeparture.to || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataDeparture.from || "N/A"} - ${bookingDataDeparture.to || "N/A"}</li>
         <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
         <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
@@ -411,7 +416,7 @@ const sendBackupEmailRoundTripAlways = async ( firstBooking, secondBooking) => {
       <ul>
         <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
         <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
-        <li><strong>Route:</strong> ${bookingDataReturn.to || 'N/A'} - ${bookingDataReturn.from || 'N/A'}</li>
+        <li><strong>Route:</strong> ${bookingDataReturn.to || "N/A"} - ${bookingDataReturn.from || "N/A"}</li>
         <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
         <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
       </ul>
@@ -443,14 +448,10 @@ const sendBackupEmailRoundTripAlways = async ( firstBooking, secondBooking) => {
   await transporterTitan.sendMail(mailOptionsTitan);
 };
 
-
 const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   console.log("Starting to send expired booking email to:", recipientEmail);
   const emailUrl = process.env.FRONTEND_URL;
   // const emailUrl = "https://localhost:3000";
-
-
-  
 
   try {
     const subject = " Almost There! Let’s Get You to the Gili Islands ";
@@ -518,7 +519,6 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
     </body>
     </html>
     `;
-    
 
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
@@ -537,10 +537,11 @@ const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   }
 };
 
-
-
-
-const sendPaymentSuccessEmail = async (recipientEmail, booking,pairBooking) => {
+const sendPaymentSuccessEmail = async (
+  recipientEmail,
+  booking,
+  pairBooking
+) => {
   console.log("📤 Sending PAYMENT SUCCESS email to:", recipientEmail);
   const emailUrl = process.env.FRONTEND_URL;
   const year = new Date().getFullYear();
@@ -550,7 +551,7 @@ const sendPaymentSuccessEmail = async (recipientEmail, booking,pairBooking) => {
 
   try {
     const subject = "🎉 Booking Confirmed! You're All Set for Gili ";
-   
+
     const message = `
      <!DOCTYPE html>
     <html lang="en">
@@ -683,7 +684,7 @@ const sendPaymentSuccessEmail = async (recipientEmail, booking,pairBooking) => {
     `;
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER_GMAIL,
         pass: process.env.EMAIL_PASS_GMAIL,
@@ -712,18 +713,18 @@ const sendTicketEmail = async (recipientEmail, booking) => {
   try {
     // Parse data dari final_state
     const finalState = JSON.parse(booking.final_state);
-    
+
     // Format fungsi helper
-    const formatTime = (time) => time?.split(':').slice(0, 2).join(':');
-    
+    const formatTime = (time) => time?.split(":").slice(0, 2).join(":");
+
     const formatDurationToHour = (duration) => {
       const hours = Math.floor(duration / 60);
       const minutes = duration % 60;
-      const formattedHours = hours.toString().padStart(2, '0');
-      const formattedMinutes = minutes.toString().padStart(2, '0');
+      const formattedHours = hours.toString().padStart(2, "0");
+      const formattedMinutes = minutes.toString().padStart(2, "0");
       return `${formattedHours}:${formattedMinutes}`;
     };
-    
+
     // Ekstrak data dari finalState
     const {
       bookingData,
@@ -737,32 +738,32 @@ const sendTicketEmail = async (recipientEmail, booking) => {
       checkinTimereturn,
       passengersAdult = [],
       passengersChild = [],
-      passengerunderthree = []
+      passengerunderthree = [],
     } = finalState;
-    
+
     // Kalkulasi durasi
     const { duration } = transportStatus.pickupDetails;
     const { duration: durationReturn } = transportStatus.dropOffDetails;
     const formattedDuration = formatDurationToHour(duration);
     const formattedDurationReturn = formatDurationToHour(durationReturn);
-    
+
     // Gabungkan semua penumpang
     const allPassengers = [
-      ...passengersAdult.map((p, i) => ({ ...p, type: 'Adult', index: i })),
+      ...passengersAdult.map((p, i) => ({ ...p, type: "Adult", index: i })),
       ...passengersChild.map((p, i) => ({
         ...p,
-        type: 'Child',
-        index: i + passengersAdult.length
+        type: "Child",
+        index: i + passengersAdult.length,
       })),
       ...passengerunderthree.map((p, i) => ({
         ...p,
-        type: 'Under 3',
-        index: i + passengersAdult.length + passengersChild.length
-      }))
-    ].filter(p => p.name !== '');
-    
+        type: "Under 3",
+        index: i + passengersAdult.length + passengersChild.length,
+      })),
+    ].filter((p) => p.name !== "");
+
     // Buat rows untuk tabel penumpang
-    let passengerRows = '';
+    let passengerRows = "";
     allPassengers.forEach((passenger, index) => {
       passengerRows += `
         <tr>
@@ -770,15 +771,18 @@ const sendTicketEmail = async (recipientEmail, booking) => {
           <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.name}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.nationality}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.type}</td>
-          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_departure || '-'}</td>
-          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_return || '-'}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_departure || "-"}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee">${passenger.seat_number_return || "-"}</td>
         </tr>
       `;
     });
-    
+
     // Buat rows untuk journey steps departure
-    let journeyStepsDepartureHtml = '';
-    if (bookingData.journeyStepsDeparture && bookingData.journeyStepsDeparture.length > 0) {
+    let journeyStepsDepartureHtml = "";
+    if (
+      bookingData.journeyStepsDeparture &&
+      bookingData.journeyStepsDeparture.length > 0
+    ) {
       bookingData.journeyStepsDeparture.forEach((step, index) => {
         journeyStepsDepartureHtml += `
           <div style="margin-top: 15px; padding: 15px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1)">
@@ -799,10 +803,13 @@ const sendTicketEmail = async (recipientEmail, booking) => {
         `;
       });
     }
-    
+
     // Buat rows untuk journey steps return
-    let journeyStepsReturnHtml = '';
-    if (bookingData.journeyStepsReturn && bookingData.journeyStepsReturn.length > 0) {
+    let journeyStepsReturnHtml = "";
+    if (
+      bookingData.journeyStepsReturn &&
+      bookingData.journeyStepsReturn.length > 0
+    ) {
       bookingData.journeyStepsReturn.forEach((step, index) => {
         journeyStepsReturnHtml += `
           <div style="margin-top: 15px; padding: 15px; background-color: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1)">
@@ -823,14 +830,14 @@ const sendTicketEmail = async (recipientEmail, booking) => {
         `;
       });
     }
-    
+
     // Buat html untuk transport details
-    let transportDetailsHtml = '';
+    let transportDetailsHtml = "";
     const showTransportDetails = !(
-      transportStatus.pickupDetails.description === 'Own Transport' &&
-      transportStatus.dropOffDetails.description === 'Own Transport'
+      transportStatus.pickupDetails.description === "Own Transport" &&
+      transportStatus.dropOffDetails.description === "Own Transport"
     );
-    
+
     if (showTransportDetails) {
       transportDetailsHtml = `
         <div style="padding: 0 20px 30px">
@@ -838,11 +845,16 @@ const sendTicketEmail = async (recipientEmail, booking) => {
             Transport Details
           </div>
           
-          ${transportStatus.pickupDetails.description && transportStatus.pickupDetails.description !== 'Own Transport' ? `
+          ${
+            transportStatus.pickupDetails.description &&
+            transportStatus.pickupDetails.description !== "Own Transport"
+              ? `
             <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
               PICK UP TIME: ${formatTime(pickupTime)}
             </div>
-          ` : ''}
+          `
+              : ""
+          }
           
           <table style="width: 100%; border-collapse: collapse">
             <thead>
@@ -854,45 +866,53 @@ const sendTicketEmail = async (recipientEmail, booking) => {
               </tr>
             </thead>
             <tbody>
-              ${transportStatus && 
-                transportStatus.pickupDetails && 
-                transportStatus.pickupDetails.transport_type && 
-                transportStatus.pickupDetails.description && 
-                transportStatus.pickupDetails.description !== '' && 
-                transportStatus.pickupDetails.description !== 'Own Transport' ? `
+              ${
+                transportStatus &&
+                transportStatus.pickupDetails &&
+                transportStatus.pickupDetails.transport_type &&
+                transportStatus.pickupDetails.description &&
+                transportStatus.pickupDetails.description !== "" &&
+                transportStatus.pickupDetails.description !== "Own Transport"
+                  ? `
                 <tr>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">Pickup: ${transportStatus.pickupDetails.transport_type}</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.pickupDetails.area}</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${formattedDuration} hours</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.pickupDetails.note}</td>
                 </tr>
-              ` : ''}
+              `
+                  : ""
+              }
               
-              ${transportStatus && 
-                transportStatus.dropOffDetails && 
-                transportStatus.dropOffDetails.transport_type && 
-                transportStatus.dropOffDetails.description && 
-                transportStatus.dropOffDetails.description !== '' && 
-                transportStatus.dropOffDetails.description !== 'Own Transport' ? `
+              ${
+                transportStatus &&
+                transportStatus.dropOffDetails &&
+                transportStatus.dropOffDetails.transport_type &&
+                transportStatus.dropOffDetails.description &&
+                transportStatus.dropOffDetails.description !== "" &&
+                transportStatus.dropOffDetails.description !== "Own Transport"
+                  ? `
                 <tr>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">Drop-off: ${transportStatus.dropOffDetails.transport_type}</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.dropOffDetails.area}</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${formattedDurationReturn} hours</td>
                   <td style="padding: 12px; border-bottom: 1px solid #eee">${transportStatus.dropOffDetails.note}</td>
                 </tr>
-              ` : ''}
+              `
+                  : ""
+              }
             </tbody>
           </table>
         </div>
       `;
     }
-    
+
     // Buat location maps html
-    let locationMapsHtml = '';
+    let locationMapsHtml = "";
     if (bookingData.mapUrlDeparture || bookingData.mapUrlReturn) {
-      let departureMapHtml = '';
-      let returnMapHtml = '';
-      
+      let departureMapHtml = "";
+      let returnMapHtml = "";
+
       if (bookingData.mapUrlDeparture) {
         const [mapLink, imageLink] = bookingData.mapUrlDeparture.split("###");
         departureMapHtml = `
@@ -903,7 +923,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
           </div>
         `;
       }
-      
+
       if (bookingData.mapUrlReturn) {
         const [mapLink, imageLink] = bookingData.mapUrlReturn.split("###");
         returnMapHtml = `
@@ -914,7 +934,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
           </div>
         `;
       }
-      
+
       locationMapsHtml = `
         <div style="padding: 0 20px 30px">
           <div style="font-size: 20px; font-weight: bold; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px">
@@ -925,7 +945,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
         </div>
       `;
     }
-    
+
     // Generate HTML template
     const htmlTemplate = `
       <!DOCTYPE html>
@@ -953,11 +973,15 @@ const sendTicketEmail = async (recipientEmail, booking) => {
                       <div style="color: white; font-size: 24px; font-weight: bold; margin-bottom: 5px">
                         #${order_Id}
                       </div>
-                      ${order_return_Id ? `
+                      ${
+                        order_return_Id
+                          ? `
                         <div style="color: white; font-size: 24px; font-weight: bold; margin-bottom: 5px">
                           #${order_return_Id}
                         </div>
-                      ` : ''}
+                      `
+                          : ""
+                      }
                       <div style="color: white">${tripType}</div>
                     </div>
                   </td>
@@ -1008,7 +1032,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
               <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px">
                 <div style="font-size: 18px; margin-bottom: 15px">
                   ${bookingData.from} / ${bookingData.to}
-                  ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(bookingData.departureDate))} (${bookingData.boatName})
+                  ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(bookingData.departureDate))} (${bookingData.boatName})
                 </div>
                 <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
                   CHECK IN TIME: ${formatTime(checkinTimedeparture)}
@@ -1029,7 +1053,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
               <div style="background-color: #f8f9fa; padding: 20px; border-radius: 4px">
                 <div style="font-size: 18px; margin-bottom: 15px">
                   ${bookingData.to} / ${bookingData.from}
-                  ${new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(bookingData.returnDate))} (${bookingData.boatNameReturn})
+                  ${new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(bookingData.returnDate))} (${bookingData.boatNameReturn})
                 </div>
                 <div style="color: #2563eb; font-weight: bold; margin-bottom: 15px">
                   CHECK IN TIME: ${formatTime(checkinTimereturn)}
@@ -1131,7 +1155,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
         </body>
       </html>
     `;
-    
+
     // Konfigurasi email
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
@@ -1139,7 +1163,7 @@ const sendTicketEmail = async (recipientEmail, booking) => {
       subject: `Your E-Ticket for Gili Getaway - Order #${order_Id}`,
       html: htmlTemplate,
     };
-    
+
     // Kirim email
     await transporter.sendMail(mailOptions);
     console.log(`📧 E-ticket email sent to ${recipientEmail}`);
@@ -1151,7 +1175,11 @@ const sendTicketEmail = async (recipientEmail, booking) => {
   }
 };
 
-const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBooking) => {
+const sendPaymentSuccessEmailRoundTrip = async (
+  recipientEmail,
+  booking,
+  pairBooking
+) => {
   console.log("📤 Sending PAYMENT SUCCESS email to:", recipientEmail);
   const emailUrl = process.env.FRONTEND_URL;
   const year = new Date().getFullYear();
@@ -1161,7 +1189,7 @@ const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBook
 
   try {
     const subject = "🎉 Booking Confirmed! You're All Set for Gili ";
-   
+
     const message = `
      <!DOCTYPE html>
     <html lang="en">
@@ -1317,8 +1345,6 @@ const sendPaymentSuccessEmailRoundTrip = async (recipientEmail, booking,pairBook
   }
 };
 
-
-
 const sendPaymentEmail = async (
   recipientEmail,
   booking,
@@ -1355,7 +1381,10 @@ const sendPaymentEmail = async (
         paymentStatus === "refund_50"
           ? "Partial Refund Processed"
           : "Full Refund Processed";
-    } else if (paymentStatus === "cancelled" ||paymentStatus === "cancel_100_charge") {
+    } else if (
+      paymentStatus === "cancelled" ||
+      paymentStatus === "cancel_100_charge"
+    ) {
       statusColor = "#757575"; // Grey for cancelled
       statusIcon = "🚫";
       statusMessage = "Booking Cancelled";
@@ -1487,8 +1516,8 @@ const sendPaymentEmail = async (
             <p>If you have any questions, please don't hesitate to contact our support team.</p>
             
             <a href="${emailUrl}/check-invoice/${
-      booking.ticket_id
-    }" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Booking Details</a>
+              booking.ticket_id
+            }" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Booking Details</a>
             
             <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
               <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
@@ -1502,7 +1531,7 @@ const sendPaymentEmail = async (
 
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
-      cc:process.env.EMAIL_BOOKING,
+      cc: process.env.EMAIL_BOOKING,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -1551,7 +1580,10 @@ const sendPaymentEmailAgent = async (
         paymentStatus === "refund_50"
           ? "Partial Refund Processed"
           : "Full Refund Processed";
-    } else if (paymentStatus === "cancelled" ||paymentStatus === "cancel_100_charge") {
+    } else if (
+      paymentStatus === "cancelled" ||
+      paymentStatus === "cancel_100_charge"
+    ) {
       statusColor = "#757575"; // Grey for cancelled
       statusIcon = "🚫";
       statusMessage = "Booking Cancelled";
@@ -1668,8 +1700,8 @@ const sendPaymentEmailAgent = async (
             <p>If you have any questions, please don't hesitate to contact our support team.</p>
             
             <a href="${emailUrl}/check-invoice/${
-      booking.ticket_id
-    }" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Booking Details</a>
+              booking.ticket_id
+            }" style="display: inline-block; padding: 10px 20px; margin: 15px 0; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">View Booking Details</a>
             
             <div style="margin-top: 20px; text-align: center; padding: 15px; font-size: 12px; color: #777; border-top: 1px solid #eee;">
               <p style="margin-bottom: 5px;">© ${new Date().getFullYear()} Your Company Name</p>
@@ -1683,7 +1715,7 @@ const sendPaymentEmailAgent = async (
 
     const mailOptions = {
       from: process.env.EMAIL_AGENT,
-      cc:process.env.EMAIL_AGENT,
+      cc: process.env.EMAIL_AGENT,
       to: recipientEmail,
       subject: subject,
       html: message,
@@ -2006,7 +2038,7 @@ const sendEmailNotification = async (
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
       to: recipients,
-      cc:process.env.EMAIL_BOOKING,
+      cc: process.env.EMAIL_BOOKING,
       subject: "Departure Date Updated",
       html: message,
     };
@@ -2094,7 +2126,7 @@ const sendEmailNotificationAgentDateChange = async (
     const mailOptions = {
       from: process.env.EMAIL_AGENT,
       to: recipients,
-      cc:process.env.EMAIL_AGENT,
+      cc: process.env.EMAIL_AGENT,
       subject: "Departure Date Updated",
       html: message,
     };
@@ -2105,8 +2137,6 @@ const sendEmailNotificationAgentDateChange = async (
     console.error("❌ Failed to send email notification:", error);
   }
 };
-
-
 
 /**
  * Function to send payment reminder email to customer
@@ -2186,8 +2216,8 @@ const sendUnpaidReminderEmail = async (
         
         <div style="text-align: center; margin: 25px 0;">
           <a href="${emailUrl}/follow-up-payment/${
-      booking.ticket_id
-    }" style="background-color: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            booking.ticket_id
+          }" style="background-color: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
             Complete Payment Now
           </a>
         </div>
@@ -2197,10 +2227,10 @@ const sendUnpaidReminderEmail = async (
         <p>If you are experiencing difficulties with the payment process, please contact our support team.</p>
         
         <p>You can also view your invoice details <a href="${emailUrl}/check-invoice/${
-      booking.ticket_id
-    }">here</a> and your ticket details <a href="${emailUrl}/check-ticket-page/${
-      booking.ticket_id
-    }">here</a>.</p>
+          booking.ticket_id
+        }">here</a> and your ticket details <a href="${emailUrl}/check-ticket-page/${
+          booking.ticket_id
+        }">here</a>.</p>
         
         <p>Thank you for your attention.</p>
         
@@ -2306,8 +2336,8 @@ const sendUnpaidReminderEmailToAgent = async (
         
         <div style="text-align: center; margin: 25px 0;">
           <a href="${emailUrl}/check-invoice/${
-      booking.ticket_id
-    }" style="background-color: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            booking.ticket_id
+          }" style="background-color: #4CAF50; color: white; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
             View Invoice
           </a>
         </div>
@@ -2315,10 +2345,10 @@ const sendUnpaidReminderEmailToAgent = async (
         <p>A reminder email has also been sent to your client.</p>
         
         <p>You can view the invoice details <a href="${emailUrl}/check-invoice/${
-      booking.ticket_id
-    }">here</a> and ticket details <a href="${emailUrl}/check-ticket-page/${
-      booking.ticket_id
-    }">here</a>.</p>
+          booking.ticket_id
+        }">here</a> and ticket details <a href="${emailUrl}/check-ticket-page/${
+          booking.ticket_id
+        }">here</a>.</p>
         
         <p>Thank you for your cooperation.</p>
         
@@ -2355,10 +2385,10 @@ const sendUnpaidReminderEmailToAgent = async (
 const sendCancellationEmail = async (customerEmail, booking) => {
   console.log(`Sending cancellation email to customer ${customerEmail}`);
   const emailUrl = process.env.FRONTEND_URL;
-  
+
   try {
     const subject = "Your Booking Has Been Canceled - Payment Not Received";
-    
+
     // Create email message
     let message = `
       <!DOCTYPE html>
@@ -2391,11 +2421,14 @@ const sendCancellationEmail = async (customerEmail, booking) => {
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
               <h3 style="margin-top: 0; color: #165297;">Booking Details:</h3>
               <p><strong>Ticket ID:</strong> ${booking.ticket_id}</p>
-              <p><strong>Departure Date:</strong> ${new Intl.DateTimeFormat("en-GB", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              }).format(new Date(booking.booking_date))}</p>
+              <p><strong>Departure Date:</strong> ${new Intl.DateTimeFormat(
+                "en-GB",
+                {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }
+              ).format(new Date(booking.booking_date))}</p>
               <p><strong>Booking Date:</strong> ${new Intl.DateTimeFormat(
                 "en-GB",
                 { day: "2-digit", month: "long", year: "numeric" }
@@ -2423,7 +2456,7 @@ const sendCancellationEmail = async (customerEmail, booking) => {
       </body>
       </html>
     `;
-    
+
     const mailOptions = {
       from: `Gili Getaway <${process.env.EMAIL_BOOKING}>`,
       to: customerEmail,
@@ -2431,9 +2464,11 @@ const sendCancellationEmail = async (customerEmail, booking) => {
       subject: subject,
       html: message,
     };
-    
+
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Cancellation email successfully sent to customer ${customerEmail}`);
+    console.log(
+      `✅ Cancellation email successfully sent to customer ${customerEmail}`
+    );
     return true;
   } catch (error) {
     console.error("❌ Failed to send cancellation email to customer:", error);
@@ -2540,7 +2575,7 @@ const sendWaitingListConfirmationEmail = async (
     const routeInfo = follow_up_notes;
 
     const mailOptions = {
-      from:  process.env.EMAIL_BOOKING,
+      from: process.env.EMAIL_BOOKING,
       cc: "booking@giligetaway.site",
       to: email,
       subject: "Your Waiting List Confirmation",
@@ -2588,8 +2623,6 @@ const sendWaitingListConfirmationEmail = async (
   }
 };
 
-
-
 // Function to send notification email to admin
 const sendAdminNotificationEmail = async (
   transporter,
@@ -2604,7 +2637,7 @@ const sendAdminNotificationEmail = async (
     const adminEmail = "bookings@giligetaway.com";
 
     const mailOptions = {
-      from:  process.env.EMAIL_BOOKING,
+      from: process.env.EMAIL_BOOKING,
       to: adminEmail,
       cc: "booking@giligetaway.site",
       subject: "New Waiting List Entry",
@@ -2670,6 +2703,6 @@ module.exports = {
   sendBackupEmailRoundTrip,
   sendBackupEmailAgentStaff,
   sendBackupEmailAlways,
-   sendBackupEmailRoundTripAgentStaff,sendBackupEmailRoundTripAlways
-   
+  sendBackupEmailRoundTripAgentStaff,
+  sendBackupEmailRoundTripAlways,
 };
