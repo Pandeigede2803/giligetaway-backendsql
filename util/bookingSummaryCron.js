@@ -34,32 +34,33 @@ const getYesterdayPaidBookings = async () => {
     const paidBookings = await Booking.findAll({
       where: {
         payment_status: {
-          [Op.in]: ["paid", "invoiced"]
+          [Op.in]: ["paid", "invoiced"],
         },
         created_at: {
           [Op.gte]: yesterday.toDate(),
           [Op.lt]: today.toDate(),
         },
         booking_source: {
-          [Op.in]: ['website', 'agent', 'staff'] // Only include website and agent bookings
-        }
+          [Op.in]: ["website", "agent", "staff"], // Only include website and agent bookings
+        },
       },
       attributes: [
-        'id', 
-        'contact_name', 
-        'contact_phone', 
-        'contact_email',
-        'gross_total',
-        'currency',
-        'total_passengers',
-        'adult_passengers',
-        'child_passengers',
-        'infant_passengers',
-        'booking_source',
-        'booking_date',
-        'ticket_id',
-        'created_at',
-        'final_state',"booked_by" // Include booked_by field
+        "id",
+        "contact_name",
+        "contact_phone",
+        "contact_email",
+        "gross_total",
+        "currency",
+        "total_passengers",
+        "adult_passengers",
+        "child_passengers",
+        "infant_passengers",
+        "booking_source",
+        "booking_date",
+        "ticket_id",
+        "created_at",
+        "final_state",
+        "booked_by", // Include booked_by field
       ],
       order: [["created_at", "ASC"]],
     });
@@ -81,22 +82,28 @@ const formatBookingsToHtmlTable = (bookings) => {
     return "No paid bookings were created yesterday.";
   }
 
-  const totalAmount = bookings.reduce((sum, booking) => sum + parseFloat(booking.gross_total), 0);
+  const totalAmount = bookings.reduce(
+    (sum, booking) => sum + parseFloat(booking.gross_total),
+    0
+  );
   const totalBookings = bookings.length;
-  const totalPassengers = bookings.reduce((sum, booking) => sum + booking.total_passengers, 0);
-  
+  const totalPassengers = bookings.reduce(
+    (sum, booking) => sum + booking.total_passengers,
+    0
+  );
+
   // Format date for the summary
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
-  
+
   // Create summary text
   let emailText = `TESTING DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
   emailText += `SUMMARY:\n`;
   emailText += `Total Bookings: ${totalBookings}\n`;
   emailText += `Total Passengers: ${totalPassengers}\n`;
-  emailText += `Total Revenue: ${totalAmount.toLocaleString()} ${bookings[0].currency || 'IDR'}\n\n`;
-  
+  emailText += `Total Revenue: ${totalAmount.toLocaleString()} ${bookings[0].currency || "IDR"}\n\n`;
+
   emailText += `BOOKING DETAILS:\n\n`;
-  
+
   // Add each booking as a simple text entry
   bookings.forEach((booking, index) => {
     emailText += `${index + 1}. Booking ID: ${booking.id}\n`;
@@ -105,12 +112,12 @@ const formatBookingsToHtmlTable = (bookings) => {
     emailText += `   Phone: ${booking.contact_phone}\n`;
     emailText += `   Email: ${booking.contact_email}\n`;
     emailText += `   Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})\n`;
-    emailText += `   Amount: ${parseFloat(booking.gross_total).toLocaleString()} ${booking.currency || 'IDR'}\n`;
-    emailText += `   Booking Source: ${booking.booking_source || 'N/A'}\n`;
+    emailText += `   Amount: ${parseFloat(booking.gross_total).toLocaleString()} ${booking.currency || "IDR"}\n`;
+    emailText += `   Booking Source: ${booking.booking_source || "N/A"}\n`;
     emailText += `   Booking Date: ${moment(booking.booking_date).format("MMM D, YYYY")}\n`;
     emailText += `   Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}\n\n`;
   });
-  
+
   return emailText;
 };
 
@@ -123,19 +130,18 @@ const formatBookingsToHtmlTable = (bookings) => {
 //   const totalBookings = bookings.length;
 //   const totalPassengers = bookings.reduce((sum, booking) => sum + (booking.total_passengers || 0), 0);
 
-  
 //   // Format date for the summary
 //   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
-  
+
 //   // Create summary text
 //   let emailText = `DAILY BOOKING SUMMARY - ${yesterdayDate}\n\n`;
 //   emailText += `SUMMARY:\n`;
 //   emailText += `Total Bookings: ${totalBookings}\n`;
 //   emailText += `Total Passengers: ${totalPassengers}\n`;
 //   emailText += `Total Revenue: ${totalAmount.toLocaleString()} ${bookings[0]?.currency || 'IDR'}\n\n`;
-  
+
 //   emailText += `BOOKING DETAILS:\n\n`;
-  
+
 //   // Add each booking as a simple text entry
 //   bookings.forEach((booking, index) => {
 //     emailText += `${index + 1}. Booking ID: ${booking.id}\n`;
@@ -153,7 +159,7 @@ const formatBookingsToHtmlTable = (bookings) => {
 //     // add link for giligetaway-widget/check-ticket/${ticket_id}
 //     emailText += `   Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}\n\n`;
 //   });
-  
+
 //   return emailText;
 // };
 
@@ -169,15 +175,15 @@ const formatBookingsToHTML = (bookings) => {
   }
 
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
-  
+
   const grouped = {
     website: [],
     agent: [],
-    staff: []
+    staff: [],
   };
 
   bookings.forEach((b) => {
-    const source = b.booking_source || 'unknown';
+    const source = b.booking_source || "unknown";
     if (grouped[source]) {
       grouped[source].push(b);
     }
@@ -199,27 +205,33 @@ const formatBookingsToHTML = (bookings) => {
   for (const [source, entries] of Object.entries(grouped)) {
     if (entries.length === 0) continue;
 
-    const totalAmount = entries.reduce((sum, b) => sum + parseFloat(b.gross_total || 0), 0);
+    const totalAmount = entries.reduce(
+      (sum, b) => sum + parseFloat(b.gross_total || 0),
+      0
+    );
     const totalBookings = entries.length;
-    const totalPassengers = entries.reduce((sum, b) => sum + (b.total_passengers || 0), 0);
+    const totalPassengers = entries.reduce(
+      (sum, b) => sum + (b.total_passengers || 0),
+      0
+    );
 
     // Source section header
     const sourceColors = {
-      website: '#28a745',
-      agent: '#007bff', 
-      staff: '#ffc107'
+      website: "#28a745",
+      agent: "#007bff",
+      staff: "#ffc107",
     };
-    
+
     const sourceIcons = {
-      website: '🌐',
-      agent: '👥',
-      staff: '👨‍💼'
+      website: "🌐",
+      agent: "👥",
+      staff: "👨‍💼",
     };
 
     htmlContent += `
       <div style="margin-bottom: 32px;">
-        <div style="background-color: ${sourceColors[source] || '#6c757d'}; color: white; padding: 16px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 18px;">${sourceIcons[source] || '📋'}</span>
+        <div style="background-color: ${sourceColors[source] || "#6c757d"}; color: white; padding: 16px; border-radius: 8px 8px 0 0; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">${sourceIcons[source] || "📋"}</span>
           <h2 style="margin: 0; font-size: 18px; font-weight: 600;">${source.toUpperCase()} BOOKINGS</h2>
         </div>
         
@@ -235,7 +247,7 @@ const formatBookingsToHTML = (bookings) => {
           </div>
           <div>
             <div style="font-size: 24px; font-weight: bold; color: #28a745;">${totalAmount.toLocaleString()}</div>
-            <div style="font-size: 14px; color: #6c757d;">${entries[0]?.currency || 'IDR'}</div>
+            <div style="font-size: 14px; color: #6c757d;">${entries[0]?.currency || "IDR"}</div>
           </div>
         </div>
         
@@ -245,13 +257,13 @@ const formatBookingsToHTML = (bookings) => {
 
     entries.forEach((booking, index) => {
       htmlContent += `
-        <div style="padding: 20px; border-bottom: ${index === entries.length - 1 ? 'none' : '1px solid #e9ecef'};">
+        <div style="padding: 20px; border-bottom: ${index === entries.length - 1 ? "none" : "1px solid #e9ecef"};">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div style="background-color: #e9ecef; color: #495057; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500;">
               #${index + 1}
             </div>
             <div style="font-size: 18px; font-weight: bold; color: #28a745;">
-              ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}
+              ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}
             </div>
           </div>
           
@@ -261,7 +273,7 @@ const formatBookingsToHTML = (bookings) => {
               <div style="font-size: 14px; color: #495057; line-height: 1.5;">
                 <strong>ID:</strong> ${booking.id}<br>
                 <strong>Ticket:</strong> ${booking.ticket_id}<br>
-                <strong>Source:</strong> ${booking.booking_source || 'N/A'}
+                <strong>Source:</strong> ${booking.booking_source || "N/A"}
               </div>
             </div>
             
@@ -277,7 +289,7 @@ const formatBookingsToHTML = (bookings) => {
             <div>
               <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Travel Details</div>
               <div style="font-size: 14px; color: #495057; line-height: 1.5;">
-                <strong>Route:</strong> ${booking.final_state.bookingData?.from || 'N/A'} → ${booking.final_state.bookingData?.to || 'N/A'}<br>
+                <strong>Route:</strong> ${booking.final_state.bookingData?.from || "N/A"} → ${booking.final_state.bookingData?.to || "N/A"}<br>
                 <strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}<br>
                 <strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
               </div>
@@ -325,195 +337,200 @@ const formatBookingsToText = (bookings) => {
 
   const yesterdayDate = moment().subtract(1, "days").format("MMMM D, YYYY");
   let emailText = `
-╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                        📊 DAILY BOOKING SUMMARY                                                   ║
-║                                              ${yesterdayDate}                                                    ║
-╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+                                        📊 DAILY BOOKING SUMMARY                                                   
+                                            ${yesterdayDate}                                                    
+
 
 `;
 
   const grouped = {
     website: [],
     agent: [],
-    staff: []
+    staff: [],
   };
 
   bookings.forEach((b) => {
-    const source = b.booking_source || 'unknown';
+    const source = b.booking_source || "unknown";
     if (grouped[source]) {
       grouped[source].push(b);
     }
   });
   // console log the first booking
-  console.log("First booking for debugging:", bookings[0].final_state.bookingData);
+  console.log(
+    "First booking for debugging:",
+    bookings[0].final_state.bookingData
+  );
 
-//   {
-//     "note": "",
-//     "agentId": "",
-//     "bank_fee": 32000,
-//     "bookedBy": "",
-//     "order_Id": "GG-OW-104157",
-//     "tripType": "One Way Trip",
-//     "pickupTime": "08:15",
-//     "bookingData": {
-//         "id": 113,
-//         "to": "Gili Trawangan",
-//         "from": "Serangan, Bali",
-//         "toId": 2,
-//         "price": "800000.00",
-//         "fromId": 8,
-//         "transit": 1,
-//         "boatName": "Giligetaway 3",
-//         "imageUrl": "https://ik.imagekit.io/m1akscp5q/SERANGAN-NUSA_PENIDA_-_GILI_TRAWANGAN_VKWR9msbz.png",
-//         "toMapUrl": "https://maps.app.goo.gl/qy2kNeurQntdFwNb9###https://ik.imagekit.io/m1akscp5q/gili%20trawangan%20endpoint?updatedAt=1732686816086",
-//         "travelers": 2,
-//         "fromMapUrl": "https://maps.app.goo.gl/cQ3CQS5888yi9bU7A###https://ik.imagekit.io/m1akscp5q/port%20images/serangan.webp?updatedAt=1738230642741",
-//         "isHydrated": false,
-//         "returnDate": "",
-//         "scheduleId": 60,
-//         "totalPrice": 1600000,
-//         "checkinTime": "08:15:00",
-//         "journeySteps": [
-//             {
-//                 "arrived": "Nusa Penida",
-//                 "duration": "01:00:00",
-//                 "departure": "Serangan, Bali",
-//                 "checkInTime": "08:15:00",
-//                 "timearrived": "10:00:00",
-//                 "departuretime": "09:00:00"
-//             },
-//             {
-//                 "arrived": "Gili Trawangan",
-//                 "duration": "01:45:00",
-//                 "departure": "Nusa Penida",
-//                 "checkInTime": "08:30:00",
-//                 "timearrived": "11:45:00",
-//                 "departuretime": "10:00:00"
-//             }
-//         ],
-//         "totalPayment": 1600000,
-//         "departureDate": "19 Jul, 2025",
-//         "selectedSeats": [
-//             "C4",
-//             "C3"
-//         ],
-//         "subScheduleId": 113,
-//         "totalTravelers": 2,
-//         "travelersAdult": 2,
-//         "travelersChild": 0,
-//         "selectedServiceId": 0,
-//         "travelersunderthree": 0
-//     },
-//     "checkinTime": null,
-//     "gross_amount": 1632000,
-//     "orderDetails": {
-//         "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
-//         "email": "melissa.maffei@hotmail.com",
-//         "phone": "6282221644539",
-//         "passportId": "18DI56930",
-//         "nationality": "France"
-//     },
-//     "paymentMethod": "Doku",
-//     "booking_source": "website",
-//     "passengersAdult": [
-//         {
-//             "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
-//             "passportId": "18DI56930",
-//             "nationality": "France",
-//             "seat_number": "C3"
-//         },
-//         {
-//             "name": "Leo PADROUTTE",
-//             "passportId": "",
-//             "nationality": "France",
-//             "seat_number": "C4"
-//         }
-//     ],
-//     "passengersChild": [],
-//     "transportStatus": {
-//         "pickupDetails": {
-//             "area": "",
-//             "note": "",
-//             "type": "",
-//             "price": 0,
-//             "duration": 0,
-//             "quantity": 1,
-//             "basePrice": 0,
-//             "PickupArea": "",
-//             "description": "Provide Transport Details Later",
-//             "transport_id": 126,
-//             "interval_time": 0,
-//             "transport_type": "pickup"
-//         },
-//         "dropOffDetails": {
-//             "area": "",
-//             "note": "",
-//             "type": "",
-//             "price": 0,
-//             "duration": 0,
-//             "quantity": 0,
-//             "basePrice": 0,
-//             "PickupArea": "",
-//             "description": "",
-//             "transport_id": "",
-//             "interval_time": 0,
-//             "transport_type": "dropoff"
-//         }
-//     },
-//     "gross_total_in_usd": 99.55,
-//     "passengerunderthree": []
-// }
+  //   {
+  //     "note": "",
+  //     "agentId": "",
+  //     "bank_fee": 32000,
+  //     "bookedBy": "",
+  //     "order_Id": "GG-OW-104157",
+  //     "tripType": "One Way Trip",
+  //     "pickupTime": "08:15",
+  //     "bookingData": {
+  //         "id": 113,
+  //         "to": "Gili Trawangan",
+  //         "from": "Serangan, Bali",
+  //         "toId": 2,
+  //         "price": "800000.00",
+  //         "fromId": 8,
+  //         "transit": 1,
+  //         "boatName": "Giligetaway 3",
+  //         "imageUrl": "https://ik.imagekit.io/m1akscp5q/SERANGAN-NUSA_PENIDA_-_GILI_TRAWANGAN_VKWR9msbz.png",
+  //         "toMapUrl": "https://maps.app.goo.gl/qy2kNeurQntdFwNb9###https://ik.imagekit.io/m1akscp5q/gili%20trawangan%20endpoint?updatedAt=1732686816086",
+  //         "travelers": 2,
+  //         "fromMapUrl": "https://maps.app.goo.gl/cQ3CQS5888yi9bU7A###https://ik.imagekit.io/m1akscp5q/port%20images/serangan.webp?updatedAt=1738230642741",
+  //         "isHydrated": false,
+  //         "returnDate": "",
+  //         "scheduleId": 60,
+  //         "totalPrice": 1600000,
+  //         "checkinTime": "08:15:00",
+  //         "journeySteps": [
+  //             {
+  //                 "arrived": "Nusa Penida",
+  //                 "duration": "01:00:00",
+  //                 "departure": "Serangan, Bali",
+  //                 "checkInTime": "08:15:00",
+  //                 "timearrived": "10:00:00",
+  //                 "departuretime": "09:00:00"
+  //             },
+  //             {
+  //                 "arrived": "Gili Trawangan",
+  //                 "duration": "01:45:00",
+  //                 "departure": "Nusa Penida",
+  //                 "checkInTime": "08:30:00",
+  //                 "timearrived": "11:45:00",
+  //                 "departuretime": "10:00:00"
+  //             }
+  //         ],
+  //         "totalPayment": 1600000,
+  //         "departureDate": "19 Jul, 2025",
+  //         "selectedSeats": [
+  //             "C4",
+  //             "C3"
+  //         ],
+  //         "subScheduleId": 113,
+  //         "totalTravelers": 2,
+  //         "travelersAdult": 2,
+  //         "travelersChild": 0,
+  //         "selectedServiceId": 0,
+  //         "travelersunderthree": 0
+  //     },
+  //     "checkinTime": null,
+  //     "gross_amount": 1632000,
+  //     "orderDetails": {
+  //         "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
+  //         "email": "melissa.maffei@hotmail.com",
+  //         "phone": "6282221644539",
+  //         "passportId": "18DI56930",
+  //         "nationality": "France"
+  //     },
+  //     "paymentMethod": "Doku",
+  //     "booking_source": "website",
+  //     "passengersAdult": [
+  //         {
+  //             "name": "Melissa MAFFEI USAGE MAFFEI-ANDERSON",
+  //             "passportId": "18DI56930",
+  //             "nationality": "France",
+  //             "seat_number": "C3"
+  //         },
+  //         {
+  //             "name": "Leo PADROUTTE",
+  //             "passportId": "",
+  //             "nationality": "France",
+  //             "seat_number": "C4"
+  //         }
+  //     ],
+  //     "passengersChild": [],
+  //     "transportStatus": {
+  //         "pickupDetails": {
+  //             "area": "",
+  //             "note": "",
+  //             "type": "",
+  //             "price": 0,
+  //             "duration": 0,
+  //             "quantity": 1,
+  //             "basePrice": 0,
+  //             "PickupArea": "",
+  //             "description": "Provide Transport Details Later",
+  //             "transport_id": 126,
+  //             "interval_time": 0,
+  //             "transport_type": "pickup"
+  //         },
+  //         "dropOffDetails": {
+  //             "area": "",
+  //             "note": "",
+  //             "type": "",
+  //             "price": 0,
+  //             "duration": 0,
+  //             "quantity": 0,
+  //             "basePrice": 0,
+  //             "PickupArea": "",
+  //             "description": "",
+  //             "transport_id": "",
+  //             "interval_time": 0,
+  //             "transport_type": "dropoff"
+  //         }
+  //     },
+  //     "gross_total_in_usd": 99.55,
+  //     "passengerunderthree": []
+  // }
 
   const sourceIcons = {
-    website: '🌐',
-    agent: '👥',
-    staff: '👨‍💼'
+    website: "🌐",
+    agent: "👥",
+    staff: "👨‍💼",
   };
 
   for (const [source, entries] of Object.entries(grouped)) {
     if (entries.length === 0) continue;
 
-    const totalAmount = entries.reduce((sum, b) => sum + parseFloat(b.gross_total || 0), 0);
+    const totalAmount = entries.reduce(
+      (sum, b) => sum + parseFloat(b.gross_total || 0),
+      0
+    );
     const totalBookings = entries.length;
-    const totalPassengers = entries.reduce((sum, b) => sum + (b.total_passengers || 0), 0);
+    const totalPassengers = entries.reduce(
+      (sum, b) => sum + (b.total_passengers || 0),
+      0
+    );
 
     emailText += `
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ${sourceIcons[source] || '📋'} ${source.toUpperCase()} BOOKINGS                                                                                      │
-├─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 📊 SUMMARY: ${totalBookings} Bookings | ${totalPassengers} Passengers | ${totalAmount.toLocaleString()} ${entries[0]?.currency || 'IDR'}                     │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+${sourceIcons[source] || "📋"} ${source.toUpperCase()} BOOKINGS                                                                                   
+📊 SUMMARY: ${totalBookings} Bookings | ${totalPassengers} Passengers | ${totalAmount.toLocaleString()} ${entries[0]?.currency || "IDR"}                    
+
 
 `;
 
     entries.forEach((booking, index) => {
       emailText += `
 📌 BOOKING #${index + 1}
-─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
 🆔 Booking ID: ${booking.id}
 🎫 Ticket ID: ${booking.ticket_id}
 👤 Contact: ${booking.contact_name}
 📞 Phone: ${booking.contact_phone}
 👨🏻‍🚀 booking by : ${booking.booked_by}
 📧 Email: ${booking.contact_email}
-🛣️  Route: ${booking.final_state.bookingData?.from || 'N/A'} → ${booking.final_state.bookingData?.to || 'N/A'}
+🛣️  Route: ${booking.final_state.bookingData?.from || "N/A"} → ${booking.final_state.bookingData?.to || "N/A"}
 👥 Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})
-💰 Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || 'IDR'}
-📍 Source: ${booking.booking_source || 'N/A'}
+💰 Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}
+📍 Source: ${booking.booking_source || "N/A"}
 📅 Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}
 🕐 Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
 🔗 Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}
 🚗 Transport Details:
-   Pickup Area: ${booking.final_state.transportStatus.pickupDetails.area || '-'}
-     Pickup Note: ${booking.final_state.transportStatus.pickupDetails.note|| '-'}
-    Pickup description: ${booking.final_state.transportStatus.pickupDetails.description || '-'}
-
-   Pickup Price: ${booking.final_state.transportStatus.pickupDetails.price || '-'}
-   Dropoff Area: ${booking.final_state.transportStatus.dropOffDetails.area || '-'}
-      Dropoff Note: ${booking.final_state.transportStatus.dropOffDetails.note || '-'}
-
-   Dropoff description: ${booking.final_state.transportStatus.dropOffDetails.description || '-'}
-   Dropoff Price: ${booking.final_state.transportStatus.dropOffDetails.price || '-'}
+   Pickup Area: ${booking.final_state.transportStatus.pickupDetails.area || "-"}
+   Pickup Note: ${booking.final_state.transportStatus.pickupDetails.note || "-"}
+   Pickup description: ${booking.final_state.transportStatus.pickupDetails.description || "-"}
+   Pickup Price: ${booking.final_state.transportStatus.pickupDetails.price || "-"}
+   Dropoff Area: ${booking.final_state.transportStatus.dropOffDetails.area || "-"}
+   Dropoff Note: ${booking.final_state.transportStatus.dropOffDetails.note || "-"}
+   Dropoff description: ${booking.final_state.transportStatus.dropOffDetails.description || "-"}
+   Dropoff Price: ${booking.final_state.transportStatus.dropOffDetails.price || "-"}
 
 `;
     });
@@ -536,32 +553,39 @@ const testHour = testTime.getHours();
 const testCronSchedule = `${testMinute} ${testHour} * * *`;
 const sendDailyBookingSummary = async () => {
   console.log("📊 Preparing daily booking summary email...");
-  
+
   try {
     // Mengambil data booking
     const paidBookings = await getYesterdayPaidBookings();
-    console.log(`📋 Found ${paidBookings.length} paid bookings from website and agent sources for yesterday.`);
-    
+    console.log(
+      `📋 Found ${paidBookings.length} paid bookings from website and agent sources for yesterday.`
+    );
+
     // Jika tidak ada booking, bisa skip atau tetap kirim email kosong
-    if (paidBookings.length === 0 && process.env.SEND_EMPTY_SUMMARY !== 'true') {
+    if (
+      paidBookings.length === 0 &&
+      process.env.SEND_EMPTY_SUMMARY !== "true"
+    ) {
       console.log("📭 No paid bookings found for yesterday, skipping email.");
       return;
     }
-    
+
     const yesterdayDate = moment().subtract(1, "days").format("MMM D, YYYY");
     const emailSubject = `Daily Booking Summary (${yesterdayDate})`;
-    
+
     // Mengambil email penerima dari environment
     const recipientEmail = process.env.EMAIL_BOOKING;
-      
+
     if (!recipientEmail) {
-      console.warn("⚠️ No recipient email configured in EMAIL_BOOKING. Add it in your .env file.");
+      console.warn(
+        "⚠️ No recipient email configured in EMAIL_BOOKING. Add it in your .env file."
+      );
       return;
     }
-    
+
     // Format email content
     const textContent = formatBookingsToText(paidBookings);
-    
+
     // Kirim email
     const info = await transporter.sendMail({
       from: `"Booking System" <${process.env.EMAIL_BOOKING}>`,
@@ -569,8 +593,10 @@ const sendDailyBookingSummary = async () => {
       subject: emailSubject,
       text: textContent, // Using plain text instead of HTML
     });
-    
-    console.log(`📧 Daily booking summary email sent successfully! (${info.messageId})`);
+
+    console.log(
+      `📧 Daily booking summary email sent successfully! (${info.messageId})`
+    );
   } catch (error) {
     console.error("❌ Error sending daily booking summary:", error);
   }
@@ -584,37 +610,44 @@ const sendDailyBookingSummary = async () => {
 // '0 1 * * *' = Setiap hari pukul 1:00 AM
 const getDefaultCronSchedule = () => {
   // Pastikan nilai default yang valid
-  return '0 1 * * *';
+  return "0 1 * * *";
 };
 
 // Fungsi untuk menjalankan test dalam 15 menit
 const runTestIn15Minutes = () => {
   const delayMinutes = 15;
   const testTime = new Date(Date.now() + delayMinutes * 60 * 1000);
-  
+
   console.log(`⏰ Test scheduled to run at: ${testTime.toLocaleTimeString()}`);
-  
-  setTimeout(() => {
-    console.log(`🧪 Running test now!`);
-    sendDailyBookingSummary();
-  }, delayMinutes * 60 * 1000);
+
+  setTimeout(
+    () => {
+      console.log(`🧪 Running test now!`);
+      sendDailyBookingSummary();
+    },
+    delayMinutes * 60 * 1000
+  );
 };
 
 // Mendaftarkan cron job
 const scheduleDailySummary = () => {
   // Ambil nilai dari environment, atau gunakan default jika tidak ada atau tidak valid
   let cronSchedule = process.env.DAILY_SUMMARY_CRON;
-  
+
   // Validasi format cron
   if (!cronSchedule || !cron.validate(cronSchedule)) {
-    console.warn(`⚠️ Invalid cron schedule: "${cronSchedule}". Using default: "0 1 * * *"`);
+    console.warn(
+      `⚠️ Invalid cron schedule: "${cronSchedule}". Using default: "0 1 * * *"`
+    );
     cronSchedule = getDefaultCronSchedule();
   }
-  
+
   console.log(`📅 Scheduling daily booking summary to run at: ${cronSchedule}`);
-  
+
   cron.schedule(cronSchedule, async () => {
-    console.log(`⏰ Running daily booking summary job at ${new Date().toISOString()}`);
+    console.log(
+      `⏰ Running daily booking summary job at ${new Date().toISOString()}`
+    );
     await sendDailyBookingSummary();
   });
 };
@@ -623,5 +656,5 @@ module.exports = {
   scheduleDailySummary,
   sendDailyBookingSummary,
   runTestIn15Minutes, // Function to trigger a test run in 15 minutes,\
-  formatBookingsToText
+  formatBookingsToText,
 };
