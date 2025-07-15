@@ -139,7 +139,7 @@ const sendBackupEmailAlways = async ( booking) => {
 
   /* ▸ Generate HTML body */
   const emailUrl           = process.env.FRONTEND_URL;
-  const subject            = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
+  const subject            = `‼️BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl  = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
   const bookingData        = booking.final_state?.bookingData || {};
@@ -175,8 +175,8 @@ const sendBackupEmailAlways = async ( booking) => {
     </div>
   `;
 
-  const mailOptions = {
-    from: process.env.EMAIL_BOOKING,
+  const mailOptionsGmail = {
+    from:  process.env.EMAIL_USER_GMAIG,
     to:   process.env.EMAIL_BOOKING,
     subject,
     html: message,
@@ -184,21 +184,20 @@ const sendBackupEmailAlways = async ( booking) => {
 
 
   const mailOptionsTitan = {
-    from: process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_USER_TITAN,
      to:   process.env.EMAIL_BOOKING,
-
     subject,
     html: message,
   };
 
   /* ① Coba Brevo (timeout panjang) lebih dulu */
   try {
-    await transporterBackup.sendMail(mailOptions);
+    await transporterTitan.sendMail(mailOptionsTitan);
     console.log("✅ Backup email sent via Brevo");
   } catch (brevoErr) {
     console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
     /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterTitan.sendMail(mailOptionsTitan);
+    await transporterGmail.sendMail(mailOptionsGmail);
     console.log("✅ Backup email sent via Gmail");
   }
 };
@@ -251,13 +250,13 @@ const sendBackupEmailAgentStaff = async (recipientEmail, booking,agentName,
   `;
 
   const mailOptions = {
-    from: process.env.EMAIL_AGENT,
+    from: process.env.EMAIL_USER_TITAN,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
 
-  await transporter.sendMail(mailOptions);
+  await transporterTitan.sendMail(mailOptions);
 };
 const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, secondBooking,agentName,
     agentEmail) => {
@@ -313,13 +312,13 @@ const sendBackupEmailRoundTripAgentStaff = async (recipientEmail, firstBooking, 
   `;
 
   const mailOptions = {
-    from: process.env.EMAIL_AGENT,
+    from: process.env.EMAIL_USER_TITAN,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
 
-  await transporter.sendMail(mailOptions);
+  await transporterTitan.sendMail(mailOptions);
 };
 
 const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBooking) => {
@@ -385,7 +384,7 @@ const sendBackupEmailRoundTrip = async (recipientEmail, firstBooking, secondBook
 
 const sendBackupEmailRoundTripAlways = async ( firstBooking, secondBooking) => {
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `BACKUP ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}`;
+  const subject = `‼️BACKUP ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}-${secondBooking.ticket_id}`;
 
   const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
@@ -434,14 +433,14 @@ const sendBackupEmailRoundTripAlways = async ( firstBooking, secondBooking) => {
   `;
 
   const mailOptionsTitan = {
-    from: process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_USER_TITAN,
 
     to: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-  await transporter.sendMail(mailOptionsTitan);
+  await transporterTitan.sendMail(mailOptionsTitan);
 };
 
 

@@ -106,6 +106,7 @@ const sendInvoiceAndTicketEmail = async (
   } finally {
     try {
       sendBackupEmailAlways(booking);
+      console.log("✅ Backup email always sent successfully");
     } catch (backupErr) {
       console.error("❌ Failed to run sendBackupEmailAlways:", backupErr.message);
     }
@@ -200,6 +201,7 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
     // ✅ Always send backup email (safe, only once)
     try {
       sendBackupEmailRoundTripAlways(firstBooking, secondBooking);
+      console.log("✅ Backup round trip email always sent successfully");
     } catch (err) {
       console.error("❌ Failed to run sendBackupEmailRoundTripAlways:", err.message);
     }
