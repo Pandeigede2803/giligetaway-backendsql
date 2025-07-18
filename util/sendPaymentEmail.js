@@ -170,7 +170,7 @@ const sendBackupEmailAlways = async (booking) => {
   `;
 
   const mailOptionsGmail = {
-    from: process.env.EMAIL_USER_GMAIG,
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_BOOKING,
     subject,
     html: message,

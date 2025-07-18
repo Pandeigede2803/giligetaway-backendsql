@@ -293,8 +293,8 @@ const {  sendInvalidWaitingListFollowUp } = require('./sendWaitingListEmail'); /
 
 const checkAndNotifyWaitingList = async () => {
   try {
-    console.log('\n🔔 === Starting Cron Waiting List Check ===');
-    console.log(`📅 Check time: ${new Date().toLocaleString('id-ID')}`);
+    // console.log('\n🔔 === Starting Cron Waiting List Check ===');
+    // console.log(`📅 Check time: ${new Date().toLocaleString('id-ID')}`);
 
     // Get current date untuk filter booking_date
     const currentDate = new Date();
@@ -332,10 +332,10 @@ const checkAndNotifyWaitingList = async () => {
       ]
     });
 
-    console.log(`🔍 Found ${pendingWaitingList.length} pending waiting list entries to check`);
+    // console.log(`🔍 Found ${pendingWaitingList.length} pending waiting list entries to check`);
 
     if (pendingWaitingList.length === 0) {
-      console.log('ℹ️ No pending waiting list entries found');
+      // console.log('ℹ️ No pending waiting list entries found');
       return {
         success: true,
         message: 'No pending waiting list entries',
@@ -447,7 +447,7 @@ const checkAndNotifyWaitingList = async () => {
       
       if (followUpResult.success) {
         followUpEmailsSent = followUpResult.sent_count;
-        console.log(`✅ Follow-up emails sent: ${followUpResult.sent_count}/${followUpResult.total_customers}`);
+        // console.log(`✅ Follow-up emails sent: ${followUpResult.sent_count}/${followUpResult.total_customers}`);
         
         // Log failed emails if any
         if (followUpResult.failed_count > 0) {
@@ -507,7 +507,7 @@ const checkAndNotifyWaitingList = async () => {
 
     // Process valid entries by seat_availability_id groups
     if (Object.keys(groupedBySeatId).length === 0) {
-      console.log('ℹ️ No valid waiting list entries to process for notification');
+      // console.log('ℹ️ No valid waiting list entries to process for notification');
       return {
         success: true,
         message: 'No valid waiting list entries found after complete validation',
@@ -522,8 +522,8 @@ const checkAndNotifyWaitingList = async () => {
     // console.log(`\n🔄 Processing ${Object.keys(groupedBySeatId).length} seat availability groups...`);
 
     for (const [seatAvailabilityId, entries] of Object.entries(groupedBySeatId)) {
-      console.log(`\n🔍 Processing seat availability ID: ${seatAvailabilityId}`);
-      console.log(`👥 Valid entries in this group: ${entries.length}`);
+      // console.log(`\n🔍 Processing seat availability ID: ${seatAvailabilityId}`);
+      // console.log(`👥 Valid entries in this group: ${entries.length}`);
 
       // Ambil data dari entry pertama untuk parameter
       const firstEntry = entries[0];
@@ -555,7 +555,7 @@ const checkAndNotifyWaitingList = async () => {
           // // Log detail customer yang dinotify
           // console.log(`✅ Successfully notified ${notifyResult.notified_count} customers:`);
           notifyResult.notified_entries?.forEach(entry => {
-            console.log(`   - ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
+            // console.log(`   - ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
           });
         } else {
           console.log(`ℹ️ No customers notified for seat ${seatAvailabilityId}: ${notifyResult.message}`);

@@ -7,10 +7,12 @@ const bookingSummaryCron = require('./util/bookingSummaryCron');
 const seatFixCron = require('./util/seatFixCron');
 const waitingListCron = require('./util/waitingListCron');
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs');
+const cronFrequencySeatDuplicates = require('./util/cronFrequencySeatDuplicates');
 const { initWebSocketServer } = require('./config/websocket');
 const http = require('http');
 const dotenv = require('dotenv');
 const path = require('path');
+const { sendTelegramMessage } = require('./util/telegram');
 
 dotenv.config();
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -123,20 +125,39 @@ app.use('/api/metrics', metrics);
 app.use("/api/upload-multiple-csv-booking", csvUploadRoutes);
 app.use("/api/discount", discountRoutes);
 app.use("/api/subschedules-relation", subSchedulesRelationRoutes);
-app.use('/api/waiting-list', waitingListRoutes);
+app.use('/api/waiting-list', waitingListRoutes);;
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
 });
 
 // Error handling
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).send({
+//     status: 'error',
+//     message: err.message,
+//   });
+// });
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send({
+
+  const message = `
+❗️<b>Express Error</b>
+<pre>${err.message}</pre>
+📍<code>${req.method} ${req.originalUrl}</code>
+🕒 ${new Date().toLocaleString()}
+  `.trim();
+
+  sendTelegramMessage(message);
+
+  res.status(500).json({
     status: 'error',
     message: err.message,
   });
-});
+});;
+
 
 const url = process.env.MIDTRANS_API_BASE_URL;
 console.log("  😻   😻 Midtrans API URL:", url);
@@ -160,6 +181,8 @@ sequelize.sync()
       console.log('⛑️ ==== Waiting List Cron registered =====');
       unpaidReminderCronJobs.sendUnpaidReminders();
       console.log(' 🐰Unpaid reminder cronjob registered');
+      cronFrequencySeatDuplicates.scheduleDuplicateSeatJob();
+      console.log('🕒 Duplicate seat checker cronjob registered');
     });
   })
   .catch(err => {

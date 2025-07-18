@@ -334,7 +334,7 @@ const waitingListNotify = async (params, transaction = null) => {
     // console.log(`🔍 Found ${waitingListEntries.length} waiting list entries with matching seat_availability_ids`);
 
     if (waitingListEntries.length === 0) {
-      console.log('ℹ️ No matching waiting list entries found');
+      // console.log('ℹ️ No matching waiting list entries found');
       return {
         success: true,
         message: 'No matching waiting list entries',
@@ -470,7 +470,7 @@ const waitingListNotify = async (params, transaction = null) => {
     }
 
     // Send all emails
-    console.log(`📧 Sending ${notificationPromises.length} emails...`);
+    // console.log(`📧 Sending ${notificationPromises.length} emails...`);
     const emailResults = await Promise.allSettled(notificationPromises);
     
     // Log email results
@@ -482,8 +482,8 @@ const waitingListNotify = async (params, transaction = null) => {
       }
     });
 
-    // Update status untuk semua valid entries
-    console.log('\n💾 === Updating Database Status ===');
+    // // Update status untuk semua valid entries
+    // console.log('\n💾 === Updating Database Status ===');
     
     const updatePromises = validEntries.map(entry => {
       console.log(`💾 Updating status for entry ID: ${entry.id}`);
@@ -513,8 +513,8 @@ const waitingListNotify = async (params, transaction = null) => {
       }))
     };
 
-    console.log('\n🎉 === Waiting List Notification Complete ===');
-    console.log(`📊 Total notified: ${result.notified_count}`);
+    // console.log('\n🎉 === Waiting List Notification Complete ===');
+    // console.log(`📊 Total notified: ${result.notified_count}`);
     
     return result;
 

@@ -49,6 +49,7 @@ const {
   sendEmailNotification,
   sendEmailNotificationAgentDateChange,
 } = require("../util/sendPaymentEmail");
+const { sendTelegramMessage } = require('../util/telegram');
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
 const { checkSeatAvailability } = require("../util/checkSeatNumber");
@@ -1237,6 +1238,28 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+const notifyQueueError = (error, context = {}, label = 'QUEUE ERROR') => {
+  const {
+    booking_id = '-',
+    booking_date = '-',
+    schedule_id = '-',
+    subschedule_id = 'MAIN',
+    type = '-',
+  } = context;
+
+  const msg = `
+❌ <b>[${label}]</b>
+<pre>${error.message}</pre>
+🧾 Booking ID: <code>${booking_id}</code>
+📅 Date: <code>${booking_date}</code>
+📦 Schedule ID: <code>${schedule_id}</code>
+🔁 SubSchedule: <code>${subschedule_id || 'MAIN'}</code>
+🏷️ Type: <code>${type}</code>
+🕒 ${new Date().toLocaleString()}
+  `.trim();
+
+  sendTelegramMessage(msg);
+};
 
 // bookingRoundQueue.process(async (job, done) => {
 //   const {
@@ -1406,6 +1429,16 @@ bookingRoundQueue.process(async (job, done) => {
   } catch (error) {
     await transaction.rollback();
     console.error(`❌ Error in bookingRoundQueue:`, error.message);
+      // Kirim error ke Telegram pakai helper
+    notifyQueueError(error, {
+      booking_id,
+      booking_date,
+      schedule_id,
+      subschedule_id,
+      type,
+    }, 'BOOKING ROUND QUEUE ERROR');
+
+
     done(error);
   }
 });
@@ -1957,6 +1990,18 @@ bookingQueue.process(async (job, done) => {
   } catch (error) {
     await transaction.rollback();
     console.error(`❌ Error in bookingQueue for booking ${booking_id}:`, error.message);
+        const msg = `
+❌ <b>[BOOKING QUEUE ERROR]</b>
+<pre>${error.message}</pre>
+🧾 Booking ID: <code>${booking_id}</code>
+📅 Date: <code>${booking_date}</code>
+📦 Schedule ID: <code>${schedule_id}</code>
+🔁 SubSchedule: <code>${subschedule_id || 'MAIN'}</code>
+🕒 ${new Date().toLocaleString()}
+    `.trim();
+
+    sendTelegramMessage(msg);
+
     done(error);
   }
 });

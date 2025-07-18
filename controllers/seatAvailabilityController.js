@@ -19,6 +19,7 @@ const {
   buildRouteFromSchedule,
   buildRouteFromScheduleFlatten,
 } = require("../util/buildRoute");
+const nodemailer = require("nodemailer");
 
 // create new filtered controller to find related seat availability with same schedule_id and booking_date and have Booking.payment_status = 'paid'
 const { Op } = require("sequelize"); // Import Sequelize operators
@@ -30,6 +31,7 @@ const {
   createSeatAvailabilityMax,
 } = require("../util/seatAvailabilityUtils");
 const { sub } = require("date-fns/sub");
+const { sendTelegramMessage } = require("..//util/telegram");
 
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
@@ -310,11 +312,11 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
                   model: Passenger,
                   as: "passengers",
                   required: false,
-                where: {
-                        passenger_type: {
-                          [Op.ne]: "infant", // ⛔ exclude infant
-                        },
-                      },
+                  where: {
+                    passenger_type: {
+                      [Op.ne]: "infant", // ⛔ exclude infant
+                    },
+                  },
                 },
               ],
             },
@@ -330,17 +332,35 @@ const getSeatAvailabilityByMonthYear = async (req, res) => {
       (seatAvailability) => {
         const seatAvailabilityObj = seatAvailability.get({ plain: true });
 
-        let totalPassengers = 0;
+        // let totalPassengers = 0;
+        // const bookingIds = new Set();
+
+        // if (seatAvailabilityObj.BookingSeatAvailabilities) {
+        //   seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
+        //     if (bsa.Booking?.passengers?.length > 0) {
+        //       totalPassengers += bsa.Booking.passengers.length;
+        //       bookingIds.add(bsa.Booking.id);
+        //     }
+        //   });
+        // }
+        const seatNumbers = new Set();
         const bookingIds = new Set();
 
         if (seatAvailabilityObj.BookingSeatAvailabilities) {
           seatAvailabilityObj.BookingSeatAvailabilities.forEach((bsa) => {
-            if (bsa.Booking?.passengers?.length > 0) {
-              totalPassengers += bsa.Booking.passengers.length;
-              bookingIds.add(bsa.Booking.id);
+            const booking = bsa.Booking;
+            if (booking?.passengers?.length > 0) {
+              bookingIds.add(booking.id);
+              booking.passengers.forEach((p) => {
+                if (p.seat_number) {
+                  seatNumbers.add(p.seat_number.trim().toUpperCase()); // normalisasi
+                }
+              });
             }
           });
         }
+
+        const totalPassengers = seatNumbers.size; // now it's total seat used, not raw passengers
 
         const correctCapacity = seatAvailabilityObj.boost
           ? seatAvailabilityObj.Schedule?.Boat?.capacity || 0
@@ -1676,12 +1696,11 @@ const fixAllSeatMismatches = async () => {
               {
                 model: Passenger,
                 as: "passengers",
-                   where: {
-                        passenger_type: {
-                          [Op.ne]: "infant", // ⛔ exclude infant
-                        },
-                      },
-                
+                where: {
+                  passenger_type: {
+                    [Op.ne]: "infant", // ⛔ exclude infant
+                  },
+                },
               },
             ],
           },
@@ -1689,6 +1708,8 @@ const fixAllSeatMismatches = async () => {
       },
     ],
   });
+
+  // buatkan patokan terisi sebuah seat itu berdasarkan passenger.seat_number
 
   let totalFixed = 0;
 
@@ -1722,11 +1743,211 @@ const fixAllSeatMismatches = async () => {
   console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
 };
 
-/**
- * Memperbaiki miss_seat untuk beberapa SeatAvailability secara batch
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
- */
+const fixAllSeatMismatches2 = async () => {
+  console.log("🕒 Running Seat Mismatch Fix Job (uniq seat_number logic)");
+
+  const seatAvailabilities = await SeatAvailability.findAll({
+    include: [
+      {
+        model: Schedule,
+        include: [{ model: Boat, as: "Boat" }],
+      },
+      {
+        model: BookingSeatAvailability,
+        as: "BookingSeatAvailabilities",
+        include: [
+          {
+            model: Booking,
+            where: {
+              payment_status: {
+                [Op.in]: ["paid", "invoiced", "unpaid"],
+              },
+            },
+            include: [
+              {
+                model: Passenger,
+                as: "passengers",
+                where: {
+                  passenger_type: {
+                    [Op.ne]: "infant", // exclude infant
+                  },
+                },
+                attributes: ["seat_number"],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  let totalFixed = 0;
+
+  for (const sa of seatAvailabilities) {
+    const seatSet = new Set();
+
+    sa.BookingSeatAvailabilities.forEach((bsa) => {
+      bsa.Booking?.passengers?.forEach((p) => {
+        if (p.seat_number) {
+          seatSet.add(p.seat_number.trim().toUpperCase());
+        }
+      });
+    });
+
+    const occupiedSeats = seatSet.size;
+
+    const correctCapacity = sa.boost
+      ? sa.Schedule.Boat.capacity
+      : sa.Schedule.Boat.published_capacity;
+
+    const correctAvailableSeats = Math.max(0, correctCapacity - occupiedSeats);
+
+    if (sa.available_seats !== correctAvailableSeats) {
+      await sa.update({ available_seats: correctAvailableSeats });
+      console.log(`✅ Fixed SA ID ${sa.id} (${sa.date})`);
+      totalFixed++;
+    }
+  }
+
+  console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
+};
+
+const fixSeatMismatchBatch2 = async (req, res) => {
+  const { ids } = req.body;
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Please provide an array of seat availability IDs",
+    });
+  }
+
+  try {
+    const results = {
+      total: ids.length,
+      fixed: 0,
+      alreadyCorrect: 0,
+      failed: 0,
+      details: [],
+    };
+
+    for (const id of ids) {
+      try {
+        const seatAvailability = await SeatAvailability.findByPk(id, {
+          include: [
+            {
+              model: Schedule,
+              include: [{ model: Boat, as: "Boat" }],
+            },
+            {
+              model: BookingSeatAvailability,
+              as: "BookingSeatAvailabilities",
+              include: [
+                {
+                  model: Booking,
+                  where: {
+                    payment_status: {
+                      [Op.in]: ["paid", "invoiced", "pending", "unpaid"],
+                    },
+                  },
+                  include: [
+                    {
+                      model: Passenger,
+                      as: "passengers",
+                      where: {
+                        passenger_type: {
+                          [Op.ne]: "infant",
+                        },
+                      },
+                      attributes: ["seat_number"],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+
+        if (!seatAvailability) {
+          results.failed++;
+          results.details.push({
+            id,
+            status: "failed",
+            message: "Seat availability not found",
+          });
+          continue;
+        }
+
+        // Hitung berdasarkan seat_number unik
+        const seatSet = new Set();
+
+        seatAvailability.BookingSeatAvailabilities.forEach((bsa) => {
+          bsa.Booking?.passengers?.forEach((p) => {
+            if (p.seat_number) {
+              seatSet.add(p.seat_number.trim().toUpperCase());
+            }
+          });
+        });
+
+        const occupiedSeats = seatSet.size;
+
+        const correctCapacity = seatAvailability.boost
+          ? seatAvailability.Schedule.Boat.capacity
+          : seatAvailability.Schedule.Boat.published_capacity;
+
+        const correctAvailableSeats = Math.max(
+          0,
+          correctCapacity - occupiedSeats
+        );
+        const miss_seat =
+          correctAvailableSeats - seatAvailability.available_seats;
+
+        if (miss_seat === 0) {
+          results.alreadyCorrect++;
+          results.details.push({
+            id,
+            status: "already_correct",
+            miss_seat: 0,
+          });
+          continue;
+        }
+
+        await seatAvailability.update({
+          available_seats: correctAvailableSeats,
+        });
+
+        results.fixed++;
+        results.details.push({
+          id,
+          status: "fixed",
+          original_miss_seat: miss_seat,
+          new_available_seats: correctAvailableSeats,
+        });
+      } catch (error) {
+        results.failed++;
+        results.details.push({
+          id,
+          status: "error",
+          message: error.message,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Fixed ${results.fixed} seat availabilities, ${results.alreadyCorrect} already correct, ${results.failed} failed`,
+      results,
+    });
+  } catch (error) {
+    console.error("❌ Error fixing seat mismatches in batch:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fix seat mismatches",
+      error: error.message,
+    });
+  }
+};
+
 const fixSeatMismatchBatch = async (req, res) => {
   const { ids } = req.body;
 
@@ -1866,6 +2087,12 @@ const fixSeatMismatchBatch = async (req, res) => {
   }
 };
 
+/**
+ * Memperbaiki miss_seat untuk beberapa SeatAvailability secara batch
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ */
+
 const deleteSeatAvailabilityByIds = async (req, res) => {
   const { ids } = req.query;
 
@@ -1897,30 +2124,76 @@ const deleteSeatAvailabilityByIds = async (req, res) => {
     });
   }
 };
+
+
+
+
+const transporterTitan = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST_TITAN,
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER_TITAN,
+    pass: process.env.EMAIL_PASS_TITAN,
+  },
+  connectionTimeout: 60000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
+  pool: true,
+  maxConnections: 3,
+});
+
+const sendSeatAvailabilityEmail = async ({ subject, text }) => {
+  try {
+    await transporterTitan.sendMail({
+      from: `"Gili Getaway System" <${process.env.EMAIL_USER_TITAN}>`,
+      to: process.env.NOTIFY_EMAIL_ADMIN || "it@giligetaway.com", // fallback
+      cc:
+      subject,
+      text,
+    });
+  } catch (emailErr) {
+    console.error("❌ Failed to send seat availability email:", emailErr.message);
+  }
+};
+// BOOST
 const handleSeatAvailability = async (req, res) => {
   const { seat_availability_id, schedule_id, date, boost } = req.body;
 
   try {
     if (seat_availability_id && boost === true) {
-      // Scenario 1: Boost existing seat availability to the maximum capacity
+      // Scenario 1: Boost existing seat availability to maximum
       console.log("🛠 Scenario 1: Boost existing seat availability to maximum");
+
       const seatAvailability = await boostSeatAvailability({
         id: seat_availability_id,
         boost,
       });
+
+      await sendSeatAvailabilityEmail({
+        subject: `✅ Seat Boosted: ID ${seat_availability_id}`,
+        text: `Seat availability with ID ${seat_availability_id} was successfully boosted to maximum capacity.`,
+      });
+
       return res.status(200).json({
         success: true,
         message: "Seat availability boosted to maximum successfully.",
         seat_availability: seatAvailability,
       });
-    } else if (schedule_id && date) {
+    }
+
+    if (schedule_id && date) {
       // Scenario 2: Create new seat availability
       console.log("🛠 Scenario 2: Create new seat availability");
+
       const { mainSeatAvailability, subscheduleSeatAvailabilities } =
-        await createSeatAvailabilityMax({
-          schedule_id,
-          date,
-        });
+        await createSeatAvailabilityMax({ schedule_id, date });
+
+      await sendSeatAvailabilityEmail({
+        subject: `✅ New Seat Availability Created`,
+        text: `New seat availability created for schedule_id: ${schedule_id} on ${date}.\nMain Seat ID: ${mainSeatAvailability.id}`,
+      });
+
       return res.status(201).json({
         success: true,
         message: "Seat availabilities created successfully.",
@@ -1929,14 +2202,19 @@ const handleSeatAvailability = async (req, res) => {
       });
     }
 
-    // Invalid request
     return res.status(400).json({
       success: false,
       message:
         "Invalid request: Provide either seat_availability_id with boost=true or schedule_id and date.",
     });
   } catch (error) {
-    console.error("Error handling seat availability:", error.message);
+    console.error("❌ Error handling seat availability:", error.message);
+
+    await sendSeatAvailabilityEmail({
+      subject: `❌ Error in Seat Availability Handler`,
+      text: `An error occurred:\n${error.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: "An error occurred while processing seat availability.",
@@ -2478,6 +2756,94 @@ const findMissingRelatedBySeatId = async (req, res) => {
   }
 };
 
+const findDuplicateSeats = async () => {
+  const skipConditionsArray = [
+    `(b.schedule_id = 61 AND b.subschedule_id IN (118,123))`,
+    `(b.schedule_id = 67 AND b.subschedule_id IN (134,135))`,
+    `(b.schedule_id = 60 AND b.subschedule_id IN (117,112))`,
+    `(b.schedule_id = 64 AND b.subschedule_id IN (129,128))`,
+    `(b.schedule_id = 65 AND b.subschedule_id IN (130,131))`,
+    `(b.schedule_id = 66 AND b.subschedule_id IN (133,132))`,
+    // `(b.schedule_id = 61 AND b.subschedule_id IN (123,120))`,
+
+
+  ];
+
+  const skipConditions = skipConditionsArray.length
+    ? `AND NOT (${skipConditionsArray.join(" OR ")})`
+    : "";
+
+  const query = `
+    SELECT
+      sa.id AS seat_availability_id,
+      sa.date AS availability_date,
+      p.seat_number,
+      COUNT(*) AS seat_count,
+      GROUP_CONCAT(DISTINCT b.ticket_id ORDER BY b.ticket_id SEPARATOR ', ') AS ticket_ids
+    FROM Passengers p
+    JOIN Bookings b ON b.id = p.booking_id
+    JOIN BookingSeatAvailability bsa ON bsa.booking_id = b.id
+    JOIN SeatAvailability sa ON sa.id = bsa.seat_availability_id
+    WHERE b.payment_status IN ('paid', 'invoiced', 'unpaid')
+      AND sa.date >= '2025-07-17'
+      AND p.seat_number IS NOT NULL
+      ${skipConditions}
+    GROUP BY sa.id, sa.date, p.seat_number
+    HAVING seat_count > 1
+    ORDER BY availability_date DESC
+  `;
+
+  return sequelize.query(query, { type: QueryTypes.SELECT });
+};
+
+const notifyTelegram = async (duplicates) => {
+  if (!duplicates.length) {
+    await sendTelegramMessage("✅ No duplicated seats found.");
+    return;
+  }
+
+  let message = `⚠️ <b>DUPLICATED SEATS DETECTED</b> (${duplicates.length} rows)\n\n`;
+
+  message += duplicates
+    .slice(0, 50)
+    .map(
+      (d) =>
+        `• <b>SA#${d.seat_availability_id}</b> - ${d.availability_date}, seat <b>${d.seat_number}</b> ×${d.seat_count}\nTickets: ${d.ticket_ids}`
+    )
+    .join("\n\n");
+
+  if (duplicates.length > 50) {
+    message += `\n\n…and ${duplicates.length - 50} more rows`;
+  }
+
+  await sendTelegramMessage(message);
+};
+
+const getDuplicateSeatReport = async (req, res) => {
+  try {
+    console.log("🔍 Fetching duplicate seat report...");
+    const duplicates = await findDuplicateSeats();
+
+    if (req.query.notify === "telegram") {
+      console.log("📡 Notifying Telegram with duplicate seat report...");
+      await notifyTelegram(duplicates);
+      console.log("✅ Notified Telegram with duplicate seat report");
+    }
+
+    res.json({
+      success: true,
+      total: duplicates.length,
+      data: duplicates,
+    });
+  } catch (err) {
+    console.error("❌ Error in getDuplicateSeatReport:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 const cronFrequencySeatMatches =
   process.env.CRON_FREQUENCY_SEAT_MISMATCH || "0 */3 * * *"; // Default setiap 3 jam
 
@@ -2499,8 +2865,13 @@ module.exports = {
   getSeatAvailabilityByMonthYear,
   deleteSeatAvailabilityByIds,
   fixSeatMismatch,
+  fixAllSeatMismatches2,
   fixSeatMismatchBatch,
+  fixSeatMismatchBatch2,
   fixAllSeatMismatches,
+  findDuplicateSeats,
+  notifyTelegram,
   getSeatAvailabilityMonthlyView,
   findMissingRelatedBySeatId,
+  getDuplicateSeatReport,
 };

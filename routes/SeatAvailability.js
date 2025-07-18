@@ -14,7 +14,7 @@ const {
   handleSeatAvailability,createOrGetSeatAvailability,
   fixSeatMismatch,
 findMissingRelatedBySeatId,
-  fixSeatMismatchBatch,
+  fixSeatMismatchBatch, getDuplicateSeatReport,
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 
 const authenticate = require("../middleware/authenticate");
@@ -37,6 +37,8 @@ router.post('/create-or-get',authenticate, validateSeatAvailabilityExist, create
 router.get("/get-month", authenticate, getSeatAvailabilityByMonthYear);
 router.get("/get-monthly-view", authenticate,  getSeatAvailabilityMonthlyView);
 router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
+
+router.get("/test/duplicate-seat", getDuplicateSeatReport); // ✅ hit this from Postman
 
 
 
