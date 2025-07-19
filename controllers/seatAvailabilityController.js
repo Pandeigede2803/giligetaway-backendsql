@@ -2147,8 +2147,8 @@ const sendSeatAvailabilityEmail = async ({ subject, text }) => {
   try {
     await transporterTitan.sendMail({
       from: `"Gili Getaway System" <${process.env.EMAIL_USER_TITAN}>`,
-      to: process.env.NOTIFY_EMAIL_ADMIN || "it@giligetaway.com", // fallback
-      cc:
+      to: process.env.EMAIL_USER_TITAN, // fallback
+      cc:"ooppssainy@gmail.com",
       subject,
       text,
     });

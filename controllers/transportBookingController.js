@@ -331,7 +331,7 @@ exports.updateTransportBooking = async (req, res) => {
         error: error.message,
       });
   }
-};
+};;
 
 // exports.updateTransportBooking = async (req, res) => {
 //   const { id } = req.params;
