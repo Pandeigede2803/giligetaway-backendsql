@@ -2764,6 +2764,7 @@ const findDuplicateSeats = async () => {
     `(b.schedule_id = 64 AND b.subschedule_id IN (129,128))`,
     `(b.schedule_id = 65 AND b.subschedule_id IN (130,131))`,
     `(b.schedule_id = 66 AND b.subschedule_id IN (133,132))`,
+    `(b.schedule_id = 62 AND b.subschedule_id IN (125,124))`,
     // `(b.schedule_id = 61 AND b.subschedule_id IN (123,120))`,
 
 
