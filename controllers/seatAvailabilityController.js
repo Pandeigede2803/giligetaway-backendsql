@@ -1581,6 +1581,9 @@ const fixSeatMismatch = async (req, res) => {
   try {
     // Temukan SeatAvailability dengan relasi yang dibutuhkan
     const seatAvailability = await SeatAvailability.findByPk(id, {
+      where: {
+        custom_seat: false,
+      },
       include: [
         {
           model: Schedule,
@@ -1676,6 +1679,10 @@ const fixAllSeatMismatches = async () => {
   console.log("🕒 Running Seat Mismatch Fix Job");
 
   const seatAvailabilities = await SeatAvailability.findAll({
+    // exclude the seat avaible where the custom seat is true
+    where: {
+      custom_seat: false,
+    },
     include: [
       {
         model: Schedule,
@@ -1747,6 +1754,9 @@ const fixAllSeatMismatches2 = async () => {
   console.log("🕒 Running Seat Mismatch Fix Job (uniq seat_number logic)");
 
   const seatAvailabilities = await SeatAvailability.findAll({
+    where: {
+      custom_seat: false,
+    },
     include: [
       {
         model: Schedule,
@@ -1973,6 +1983,9 @@ const fixSeatMismatchBatch = async (req, res) => {
       try {
         // Temukan SeatAvailability dengan relasi
         const seatAvailability = await SeatAvailability.findByPk(id, {
+          where: {
+            custom_seat: false,
+          },
           include: [
             {
               model: Schedule,
@@ -2125,9 +2138,6 @@ const deleteSeatAvailabilityByIds = async (req, res) => {
   }
 };
 
-
-
-
 const transporterTitan = nodemailer.createTransport({
   host: process.env.EMAIL_HOST_TITAN,
   port: 587,
@@ -2148,12 +2158,15 @@ const sendSeatAvailabilityEmail = async ({ subject, text }) => {
     await transporterTitan.sendMail({
       from: `"Gili Getaway System" <${process.env.EMAIL_USER_TITAN}>`,
       to: process.env.EMAIL_USER_TITAN, // fallback
-      cc:"ooppssainy@gmail.com",
+      cc: "ooppssainy@gmail.com",
       subject,
       text,
     });
   } catch (emailErr) {
-    console.error("❌ Failed to send seat availability email:", emailErr.message);
+    console.error(
+      "❌ Failed to send seat availability email:",
+      emailErr.message
+    );
   }
 };
 // BOOST
@@ -2481,8 +2494,10 @@ const updateSeatAvailability = async (req, res) => {
     subschedule_id,
     availability,
     boost,
+    custom_seat,
     date,
   } = req.body;
+  console.log("😹request body:", req.body);
 
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -2505,6 +2520,7 @@ const updateSeatAvailability = async (req, res) => {
       subschedule_id,
       availability,
       boost,
+      custom_seat,
       date,
     });
 
@@ -2766,8 +2782,6 @@ const findDuplicateSeats = async () => {
     `(b.schedule_id = 66 AND b.subschedule_id IN (133,132))`,
     `(b.schedule_id = 62 AND b.subschedule_id IN (125,124))`,
     // `(b.schedule_id = 61 AND b.subschedule_id IN (123,120))`,
-
-
   ];
 
   const skipConditions = skipConditionsArray.length

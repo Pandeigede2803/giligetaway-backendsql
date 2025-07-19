@@ -49,6 +49,13 @@ const SeatAvailability = sequelize.define('SeatAvailability', {
         allowNull: false,
         field: 'date'
     },
+        custom_seat: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'custom_seat',
+        comment: 'Menandakan apakah seat ini adalah hasil custom/manual'
+    },
     boost: {
         type: DataTypes.BOOLEAN,
         allowNull: true,
