@@ -7,6 +7,8 @@ const validateApiKey = require('../middleware/validateKey');
 const { upload,uploadImageToImageKit } = require('../middleware/upload');
 const transitController = require('../controllers/transitController');
 const cors = require('cors');
+const  validateDuplicateScheduleInput = require('../middleware/validateDuplicateScheduleInput');
+
 
 // const upload = require('../middleware/upload');
 
@@ -33,6 +35,13 @@ router.get('/search/v3', validateApiKey, (req, res, next) => {
 //   console.log('Headers:', req.headers);
   next();
 }, scheduleController.searchSchedulesAndSubSchedulesAgent);
+
+// duplicate schedule with transits
+router.post(
+  "/duplicate/:id",
+  validateDuplicateScheduleInput,
+  scheduleController.duplicateScheduleWithTransits
+);
 
 
 //multiple params

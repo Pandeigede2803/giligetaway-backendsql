@@ -3184,6 +3184,109 @@ const createScheduleWithTransit = async (req, res) => {
   }
 };
 
+const duplicateScheduleWithTransits = async (req, res) => {
+  const { id } = req.params;
+  const { validity_start, validity_end, days_of_week } = req.body;
+
+  const t = await sequelize.transaction();
+
+  try {
+    const originalSchedule = await Schedule.findByPk(id, {
+      include: [
+        { model: Transit, as: 'Transits' },
+        { model: SubSchedule, as: 'SubSchedules' },
+      ],
+      transaction: t,
+    });
+
+    if (!originalSchedule) {
+      return res.status(404).json({ error: "Original schedule not found" });
+    }
+
+    // === Duplicate SCHEDULE ===
+    const {
+      id: _,
+      created_at,
+      updated_at,
+      validity_start: __,
+      validity_end: ___,
+      days_of_week: ____,
+      ...scheduleData
+    } = originalSchedule.get({ plain: true });
+
+    const newSchedule = await Schedule.create(
+      {
+        ...scheduleData,
+        validity_start,
+        validity_end,
+        days_of_week,
+      },
+      { transaction: t }
+    );
+
+    // === Duplicate TRANSITS ===
+    const createdTransits = [];
+    for (const transit of originalSchedule.Transits) {
+      const {
+        id: __,
+        created_at,
+        updated_at,
+        schedule_id,
+        ...transitData
+      } = transit.get({ plain: true });
+
+      const newTransit = await Transit.create(
+        {
+          ...transitData,
+          schedule_id: newSchedule.id,
+        },
+        { transaction: t }
+      );
+
+      createdTransits.push(newTransit);
+    }
+
+    // === Duplicate SUBSCHEDULES ===
+    const createdSubSchedules = [];
+    for (const sub of originalSchedule.SubSchedules) {
+      const {
+        id: __,
+        created_at,
+        updated_at,
+        schedule_id,
+        ...subData
+      } = sub.get({ plain: true });
+
+      const newSub = await SubSchedule.create(
+        {
+          ...subData,
+          schedule_id: newSchedule.id,
+          validity_start,
+          validity_end,
+          days_of_week,
+        },
+        { transaction: t }
+      );
+
+      createdSubSchedules.push(newSub);
+    }
+
+    await t.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Schedule, transits, and subschedules duplicated successfully",
+      schedule: newSchedule,
+      transits: createdTransits,
+      subSchedules: createdSubSchedules,
+    });
+  } catch (err) {
+    await t.rollback();
+    console.error("❌ Error duplicating schedule:", err);
+    return res.status(500).json({ error: "Failed to duplicate schedule" });
+  }
+};
+
 //wihtout transit
 const createSchedule = async (req, res) => {
   try {
@@ -4217,6 +4320,7 @@ const uploadSchedules = async (req, res) => {
 module.exports = {
   getScheduleByIdSeat,
   getAllSchedulesWithSubSchedules,
+  duplicateScheduleWithTransits,
   createSchedule,
   getAllSchedulesWithDetails,
   getSchedules,
