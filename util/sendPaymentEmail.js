@@ -375,8 +375,8 @@ const sendBackupEmailAgentStaff = async (
 
   const message = `
     <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
-      <p>Hi ${booking.contact_name},</p>
-      <p>This is a backup email for agent booking with Gili Getaway.</p>
+    <p>ATT STAFF</p>
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest & agent with their booking confirmation</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
         <li><strong>Booking ID:</strong> ${booking.id}</li>
@@ -437,7 +437,10 @@ const sendBackupEmailRoundTripAgentStaff = async (
 
   const message = `
     <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
-      <p>Dear staff ,</p>
+
+     <p>ATT STAFF</p>
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest with their booking confirmation</p>
+      
       <p>This is a backup email for agent ${agentName}-customer:${firstBooking.contact_name} <strong>round-trip booking</strong> with Gili Getaway.</p>
 
       <h3 style="color:#165297;">Departure</h3>
