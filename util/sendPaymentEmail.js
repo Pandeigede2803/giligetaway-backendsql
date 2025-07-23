@@ -1891,8 +1891,8 @@ const sendPaymentEmailAgent = async (
 
     const mailOptions = {
       from: process.env.EMAIL_AGENT,
-      cc: [process.env.EMAIL_AGENT, customerEmail],
-      to: recipientEmail,
+      cc: recipientEmail, // CC the agent
+      to: customerEmail,
       subject: subject,
       html: message,
     };
