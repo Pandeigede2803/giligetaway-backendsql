@@ -23,6 +23,7 @@ const {
 const {
   sendInvoiceAndTicketEmail,
   sendInvoiceAndTicketEmailRoundTrip,
+  
 } = require("../util/sendInvoiceAndTicketEmail");
 
 const DOKU_BASE_URL = process.env.DOKU_BASE_URL;
@@ -271,7 +272,7 @@ exports.handleNotification = async (req, res) => {
         // Cek apakah ini round trip ticket
         if (booking.ticket_id && booking.ticket_id.includes("GG-RT-")) {
           console.log(`🔄 Processing round trip booking: ${booking.ticket_id}`);
-          await handleRoundTripBooking(booking, invoiceNumber);
+          await handleRoundTripBooking(booking, invoiceNumber, agent, agentCommission);
         } else {
           // Regular one-way booking - just pass the email, booking, and invoiceNumber
           try {
@@ -319,7 +320,7 @@ exports.handleNotification = async (req, res) => {
 };
 
 // Helper untuk menangani round trip booking
-async function handleRoundTripBooking(currentBooking, invoiceNumber) {
+async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agentCommission) {
   try {
     const ticketId = currentBooking.ticket_id;
     const ticketNumber = parseInt(ticketId.split("-")[2], 10);
@@ -351,26 +352,26 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber) {
 
     if (pairBooking) {
       console.log(`✅ Pasangan booking ditemukan: ${pairBooking.ticket_id}`);
-      console.log("Detail booking saat ini:", {
-        id: currentBooking.ticket_id,
-        status: currentBooking.payment_status,
-        transaksi: currentBooking.transactions
-          ? currentBooking.transactions.length
-          : 0,
-      });
-      console.log("Detail booking pasangan:", {
-        id: pairBooking.ticket_id,
-        status: pairBooking.payment_status,
-        transaksi: pairBooking.transactions
-          ? pairBooking.transactions.length
-          : 0,
-      });
+      // console.log("Detail booking saat ini:", {
+      //   id: currentBooking.ticket_id,
+      //   status: currentBooking.payment_status,
+      //   transaksi: currentBooking.transactions
+      //     ? currentBooking.transactions.length
+      //     : 0,
+      // });
+      // console.log("Detail booking pasangan:", {
+      //   id: pairBooking.ticket_id,
+      //   status: pairBooking.payment_status,
+      //   transaksi: pairBooking.transactions
+      //     ? pairBooking.transactions.length
+      //     : 0,
+      // });
 
       // Update booking satu per satu, tidak menggunakan Promise.all
       try {
-        console.log(
-          `🔄 Memperbarui booking saat ini: ${currentBooking.ticket_id}`
-        );
+        // console.log(
+        //   `🔄 Memperbarui booking saat ini: ${currentBooking.ticket_id}`
+        // );
         await currentBooking.update({
           payment_status: "paid",
           payment_method: currentBooking.payment_method,
@@ -523,7 +524,9 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber) {
           emailFromBooking.contact_email,
           emailFromBooking,
           secondBooking,
-          invoiceNumber
+          invoiceNumber,
+          agent,
+          agentCommission
         );
         console.log(
           `📧 [RT] Email berhasil dikirim dari booking ${emailFromBooking.ticket_id}`

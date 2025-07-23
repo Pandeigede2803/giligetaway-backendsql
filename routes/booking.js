@@ -58,7 +58,7 @@ router.get("/test-daily-summary", async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
-    });
+    });;
   }
 });
 // CREATE booking

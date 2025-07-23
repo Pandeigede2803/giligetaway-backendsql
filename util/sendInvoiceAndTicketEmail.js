@@ -9,6 +9,8 @@ const {
   sendBackupEmailAgentStaff,
   sendBackupEmailRoundTripAgentStaff,
   sendBackupEmailRoundTripAlways,
+  sendStaffEmailForAgentBooking,
+   sendStaffEmailRoundTripAgent,
 } = require("../util/sendPaymentEmail");
 /**
  * Fungsi untuk mengirim email invoice dan ticket melalui API Next.js
@@ -111,27 +113,53 @@ const sendInvoiceAndTicketEmail = async (
       console.error("❌ Failed to run sendBackupEmailAlways:", backupErr.message);
     }
 
-    try {
-      console.log(`📨 Sending to notification API for booking ${booking.id}`);
-      const notificationResponse = await axios.post(
-        `${process.env.FRONTEND_URL}/api/payment/send-notification`,
-        notificationPayload,
-        {
-          headers: { "Content-Type": "application/json" },
-          timeout: 30000,
-        }
-      );
-      console.log("✅ Notification API Response:", notificationResponse.data);
-    } catch (notificationError) {
-      console.error("❌ Error sending notification:", notificationError.message);
+
+    // how to make thrrow different api email notication for staff if the booking.agent_id is exist or not null??
+    if (booking.agent_id) {
+      try {
+        await sendStaffEmailForAgentBooking(booking, agent);
+        console.log("✅ Agent staff email notification sent");
+      } catch (staffErr) {
+        console.error("❌ Failed to send staff email notification:", staffErr.message);
+        await sendTelegramError(
+          `❌ <b>STAFF EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
+        );
+      }
+    }
+    // use sendStaffEmailForAgentBooking(booking,agent)
+
+    // Only send notification if booking is NOT from an agent
+    if (!booking.agent_id) {
+      try {
+        console.log(`📨 Sending to notification API for booking ${booking.id}`);
+        const notificationResponse = await axios.post(
+          `${process.env.FRONTEND_URL}/api/payment/send-notification`,
+          notificationPayload,
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 30000,
+          }
+        );
+        console.log("✅ Notification API Response:", notificationResponse.data);
+      } catch (notificationError) {
+        console.error("❌ Error sending notification:", notificationError.message);
+          await sendTelegramError(
+          `❌ <b>STAFF EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
+        );
+      }
     }
   }
 };
+
+
+
 const sendInvoiceAndTicketEmailRoundTrip = async (
   recipientEmail,
   firstBooking,
   secondBooking,
-  transactionId
+  transactionId,
+  agent,
+  agentCommission
 ) => {
   const finalState =
     typeof firstBooking.final_state === "string"
@@ -205,28 +233,39 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
     } catch (err) {
       console.error("❌ Failed to run sendBackupEmailRoundTripAlways:", err.message);
     }
+    if (firstBooking.agent_id) {
+      try {
+        await sendStaffEmailRoundTripAgent(firstBooking, secondBooking, agent);
+        console.log("✅ Round-trip agent staff email sent");
+      } catch (staffErr) {
+        console.error("❌ Failed to send round-trip agent staff email:", staffErr.message);
+        await sendTelegramError(
+          `❌ <b>STAFF EMAIL ROUNDTRIP FAILED</b>\nBooking ID: ${firstBooking?.id}\nAgent ID: ${firstBooking.agent_id}\nError: ${staffErr.message}`
+        );
+      }
+    }
+    if (!firstBooking.agent_id) {
+      try {
+        console.log(
+          `📨 Sending to notification API for round trip booking ID ${firstBooking.id}`
+        );
 
-    // 📤 Send notification to frontend
-    try {
-      console.log(
-        `📨 Sending to notification API for round trip booking ID ${firstBooking.id}`
-      );
+        const notificationResponse = await axios.post(
+          `${process.env.FRONTEND_URL}/api/payment/send-notification-round`,
+          notificationPayload,
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 30000,
+          }
+        );
 
-      const notificationResponse = await axios.post(
-        `${process.env.FRONTEND_URL}/api/payment/send-notification-round`,
-        notificationPayload,
-        {
-          headers: { "Content-Type": "application/json" },
-          timeout: 30000,
-        }
-      );
-
-      console.log(
-        "✅ Notification API Response for round trip:",
-        notificationResponse.data
-      );
-    } catch (notificationError) {
-      console.error("❌ Error sending round trip notification:", notificationError.message);
+        console.log(
+          "✅ Notification API Response for round trip:",
+          notificationResponse.data
+        );
+      } catch (notificationError) {
+        console.error("❌ Error sending round trip notification:", notificationError.message);
+      }
     }
   }
 };
