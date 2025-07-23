@@ -1660,7 +1660,7 @@ const sendPaymentEmail = async (
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
               </div>
                   <div style="margin-bottom: 10px;">
-                <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.contact_name}
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Name:</span> ${booking.contact_name}
               </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Cancelled
@@ -1720,7 +1720,10 @@ const sendPaymentEmailAgent = async (
   refundAmountUSD = null
 ) => {
   console.log("😹start to send the email", recipientEmail);
-  const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment variables
+  const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment 
+  // variables
+
+  const customerEmail = booking.contact_email || ""; // Get customer email from booking details
 
   try {
     let subject = "Payment Update for Your Booking";
@@ -1785,6 +1788,9 @@ const sendPaymentEmailAgent = async (
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
               </div>
               <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Name:</span> ${booking.contact_name}
+              </div>
+              <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Payment Method:</span> ${paymentMethod}
               </div>
               <div style="margin-bottom: 10px;">
@@ -1846,6 +1852,9 @@ const sendPaymentEmailAgent = async (
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Ticket ID:</span> ${booking.ticket_id}
               </div>
+                <div style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: inline-block; width: 150px;">Name:</span> ${booking.contact_name}
+              </div>
               <div style="margin-bottom: 10px;">
                 <span style="font-weight: bold; display: inline-block; width: 150px;">Status:</span> Cancelled
               </div>
@@ -1882,7 +1891,7 @@ const sendPaymentEmailAgent = async (
 
     const mailOptions = {
       from: process.env.EMAIL_AGENT,
-      cc: process.env.EMAIL_AGENT,
+      cc: [process.env.EMAIL_AGENT, customerEmail],
       to: recipientEmail,
       subject: subject,
       html: message,
