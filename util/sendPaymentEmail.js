@@ -244,15 +244,15 @@ const sendStaffEmailForAgentBooking = async (booking,agent) => {
     html: message,
   };
   const mailOptions = {
-    from: process.env.EMAIL_BOOKING,
-    to: toEmail,
-    cc: process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_AGENT,
+    // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
@@ -332,14 +332,14 @@ const sendStaffEmailRoundTripAgent = async (firstBooking, secondBooking,agent) =
   };
   const mailOptions = {
     from: process.env.EMAIL_BOOKING,
-    to: toEmail,
-    cc: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_AGENT,
+    // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
@@ -440,7 +440,7 @@ const sendBackupEmailRoundTripAgentStaff = async (
 
      <p>ATT STAFF</p>
       <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest with their booking confirmation</p>
-      
+
       <p>This is a backup email for agent ${agentName}-customer:${firstBooking.contact_name} <strong>round-trip booking</strong> with Gili Getaway.</p>
 
       <h3 style="color:#165297;">Departure</h3>

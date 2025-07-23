@@ -4183,6 +4183,7 @@ const getBookingByTicketId = async (req, res) => {
 
 const getRelatedBookingsByTicketId = async (req, res) => {
   try {
+    console.log("start to get related bookings by ticket id");
     const { ticket_id } = req.params;
 
     console.log("Processing ticket ID:", ticket_id);
