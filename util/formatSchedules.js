@@ -43,6 +43,7 @@ const getSeasonPrice = (
  * @returns {Array} - Formatted schedules.
  */
 const formatSchedules = (schedules, selectedDate) => {
+  console.log("scehdules:", JSON.stringify(schedules, null, 2));
   return schedules.map((schedule) => ({
     id: schedule.id,
     schedule_id:schedule.id || "N/A",
@@ -70,6 +71,9 @@ const formatSchedules = (schedules, selectedDate) => {
     ), // Get the correct price based on the season
     seatAvailability: {
       id: schedule.dataValues.seatAvailability?.id || "N/A",
+      // add schedule_id and subschedule_id to seatAvailability
+      schedule_id: schedule.dataValues.seatAvailability?.schedule_id || "N/A",
+      subschedule_id: schedule.dataValues.seatAvailability?.subschedule_id || "N/A",
       availability:
         schedule.dataValues.seatAvailability?.availability || "N/A",
       available_seats:
@@ -186,6 +190,8 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
       journey_time, // Use the computed journey_time
       seatAvailability: {
         id: subSchedule.dataValues.seatAvailability?.id || "N/A",
+        schedule_id: subSchedule.dataValues.seatAvailability?.schedule_id || "N/A",
+        subschedule_id: subSchedule.dataValues.seatAvailability?.subschedule_id || "N/A",
         available_seats:
           subSchedule.dataValues.seatAvailability?.available_seats ,
         availability:

@@ -195,7 +195,7 @@ const sendBackupEmailAlways = async (booking) => {
   }
 };
 
-const sendStaffEmailForAgentBooking = async (booking,agent) => {
+const sendStaffEmailForAgentBooking = async (booking, agent) => {
   /* ▸ Generate HTML body */
   const bookingData = booking.final_state?.bookingData || {};
   const emailUrl = process.env.FRONTEND_URL;
@@ -269,7 +269,11 @@ const sendStaffEmailForAgentBooking = async (booking,agent) => {
   }
 };
 
-const sendStaffEmailRoundTripAgent = async (firstBooking, secondBooking,agent) => {
+const sendStaffEmailRoundTripAgent = async (
+  firstBooking,
+  secondBooking,
+  agent
+) => {
   const emailUrl = process.env.FRONTEND_URL;
 
   const bookingDataDeparture = firstBooking.final_state?.bookingData || {};
@@ -323,7 +327,6 @@ const sendStaffEmailRoundTripAgent = async (firstBooking, secondBooking,agent) =
     </div>
   `;
 
- 
   const mailOptionsGmail = {
     from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_BOOKING,
@@ -355,10 +358,6 @@ const sendStaffEmailRoundTripAgent = async (firstBooking, secondBooking,agent) =
     console.log("✅ Backup email sent via Titan");
   }
 };
-
-
-
-
 
 const sendBackupEmailAgentStaff = async (
   recipientEmail,
@@ -615,8 +614,6 @@ const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
 
   await transporterTitan.sendMail(mailOptionsTitan);
 };
-
-
 
 const sendExpiredBookingEmail = async (recipientEmail, booking) => {
   console.log("Starting to send expired booking email to:", recipientEmail);
@@ -1723,7 +1720,7 @@ const sendPaymentEmailAgent = async (
   refundAmountUSD = null
 ) => {
   console.log("😹start to send the email", recipientEmail);
-  const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment 
+  const emailUrl = process.env.FRONTEND_URL; // Retrieve email URL from environment
   // variables
 
   const customerEmail = booking.contact_email || ""; // Get customer email from booking details

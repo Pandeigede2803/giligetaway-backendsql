@@ -2058,6 +2058,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         where: {
           schedule_id: schedule.id,
           date: selectedDate,
+              subschedule_id: null, // ✅ tambahkan ini!
+          
           // availability: 1,
           // available_seats: { [Op.gte]: passengers_total },
         },
@@ -2085,6 +2087,9 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
         available_seats: adjustedAvailableSeats,
+        // add schedule id dan subschedule id
+        schedule_id: schedule.id,
+        subschedule_id: null, // No subschedule for main schedule
         availability: seatAvailability.availability,
         date: selectedDate,
       };
@@ -2136,6 +2141,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         id: seatAvailability.id,
         available_seats: adjustedAvailableSeats,
         availability: seatAvailability.availability,
+        schedule_id: subSchedule.Schedule?.id || null, // Attach schedule ID if exists
+        subschedule_id: subSchedule.id,
         date: selectedDate,
       };
 
