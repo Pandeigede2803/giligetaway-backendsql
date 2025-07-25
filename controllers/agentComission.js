@@ -629,9 +629,9 @@ async getMonthlyAgentSummary(req, res) {
       year,
       data: summaries.map((row) => ({
         agent_id: row.agent_id,
-  agent_name: row.Agent?.name || "(Unknown Agent)",
-        gross_total_invoiced: Number(row.gross_total_invoiced),
-        gross_total_paid: Number(row.gross_total_paid),
+        agent_name: row.Agent?.name || "(Unknown Agent)",
+        gross_total_invoiced: Number(row.gross_total_invoiced)-Number(row.commission_amount_invoiced),
+        gross_total_paid: Number(row.gross_total_paid)-Number(row.commission_amount_paid),
         commission_amount_invoiced: Number(row.commission_amount_invoiced),
         commission_amount_paid: Number(row.commission_amount_paid),
       })),
