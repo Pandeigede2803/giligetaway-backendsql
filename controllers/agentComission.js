@@ -570,7 +570,7 @@ async getMonthlyAgentSummary(req, res) {
   try {
     const year = parseInt(req.query.year, 10) || new Date().getFullYear();
     const month = req.query.month ? parseInt(req.query.month, 10) : null;
-    
+
     const start = month
       ? new Date(year, month - 1, 1)
       : new Date(year, 0, 1);
@@ -578,88 +578,64 @@ async getMonthlyAgentSummary(req, res) {
       ? new Date(year, month, 0, 23, 59, 59)
       : new Date(year, 11, 31, 23, 59, 59);
 
-    const summaries = await Agent.findAll({
+   const summaries = await AgentCommission.findAll({
       attributes: [
-        ["id", "agent_id"],
-        ["name", "agent_name"],
-        [
-          // gross_total_invoiced (minus bank_fee)
-          sequelize.fn("COALESCE",
-            sequelize.fn("SUM",
-              sequelize.literal(`
-                CASE WHEN \`bookings\`.\`payment_method\` = 'invoiced'
-                THEN (\`bookings\`.\`gross_total\` - COALESCE(\`bookings\`.\`bank_fee\`, 0))
-                ELSE 0 END
-              `)
-            ), 0
-          ),
-          "gross_total_invoiced"
-        ],
-        [
-          // gross_total_paid (minus bank_fee)
-          sequelize.fn("COALESCE",
-            sequelize.fn("SUM",
-              sequelize.literal(`
-                CASE WHEN \`bookings\`.\`payment_status\` = 'paid'
-                THEN (\`bookings\`.\`gross_total\` - COALESCE(\`bookings\`.\`bank_fee\`, 0))
-                ELSE 0 END
-              `)
-            ), 0
-          ),
-          "gross_total_paid"
-        ],
-        [
-          // commission_amount_invoiced (untuk payment_method = 'invoiced')
-          sequelize.fn("COALESCE",
-            sequelize.fn("SUM",
-              sequelize.literal(`
-                CASE WHEN \`bookings\`.\`payment_method\` = 'invoiced'
-                THEN COALESCE(\`agentCommissions\`.\`amount\`, 0)
-                ELSE 0 END
-              `)
-            ), 0
-          ),
-          "commission_amount_invoiced"
-        ],
-        [
-          // commission_amount_paid (untuk payment_status = 'paid')
-          sequelize.fn("COALESCE",
-            sequelize.fn("SUM",
-              sequelize.literal(`
-                CASE WHEN \`bookings\`.\`payment_status\` = 'paid'
-                THEN COALESCE(\`agentCommissions\`.\`amount\`, 0)
-                ELSE 0 END
-              `)
-            ), 0
-          ),
-          "commission_amount_paid"
-        ]
+        "agent_id",
+        [sequelize.fn("SUM", sequelize.literal(`
+          CASE WHEN \`Booking\`.\`payment_method\` = 'invoiced'
+          THEN (\`Booking\`.\`gross_total\` - COALESCE(\`Booking\`.\`bank_fee\`, 0))
+          ELSE 0 END
+        `)), "gross_total_invoiced"],
+        [sequelize.fn("SUM", sequelize.literal(`
+          CASE WHEN \`Booking\`.\`payment_status\` = 'paid'
+          THEN (\`Booking\`.\`gross_total\` - COALESCE(\`Booking\`.\`bank_fee\`, 0))
+          ELSE 0 END
+        `)), "gross_total_paid"],
+        [sequelize.fn("SUM", sequelize.literal(`
+          CASE WHEN \`Booking\`.\`payment_method\` = 'invoiced'
+          THEN \`AgentCommission\`.\`amount\`
+          ELSE 0 END
+        `)), "commission_amount_invoiced"],
+        [sequelize.fn("SUM", sequelize.literal(`
+          CASE WHEN \`Booking\`.\`payment_status\` = 'paid'
+          THEN \`AgentCommission\`.\`amount\`
+          ELSE 0 END
+        `)), "commission_amount_paid"],
       ],
       include: [
         {
           model: Booking,
-          as: "bookings",
-          attributes: [],
+          as: "Booking",
           required: true,
-          where: { booking_date: { [Op.between]: [start, end] } }
+          attributes: [],
+          where: {
+            booking_date: { [Op.between]: [start, end] }
+          }
         },
         {
-          model: AgentCommission,
-          as: "agentCommissions",
-          attributes: [],
-          required: false,
-          where: { created_at: { [Op.between]: [start, end] } }
+          model: Agent,
+          as: "Agent",
+          required: true,
+          attributes: ["name"]
         }
       ],
-      group: ["Agent.id"]
+      group: ["agent_id", "Agent.id", "Agent.name"],
+      raw: true,
+      nest: true
     });
 
     return res.status(200).json({
       month: month || "all",
       year,
-      data: summaries.map(s => s.get({ plain: true }))
+      data: summaries.map((row) => ({
+        agent_id: row.agent_id,
+  agent_name: row.Agent?.name || "(Unknown Agent)",
+        gross_total_invoiced: Number(row.gross_total_invoiced),
+        gross_total_paid: Number(row.gross_total_paid),
+        commission_amount_invoiced: Number(row.commission_amount_invoiced),
+        commission_amount_paid: Number(row.commission_amount_paid),
+      })),
     });
-
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Failed to retrieve monthly summary" });
