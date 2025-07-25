@@ -30,9 +30,9 @@ function formatDateTimeDDMMYYYY_HHMM(dateObj) {
   const d = new Date(dateObj);
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();;
+  const year = d.getFullYear();
 
-  return `${day}/${month}/${year} `;;
+  return `${day}/${month}/${year} `;
 }
 
 const AgentCommissionController = {
@@ -50,10 +50,14 @@ const AgentCommissionController = {
 
       // Filter created_at in AgentCommission
       const year = req.query.year ? parseInt(req.query.year, 10) : null;
-      const month = req.query.month ? parseInt(req.query.month, 10) : null;;
+      const month = req.query.month ? parseInt(req.query.month, 10) : null;
 
-      const yearBooking = req.query.yearBooking ? parseInt(req.query.yearBooking, 10) : null;
-      const monthBooking = req.query.monthBooking ? parseInt(req.query.monthBooking, 10) : null;
+      const yearBooking = req.query.yearBooking
+        ? parseInt(req.query.yearBooking, 10)
+        : null;
+      const monthBooking = req.query.monthBooking
+        ? parseInt(req.query.monthBooking, 10)
+        : null;
 
       const fromDate = req.query.from_date || null;
       const toDate = req.query.to_date || null;
@@ -63,7 +67,9 @@ const AgentCommissionController = {
       const toBookingDate = req.query.to_booking_date || null;
 
       const day = req.query.day ? parseInt(req.query.day, 10) : null;
-      const dayBooking = req.query.dayBooking ? parseInt(req.query.dayBooking, 10) : null;
+      const dayBooking = req.query.dayBooking
+        ? parseInt(req.query.dayBooking, 10)
+        : null;
 
       // 1. whereConditions for AgentCommission
       const whereConditions = {};
@@ -80,7 +86,7 @@ const AgentCommissionController = {
           [Op.gte]: start,
           [Op.lte]: end,
         };
-     
+
         // );
       } else if (day) {
         // Jika ada day → filter created_at by day
@@ -96,9 +102,7 @@ const AgentCommissionController = {
         //   "-",
         //   endOfDay
         // );
-      }
-      
-      else if (year) {
+      } else if (year) {
         // Fallback ke year/month
         whereConditions.created_at = {};
         if (month) {
@@ -127,7 +131,7 @@ const AgentCommissionController = {
       }
 
       // 2. bookingWhereConditions for Booking.booking_date
-   
+
       // 2. bookingWhereConditions for Booking.booking_date
       const bookingWhereConditions = {};
       if (fromBookingDate && toBookingDate) {
@@ -145,7 +149,14 @@ const AgentCommissionController = {
         );
       } else if (dayBooking) {
         const startOfDay = new Date(yearBooking, monthBooking - 1, dayBooking);
-        const endOfDay = new Date(yearBooking, monthBooking - 1, dayBooking, 23, 59, 59);
+        const endOfDay = new Date(
+          yearBooking,
+          monthBooking - 1,
+          dayBooking,
+          23,
+          59,
+          59
+        );
         bookingWhereConditions.booking_date = {
           [Op.gte]: startOfDay,
           [Op.lte]: endOfDay,
@@ -156,8 +167,7 @@ const AgentCommissionController = {
           "-",
           endOfDay
         );
-      }
-       else if (yearBooking) {
+      } else if (yearBooking) {
         // Add filter for booking_date using yearBooking/monthBooking
         bookingWhereConditions.booking_date = {};
         if (monthBooking) {
@@ -183,7 +193,7 @@ const AgentCommissionController = {
           //   endOfYear
           // );
         }
-      } 
+      }
       // Jika from_booking_date/to_booking_date tidak ada, booking_date tidak difilter
 
       // console.log("📝 AgentCommission conditions:", whereConditions);
@@ -192,11 +202,7 @@ const AgentCommissionController = {
       // Query AgentCommission + join ke Booking
       const commissions = await AgentCommission.findAll({
         where: whereConditions,
-        include:
-        
-        
-        {
-
+        include: {
           model: Booking,
           as: "Booking",
           where: {
@@ -209,7 +215,7 @@ const AgentCommissionController = {
               as: "transactions",
             },
             {
-              model:Agent,
+              model: Agent,
               as: "Agent",
             },
             {
@@ -360,8 +366,6 @@ const AgentCommissionController = {
         },
       });
 
-   
-
       // Process commissions to add route names
       const processedCommissions = commissions.map((commission) => {
         const booking = commission.Booking;
@@ -404,7 +408,7 @@ const AgentCommissionController = {
     try {
       // console.log("Received query parameters:", req.query);
       // console.log("START AGENT GET COMMISSION DATA");
-  
+
       const {
         agent_id,
         year,
@@ -420,15 +424,15 @@ const AgentCommissionController = {
         page = 1,
         limit = 100,
       } = req.query;
-  
+
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
       const offset = (pageNum - 1) * limitNum;
-  
+
       // AgentCommission filter
       const whereConditions = {};
       if (agent_id) whereConditions.agent_id = parseInt(agent_id, 10);
-  
+
       if (from_date && to_date) {
         whereConditions.created_at = {
           [Op.gte]: new Date(from_date),
@@ -446,10 +450,12 @@ const AgentCommissionController = {
         const y = parseInt(year, 10);
         const m = month ? parseInt(month, 10) : null;
         const start = m ? new Date(y, m - 1, 1) : new Date(y, 0, 1);
-        const end = m ? new Date(y, m, 0, 23, 59, 59) : new Date(y, 11, 31, 23, 59, 59);
+        const end = m
+          ? new Date(y, m, 0, 23, 59, 59)
+          : new Date(y, 11, 31, 23, 59, 59);
         whereConditions.created_at = { [Op.gte]: start, [Op.lte]: end };
       }
-  
+
       // Booking filter
       const bookingWhereConditions = {};
       if (from_booking_date && to_booking_date) {
@@ -469,62 +475,123 @@ const AgentCommissionController = {
         const yb = parseInt(yearBooking, 10);
         const mb = monthBooking ? parseInt(monthBooking, 10) : null;
         const start = mb ? new Date(yb, mb - 1, 1) : new Date(yb, 0, 1);
-        const end = mb ? new Date(yb, mb, 0, 23, 59, 59) : new Date(yb, 11, 31, 23, 59, 59);
-        bookingWhereConditions.booking_date = { [Op.gte]: start, [Op.lte]: end };
+        const end = mb
+          ? new Date(yb, mb, 0, 23, 59, 59)
+          : new Date(yb, 11, 31, 23, 59, 59);
+        bookingWhereConditions.booking_date = {
+          [Op.gte]: start,
+          [Op.lte]: end,
+        };
       }
-  
+
       // console.log("📝 whereConditions:", whereConditions);
       // console.log("📝 bookingWhereConditions:", bookingWhereConditions);
-  
-      const { count, rows: commissions } = await AgentCommission.findAndCountAll({
-        where: whereConditions,
-        limit: limitNum,
-        offset,
-        order: [['created_at', 'DESC']], // Order by latest created_at
-        distinct: true, // 🔧 fix overcounting
-        include: {
-          model: Booking,
-          as: "Booking",
-          where: bookingWhereConditions,
-          include: [
-            { model: Transaction, as: "transactions" },
-            { model: Agent, as: "Agent" },
-            { model: Passenger, as: "passengers" },
-            {
-              model: Schedule,
-              as: "schedule",
-              attributes: ["id", "boat_id", "availability", "arrival_time", "journey_time", "route_image", "departure_time", "check_in_time", "schedule_type", "days_of_week", "trip_type"],
-              include: [
-                { model: Destination, as: "FromDestination" },
-                { model: Destination, as: "ToDestination" },
-                { model: Boat, as: "Boat" },
-                { model: Transit, include: { model: Destination, as: "Destination" } },
-              ],
-            },
-            {
-              model: SubSchedule,
-              as: "subSchedule",
-              attributes: ["id", "destination_from_schedule_id", "destination_to_schedule_id", "transit_from_id", "transit_to_id", "transit_1", "transit_2", "transit_3", "transit_4"],
-              include: [
-                { model: Destination, as: "DestinationFrom" },
-                { model: Destination, as: "DestinationTo" },
-                { model: Transit, as: "TransitFrom", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-                { model: Transit, as: "TransitTo", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-                { model: Transit, as: "Transit1", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-                { model: Transit, as: "Transit2", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-                { model: Transit, as: "Transit3", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-                { model: Transit, as: "Transit4", attributes: ["id", "departure_time", "arrival_time"], include: { model: Destination, as: "Destination" } },
-              ],
-            },
-            {
-              model: TransportBooking,
-              as: "transportBookings",
-              include: [{ model: Transport, as: "Transport" }],
-            },
-          ],
-        },
-      });
-  
+
+      const { count, rows: commissions } =
+        await AgentCommission.findAndCountAll({
+          where: whereConditions,
+          limit: limitNum,
+          offset,
+          order: [["created_at", "DESC"]], // Order by latest created_at
+          distinct: true, // 🔧 fix overcounting
+          include: {
+            model: Booking,
+            as: "Booking",
+            where: bookingWhereConditions,
+            include: [
+              { model: Transaction, as: "transactions" },
+              { model: Agent, as: "Agent" },
+              { model: Passenger, as: "passengers" },
+              {
+                model: Schedule,
+                as: "schedule",
+                attributes: [
+                  "id",
+                  "boat_id",
+                  "availability",
+                  "arrival_time",
+                  "journey_time",
+                  "route_image",
+                  "departure_time",
+                  "check_in_time",
+                  "schedule_type",
+                  "days_of_week",
+                  "trip_type",
+                ],
+                include: [
+                  { model: Destination, as: "FromDestination" },
+                  { model: Destination, as: "ToDestination" },
+                  { model: Boat, as: "Boat" },
+                  {
+                    model: Transit,
+                    include: { model: Destination, as: "Destination" },
+                  },
+                ],
+              },
+              {
+                model: SubSchedule,
+                as: "subSchedule",
+                attributes: [
+                  "id",
+                  "destination_from_schedule_id",
+                  "destination_to_schedule_id",
+                  "transit_from_id",
+                  "transit_to_id",
+                  "transit_1",
+                  "transit_2",
+                  "transit_3",
+                  "transit_4",
+                ],
+                include: [
+                  { model: Destination, as: "DestinationFrom" },
+                  { model: Destination, as: "DestinationTo" },
+                  {
+                    model: Transit,
+                    as: "TransitFrom",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                  {
+                    model: Transit,
+                    as: "TransitTo",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                  {
+                    model: Transit,
+                    as: "Transit1",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                  {
+                    model: Transit,
+                    as: "Transit2",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                  {
+                    model: Transit,
+                    as: "Transit3",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                  {
+                    model: Transit,
+                    as: "Transit4",
+                    attributes: ["id", "departure_time", "arrival_time"],
+                    include: { model: Destination, as: "Destination" },
+                  },
+                ],
+              },
+              {
+                model: TransportBooking,
+                as: "transportBookings",
+                include: [{ model: Transport, as: "Transport" }],
+              },
+            ],
+          },
+        });
+
       // Post-processing
       const processedCommissions = commissions.map((commission) => {
         const booking = commission.Booking;
@@ -539,19 +606,23 @@ const AgentCommissionController = {
             booking.subSchedule.Transit4?.Destination?.name,
             booking.subSchedule.TransitTo?.Destination?.name,
             booking.subSchedule.DestinationTo?.name,
-          ].filter(Boolean).join(" - ");
+          ]
+            .filter(Boolean)
+            .join(" - ");
         } else if (booking?.schedule) {
           route = [
             booking.schedule.FromDestination?.name,
             booking.schedule.ToDestination?.name,
-          ].filter(Boolean).join(" - ");
+          ]
+            .filter(Boolean)
+            .join(" - ");
         }
         return {
           ...commission.toJSON(),
           route,
         };
       });
-  
+
       res.status(200).json({
         totalData: count,
         currentPage: pageNum,
@@ -562,85 +633,125 @@ const AgentCommissionController = {
       console.error("Error fetching commissions:", error);
       res.status(500).json({ error: "Failed to retrieve commissions" });
     }
-  },  
-  
-// 3. monthly summary
+  },
 
-async getMonthlyAgentSummary(req, res) {
-  try {
-    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
-    const month = req.query.month ? parseInt(req.query.month, 10) : null;
+  // 3. monthly summary
 
-    const start = month
-      ? new Date(year, month - 1, 1)
-      : new Date(year, 0, 1);
-    const end = month
-      ? new Date(year, month, 0, 23, 59, 59)
-      : new Date(year, 11, 31, 23, 59, 59);
+  async getMonthlyAgentSummary(req, res) {
+    try {
+      const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+      const month = req.query.month ? parseInt(req.query.month, 10) : null;
 
-   const summaries = await AgentCommission.findAll({
-      attributes: [
-        "agent_id",
-        [sequelize.fn("SUM", sequelize.literal(`
+      // Build start and end date in local time (Asia/Makassar = UTC+8)
+      let start, end;
+
+      if (month) {
+        // Start: YYYY-MM-01 00:00:00
+        start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0)); // use UTC to avoid timezone shifts
+        // End: Last day of month at 23:59:59
+        const lastDay = new Date(year, month, 0).getDate(); // get last day of that month
+        end = new Date(Date.UTC(year, month - 1, lastDay, 23, 59, 59));
+      } else {
+        // Full year
+        start = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+        end = new Date(Date.UTC(year, 11, 31, 23, 59, 59));
+
+       
+      }
+       console.log("Full year:", start, end);
+
+      const summaries = await AgentCommission.findAll({
+        attributes: [
+          "agent_id",
+          [
+            sequelize.fn(
+              "SUM",
+              sequelize.literal(`
           CASE WHEN \`Booking\`.\`payment_method\` = 'invoiced'
           THEN (\`Booking\`.\`gross_total\` - COALESCE(\`Booking\`.\`bank_fee\`, 0))
           ELSE 0 END
-        `)), "gross_total_invoiced"],
-        [sequelize.fn("SUM", sequelize.literal(`
+        `)
+            ),
+            "gross_total_invoiced",
+          ],
+          [
+            sequelize.fn(
+              "SUM",
+              sequelize.literal(`
           CASE WHEN \`Booking\`.\`payment_status\` = 'paid'
           THEN (\`Booking\`.\`gross_total\` - COALESCE(\`Booking\`.\`bank_fee\`, 0))
           ELSE 0 END
-        `)), "gross_total_paid"],
-        [sequelize.fn("SUM", sequelize.literal(`
+        `)
+            ),
+            "gross_total_paid",
+          ],
+          [
+            sequelize.fn(
+              "SUM",
+              sequelize.literal(`
           CASE WHEN \`Booking\`.\`payment_method\` = 'invoiced'
           THEN \`AgentCommission\`.\`amount\`
           ELSE 0 END
-        `)), "commission_amount_invoiced"],
-        [sequelize.fn("SUM", sequelize.literal(`
+        `)
+            ),
+            "commission_amount_invoiced",
+          ],
+          [
+            sequelize.fn(
+              "SUM",
+              sequelize.literal(`
           CASE WHEN \`Booking\`.\`payment_status\` = 'paid'
           THEN \`AgentCommission\`.\`amount\`
           ELSE 0 END
-        `)), "commission_amount_paid"],
-      ],
-      include: [
-        {
-          model: Booking,
-          as: "Booking",
-          required: true,
-          attributes: [],
-          where: {
-            booking_date: { [Op.between]: [start, end] }
-          }
-        },
-        {
-          model: Agent,
-          as: "Agent",
-          required: true,
-          attributes: ["name"]
-        }
-      ],
-      group: ["agent_id", "Agent.id", "Agent.name"],
-      raw: true,
-      nest: true
-    });
+        `)
+            ),
+            "commission_amount_paid",
+          ],
+        ],
+        include: [
+          {
+            model: Booking,
+            as: "Booking",
+            required: true,
+            attributes: [],
+            where: {
+              booking_date: { [Op.between]: [start, end] },
+            },
+          },
+          {
+            model: Agent,
+            as: "Agent",
+            required: true,
+            attributes: ["name"],
+          },
+        ],
+        group: ["agent_id", "Agent.id", "Agent.name"],
+        raw: true,
+        nest: true,
+      });
 
-    return res.status(200).json({
-      month: month || "all",
-      year,
-      data: summaries.map((row) => ({
-        agent_id: row.agent_id,
-        agent_name: row.Agent?.name || "(Unknown Agent)",
-        gross_total_invoiced: Number(row.gross_total_invoiced)-Number(row.commission_amount_invoiced),
-        gross_total_paid: Number(row.gross_total_paid)-Number(row.commission_amount_paid),
-        commission_amount_invoiced: Number(row.commission_amount_invoiced),
-        commission_amount_paid: Number(row.commission_amount_paid),
-      })),
-    });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Failed to retrieve monthly summary" });
-  }
-},
+      return res.status(200).json({
+        month: month || "all",
+        year,
+        data: summaries.map((row) => ({
+          agent_id: row.agent_id,
+          agent_name: row.Agent?.name || "(Unknown Agent)",
+          gross_total_invoiced:
+            Number(row.gross_total_invoiced) -
+            Number(row.commission_amount_invoiced),
+          gross_total_paid:
+            Number(row.gross_total_paid) - Number(row.commission_amount_paid),
+          commission_amount_invoiced: Number(row.commission_amount_invoiced),
+          commission_amount_paid: Number(row.commission_amount_paid),
+        })),
+      });
+    } catch (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ error: "Failed to retrieve monthly summary" });
+    }
+  },
 
   async getAgentSalesReport(req, res) {
     try {
@@ -660,7 +771,7 @@ async getMonthlyAgentSummary(req, res) {
 
       const bookingWhereConditions = {
         agent_id: agentId,
-        payment_status: ["invoiced", "paid",],
+        payment_status: ["invoiced", "paid"],
       };
 
       // Changed from created_at to booking_date
@@ -772,7 +883,6 @@ async getMonthlyAgentSummary(req, res) {
                       "cost",
                       "interval_time",
                       "description",
-                      
 
                       "availability",
                     ],
@@ -851,13 +961,13 @@ async getMonthlyAgentSummary(req, res) {
           // console.log("👶transportCost", transportCost);
 
           // Use transportCost instead of bk.transportBookings if needed
-          const amount = bk.gross_total - commission.amount-transportCost;
+          const amount = bk.gross_total - commission.amount - transportCost;
           const amountInvoiced =
             bk.payment_status === "invoiced"
               ? bk.gross_total - commission.amount
               : 0;
           const amountPaid = Number(
-            bk.payment_status === "paid" ? bk.gross_total-transportCost : 0
+            bk.payment_status === "paid" ? bk.gross_total - transportCost : 0
           );
           const datePaid =
             bk.payment_status === "paid"
@@ -865,12 +975,9 @@ async getMonthlyAgentSummary(req, res) {
               : null;
 
           const amountTransportInvoiced =
-            bk.payment_status === "invoiced"
-              ? transportCost
-              : 0;
+            bk.payment_status === "invoiced" ? transportCost : 0;
           const amountTransportPaid =
             bk.payment_status === "paid" ? transportCost : 0;
-         
 
           // Rest of your code remains the same
           let route = "";
@@ -949,7 +1056,8 @@ async getMonthlyAgentSummary(req, res) {
       );
 
       const totalAmountTransportInvoiced = processedBookings.reduce(
-        (total, booking) => total + parseFloat(booking.amount_transport_invoiced),
+        (total, booking) =>
+          total + parseFloat(booking.amount_transport_invoiced),
         0
       );
 
@@ -1008,7 +1116,6 @@ async getMonthlyAgentSummary(req, res) {
         total_amount_transport_invoiced: totalAmountTransportInvoiced,
         total_amount_transport_paid: totalAmountTransportPaid,
         sub_total: subTotal,
-
 
         bookings: processedBookings,
       };
@@ -1279,41 +1386,44 @@ async getMonthlyAgentSummary(req, res) {
     }
   },
 
-
   async updateCommission(req, res) {
     try {
       const { id } = req.params;
       const { amount } = req.body;
-  
+
       if (!id || isNaN(id)) {
-        return res.status(400).json({ error: "Invalid or missing ID parameter" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or missing ID parameter" });
       }
-  
+
       const commission = await AgentCommission.findByPk(id);
-  
+
       if (!commission) {
         return res.status(404).json({ error: "AgentCommission not found" });
       }
-  
+
       if (amount === undefined || isNaN(amount)) {
-        return res.status(400).json({ error: "Invalid or missing amount in request body" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or missing amount in request body" });
       }
-  
+
       // Update amount
       commission.amount = parseFloat(amount);
       await commission.save();
-  
+
       return res.status(200).json({
         message: "AgentCommission updated successfully",
         data: commission,
       });
     } catch (error) {
       console.error("Error updating AgentCommission:", error);
-      return res.status(500).json({ error: "Failed to update AgentCommission" });
+      return res
+        .status(500)
+        .json({ error: "Failed to update AgentCommission" });
     }
   },
-
- 
 
   async createAgentComission(req, res) {
     // console.log("start to add agent comission")
@@ -1323,15 +1433,21 @@ async getMonthlyAgentSummary(req, res) {
       const { booking_id, agent_id, amount } = req.body;
 
       if (!booking_id || isNaN(booking_id)) {
-        return res.status(400).json({ error: "Invalid or missing booking_id in request body" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or missing booking_id in request body" });
       }
 
       if (!agent_id || isNaN(agent_id)) {
-        return res.status(400).json({ error: "Invalid or missing agent_id in request body" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or missing agent_id in request body" });
       }
 
       if (amount === undefined || isNaN(amount)) {
-        return res.status(400).json({ error: "Invalid or missing amount in request body" });
+        return res
+          .status(400)
+          .json({ error: "Invalid or missing amount in request body" });
       }
 
       const booking = await Booking.findByPk(booking_id);
@@ -1349,7 +1465,9 @@ async getMonthlyAgentSummary(req, res) {
       });
 
       if (existingCommission) {
-        return res.status(409).json({ error: "AgentCommission already exists" });
+        return res
+          .status(409)
+          .json({ error: "AgentCommission already exists" });
       }
 
       await booking.update({ agent_id });
@@ -1360,50 +1478,62 @@ async getMonthlyAgentSummary(req, res) {
         amount,
       });
 
-      return res.status(201).json({ message: "AgentCommission created successfully", data: commission });
+      return res
+        .status(201)
+        .json({
+          message: "AgentCommission created successfully",
+          data: commission,
+        });
     } catch (error) {
       console.error("Error creating AgentCommission:", error);
-      return res.status(500).json({ error: "Failed to create AgentCommission" });
+      return res
+        .status(500)
+        .json({ error: "Failed to create AgentCommission" });
     }
   },
-async deleteAgentCommission(req, res) {
-  try {
-    const { id } = req.body;
+  async deleteAgentCommission(req, res) {
+    try {
+      const { id } = req.body;
 
-    console.log("Deleting AgentCommission with ID:", id);
+      console.log("Deleting AgentCommission with ID:", id);
 
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: "Invalid or missing AgentCommission ID in request body" });
+      if (!id || isNaN(id)) {
+        return res
+          .status(400)
+          .json({
+            error: "Invalid or missing AgentCommission ID in request body",
+          });
+      }
+
+      const commission = await AgentCommission.findByPk(id);
+
+      if (!commission) {
+        console.log("AgentCommission not found");
+        return res.status(404).json({ error: "AgentCommission not found" });
+      }
+
+      // Ambil booking dan hapus agent_id-nya jika ada
+      const booking = await Booking.findByPk(commission.booking_id);
+      if (booking) {
+        console.log("Deleting agent_id from booking:", booking.id);
+        await booking.update({ agent_id: null });
+      }
+
+      await commission.destroy();
+
+      console.log("AgentCommission deleted successfully");
+      return res
+        .status(200)
+        .json({ message: "AgentCommission deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting AgentCommission:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to delete AgentCommission" });
     }
-
-    const commission = await AgentCommission.findByPk(id);
-
-    if (!commission) {
-      console.log("AgentCommission not found");
-      return res.status(404).json({ error: "AgentCommission not found" });
-    }
-
-    // Ambil booking dan hapus agent_id-nya jika ada
-    const booking = await Booking.findByPk(commission.booking_id);
-    if (booking) {
-      console.log("Deleting agent_id from booking:", booking.id);
-      await booking.update({ agent_id: null });
-    }
-
-    await commission.destroy();
-
-    console.log("AgentCommission deleted successfully");
-    return res.status(200).json({ message: "AgentCommission deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting AgentCommission:", error);
-    return res.status(500).json({ error: "Failed to delete AgentCommission" });
-  }
-},
-
+  },
 };
 
 // create update agent comission base on booking id that givin and the req body will be agent id and amount
-
-
 
 module.exports = AgentCommissionController;
