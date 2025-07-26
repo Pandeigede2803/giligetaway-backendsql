@@ -39,7 +39,7 @@ router.get('/search/v3', validateApiKey, (req, res, next) => {
 // duplicate schedule with transits
 router.post(
   "/duplicate/:id",
-  validateDuplicateScheduleInput,
+  // validateDuplicateScheduleInput,
   scheduleController.duplicateScheduleWithTransits
 );
 
