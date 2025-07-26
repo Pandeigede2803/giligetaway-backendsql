@@ -558,7 +558,7 @@ const checkAndNotifyWaitingList = async () => {
             // console.log(`   - ${entry.contact_name} (${entry.contact_email}) - ${entry.total_passengers} passengers`);
           });
         } else {
-          console.log(`ℹ️ No customers notified for seat ${seatAvailabilityId}: ${notifyResult.message}`);
+          // console.log(`ℹ️ No customers notified for seat ${seatAvailabilityId}: ${notifyResult.message}`);
         }
 
       } catch (notifyError) {
