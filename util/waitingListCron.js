@@ -459,7 +459,7 @@ const checkAndNotifyWaitingList = async () => {
 
         // Log successful emails with details
         followUpResult.results.filter(r => r.success).forEach(result => {
-          console.log(`   ✅ Sent to: ${result.customer} (${result.email})`);
+          // console.log(`   ✅ Sent to: ${result.customer} (${result.email})`);
         });
       } else {
         console.error(`❌ Failed to send follow-up emails:`, followUpResult.error);
@@ -538,11 +538,11 @@ const checkAndNotifyWaitingList = async () => {
           seat_availability_ids: [parseInt(seatAvailabilityId)]
         });
 
-        console.log(`📊 Notification result for seat ${seatAvailabilityId}:`, {
-          success: notifyResult.success,
-          notified_count: notifyResult.notified_count,
-          message: notifyResult.message
-        });
+        // console.log(`📊 Notification result for seat ${seatAvailabilityId}:`, {
+        //   success: notifyResult.success,
+        //   notified_count: notifyResult.notified_count,
+        //   message: notifyResult.message
+        // });
 
         if (notifyResult.success && notifyResult.notified_count > 0) {
           totalNotified += notifyResult.notified_count;
@@ -638,10 +638,10 @@ const getDayOfWeekText = (daysOfWeek) => {
 const scheduleWaitingListCron = () => {
   // Check waiting list availability setiap 1 jam
   const cronFrequency = process.env.CRON_FREQUENCY_WAITING_LIST || '0 * * * *'; // Default: setiap jam
-  console.log(`📆 Registering Waiting List Cron with frequency: ${cronFrequency}`);
+  // console.log(`📆 Registering Waiting List Cron with frequency: ${cronFrequency}`);
 
   cron.schedule(cronFrequency, async () => {
-    console.log("🚀 WaitingListCron: Starting waiting list check job...");
+    // console.log("🚀 WaitingListCron: Starting waiting list check job...");
     
     try {
       const result = await checkAndNotifyWaitingList();
@@ -658,12 +658,12 @@ const scheduleWaitingListCron = () => {
 
       // Log summary
       if (result.total_notified > 0) {
-        console.log(`\n🎉 CRON SUCCESS: Notified ${result.total_notified} waiting list customers!`);
+        // console.log(`\n🎉 CRON SUCCESS: Notified ${result.total_notified} waiting list customers!`);
         result.processed_results?.forEach(group => {
-          console.log(`   📍 Seat ID ${group.seat_availability_id}: ${group.notified_count} customers notified`);
+          // console.log(`   📍 Seat ID ${group.seat_availability_id}: ${group.notified_count} customers notified`);
         });
       } else {
-        console.log(`\nℹ️ CRON COMPLETE: No customers needed notification at this time`);
+        // console.log(`\nℹ️ CRON COMPLETE: No customers needed notification at this time`);
       }
 
       if (result.invalid_entries > 0) {
@@ -676,7 +676,7 @@ const scheduleWaitingListCron = () => {
     }
   });
 
-  console.log("✅ Waiting list cron job scheduled successfully");
+  // console.log("✅ Waiting list cron job scheduled successfully");
 };;
 module.exports = {
   scheduleWaitingListCron,

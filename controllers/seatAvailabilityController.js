@@ -120,6 +120,21 @@ const createOrGetSeatAvailability = async (req, res) => {
   }
 };
 
+const findBoostedSeats = async () => {
+  // find the seat availability that boost is true and the availability is true
+  const boostedSeats = await SeatAvailability.findAll({
+    where: {
+      boost: true,
+      availability: true,
+      date: {
+        [Op.startsWith]: "2025-07",
+      },
+    },
+  });
+  console.log(`🔍 Found ${boostedSeats.length} boosted seats.`);
+  return boostedSeats;
+};
+
 const getSeatAvailabilityByMonthYear = async (req, res) => {
   const { year, month, date, page = 1, limit = 10 } = req.query;
 
@@ -2834,6 +2849,29 @@ const notifyTelegram = async (duplicates) => {
   await sendTelegramMessage(message);
 };
 
+const notifyTelegramSeatBoosted = async (boostedSeats) => {
+  if (!boostedSeats.length) {
+    await sendTelegramMessage("✅ No boosted seats found at this time.");
+    return;
+  }
+
+  let message = `🚀 <b>BOOSTED SEATS ACTIVE</b>\n\nTotal: <b>${boostedSeats.length}</b> entries found\n\n`;
+
+  message += boostedSeats
+    .slice(0, 50)
+    .map(
+      (s) =>
+        `• <b>SA#${s.id}</b> - ${s.date} (Schedule: ${s.schedule_id}, SubSchedule: ${s.subschedule_id})`
+    )
+    .join("\n");
+
+  if (boostedSeats.length > 50) {
+    message += `\n\n…and ${boostedSeats.length - 50} more entries`;
+  }
+
+  await sendTelegramMessage(message);
+};
+
 const getDuplicateSeatReport = async (req, res) => {
   try {
     console.log("🔍 Fetching duplicate seat report...");
@@ -2889,4 +2927,6 @@ module.exports = {
   getSeatAvailabilityMonthlyView,
   findMissingRelatedBySeatId,
   getDuplicateSeatReport,
+    findBoostedSeats,
+    notifyTelegramSeatBoosted
 };

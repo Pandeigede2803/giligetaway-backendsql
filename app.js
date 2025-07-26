@@ -174,15 +174,17 @@ sequelize.sync()
       console.log(`YAY Server is running on port ${PORT}`);
       cronJobs.handleExpiredBookings();
       bookingSummaryCron.scheduleDailySummary();
-      console.log('✅ Daily booking summary cronjob registered');
+      // console.log('✅ Daily booking summary cronjob registered');
       seatFixCron.scheduleSeatFixJob();
-      console.log('✅ SeatFixCron registered');
+      // console.log('✅ SeatFixCron registered');
       waitingListCron.scheduleWaitingListCron();
-      console.log('⛑️ ==== Waiting List Cron registered =====');
+      // console.log('⛑️ ==== Waiting List Cron registered =====');
       unpaidReminderCronJobs.sendUnpaidReminders();
-      console.log(' 🐰Unpaid reminder cronjob registered');
+      // console.log(' 🐰Unpaid reminder cronjob registered');
       cronFrequencySeatDuplicates.scheduleDuplicateSeatJob();
-      console.log('🕒 Duplicate seat checker cronjob registered');
+      // console.log('🕒 Duplicate seat checker cronjob registered');
+      cronFrequencySeatDuplicates.seatBoostedJob();
+      console.log('🕒 Seat boosted checker cronjob registered');
     });
   })
   .catch(err => {
