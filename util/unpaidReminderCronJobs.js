@@ -61,7 +61,7 @@ const sendUnpaidReminders = async () => {
     where: {
       payment_status: "unpaid",
       payment_method: "collect from customer",
-      reminder_hours: { [Op.lt]: expiryHour }, // tetap filter < expiryHour agar yang >= tidak diulang
+      reminder_hours: { [Op.lt]: expiryHour },
     },
     include: [
       { model: Agent, as: "Agent" },
@@ -77,7 +77,19 @@ const sendUnpaidReminders = async () => {
     const agentEmail = booking.Agent?.email || null;
 
     if (enableLogging) {
-      console.log(`🕓 Booking ID ${booking.id} - createdAt=${createdAt.toISOString()} | now=${now.toISOString()} | hoursSince=${hoursSince} | reminder_hours=${booking.reminder_hours}`);
+      console.log(
+        `🕓 Booking ID ${booking.id} | hoursSince=${hoursSince} | reminder_hours=${booking.reminder_hours}`
+      );
+    }
+
+    // ✅ Fallback: auto-set reminder_hours to 48 jika sudah waktunya (tidak kirim email)
+    if (hoursSince >= expiryHour && booking.reminder_hours < expiryHour) {
+      booking.reminder_hours = expiryHour;
+      await booking.save();
+
+      if (enableLogging) {
+        console.log(`⚙️ Booking ID ${booking.id} reminder_hours set to 48 (auto fallback).`);
+      }
     }
 
     // === 1. CANCEL BOOKING IF EXPIRED BASED ON reminder_hours ===
@@ -106,7 +118,7 @@ const sendUnpaidReminders = async () => {
         await sequelizeTx.commit();
 
         if (enableLogging) {
-          console.log(`❌ Booking ID ${booking.id} marked as abandoned (reminder_hours >= ${expiryHour}).`);
+          console.log(`❌ Booking ID ${booking.id} marked as abandoned (>= 48 jam unpaid).`);
         }
         continue;
       } catch (err) {
@@ -134,7 +146,7 @@ const sendUnpaidReminders = async () => {
         await booking.save();
 
         if (enableLogging) {
-          console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id} (hoursSince: ${hoursSince}).`);
+          console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id}`);
         }
       } catch (err) {
         console.error(`❌ Failed to send reminder for Booking ID ${booking.id}:`, err);
@@ -142,6 +154,7 @@ const sendUnpaidReminders = async () => {
     }
   }
 };
+
 // const sendUnpaidReminders = async () => {
 //   const now = new Date();
 
