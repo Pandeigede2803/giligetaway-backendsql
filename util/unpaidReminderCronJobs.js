@@ -47,12 +47,13 @@ const reminderLevels = process.env.UNPAID_REMINDER_HOURS
   ? process.env.UNPAID_REMINDER_HOURS.split(",").map((v) => parseInt(v.trim()))
   : [3, 6, 12];
 
-const expiryHour = parseInt(process.env.UNPAID_CANCEL_AFTER_HOURS || "24");
+const expiryHour = parseInt(process.env.UNPAID_CANCEL_AFTER_HOURS || "48");
 const enableLogging = process.env.ENABLE_UNPAID_CRON_LOGGING === "true";
 
 /**
  * Cron function to send unpaid booking reminders and cancel expired bookings
  */
+
 const sendUnpaidReminders = async () => {
   const now = new Date();
 
@@ -60,7 +61,7 @@ const sendUnpaidReminders = async () => {
     where: {
       payment_status: "unpaid",
       payment_method: "collect from customer",
-      reminder_hours: { [Op.lt]: expiryHour },
+      reminder_hours: { [Op.lt]: expiryHour }, // tetap filter < expiryHour agar yang >= tidak diulang
     },
     include: [
       { model: Agent, as: "Agent" },
@@ -71,13 +72,16 @@ const sendUnpaidReminders = async () => {
   for (const booking of bookings) {
     const createdAt = new Date(booking.created_at);
     const hoursSince = Math.floor((now - createdAt) / 36e5);
-    // const hoursSince = Math.floor((now - createdAt) / (60 * 1000)); // use minutes for dev testing
 
     const customerEmail = booking.contact_email || booking.email;
     const agentEmail = booking.Agent?.email || null;
 
-    // === 1. CANCEL BOOKING IF EXPIRED ===
-    if (hoursSince >= expiryHour) {
+    if (enableLogging) {
+      console.log(`🕓 Booking ID ${booking.id} - createdAt=${createdAt.toISOString()} | now=${now.toISOString()} | hoursSince=${hoursSince} | reminder_hours=${booking.reminder_hours}`);
+    }
+
+    // === 1. CANCEL BOOKING IF EXPIRED BASED ON reminder_hours ===
+    if (booking.reminder_hours >= expiryHour) {
       const sequelizeTx = await sequelize.transaction();
       try {
         booking.payment_status = "abandoned";
@@ -102,7 +106,7 @@ const sendUnpaidReminders = async () => {
         await sequelizeTx.commit();
 
         if (enableLogging) {
-          console.log(`❌ Booking ID ${booking.id} expired and marked as abandoned.`);
+          console.log(`❌ Booking ID ${booking.id} marked as abandoned (reminder_hours >= ${expiryHour}).`);
         }
         continue;
       } catch (err) {
@@ -114,7 +118,7 @@ const sendUnpaidReminders = async () => {
 
     // === 2. SEND NEXT REMINDER IF NEEDED ===
     const nextReminder = reminderLevels.find(
-      (h) => h > booking.reminder_hours && h <= hoursSince
+      (h) => h > booking.reminder_hours && hoursSince >= h
     );
 
     if (nextReminder) {
@@ -130,7 +134,7 @@ const sendUnpaidReminders = async () => {
         await booking.save();
 
         if (enableLogging) {
-          console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id}`);
+          console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id} (hoursSince: ${hoursSince}).`);
         }
       } catch (err) {
         console.error(`❌ Failed to send reminder for Booking ID ${booking.id}:`, err);
@@ -138,6 +142,91 @@ const sendUnpaidReminders = async () => {
     }
   }
 };
+// const sendUnpaidReminders = async () => {
+//   const now = new Date();
+
+//   const bookings = await Booking.findAll({
+//     where: {
+//       payment_status: "unpaid",
+//       payment_method: "collect from customer",
+//       reminder_hours: { [Op.lt]: expiryHour },
+//     },
+//     include: [
+//       { model: Agent, as: "Agent" },
+//       { model: Transaction, as: "transactions" },
+//     ],
+//   });
+
+//   for (const booking of bookings) {
+//     const createdAt = new Date(booking.created_at);
+//     const hoursSince = Math.floor((now - createdAt) / 36e5);
+//     // const hoursSince = Math.floor((now - createdAt) / (60 * 1000)); // use minutes for dev testing
+
+//     const customerEmail = booking.contact_email || booking.email;
+//     const agentEmail = booking.Agent?.email || null;
+
+//     // === 1. CANCEL BOOKING IF EXPIRED ===
+//     if (hoursSince >= expiryHour) {
+//       const sequelizeTx = await sequelize.transaction();
+//       try {
+//         booking.payment_status = "abandoned";
+//         await booking.save({ transaction: sequelizeTx });
+
+//         const tx = await Transaction.findOne({
+//           where: { booking_id: booking.id, status: "unpaid" },
+//           transaction: sequelizeTx,
+//         });
+
+//         if (tx) {
+//           tx.status = "cancelled";
+//           await tx.save({ transaction: sequelizeTx });
+//         }
+
+//         await releaseBookingSeats(booking.id, sequelizeTx);
+//         await sendCancellationEmail(customerEmail, booking);
+//         if (agentEmail) {
+//           await sendCancellationEmailToAgent(agentEmail, customerEmail, booking);
+//         }
+
+//         await sequelizeTx.commit();
+
+//         if (enableLogging) {
+//           console.log(`❌ Booking ID ${booking.id} expired and marked as abandoned.`);
+//         }
+//         continue;
+//       } catch (err) {
+//         await sequelizeTx.rollback();
+//         console.error(`❌ Error cancelling booking ID ${booking.id}:`, err);
+//         continue;
+//       }
+//     }
+
+//     // === 2. SEND NEXT REMINDER IF NEEDED ===
+//     const nextReminder = reminderLevels.find(
+//       (h) => h > booking.reminder_hours && h <= hoursSince
+//     );
+
+//     if (nextReminder) {
+//       const reminderIndex = reminderLevels.indexOf(nextReminder) + 1;
+
+//       try {
+//         await sendUnpaidReminderEmail(customerEmail, booking, reminderIndex);
+//         if (agentEmail) {
+//           await sendUnpaidReminderEmailToAgent(agentEmail, customerEmail, booking, reminderIndex);
+//         }
+
+//         booking.reminder_hours = nextReminder;
+//         await booking.save();
+
+//         if (enableLogging) {
+//           console.log(`📩 Reminder #${reminderIndex} sent for Booking ID ${booking.id}`);
+//         }
+//       } catch (err) {
+//         console.error(`❌ Failed to send reminder for Booking ID ${booking.id}:`, err);
+//       }
+//     }
+//   }
+// };
 
 // 🕒 Run cron job on schedule
 cron.schedule(cronSchedule, async () => {

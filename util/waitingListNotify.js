@@ -418,7 +418,7 @@ const waitingListNotify = async (params, transaction = null) => {
     // console.log(`\n📊 Valid entries after all validations: ${validEntries.length}`);
 
     if (validEntries.length === 0) {
-      console.log('ℹ️ No valid waiting list entries after validation (schedule validity + days_of_week check included)');
+      // console.log('ℹ️ No valid waiting list entries after validation (schedule validity + days_of_week check included)');
       return {
         success: true,
         message: 'No valid waiting list entries after complete validation',
