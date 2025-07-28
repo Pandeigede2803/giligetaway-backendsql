@@ -375,12 +375,14 @@ const assignBookingSeatIfMissing = async (ticket_id) => {
 
 const findMissingRelatedByTicketId = async (req, res) => {
   const { ticket_id } = req.query;
+
+  console.log("🔍 DEBUG findMissingRelatedByTicketId called with ticket_id:", ticket_id);
   if (!ticket_id) {
     return res.status(400).json({ success: false, message: 'ticket_id is required' });
   }
 
   try {
-    /* 1️⃣ Ambil booking (tanpa eager-load apa pun) */
+    // 1️⃣ Ambil booking (tanpa eager-load apa pun)
     const booking = await Booking.findOne({
       where: { ticket_id },
       attributes: ['id', 'ticket_id', 'schedule_id', 'subschedule_id', 'booking_date'],
@@ -388,7 +390,9 @@ const findMissingRelatedByTicketId = async (req, res) => {
     });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
-    /* 2️⃣ Ambil semua BookingSeatAvailability milik booking */
+    console.log("🧠 Booking found:", booking);
+
+    // 2️⃣ Ambil semua BookingSeatAvailability milik booking
     let bsaList = await BookingSeatAvailability.findAll({
       where: { booking_id: booking.id },
       include: [{ model: SeatAvailability, as: 'SeatAvailability' }],
@@ -396,7 +400,7 @@ const findMissingRelatedByTicketId = async (req, res) => {
       nest: true,
     });
 
-    /* 3️⃣ Kalau belum ada seat, assign minimal 1 lalu re-fetch */
+    // 3️⃣ Kalau belum ada seat, assign minimal 1 lalu re-fetch
     if (bsaList.length === 0) {
       await assignBookingSeatIfMissing(ticket_id);
       bsaList = await BookingSeatAvailability.findAll({
@@ -409,7 +413,7 @@ const findMissingRelatedByTicketId = async (req, res) => {
         return res.status(404).json({ success: false, message: 'Seat still missing after auto-assign' });
     }
 
-    /* 4️⃣ Kelompokkan seat booking per jadwal+tanggal */
+    // 4️⃣ Kelompokkan seat booking per jadwal+tanggal
     const groups = new Map(); // key: `${schedule_id}-${date}`
 
     bsaList.forEach(({ SeatAvailability: seat }) => {
@@ -423,30 +427,30 @@ const findMissingRelatedByTicketId = async (req, res) => {
     const related_found = [];
     const related_missing = [];
 
-    /* 5️⃣ Proses tiap grup */
-    for (const { schedule_id, date, seatList } of groups.values()) {
-      const subsFromBooking = new Set(seatList.map((s) => s.subschedule_id));
+    // 5️⃣ Proses tiap grup
+    for (const { schedule_id, date } of groups.values()) {
       const expectedSubs = new Set();
 
-   for (const subId of subsFromBooking) {
-  if (subId === null) {
-    // Booking pakai main schedule  →  semua subs + null
-    const allSubs = await SubSchedule.findAll({ where: { schedule_id }, attributes: ['id'] });
-    allSubs.forEach(s => expectedSubs.add(s.id));
-    expectedSubs.add(null);
-  } else {
-    // Booking pakai SUBSCHEDULE
-    expectedSubs.add(subId);                // ←✨ tambahkan diri sendiri!
-    const rels = await SubScheduleRelation.findAll({
-      where: { main_subschedule_id: subId },
-      attributes: ['related_subschedule_id'],
-    });
-    rels.forEach(r => expectedSubs.add(r.related_subschedule_id));
-    expectedSubs.add(null);                 // main schedule
-  }
-}
+      const subId = booking.subschedule_id;
 
-      /* 6️⃣ Cek setiap subschedule yang seharusnya ada */
+      if (subId === null) {
+        const allSubs = await SubSchedule.findAll({ where: { schedule_id }, attributes: ['id'] });
+        allSubs.forEach(s => expectedSubs.add(s.id));
+        expectedSubs.add(null);
+      } else {
+        expectedSubs.add(subId); // Tambahkan diri sendiri
+        const rels = await SubScheduleRelation.findAll({
+          where: { main_subschedule_id: subId },
+          attributes: ['related_subschedule_id'],
+          raw: true,
+        });
+        const relatedIds = rels.map(r => r.related_subschedule_id);
+        console.log(`🧠 rels for subId ${subId}:`, relatedIds);
+        relatedIds.forEach(id => expectedSubs.add(id));
+        expectedSubs.add(null); // Tambahkan main schedule
+      }
+
+      // 6️⃣ Cek setiap subschedule yang seharusnya ada
       for (const subId of expectedSubs) {
         const seat = await SeatAvailability.findOne({
           where: { schedule_id, subschedule_id: subId, date },
@@ -480,6 +484,9 @@ const findMissingRelatedByTicketId = async (req, res) => {
         }
       }
     }
+
+    console.log('Related found:', related_found);
+    console.log('Related missing:', related_missing);
 
     return res.status(200).json({
       success: true,

@@ -40,10 +40,6 @@ router.delete("/delete", authenticate, deleteSeatAvailabilityByIds);
 
 router.get("/test/duplicate-seat", getDuplicateSeatReport); // ✅ hit this from Postman
 
-
-
-
-
 router.get("/check-available", authenticate, checkAvailableSeats);
 
 
