@@ -2200,7 +2200,7 @@ const handleSeatAvailability = async (req, res) => {
 
       await sendSeatAvailabilityEmail({
         subject: `✅ Seat Boosted: ID ${seat_availability_id}`,
-        text: `Seat availability with ID ${seat_availability_id} was successfully boosted to maximum capacity.`,
+        text: `Seat availability with ID ${seat_availability_id}-${schedule_id} on ${date} was successfully boosted to maximum capacity.`,
       });
 
       return res.status(200).json({
