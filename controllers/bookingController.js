@@ -6864,7 +6864,7 @@ const createAgentBooking = async (req, res) => {
 
 module.exports = {
   createBooking,
-  getBookingDiscounts,
+  // getBookingDiscounts,
   updateMultipleBookingPayment,
   getAbandonedPayments,
   editBooking,
