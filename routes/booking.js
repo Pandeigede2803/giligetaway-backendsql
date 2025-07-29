@@ -39,7 +39,7 @@ const bookingSummaryCron = require("../util/bookingSummaryCron");
 
 // Setup multer untuk upload file
 
-router.get("/discounts",authenticate, bookingController.getBookingDiscounts);
+
 
 router.get("/send-miss-booking", bookingController.sendMissBooking);
 

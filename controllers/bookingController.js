@@ -6621,89 +6621,89 @@ const calculateTotals = (transports = []) => {
 
 
 
-const getBookingDiscounts = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = 100;
-    const offset = (page - 1) * limit;
+// const getBookingDiscounts = async (req, res) => {
+//   try {
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = 100;
+//     const offset = (page - 1) * limit;
 
-    const whereCondition = literal(`
-      JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId')) != '' 
-      AND MOD(id, 2) = 1
-    `);
+//     const whereCondition = literal(`
+//       JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId')) != '' 
+//       AND MOD(id, 2) = 1
+//     `);
 
-    // Step 1: Get filtered Bookings with discountId filled and odd ID only
-    const { count, rows: bookings } = await Booking.findAndCountAll({
-      attributes: [
-        'id',
-        'ticket_id',
-        'payment_status',
-        'contact_name',
-        'booking_date',
-        'contact_email',
-        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountValue'))`), 'discount_value'],
-        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountPercentage'))`), 'discount_percentage'],
-        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId'))`), 'discount_id'],
-        'discount_data',
-        'created_at'
-      ],
-      where: whereCondition,
-      order: [['created_at', 'DESC']],
-      limit,
-      offset
-    });
+//     // Step 1: Get filtered Bookings with discountId filled and odd ID only
+//     const { count, rows: bookings } = await Booking.findAndCountAll({
+//       attributes: [
+//         'id',
+//         'ticket_id',
+//         'payment_status',
+//         'contact_name',
+//         'booking_date',
+//         'contact_email',
+//         [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountValue'))`), 'discount_value'],
+//         [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountPercentage'))`), 'discount_percentage'],
+//         [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId'))`), 'discount_id'],
+//         'discount_data',
+//         'created_at'
+//       ],
+//       where: whereCondition,
+//       order: [['created_at', 'DESC']],
+//       limit,
+//       offset
+//     });
 
-    // Step 2: Extract discountIds from JSON
-    const discountIds = bookings
-      .map(b => parseInt(b.discount_data?.discountId))
-      .filter(id => !isNaN(id));
+//     // Step 2: Extract discountIds from JSON
+//     const discountIds = bookings
+//       .map(b => parseInt(b.discount_data?.discountId))
+//       .filter(id => !isNaN(id));
 
-    const uniqueDiscountIds = [...new Set(discountIds)];
+//     const uniqueDiscountIds = [...new Set(discountIds)];
 
-    // Step 3: Fetch all Discount entries
-    const discounts = await Discount.findAll({
-      where: {
-        id: { [Op.in]: uniqueDiscountIds }
-      },
-      attributes: ['id', 'code', 'name', 'description']
-    });
+//     // Step 3: Fetch all Discount entries
+//     const discounts = await Discount.findAll({
+//       where: {
+//         id: { [Op.in]: uniqueDiscountIds }
+//       },
+//       attributes: ['id', 'code', 'name', 'description']
+//     });
 
-    // Step 4: Map id → discount_info
-    const discountMap = {};
-    for (const d of discounts) {
-      discountMap[d.id] = d;
-    }
+//     // Step 4: Map id → discount_info
+//     const discountMap = {};
+//     for (const d of discounts) {
+//       discountMap[d.id] = d;
+//     }
 
-    // Step 5: Merge discount info into bookings
-    const enriched = bookings.map(b => {
-      const discountId = parseInt(b.discount_data?.discountId || 0);
-      return {
-        id: b.id,
-        ticket_id: b.ticket_id,
-        payment_status: b.payment_status,
-        contact_name: b.contact_name,
-        contact_name: b.contact_email,
-        departure_date: b.booking_date,
-        created_at: b.created_at,
-        discount_data: b.discount_data,
-        discount_info: discountMap[discountId] || null
-      };
-    });
+//     // Step 5: Merge discount info into bookings
+//     const enriched = bookings.map(b => {
+//       const discountId = parseInt(b.discount_data?.discountId || 0);
+//       return {
+//         id: b.id,
+//         ticket_id: b.ticket_id,
+//         payment_status: b.payment_status,
+//         contact_name: b.contact_name,
+//         contact_name: b.contact_email,
+//         departure_date: b.booking_date,
+//         created_at: b.created_at,
+//         discount_data: b.discount_data,
+//         discount_info: discountMap[discountId] || null
+//       };
+//     });
 
-    res.status(200).json({
-      success: true,
-      data: enriched,
-      pagination: {
-        total: count,
-        page,
-        totalPages: Math.ceil(count / limit)
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error fetching discount bookings with filtering:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch filtered booking discount data' });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       data: enriched,
+//       pagination: {
+//         total: count,
+//         page,
+//         totalPages: Math.ceil(count / limit)
+//       }
+//     });
+//   } catch (error) {
+//     console.error('❌ Error fetching discount bookings with filtering:', error);
+//     res.status(500).json({ success: false, message: 'Failed to fetch filtered booking discount data' });
+//   }
+// };
 
 
 // ============= MAIN CONTROLLER =============
