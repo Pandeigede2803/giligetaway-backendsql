@@ -199,7 +199,7 @@ const sendStaffEmailForAgentBooking = async (booking, agent) => {
   /* ▸ Generate HTML body */
   const bookingData = booking.final_state?.bookingData || {};
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `${booking.paymentStatus.toUpperCase()}-COLLECT FROM CUSTOMER-${agent.name.toUpperCase()} ONE WAY TRIP GILI GETAWAY ${booking.ticket_id}`;
+  const subject = `${(booking.payment_status || "PAID").toUpperCase()}-COLLECT FROM CUSTOMER-${agent.name || "AGENT"} ONE WAY TRIP GILI GETAWAY ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
 
@@ -278,7 +278,7 @@ const sendStaffEmailRoundTripAgent = async (
 
   const bookingDataDeparture = firstBooking.final_state?.bookingData || {};
   const bookingDataReturn = secondBooking.final_state?.bookingData || {};
-  const subject = `${firstBooking.paymentStatus.toUpperCase()}-COLLECT FROM CUSTOMER FROM AGENT: ${agent.name.toUpperCase()} - ROUND TRIP – GILI GETAWAY ${firstBooking.ticket_id}-${secondBooking.ticket_id}`;
+  const subject = `${(firstBooking.payment_status || "PAID").toUpperCase()}-COLLECT FROM CUSTOMER FROM AGENT: ${(agent.name || "AGENT").toUpperCase()} - ROUND TRIP – GILI GETAWAY ${firstBooking.ticket_id || "UNKNOWN"}-${secondBooking.ticket_id || "UNKNOWN"}`;
 
   const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;

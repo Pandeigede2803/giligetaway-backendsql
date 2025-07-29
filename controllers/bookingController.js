@@ -2016,6 +2016,8 @@ const getBookingContact = async (req, res) => {
         [fn("MAX", col("contact_passport_id")), "contact_passport_id"],
         [fn("MAX", col("contact_nationality")), "contact_nationality"],
         [fn("MAX", col("contact_email")), "contact_email"],
+        // add created at 
+        [fn("MAX", col("created_at")), "created_at"],
       ],
       group: ["contact_email"],
     });
