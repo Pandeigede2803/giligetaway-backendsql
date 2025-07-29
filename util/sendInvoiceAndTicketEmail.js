@@ -122,7 +122,7 @@ const sendInvoiceAndTicketEmail = async (
       } catch (staffErr) {
         console.error("❌ Failed to send staff email notification:", staffErr.message);
         await sendTelegramError(
-          `❌ <b>STAFF EMAIL FOR AGENT FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
+          `❌ <b>STAFF EMAIL FOR AGENT FAILED</b>\nBooking ID: ${booking?.id}-${booking?.ticket_id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
         );
       }
     }
@@ -144,7 +144,7 @@ const sendInvoiceAndTicketEmail = async (
       } catch (notificationError) {
         console.error("❌ Error sending notification:", notificationError.message);
           await sendTelegramError(
-          `❌ <b>STAFF EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
+          `❌ <b>STAFF EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}--${booking?.ticket_id}\nError: ${staffErr.message}`
         );
       }
     }

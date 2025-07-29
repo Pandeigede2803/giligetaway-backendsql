@@ -213,7 +213,7 @@ const sendStaffEmailForAgentBooking = async (booking, agent) => {
         <li><strong>Booking ID:</strong> ${booking.id}</li>
       
         <li><strong>Agent ID:</strong> ${booking.agent_id || "N/A"}</li>
-           <li><strong>Agent Name:</strong> ${agent.name || "N/A"}</li>
+        <li><strong>Agent Name:</strong> ${agent.name || "N/A"}</li>
         <li><strong>Ticket ID:</strong>  ${booking.ticket_id}</li>
         <li><strong>Contact:</strong>    ${booking.contact_name}</li>
         <li><strong>Phone:</strong>      ${booking.contact_phone}</li>
