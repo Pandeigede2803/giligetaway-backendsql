@@ -23,6 +23,7 @@ const WaitingList = require('./WaitingList');
 const Transaction = require('./Transaction');
 const BulkBookingResult = require('./BulkBookingResult');
 const BulkBookingUpload = require('./BulkBookingUpload');
+const Discount = require('./discount');
 
 
 const models = {
@@ -43,7 +44,7 @@ const models = {
     AgentCommission,
     Transaction,
     SubScheduleRelation,
-    // Discount,
+    Discount,
     WaitingList,BulkBookingResult,BulkBookingUpload
 };
 
