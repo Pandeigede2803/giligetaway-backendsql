@@ -23,6 +23,7 @@ const WaitingList = require('./WaitingList');
 const Transaction = require('./Transaction');
 const BulkBookingResult = require('./BulkBookingResult');
 const BulkBookingUpload = require('./BulkBookingUpload');
+const Discount = require('./Discount'); // Import the Discount model
 
 const models = {
     User,
@@ -42,6 +43,7 @@ const models = {
     AgentCommission,
     Transaction,
     SubScheduleRelation,
+    Discount,
     WaitingList,BulkBookingResult,BulkBookingUpload
 };
 

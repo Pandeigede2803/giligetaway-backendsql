@@ -15,12 +15,15 @@ const {
   Agent,
   BookingSeatAvailability,
   Boat,
+  Discount,
 } = require("../models");
 const { fn, col } = require("sequelize");
 const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 
-const { Op } = require("sequelize");
+const { mapJourneySteps } = require('../util/mapJourneySteps');
+
+const { Op, where, literal } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
 const { addTransportBookings, addPassengers } = require("../util/bookingUtil");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
@@ -4113,66 +4116,61 @@ const getBookingByTicketId = async (req, res) => {
       ],
     });
 
-    if (booking) {
-      // Get data to check seat availability
-      const seatAvailability = booking.SeatAvailabilities[0];
-      const schedule_id = booking.schedule?.id;
-      const sub_schedule_id = booking.subSchedule?.id;
+if (booking) {
+  const seatAvailability = booking.SeatAvailabilities[0];
+  const schedule_id = booking.schedule?.id;
+  const sub_schedule_id = booking.subSchedule?.id;
+  const enhancedBooking = { ...booking.get() };
 
-      // Enhanced response with seat availability for each passenger
-      const enhancedBooking = { ...booking.get() };
+  if (
+    enhancedBooking.passengers &&
+    enhancedBooking.passengers.length > 0 &&
+    seatAvailability
+  ) {
+    const passengersWithAvailability = await Promise.all(
+      enhancedBooking.passengers.map(async (passenger) => {
+        const passengerData = { ...passenger.get() };
 
-      // Check seat availability for each passenger
-      if (
-        enhancedBooking.passengers &&
-        enhancedBooking.passengers.length > 0 &&
-        seatAvailability
-      ) {
-        const passengersWithAvailability = await Promise.all(
-          enhancedBooking.passengers.map(async (passenger) => {
-            const passengerData = { ...passenger.get() };
+        if (passengerData.seat_number) {
+          const availabilityCheck = await checkSeatAvailability({
+            date: seatAvailability.date,
+            schedule_id,
+            sub_schedule_id,
+            seat_number: passengerData.seat_number,
+          });
 
-            // Check if this seat is still available (not booked by someone else)
-            if (passengerData.seat_number) {
-              const availabilityCheck = await checkSeatAvailability({
-                date: seatAvailability.date,
-                schedule_id: schedule_id,
-                sub_schedule_id: sub_schedule_id,
-                seat_number: passengerData.seat_number,
-              });
-
-              passengerData.seatNumberAvailability =
-                availabilityCheck.isAvailable;
-              passengerData.seatAvailabilityMessage = availabilityCheck.message;
-            } else {
-              passengerData.seatNumberAvailability = null;
-              passengerData.seatAvailabilityMessage = "No seat assigned yet";
-            }
-
-            return passengerData;
-          })
-        );
-
-        enhancedBooking.passengers = passengersWithAvailability;
-
-        // Check if any passenger has a seat availability issue
-        let hasUnavailableSeat = enhancedBooking.passengers.some(
-          (passenger) => passenger.seatNumberAvailability === false
-        );
-
-        // Exception rule: if payment_status is 'unpaid' and method is 'collect from customer', skip seat availability check
-        const isCollectMethodUnpaid =
-          booking.payment_status === "unpaid" &&
-          booking.payment_method?.toLowerCase() === "collect from customer";
-
-        if (isCollectMethodUnpaid) {
-          hasUnavailableSeat = false;
+          passengerData.seatNumberAvailability = availabilityCheck.isAvailable;
+          passengerData.seatAvailabilityMessage = availabilityCheck.message;
+        } else {
+          passengerData.seatNumberAvailability = null;
+          passengerData.seatAvailabilityMessage = "No seat assigned yet";
         }
 
-        enhancedBooking.availability = !hasUnavailableSeat;
-      }
+        return passengerData;
+      })
+    );
 
-      res.status(200).json(enhancedBooking);
+    enhancedBooking.passengers = passengersWithAvailability;
+
+    let hasUnavailableSeat = enhancedBooking.passengers.some(
+      (passenger) => passenger.seatNumberAvailability === false
+    );
+
+    const isCollectMethodUnpaid =
+      booking.payment_status === "unpaid" &&
+      booking.payment_method?.toLowerCase() === "collect from customer";
+
+    if (isCollectMethodUnpaid) {
+      hasUnavailableSeat = false;
+    }
+
+    enhancedBooking.availability = !hasUnavailableSeat;
+  }
+
+  // ✅ Tambahkan journeySteps di response
+  enhancedBooking.journeySteps = mapJourneySteps(booking.schedule);
+
+  res.status(200).json(enhancedBooking);
     } else {
       console.log("Booking not found:", req.params.ticket_id);
       res.status(404).json({ error: "Booking not found" });
@@ -4517,150 +4515,6 @@ const enhanceBookingWithAvailability = async (booking) => {
 
   return enhancedBooking;
 };
-
-// const getRelatedBookingsByTicketId = async (req, res) => {
-//   try {
-//     const { ticket_id } = req.params;
-
-//     console.log("Processing ticket ID:", ticket_id);
-
-//     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8867")
-//     const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir
-//     const regexPattern = `${prefix}%`; // Pattern wildcard untuk SQL
-
-//     // 2️⃣ Cari dua booking dengan ticket_id yang mirip
-//     const bookings = await Booking.findAll({
-//       where: {
-//         ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
-//       },
-//       include: [
-//         {
-//           model:Transaction,
-//           as:'transactions'
-
-//         },
-//         {
-//           model: Schedule,
-//           as: "schedule",
-//           include: [
-//             { model: Boat, as: "Boat" },
-//             {
-//               model: Transit,
-//               as: "Transits",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             { model: Destination, as: "FromDestination" },
-//             { model: Destination, as: "ToDestination" },
-//           ],
-//         },
-//         {
-//           model: SubSchedule,
-//           as: "subSchedule",
-//           include: [
-//             { model: Destination, as: "DestinationFrom" },
-//             {
-//               model: Schedule,
-//               as: "Schedule",
-//               attributes: [
-//                 "id",
-//                 "arrival_time",
-//                 "departure_time",
-//                 "journey_time",
-//               ],
-//             },
-//             { model: Destination, as: "DestinationTo" },
-//             {
-//               model: Transit,
-//               as: "TransitFrom",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             {
-//               model: Transit,
-//               as: "TransitTo",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             {
-//               model: Transit,
-//               as: "Transit1",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             {
-//               model: Transit,
-//               as: "Transit2",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             {
-//               model: Transit,
-//               as: "Transit3",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//             {
-//               model: Transit,
-//               as: "Transit4",
-//               include: [{ model: Destination, as: "Destination" }],
-//             },
-//           ],
-//         },
-//         { model: SeatAvailability, as: "SeatAvailabilities" },
-//         { model: Passenger, as: "passengers" },
-//         {
-//           model: TransportBooking,
-//           as: "transportBookings",
-//           include: [{ model: Transport, as: "transport" }],
-//         },
-//         { model: Agent, as: "Agent" },
-//       ],
-//       order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
-//       limit: 2, // Ambil maksimum 2 data
-//     });
-
-//     console.log("Bookings found:", bookings.length);
-
-//     if (bookings.length === 0) {
-//       console.log("❌ No related bookings found.");
-//       return res.status(400).json({ error: "No related bookings found" });
-//     }
-
-//     if (bookings.length === 1) {
-//       console.log("⚠️ Only one booking found. Returning single ticket.");
-//       return res
-//         .status(200)
-//         .json({ message: "Only one booking found", bookings });
-//     }
-
-//     // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
-//     const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
-//     if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
-//       console.log(
-//         "⚠️ Booking IDs are not sequential. Returning only the first booking."
-//       );
-//       return res.status(200).json({
-//         message: "Booking IDs are not sequential",
-//         bookings: [bookings[0]],
-//       });
-//     }
-
-//     // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
-//     const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
-//     if (!validMatch) {
-//       console.log(
-//         "❌ Ticket IDs do not match the provided ticket_id. Returning error."
-//       );
-//       return res
-//         .status(400)
-//         .json({ error: "Ticket IDs do not match the provided ticket_id" });
-//     }
-
-//     console.log("✅ Successfully retrieved related bookings.");
-//     return res.status(200).json({
-//       message: "Round-trip bookings found",
-//       bookings: [bookings[0], bookings[1]],
-//     });
-//   } catch (error) {
-//     console.error("❌ Error retrieving related bookings:", error.message);
-//     return res.status(500).json({ error: "Internal server error" });
-//   }
-// };
 
 const updateBookingNotes = async (req, res) => {
   console.log("start to updated note");
@@ -5939,132 +5793,7 @@ const deleteBooking = async (req, res) => {
     });
   }
 };
-// const deleteBooking = async (req, res) => {
-//   const transaction = await sequelize.transaction();
-//   try {
-//     const bookingId = req.params.id;
 
-//     // Step 1: Fetch the booking details based on the provided ID
-//     const booking = await Booking.findOne({
-//       where: { id: bookingId },
-//     });
-
-//     if (!booking) {
-//       return res.status(404).json({
-//         success: false,
-//         message: `Booking with ID ${bookingId} not found.`,
-//       });
-//     }
-
-//     const { booking_date, transport_id, payment_status } = booking;
-
-//     // Step 2: Check and delete related records in Transactions
-//     console.log("\n🔍 Checking and deleting related Transactions...");
-//     const transactions = await Transaction.findAll({
-//       where: { booking_id: bookingId },
-//     });
-
-//     if (transactions.length > 0) {
-//       const transactionIds = transactions.map((t) => t.id);
-//       console.log("🔄 Deleting related Transactions records:", transactionIds);
-
-//       await Transaction.destroy({
-//         where: { booking_id: bookingId },
-//         transaction,
-//       });
-
-//       console.log("✅ Successfully deleted related Transactions records.");
-//     } else {
-//       console.log("✅ No related Transactions found.");
-//     }
-
-//     // Step 3: Check and delete related records in Passengers
-//     console.log("\n🔍 Checking and deleting related Passengers...");
-//     const passengers = await Passenger.findAll({
-//       where: { booking_id: bookingId },
-//     });
-
-//     if (passengers.length > 0) {
-//       const passengerIds = passengers.map((p) => p.id);
-//       console.log("🔄 Deleting related Passengers records:", passengerIds);
-
-//       await Passenger.destroy({
-//         where: { booking_id: bookingId },
-//         transaction,
-//       });
-
-//       console.log("✅ Successfully deleted related Passengers records.");
-//     } else {
-//       console.log("✅ No related Passengers found.");
-//     }
-
-//     // Step 4: Check and delete related records in BookingSeatAvailability
-//     console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
-//     const relatedRecords = await BookingSeatAvailability.findAll({
-//       where: { booking_id: bookingId },
-//     });
-
-//     if (relatedRecords.length > 0) {
-//       const relatedIds = relatedRecords.map((r) => r.id);
-//       console.log("🔄 Deleting related BookingSeatAvailability records:", relatedIds);
-
-//       await BookingSeatAvailability.destroy({
-//         where: { booking_id: bookingId },
-//         transaction,
-//       });
-
-//       console.log("✅ Successfully deleted related BookingSeatAvailability records.");
-//     } else {
-//       console.log("✅ No related records found in BookingSeatAvailability.");
-//     }
-
-//     // Step 5: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
-//     if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
-//       console.log("\n🔄 Releasing seats from current booking date...");
-//       try {
-//         const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
-//         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
-//       } catch (error) {
-//         console.error("❌ Error releasing seats:", error);
-//         throw new Error(`Failed to release seats: ${error.message}`);
-//       }
-//     } else {
-//       console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
-//     }
-
-//     // Step 6: Delete the booking
-//     console.log(`\n🔄 Deleting booking with ID: ${bookingId}`);
-//     const deletedBooking = await Booking.destroy({
-//       where: { id: bookingId },
-//       transaction,
-//     });
-
-//     if (deletedBooking) {
-//       await transaction.commit();
-
-//       return res.status(200).json({
-//         success: true,
-//         message: `Booking with ID ${bookingId} and associated records have been deleted successfully.`,
-//       });
-//     } else {
-//       await transaction.rollback();
-
-//       return res.status(500).json({
-//         success: false,
-//         message: `Failed to delete booking with ID ${bookingId}.`,
-//       });
-//     }
-//   } catch (error) {
-//     await transaction.rollback();
-
-//     console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: `An error occurred while deleting booking with ID ${req.params.id}: ${error.message}`,
-//     });
-//   }
-// };
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
@@ -6889,6 +6618,94 @@ const calculateTotals = (transports = []) => {
   return { transportTotal };
 };
 
+
+
+
+const getBookingDiscounts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 100;
+    const offset = (page - 1) * limit;
+
+    const whereCondition = literal(`
+      JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId')) != '' 
+      AND MOD(id, 2) = 1
+    `);
+
+    // Step 1: Get filtered Bookings with discountId filled and odd ID only
+    const { count, rows: bookings } = await Booking.findAndCountAll({
+      attributes: [
+        'id',
+        'ticket_id',
+        'payment_status',
+        'contact_name',
+        'booking_date',
+        'contact_email',
+        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountValue'))`), 'discount_value'],
+        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountPercentage'))`), 'discount_percentage'],
+        [literal(`JSON_UNQUOTE(JSON_EXTRACT(discount_data, '$.discountId'))`), 'discount_id'],
+        'discount_data',
+        'created_at'
+      ],
+      where: whereCondition,
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    });
+
+    // Step 2: Extract discountIds from JSON
+    const discountIds = bookings
+      .map(b => parseInt(b.discount_data?.discountId))
+      .filter(id => !isNaN(id));
+
+    const uniqueDiscountIds = [...new Set(discountIds)];
+
+    // Step 3: Fetch all Discount entries
+    const discounts = await Discount.findAll({
+      where: {
+        id: { [Op.in]: uniqueDiscountIds }
+      },
+      attributes: ['id', 'code', 'name', 'description']
+    });
+
+    // Step 4: Map id → discount_info
+    const discountMap = {};
+    for (const d of discounts) {
+      discountMap[d.id] = d;
+    }
+
+    // Step 5: Merge discount info into bookings
+    const enriched = bookings.map(b => {
+      const discountId = parseInt(b.discount_data?.discountId || 0);
+      return {
+        id: b.id,
+        ticket_id: b.ticket_id,
+        payment_status: b.payment_status,
+        contact_name: b.contact_name,
+        contact_name: b.contact_email,
+        departure_date: b.booking_date,
+        created_at: b.created_at,
+        discount_data: b.discount_data,
+        discount_info: discountMap[discountId] || null
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: enriched,
+      pagination: {
+        total: count,
+        page,
+        totalPages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching discount bookings with filtering:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch filtered booking discount data' });
+  }
+};
+
+
 // ============= MAIN CONTROLLER =============
 // ============= MAIN CONTROLLER =============
 const createAgentBooking = async (req, res) => {
@@ -7047,6 +6864,7 @@ const createAgentBooking = async (req, res) => {
 
 module.exports = {
   createBooking,
+  getBookingDiscounts,
   updateMultipleBookingPayment,
   getAbandonedPayments,
   editBooking,
@@ -7080,3 +6898,278 @@ module.exports = {
   createAgentBooking,
   sendMissBooking
 };
+
+
+
+
+// const getRelatedBookingsByTicketId = async (req, res) => {
+//   try {
+//     const { ticket_id } = req.params;
+
+//     console.log("Processing ticket ID:", ticket_id);
+
+//     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8867")
+//     const prefix = ticket_id.slice(0, -2); // Menghapus dua digit terakhir
+//     const regexPattern = `${prefix}%`; // Pattern wildcard untuk SQL
+
+//     // 2️⃣ Cari dua booking dengan ticket_id yang mirip
+//     const bookings = await Booking.findAll({
+//       where: {
+//         ticket_id: { [Op.like]: regexPattern }, // Cari semua tiket dengan prefix yang sama
+//       },
+//       include: [
+//         {
+//           model:Transaction,
+//           as:'transactions'
+
+//         },
+//         {
+//           model: Schedule,
+//           as: "schedule",
+//           include: [
+//             { model: Boat, as: "Boat" },
+//             {
+//               model: Transit,
+//               as: "Transits",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             { model: Destination, as: "FromDestination" },
+//             { model: Destination, as: "ToDestination" },
+//           ],
+//         },
+//         {
+//           model: SubSchedule,
+//           as: "subSchedule",
+//           include: [
+//             { model: Destination, as: "DestinationFrom" },
+//             {
+//               model: Schedule,
+//               as: "Schedule",
+//               attributes: [
+//                 "id",
+//                 "arrival_time",
+//                 "departure_time",
+//                 "journey_time",
+//               ],
+//             },
+//             { model: Destination, as: "DestinationTo" },
+//             {
+//               model: Transit,
+//               as: "TransitFrom",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "TransitTo",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit1",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit2",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit3",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//             {
+//               model: Transit,
+//               as: "Transit4",
+//               include: [{ model: Destination, as: "Destination" }],
+//             },
+//           ],
+//         },
+//         { model: SeatAvailability, as: "SeatAvailabilities" },
+//         { model: Passenger, as: "passengers" },
+//         {
+//           model: TransportBooking,
+//           as: "transportBookings",
+//           include: [{ model: Transport, as: "transport" }],
+//         },
+//         { model: Agent, as: "Agent" },
+//       ],
+//       order: [["id", "ASC"]], // Urutkan dari ID terkecil ke terbesar
+//       limit: 2, // Ambil maksimum 2 data
+//     });
+
+//     console.log("Bookings found:", bookings.length);
+
+//     if (bookings.length === 0) {
+//       console.log("❌ No related bookings found.");
+//       return res.status(400).json({ error: "No related bookings found" });
+//     }
+
+//     if (bookings.length === 1) {
+//       console.log("⚠️ Only one booking found. Returning single ticket.");
+//       return res
+//         .status(200)
+//         .json({ message: "Only one booking found", bookings });
+//     }
+
+//     // 3️⃣ Validasi apakah kedua booking.id memiliki selisih 1 angka (misal: 1439-1438)
+//     const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a);
+//     if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
+//       console.log(
+//         "⚠️ Booking IDs are not sequential. Returning only the first booking."
+//       );
+//       return res.status(200).json({
+//         message: "Booking IDs are not sequential",
+//         bookings: [bookings[0]],
+//       });
+//     }
+
+//     // 4️⃣ Cek apakah booking[0].ticket_id atau booking[1].ticket_id cocok dengan ticket_id yang diberikan
+//     const validMatch = bookings.some((b) => b.ticket_id === ticket_id);
+//     if (!validMatch) {
+//       console.log(
+//         "❌ Ticket IDs do not match the provided ticket_id. Returning error."
+//       );
+//       return res
+//         .status(400)
+//         .json({ error: "Ticket IDs do not match the provided ticket_id" });
+//     }
+
+//     console.log("✅ Successfully retrieved related bookings.");
+//     return res.status(200).json({
+//       message: "Round-trip bookings found",
+//       bookings: [bookings[0], bookings[1]],
+//     });
+//   } catch (error) {
+//     console.error("❌ Error retrieving related bookings:", error.message);
+//     return res.status(500).json({ error: "Internal server error" });
+//   }
+// };
+
+
+// const deleteBooking = async (req, res) => {
+//   const transaction = await sequelize.transaction();
+//   try {
+//     const bookingId = req.params.id;
+
+//     // Step 1: Fetch the booking details based on the provided ID
+//     const booking = await Booking.findOne({
+//       where: { id: bookingId },
+//     });
+
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: `Booking with ID ${bookingId} not found.`,
+//       });
+//     }
+
+//     const { booking_date, transport_id, payment_status } = booking;
+
+//     // Step 2: Check and delete related records in Transactions
+//     console.log("\n🔍 Checking and deleting related Transactions...");
+//     const transactions = await Transaction.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (transactions.length > 0) {
+//       const transactionIds = transactions.map((t) => t.id);
+//       console.log("🔄 Deleting related Transactions records:", transactionIds);
+
+//       await Transaction.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related Transactions records.");
+//     } else {
+//       console.log("✅ No related Transactions found.");
+//     }
+
+//     // Step 3: Check and delete related records in Passengers
+//     console.log("\n🔍 Checking and deleting related Passengers...");
+//     const passengers = await Passenger.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (passengers.length > 0) {
+//       const passengerIds = passengers.map((p) => p.id);
+//       console.log("🔄 Deleting related Passengers records:", passengerIds);
+
+//       await Passenger.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related Passengers records.");
+//     } else {
+//       console.log("✅ No related Passengers found.");
+//     }
+
+//     // Step 4: Check and delete related records in BookingSeatAvailability
+//     console.log("\n🔍 Checking and deleting related BookingSeatAvailability...");
+//     const relatedRecords = await BookingSeatAvailability.findAll({
+//       where: { booking_id: bookingId },
+//     });
+
+//     if (relatedRecords.length > 0) {
+//       const relatedIds = relatedRecords.map((r) => r.id);
+//       console.log("🔄 Deleting related BookingSeatAvailability records:", relatedIds);
+
+//       await BookingSeatAvailability.destroy({
+//         where: { booking_id: bookingId },
+//         transaction,
+//       });
+
+//       console.log("✅ Successfully deleted related BookingSeatAvailability records.");
+//     } else {
+//       console.log("✅ No related records found in BookingSeatAvailability.");
+//     }
+
+//     // Step 5: Release seats — only if payment_status is not 'cancelled' or 'abandoned'
+//     if (payment_status !== 'cancelled' && payment_status !== 'abandoned') {
+//       console.log("\n🔄 Releasing seats from current booking date...");
+//       try {
+//         const releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
+//         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
+//       } catch (error) {
+//         console.error("❌ Error releasing seats:", error);
+//         throw new Error(`Failed to release seats: ${error.message}`);
+//       }
+//     } else {
+//       console.log(`🟡 Skipping seat release. Booking already ${payment_status}.`);
+//     }
+
+//     // Step 6: Delete the booking
+//     console.log(`\n🔄 Deleting booking with ID: ${bookingId}`);
+//     const deletedBooking = await Booking.destroy({
+//       where: { id: bookingId },
+//       transaction,
+//     });
+
+//     if (deletedBooking) {
+//       await transaction.commit();
+
+//       return res.status(200).json({
+//         success: true,
+//         message: `Booking with ID ${bookingId} and associated records have been deleted successfully.`,
+//       });
+//     } else {
+//       await transaction.rollback();
+
+//       return res.status(500).json({
+//         success: false,
+//         message: `Failed to delete booking with ID ${bookingId}.`,
+//       });
+//     }
+//   } catch (error) {
+//     await transaction.rollback();
+
+//     console.error(`Error deleting booking with ID ${req.params.id}:`, error.message);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: `An error occurred while deleting booking with ID ${req.params.id}: ${error.message}`,
+//     });
+//   }
+// };

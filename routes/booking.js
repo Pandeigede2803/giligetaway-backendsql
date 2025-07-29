@@ -39,6 +39,8 @@ const bookingSummaryCron = require("../util/bookingSummaryCron");
 
 // Setup multer untuk upload file
 
+router.get("/discounts",authenticate, bookingController.getBookingDiscounts);
+
 router.get("/send-miss-booking", bookingController.sendMissBooking);
 
 // / Route untuk menjalankan laporan booking harian segera (untuk testing)
@@ -149,6 +151,10 @@ router.get(
   validateRoundTripTicket,
   bookingController.getRelatedBookingsByTicketId
 );
+
+// get booking discount data
+//  getBookingDiscounts
+
 
 //update multiple booking payment
 router.put(
