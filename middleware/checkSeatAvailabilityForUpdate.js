@@ -1231,56 +1231,94 @@ const validatePaymentUpdate = async (req, res, next) => {
         }
 
         // Validate payment status if provided
-        if (payment_status) {
-            const currentStatus = booking.payment_status;
-            console.log('Current payment status:', currentStatus);
-            console.log('Requested payment status:', payment_status);
+//         if (payment_status) {
+//             const currentStatus = booking.payment_status;
+//             console.log('Current payment status:', currentStatus);
+//             console.log('Requested payment status:', payment_status);
 
-            // Define valid status transitions
-            const validTransitions = {
-                'invoiced': ['paid', 'abandoned','cancelled','invoiced','refund_50', 'refund_100','cancel_100_charge'],
-                'unpaid': ['paid', 'abandoned','unpaid', 'cancelled',"invoiced"],
-                'pending': ['paid', 'abandoned', 'cancelled', 'pending'],
-                'paid': ['refund_50','paid', 'refund_100', 'cancelled', 'abandoned','pending','cancel_100_charge',"invoiced"],
-                'refund_50': ["paid"], // No further transitions allowed
-                'refund_100': ["paid"], // No further transitions allowed
-                'cancel_100_charge': ["paid","invoiced","refund_100"],
-                'cancelled': ['refund_50','paid', 'refund_100', 'cancelled',"unpaid", 'abandoned','pending','cancel_100_charge',"invoiced"],  // No further transitions allowed
-                'abandoned': ['paid',"invoiced"]   // Allow transition from abandoned to paid
-            };
+//             // Define valid status transitions
+//             const validTransitions = {
+//                 'invoiced': ['paid', 'abandoned','cancelled','invoiced','refund_50', 'refund_100','cancel_100_charge'],
+//                 'unpaid': ['paid', 'abandoned','unpaid', 'cancelled',"invoiced"],
+//                 'pending': ['paid', 'abandoned', 'cancelled', 'pending'],
+//                 'paid': ['refund_50','paid', 'refund_100', 'cancelled', 'abandoned','pending','cancel_100_charge',"invoiced"],
+//                 'refund_50': ["paid"], // No further transitions allowed
+//                 'refund_100': ["paid"], // No further transitions allowed
+//                 'cancel_100_charge': ["paid","invoiced","refund_100"],
 
-            // Check if current status exists in valid transitions
-            if (!validTransitions[currentStatus]) {
-                console.log('❌ Invalid current status:', currentStatus);
-                return res.status(400).json({
-                    error: `Invalid current payment status from payment status - to payment status ${currentStatus}`,
-                    currentStatus
-                });
-            }
-``
-            // Check if requested transition is valid
-            if (!validTransitions[currentStatus].includes(payment_status)) {
-                console.log('❌ Invalid status transition');
-                return res.status(400).json({
-                    error: "Invalid payment status transition",
-                    currentStatus,
-                    attemptedStatus: payment_status,
-                    allowedTransitions: validTransitions[currentStatus]
-                });
-            }
+//                 // how to make the cancellation status can be from  all the payment status
+                
+//                 'cancelled': ['refund_50','paid', 'refund_100', 'cancelled',"unpaid", 'abandoned','pending','cancel_100_charge',"invoiced"],  // No further transitions allowed
+//                 'abandoned': ['paid',"invoiced"]   // Allow transition from abandoned to paid
+//             };
 
-            // For refunds and cancellation, check if there are existing transactions
-            if (['refund_50', 'refund_100', 'cancelled'].includes(payment_status)) {
-                const hasTransactions = booking.transactions && booking.transactions.length > 0;
-                if (!hasTransactions) {
-                    console.log('❌ No transactions found for refund/cancellation');
-                    return res.status(400).json({
-                        error: "Cannot refund or cancel booking without existing transactions"
-                    });
-                }
-            }
-        }
+//             // Check if current status exists in valid transitions
+//             if (!validTransitions[currentStatus]) {
+//                 console.log('❌ Invalid current status:', currentStatus);
+//                 return res.status(400).json({
+//                     error: `Invalid current payment status from payment status - to payment status ${currentStatus}`,
+//                     currentStatus
+//                 });
+//             }
+// ``
+//             // Check if requested transition is valid
+//             if (!validTransitions[currentStatus].includes(payment_status)) {
+//                 console.log('❌ Invalid status transition');
+//                 return res.status(400).json({
+//                     error: "Invalid payment status transition",
+//                     currentStatus,
+//                     attemptedStatus: payment_status,
+//                     allowedTransitions: validTransitions[currentStatus]
+//                 });
+//             }
 
+//             // For refunds and cancellation, check if there are existing transactions
+//             if (['refund_50', 'refund_100', 'cancelled'].includes(payment_status)) {
+//                 const hasTransactions = booking.transactions && booking.transactions.length > 0;
+//                 if (!hasTransactions) {
+//                     console.log('❌ No transactions found for refund/cancellation');
+//                     return res.status(400).json({
+//                         error: "Cannot refund or cancel booking without existing transactions"
+//                     });
+//                 }
+//             }
+//         }
+
+if (payment_status) {
+  const currentStatus = booking.payment_status;
+  console.log('Current payment status:', currentStatus);
+  console.log('Requested payment status:', payment_status);
+
+  // Valid transitions per current status
+  const validTransitions = {
+    'invoiced': ['paid', 'abandoned', 'cancelled', 'invoiced', 'refund_50', 'refund_100', 'cancel_100_charge'],
+    'unpaid': ['paid', 'abandoned', 'unpaid', 'cancelled', 'invoiced'],
+    'pending': ['paid', 'abandoned', 'cancelled', 'pending'],
+    'paid': ['refund_50', 'paid', 'refund_100', 'cancelled', 'abandoned', 'pending', 'cancel_100_charge', 'invoiced'],
+    'refund_50': ['paid'],
+    'refund_100': ['paid'],
+    'cancel_100_charge': ['paid', 'invoiced', 'refund_100'],
+    'cancelled': ['refund_50', 'paid', 'refund_100', 'cancelled', 'unpaid', 'abandoned', 'pending', 'cancel_100_charge', 'invoiced'],
+    'abandoned': ['paid', 'invoiced'],
+  };
+
+  // Universal transitions (can be transitioned to from any status)
+  const universalTransitions = ['cancelled', 'refund_100', 'refund_50']; // Add more if needed
+
+  // Validation logic
+  const isValid =
+    (validTransitions[currentStatus] && validTransitions[currentStatus].includes(payment_status)) ||
+    universalTransitions.includes(payment_status);
+
+  if (!isValid) {
+    console.log('❌ Invalid payment status transition attempt');
+    return res.status(400).json({
+      error: `Invalid payment status transition from ${currentStatus} to ${payment_status}`,
+      currentStatus,
+      requestedStatus: payment_status
+    });
+  }
+} 
         // Store validated booking in request for controller use
         req.validatedBooking = booking;
         console.log('✅ Validation passed');
