@@ -2796,7 +2796,6 @@ const findDuplicateSeats = async () => {
     `(b.schedule_id = 65 AND b.subschedule_id IN (130,131))`,
     `(b.schedule_id = 66 AND b.subschedule_id IN (133,132))`,
     `(b.schedule_id = 62 AND b.subschedule_id IN (125,124))`,
-    // `(b.schedule_id = 61 AND b.subschedule_id IN (123,120))`,
   ];
 
   const skipConditions = skipConditionsArray.length
@@ -2816,7 +2815,8 @@ const findDuplicateSeats = async () => {
     JOIN SeatAvailability sa ON sa.id = bsa.seat_availability_id
     WHERE b.payment_status IN ('paid', 'invoiced', 'unpaid')
       AND sa.date >= '2025-07-17'
-      AND (p.seat_number IS NOT NULL OR p.passenger_type = 'infant')
+      AND p.passenger_type != 'infant'
+      AND p.seat_number IS NOT NULL
       ${skipConditions}
     GROUP BY sa.id, sa.date, p.seat_number
     HAVING seat_count > 1
