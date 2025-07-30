@@ -2816,7 +2816,7 @@ const findDuplicateSeats = async () => {
     JOIN SeatAvailability sa ON sa.id = bsa.seat_availability_id
     WHERE b.payment_status IN ('paid', 'invoiced', 'unpaid')
       AND sa.date >= '2025-07-17'
-      AND p.seat_number IS NOT NULL
+      AND (p.seat_number IS NOT NULL OR p.passenger_type = 'infant')
       ${skipConditions}
     GROUP BY sa.id, sa.date, p.seat_number
     HAVING seat_count > 1
