@@ -5347,7 +5347,7 @@ const updateBookingDate = async (req, res) => {
   const { booking_date } = req.body;
   const { booking } = req.bookingDetails; // Assuming booking contains necessary info, including user email
 
-  console.log("booking", booking);
+  // console.log("booking", booking);
 
   try {
     await sequelize.transaction(async (t) => {

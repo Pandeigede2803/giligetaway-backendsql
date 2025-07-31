@@ -186,7 +186,7 @@ router.put(
   checkSeatAvailabilityForUpdate,
   checkBookingDateUpdateDirect,
   bookingController.updateBookingDate
-);
+);;
 
 router.put(
   "/date-agent/:booking_id",

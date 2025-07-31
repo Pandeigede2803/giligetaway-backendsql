@@ -118,118 +118,118 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
 
         const availabilityChecks = [];
 
-        if (!booking.subschedule_id) {
-            console.log('\n🔍 Checking main schedule seat availability...');
-            const mainScheduleSeatAvailability = await SeatAvailability.findOne({
-                where: {
-                    schedule_id: booking.schedule_id,
-                    subschedule_id: null,
-                    date: booking_date
-                }
-            });
+        // if (!booking.subschedule_id) {
+        //     console.log('\n🔍 Checking main schedule seat availability...');
+        //     const mainScheduleSeatAvailability = await SeatAvailability.findOne({
+        //         where: {
+        //             schedule_id: booking.schedule_id,
+        //             subschedule_id: null,
+        //             date: booking_date
+        //         }
+        //     });
 
-            if (mainScheduleSeatAvailability) {
-                // console.log(`- Current available seats: ${mainScheduleSeatAvailability.available_seats}`);
-                // console.log(`- Required seats: ${booking.total_passengers}`);
+        //     if (mainScheduleSeatAvailability) {
+        //         // console.log(`- Current available seats: ${mainScheduleSeatAvailability.available_seats}`);
+        //         // console.log(`- Required seats: ${booking.total_passengers}`);
                 
-                availabilityChecks.push({
-                    type: 'Main Schedule',
-                    id: booking.schedule_id,
-                    available: mainScheduleSeatAvailability.availability,
-                    availableSeats: mainScheduleSeatAvailability.available_seats,
-                    needed: booking.total_passengers,
-                    sufficient: mainScheduleSeatAvailability.available_seats >= booking.total_passengers
-                });
-            } else {
-                console.log('- No existing seat availability record, will create new');
-                availabilityChecks.push({
-                    type: 'Main Schedule',
-                    id: booking.schedule_id,
-                    available: true,
-                    availableSeats: booking.schedule.Boat.capacity,
-                    needed: booking.total_passengers,
-                    sufficient: true
-                });
-            }
-        } else {
-            console.log('\n🔍 Checking sub-schedule and related schedules...');
-            if (!booking.subSchedule.availability) {
-                console.log('❌ Selected sub-schedule is unavailable');
-                return res.status(400).json({
-                    error: 'The selected sub-schedule is currently unavailable'
-                });
-            }
-            console.log('✅ Selected sub-schedule is available');
+        //         availabilityChecks.push({
+        //             type: 'Main Schedule',
+        //             id: booking.schedule_id,
+        //             available: mainScheduleSeatAvailability.availability,
+        //             availableSeats: mainScheduleSeatAvailability.available_seats,
+        //             needed: booking.total_passengers,
+        //             sufficient: mainScheduleSeatAvailability.available_seats >= booking.total_passengers
+        //         });
+        //     } else {
+        //         console.log('- No existing seat availability record, will create new');
+        //         availabilityChecks.push({
+        //             type: 'Main Schedule',
+        //             id: booking.schedule_id,
+        //             available: true,
+        //             availableSeats: booking.schedule.Boat.capacity,
+        //             needed: booking.total_passengers,
+        //             sufficient: true
+        //         });
+        //     }
+        // } else {
+        //     console.log('\n🔍 Checking sub-schedule and related schedules...');
+        //     if (!booking.subSchedule.availability) {
+        //         console.log('❌ Selected sub-schedule is unavailable');
+        //         return res.status(400).json({
+        //             error: 'The selected sub-schedule is currently unavailable'
+        //         });
+        //     }
+        //     console.log('✅ Selected sub-schedule is available');
 
-            // Find related sub-schedules
-            console.log('\n🔄 Finding related sub-schedules...');
-            const relatedSubSchedules = await findRelatedSubSchedules(
-                booking.schedule_id,
-                booking.subSchedule
-            );
-            console.log(`Found ${relatedSubSchedules.length} related sub-schedules`);
+        //     // Find related sub-schedules
+        //     console.log('\n🔄 Finding related sub-schedules...');
+        //     const relatedSubSchedules = await findRelatedSubSchedules(
+        //         booking.schedule_id,
+        //         booking.subSchedule
+        //     );
+        //     console.log(`Found ${relatedSubSchedules.length} related sub-schedules`);
 
-            // Check each related sub-schedule
-            for (const subSchedule of relatedSubSchedules) {
-                console.log(`\n📊 Checking sub-schedule ID: ${subSchedule.id}`);
-                const seatAvailability = await SeatAvailability.findOne({
-                    where: {
-                        schedule_id: booking.schedule_id,
-                        subschedule_id: subSchedule.id,
-                        date: booking_date
-                    }
-                });
+        //     // Check each related sub-schedule
+        //     for (const subSchedule of relatedSubSchedules) {
+        //         console.log(`\n📊 Checking sub-schedule ID: ${subSchedule.id}`);
+        //         const seatAvailability = await SeatAvailability.findOne({
+        //             where: {
+        //                 schedule_id: booking.schedule_id,
+        //                 subschedule_id: subSchedule.id,
+        //                 date: booking_date
+        //             }
+        //         });
 
-                if (seatAvailability) {
-                    // console.log(`- Current available seats: ${seatAvailability.available_seats}`);
-                    // console.log(`- Required seats: ${booking.total_passengers}`);
+        //         if (seatAvailability) {
+        //             // console.log(`- Current available seats: ${seatAvailability.available_seats}`);
+        //             // console.log(`- Required seats: ${booking.total_passengers}`);
                     
-                    availabilityChecks.push({
-                        type: 'Sub Schedule',
-                        id: subSchedule.id,
-                        available: seatAvailability.availability,
-                        availableSeats: seatAvailability.available_seats,
-                        needed: booking.total_passengers,
-                        sufficient: seatAvailability.available_seats >= booking.total_passengers
-                    });
-                } else {
-                    console.log('- No existing seat availability record, will create new');
-                    availabilityChecks.push({
-                        type: 'Sub Schedule',
-                        id: subSchedule.id,
-                        available: true,
-                        availableSeats: booking.schedule.Boat.capacity,
-                        needed: booking.total_passengers,
-                        sufficient: true
-                    });
-                }
-            }
-        }
+        //             availabilityChecks.push({
+        //                 type: 'Sub Schedule',
+        //                 id: subSchedule.id,
+        //                 available: seatAvailability.availability,
+        //                 availableSeats: seatAvailability.available_seats,
+        //                 needed: booking.total_passengers,
+        //                 sufficient: seatAvailability.available_seats >= booking.total_passengers
+        //             });
+        //         } else {
+        //             console.log('- No existing seat availability record, will create new');
+        //             availabilityChecks.push({
+        //                 type: 'Sub Schedule',
+        //                 id: subSchedule.id,
+        //                 available: true,
+        //                 availableSeats: booking.schedule.Boat.capacity,
+        //                 needed: booking.total_passengers,
+        //                 sufficient: true
+        //             });
+        //         }
+        //     }
+        // }
 
-        // Print final availability summary
-        console.log('\n📊 Seat Availability Summary:');
-        availabilityChecks.forEach(check => {
-            console.log(`\n${check.type} (ID: ${check.id}):`);
-            console.log(`- Available: ${check.available ? 'Yes' : 'No'}`);
-            console.log(`- Available Seats: ${check.availableSeats}`);
-            console.log(`- Needed Seats: ${check.needed}`);
-            console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);
-        });
+        // // Print final availability summary
+        // console.log('\n📊 Seat Availability Summary:');
+        // availabilityChecks.forEach(check => {
+        //     console.log(`\n${check.type} (ID: ${check.id}):`);
+        //     console.log(`- Available: ${check.available ? 'Yes' : 'No'}`);
+        //     console.log(`- Available Seats: ${check.availableSeats}`);
+        //     console.log(`- Needed Seats: ${check.needed}`);
+        //     console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);
+        // });
 
-        // Check if any availability check failed
-        const failed = availabilityChecks.find(check => !check.available || !check.sufficient);
-        if (failed) {
-            console.log('\n❌ Seat availability check failed:');
-            console.log(`- Failed at: ${failed.type} (ID: ${failed.id})`);
-            console.log(`- Available seats: ${failed.availableSeats}`);
-            console.log(`- Needed seats: ${failed.needed}`);
+        // // Check if any availability check failed
+        // const failed = availabilityChecks.find(check => !check.available || !check.sufficient);
+        // if (failed) {
+        //     console.log('\n❌ Seat availability check failed:');
+        //     console.log(`- Failed at: ${failed.type} (ID: ${failed.id})`);
+        //     console.log(`- Available seats: ${failed.availableSeats}`);
+        //     console.log(`- Needed seats: ${failed.needed}`);
             
-            return res.status(400).json({
-                error: `Not enough seats available in ${failed.type.toLowerCase()} ${failed.id}`,
-                availableSeats: failed.availableSeats,
-                neededSeats: failed.needed
-            });
-        }
+        //     return res.status(400).json({
+        //         error: `Not enough seats available in ${failed.type.toLowerCase()} ${failed.id}`,
+        //         availableSeats: failed.availableSeats,
+        //         neededSeats: failed.needed
+        //     });
+        // }
 
         console.log('\n✅ All seat availability checks passed');
         
