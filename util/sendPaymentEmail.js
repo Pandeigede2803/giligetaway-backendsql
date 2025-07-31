@@ -66,7 +66,7 @@ const sendBackupEmail = async (recipientEmail, booking) => {
 
   /* ▸ Generate HTML body */
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `BACKUP TICKET – Gili Getaway ${booking.ticket_id}`;
+  const subject = `NEW BOOKING TICKET – Gili Getaway ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
   const bookingData = booking.final_state?.bookingData || {};
@@ -111,7 +111,7 @@ const sendBackupEmail = async (recipientEmail, booking) => {
   };
 
   const mailOptionsTitan = {
-    from: process.env.EMAIL_BOOKING,
+  from: process.env.EMAIL_USER_TITAN,
     to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
@@ -492,8 +492,14 @@ const sendBackupEmailRoundTrip = async (
   firstBooking,
   secondBooking
 ) => {
+
+   const fallbackEmail = process.env.EMAIL_BOOKING;
+  const toEmail =
+    recipientEmail && recipientEmail.includes("@")
+      ? recipientEmail
+      : fallbackEmail;
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `BACKUP ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}`;
+  const subject = `NEW BOOKING ROUND TRIP TICKET – Gili Getaway ${firstBooking.ticket_id}`;
 
   const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
@@ -542,14 +548,14 @@ const sendBackupEmailRoundTrip = async (
   `;
 
   const mailOptions = {
-    from: process.env.EMAIL_BOOKING,
-    to: recipientEmail,
+    from: process.env.EMAIL_USER_TITAN,
+    to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-  await transporter.sendMail(mailOptions);
+  await transporterTitan.sendMail(mailOptions);
 };
 
 const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
