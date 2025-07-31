@@ -51,6 +51,7 @@ const {
   sendPaymentEmailAgent,
   sendEmailNotification,
   sendEmailNotificationAgentDateChange,
+  sendFollowUpPaymentEmail,
 } = require("../util/sendPaymentEmail");
 const { sendTelegramMessage } = require('../util/telegram');
 
@@ -5794,6 +5795,60 @@ const deleteBooking = async (req, res) => {
   }
 };
 
+// create me functio to send follow up payment email for selcted boooking with param ticket id
+
+const sendFollowUpPendingBookingEmail = async (req, res) => {
+  const { ticket_id } = req.body;
+
+  try {
+    console.log(`\n🔍 Searching booking with ticket ID: ${ticket_id}`);
+
+    const booking = await Booking.findOne({
+      where: { ticket_id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: `❌ Booking with ticket ID ${ticket_id} not found.`,
+      });
+    }
+
+    const { contact_email, payment_status } = booking;
+
+    if (!["unpaid", "pending","cancelled"].includes(payment_status)) {
+      return res.status(400).json({
+        success: false,
+        message: `⚠️ Booking is already '${payment_status}'. Follow-up not required.`,
+      });
+    }
+
+    if (!contact_email) {
+      return res.status(400).json({
+        success: false,
+        message: "⚠️ Booking does not have a contact email.",
+      });
+    }
+
+    console.log(`✉️ Sending follow-up payment email to ${contact_email}...`);
+
+    await sendFollowUpPaymentEmail(booking); // 🔄 kirim booking mentah
+
+    console.log("✅ Follow-up email successfully sent.");
+
+    return res.status(200).json({
+      success: true,
+      message: `✅ Follow-up email sent to ${contact_email}`,
+    });
+
+  } catch (error) {
+    console.error("❌ Error in sendFollowUpPendingBookingEmail:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: `❌ Internal error: ${error.message}`,
+    });
+  }
+};
 
 const createBookingWithoutTransit = async (req, res) => {
   const {
@@ -6864,6 +6919,7 @@ const createAgentBooking = async (req, res) => {
 
 module.exports = {
   createBooking,
+  sendFollowUpPendingBookingEmail,
   getBookingDiscounts,
   updateMultipleBookingPayment,
   getAbandonedPayments,

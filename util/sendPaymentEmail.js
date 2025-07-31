@@ -111,7 +111,7 @@ const sendBackupEmail = async (recipientEmail, booking) => {
   };
 
   const mailOptionsTitan = {
-  from: process.env.EMAIL_USER_TITAN,
+    from: process.env.EMAIL_USER_TITAN,
     to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
@@ -492,8 +492,7 @@ const sendBackupEmailRoundTrip = async (
   firstBooking,
   secondBooking
 ) => {
-
-   const fallbackEmail = process.env.EMAIL_BOOKING;
+  const fallbackEmail = process.env.EMAIL_BOOKING;
   const toEmail =
     recipientEmail && recipientEmail.includes("@")
       ? recipientEmail
@@ -2320,6 +2319,56 @@ const sendEmailNotificationAgentDateChange = async (
   }
 };
 
+const sendFollowUpPaymentEmail = async (booking) => {
+  try {
+    const recipientEmail = booking.contact_email;
+    const emailUrl = process.env.FRONTEND_URL || "https://giligetaway-widget.my.id";
+    const subject = "Please Complete Your Payment for Gili Getaway Booking ID: " + booking.ticket_id;
+
+    const message = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
+        <h2 style="color: #333; margin-bottom: 15px;">Finish Your Booking Payment</h2>
+        <p>Hello ${booking.contact_name},</p>
+        <p>We noticed that your booking is still unpaid. Please complete your payment to confirm your seat.</p>
+
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Ticket ID:</strong> ${booking.ticket_id}</p>
+          <p><strong>Status:</strong> ${booking.payment_status}</p>
+        </div>
+
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${emailUrl}/follow-up-payment/${booking.ticket_id}" 
+            style="background-color: #28a745; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            Complete Payment Now
+          </a>
+        </div>
+
+        <p>If you already paid, please ignore this email.</p>
+        <p>Need help? Contact our team anytime.</p>
+
+        <div style="margin-top: 30px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 12px; color: #777;">
+          <p>© ${new Date().getFullYear()} Gili Getaway</p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_BOOKING,
+      to: recipientEmail,
+      cc: process.env.EMAIL_BOOKING,
+      subject,
+      html: message,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Follow-up email sent to ${recipientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send follow-up email:", error);
+    return false;
+  }
+};
+
 /**
  * Function to send payment reminder email to customer
  * @param {string} recipientEmail - Customer email
@@ -2892,4 +2941,5 @@ module.exports = {
   sendBackupEmailRoundTripAlways,
   sendStaffEmailForAgentBooking,
   sendStaffEmailRoundTripAgent,
+  sendFollowUpPaymentEmail
 };

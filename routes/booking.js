@@ -209,6 +209,9 @@ router.put(
 // DELETE booking
 router.delete("/:id", authenticate, bookingController.deleteBooking);
 
+// send
+router.post('/send-follow-up',authenticate, bookingController.sendFollowUpPendingBookingEmail);
+
 // Check available seats
 router.get(
   "/check-available-seats",
