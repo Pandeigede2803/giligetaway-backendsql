@@ -2355,7 +2355,7 @@ const sendFollowUpPaymentEmail = async (booking) => {
     const mailOptions = {
       from: process.env.EMAIL_BOOKING,
       to: recipientEmail,
-      cc: process.env.EMAIL_BOOKING,
+      cc: process.env.EMAIL_AGENT_BOOKING,
       subject,
       html: message,
     };
