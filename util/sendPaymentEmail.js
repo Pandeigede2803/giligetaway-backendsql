@@ -2431,10 +2431,6 @@ const sendUnpaidReminderEmail = async (
              "en-GB",
              { day: "2-digit", month: "long", year: "numeric" }
            ).format(new Date(booking.created_at))}</p>
-
-   <p><strong>Total Payment:</strong> Rp ${Number(
-     booking.gross_total
-   ).toLocaleString("id-ID", { minimumFractionDigits: 0 })} </p>
           <p><strong>Payment Status:</strong> Unpaid</p>
           ${
             reminderLevel === 3
