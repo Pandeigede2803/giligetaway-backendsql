@@ -68,7 +68,7 @@ const WaitingList = sequelize.define('WaitingList', {
         defaultValue: 0
     },
     status: {
-        type: DataTypes.ENUM('pending', 'contacted', 'booked', 'cancelled'),
+        type: DataTypes.ENUM('pending', 'contacted', 'booked', 'cancelled', 'hold'),
         allowNull: false,
         defaultValue: 'pending'
     },

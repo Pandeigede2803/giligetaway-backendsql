@@ -1177,13 +1177,9 @@ const fetchRelatedBookingsAndPassengers = async (bookingSeatAvailabilities) => {
       // Fetch seat availability and related details
       const seatAvailability = await findSeatAvailabilityWithDetails(id);
 
-      console.log("🔍 DEBUG waitingLists untuk seatAvailability ID:", id);
-console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
+
    
-      // console.log("BookingSeatAvailabilities:", JSON.stringify(seatAvailability.waitingLists, null, 2));
-// console.log("Schedule jancuk:", JSON.stringify(seatAvailability?.Schedule, null, 2));
-// console.log("Availability:", JSON.stringify(seatAvailability?.availability, null, 2));
-    
+
   
       if (!seatAvailability || !seatAvailability.Schedule) {
         return res.status(404).json({
@@ -1194,7 +1190,9 @@ console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
   
       const { Schedule, BookingSeatAvailabilities, availability,SubSchedule } = seatAvailability;
 
-      // console.log("SubSchedule BANGSAT:", JSON.stringify(BookingSeatAvailabilities[0]?.Booking?.subSchedule, null, 2));
+      // console.log("✅Schedule:", JSON.stringify(Schedule, null, 2));
+
+   
   
       // Determine seat availability status
       const seatAvailabilityStatus = Boolean(availability);
@@ -1229,16 +1227,7 @@ console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
       });
     });
 
-    // how to get the real passegers
-    // === SEAT AVAILABILITY DATA === {
-  // "id": 1208,
-  // "schedule_id": 68,
-  // "available_seats": 28,
-  // "transit_id": null,
-  // "subschedule_id": 136,
 
-  // match witht the realatedPassengers array . booking.schedule_id, booking.subschedule_id with the Seatacailability.schedule_id and sub schedule id, count the real passengers and trow the data realPassengers too
-    // Match related passengers with seat availability and count real passengers
     const realPassengers = passengers.filter((passenger) => {
       return (
         passenger.bookingDetails.schedule_id === seatAvailability.schedule_id &&
@@ -1248,16 +1237,7 @@ console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
   
 
     const realPassengerCount = realPassengers.length;
-    // count the passenger type base on there will be adult, child, infant  "realPassengers": [
-        // {
-        //   "id": 1778,
-        //   "booking_id": 1497,
-        //   "name": "EVA GAMET",
-        //   "nationality": "France",
-        //   "passport_id": "453y54yjhn",
-        //   "passenger_type": "adult",
-
-        // put it in array
+  
 
         const passengerTypeCounts = countPassengerTypes(realPassengers);
 
@@ -1266,6 +1246,7 @@ console.log(JSON.stringify(seatAvailability.WaitingLists, null, 2));
       status: 'success',
       message: 'Related passengers retrieved successfully',
       route,
+      boat: Schedule.Boat ? Schedule.Boat.get({ plain: true }) : null,
       seatAvailabilityStatus,
       relatedPassengers: passengers,
       realPassengers,

@@ -92,7 +92,13 @@ const findSeatAvailabilityWithDetails = async (id) => {
                     "destination_from_id",
                     "destination_to_id",
                   ],
+                  
                   include: [
+                        {
+              model: Boat,
+              as: "Boat",
+              attributes: ["id","capacity", "inside_seats", "outside_seats","rooftop_seats"],
+            },
                     {
                       model: Destination,
                       as: "FromDestination",
@@ -166,8 +172,13 @@ const findSeatAvailabilityWithDetails = async (id) => {
         {
           model: Schedule,
           as: "Schedule",
-          attributes: ["id", "destination_from_id", "destination_to_id"],
+          attributes: ["id", "destination_from_id", "destination_to_id","boat_id"],
           include: [
+            {
+              model: Boat,
+              as: "Boat",
+              attributes: ["id","capacity", "inside_seats", "outside_seats","rooftop_seats"],
+            },
             {
               model: Destination,
               as: "FromDestination",
