@@ -293,7 +293,7 @@ const sendStaffEmailRoundTripAgent = async (
       <h3 style="color:#165297;">Departure</h3>
       <ul>
         <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
-           <li><strong>Agent ID:</strong> ${booking.agent_id || "N/A"}</li>
+           <li><strong>Agent ID:</strong> ${firstBooking.agent_id || "N/A"}</li>
            <li><strong>Agent Name:</strong> ${agent.name || "N/A"}</li>
         <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
         <li><strong>Route:</strong> ${bookingDataDeparture.from || "N/A"} - ${bookingDataDeparture.to || "N/A"}</li>
