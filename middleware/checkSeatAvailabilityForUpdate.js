@@ -1141,11 +1141,11 @@ const { validateTransportData } = require('./validateBookingcreation');;
         }
 
         // 5️⃣ Validasi booking ID harus berurutan (misal: 1439 - 1438)
-        const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a); // Urutkan dari terbesar ke terkecil
-        if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
-            console.log("Booking IDs are not sequential. Round-trip bookings should be consecutive.");
-            return res.status(400).json({ error: "Booking IDs are not sequential. Round-trip bookings should be consecutive." });
-        }
+        // const bookingIds = bookings.map((b) => b.id).sort((a, b) => b - a); // Urutkan dari terbesar ke terkecil
+        // if (Math.abs(bookingIds[0] - bookingIds[1]) !== 1) {
+        //     console.log("Booking IDs are not sequential. Round-trip bookings should be consecutive.");
+        //     return res.status(400).json({ error: "Booking IDs are not sequential. Round-trip bookings should be consecutive." });
+        // }
 
         // 6️⃣ Validasi bahwa contact_name harus sama
         const contactNames = bookings.map((b) => b.contact_name);
@@ -1155,7 +1155,7 @@ const { validateTransportData } = require('./validateBookingcreation');;
         //     console.log("Mismatch in contact names. Both bookings must have the same contact name.");
         //     return res.status(400).json({ error: "Mismatch in contact names. Both bookings must have the same contact name." });
         // }
-        console.log("PAASS the validation")
+        // console.log("PAASS the validation")
         // ✅ Jika semua validasi lolos, lanjutkan ke controller
         req.relatedBookings = bookings;
         next();
