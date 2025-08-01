@@ -232,6 +232,10 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       console.log("✅ Backup round trip email always sent successfully");
     } catch (err) {
       console.error("❌ Failed to run sendBackupEmailRoundTripAlways:", err.message);
+      // send telegram
+      await sendTelegramError(
+        `❌ <b>BACKUP ROUNDTRIP always EMAIL FAILED</b>\nBooking ID: ${firstBooking?.id}\nError: ${err.message}`
+      );
     }
     if (firstBooking.agent_id) {
       try {
@@ -240,7 +244,7 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       } catch (staffErr) {
         console.error("❌ Failed to send round-trip agent staff email:", staffErr.message);
         await sendTelegramError(
-          `❌ <b>STAFF EMAIL ROUNDTRIP FAILED</b>\nBooking ID: ${firstBooking?.id}\nAgent ID: ${firstBooking.agent_id}\nError: ${staffErr.message}`
+          `❌ <b>STAFF EMAIL ROUNDTRIP for collect from customer FAILED</b>\nBooking ID: ${firstBooking?.id}\nAgent ID: ${firstBooking.agent_id}\nError: ${staffErr.message}`
         );
       }
     }
