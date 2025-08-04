@@ -16,9 +16,9 @@ const scheduleDuplicateSeatJob = () => {
   console.log("🕒 Running scheduled duplicate seat checker...");
   try {
     const duplicates = await findDuplicateSeats();
-    console.log(`🔍 Found ${duplicates.length} duplicate seats.`) ;
+    // console.log(`🔍 Found ${duplicates.length} duplicate seats.`) ;
 
-    console.log("📡 Sending duplicate seat report to Telegram...");
+    // console.log("📡 Sending duplicate seat report to Telegram...");
     await notifyTelegram(duplicates); // ⬅️ PASTIKAN INI ADA
     console.log("✅ Duplicate seat check done.");
   } catch (err) {

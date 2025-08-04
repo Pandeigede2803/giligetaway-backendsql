@@ -2808,7 +2808,7 @@ const findDuplicateSeats = async () => {
       sa.date AS availability_date,
       p.seat_number,
       COUNT(*) AS seat_count,
-      GROUP_CONCAT(DISTINCT b.ticket_id ORDER BY b.ticket_id SEPARATOR ', ') AS ticket_ids
+      GROUP_CONCAT(DISTINCT CONCAT(b.ticket_id, ' (', b.contact_name, ')') ORDER BY b.ticket_id SEPARATOR ', ') AS ticket_details
     FROM Passengers p
     JOIN Bookings b ON b.id = p.booking_id
     JOIN BookingSeatAvailability bsa ON bsa.booking_id = b.id
@@ -2838,7 +2838,7 @@ const notifyTelegram = async (duplicates) => {
     .slice(0, 50)
     .map(
       (d) =>
-        `• <b>SA#${d.seat_availability_id}</b> - ${d.availability_date}, seat <b>${d.seat_number}</b> ×${d.seat_count}\nTickets: ${d.ticket_ids}`
+        `• <b>SA#${d.seat_availability_id}</b> - ${d.availability_date}, seat <b>${d.seat_number}</b> ×${d.seat_count}\nBookings: ${d.ticket_details}`
     )
     .join("\n\n");
 
@@ -2847,7 +2847,7 @@ const notifyTelegram = async (duplicates) => {
   }
 
   await sendTelegramMessage(message);
-};
+};;
 
 const notifyTelegramSeatBoosted = async (boostedSeats) => {
   if (!boostedSeats.length) {
