@@ -171,14 +171,14 @@ const sendBackupEmailAlways = async (booking) => {
 
   const mailOptionsGmail = {
     from: process.env.EMAIL_USER_GMAIL,
-    to: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
 
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
@@ -612,7 +612,7 @@ const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
 
-    to: process.env.EMAIL_BOOKING,
+    to: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
