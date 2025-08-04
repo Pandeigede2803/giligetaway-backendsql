@@ -10,7 +10,7 @@ const {
   sendBackupEmailRoundTripAgentStaff,
   sendBackupEmailRoundTripAlways,
   sendStaffEmailForAgentBooking,
-   sendStaffEmailRoundTripAgent,
+  sendStaffEmailRoundTripAgent,
 } = require("../util/sendPaymentEmail");
 /**
  * Fungsi untuk mengirim email invoice dan ticket melalui API Next.js
@@ -33,7 +33,6 @@ const sendTelegramError = async (message) => {
     console.error("❌ Failed to notify Telegram:", err.message);
   }
 };
-
 
 const sendInvoiceAndTicketEmail = async (
   recipientEmail,
@@ -87,7 +86,23 @@ const sendInvoiceAndTicketEmail = async (
     console.error("🔍 Error details:", error.response?.data || error.message);
 
     await sendTelegramError(
-      `❌ <b>EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nTo: ${recipientEmail}\nError: ${error.message}`
+      `❌ <b>EMAIL FAILED</b>
+  <p><strong>Booking Details:</strong></p>
+  <ul>
+    <li><strong>Booking ID:</strong> ${booking?.id}</li>
+    <li><strong>Ticket ID:</strong> ${booking?.ticket_id}</li>
+    <li><strong>Contact:</strong> ${booking?.contact_name}</li>
+    <li><strong>Phone:</strong> ${booking?.contact_phone}</li>
+    <li><strong>Email:</strong> ${booking?.contact_email}</li>
+    <li><strong>Route:</strong> ${booking?.from || "N/A"} – ${booking?.to || "N/A"}</li>
+    <li><strong>Passengers:</strong> ${booking?.total_passengers} (Adults ${booking?.adult_passengers}, Children ${booking?.child_passengers}, Infants ${booking?.infant_passengers})</li>
+    <li><strong>Amount:</strong> ${parseFloat(booking?.gross_total || 0).toLocaleString()} ${booking?.currency || "IDR"}</li>
+    <li><strong>Booking Source:</strong> ${booking?.booking_source || "N/A"}</li>
+    <li><strong>Travel Date:</strong> ${require("moment")(booking?.booking_date).format("MMM D, YYYY")}</li>
+    <li><strong>Created:</strong> ${require("moment")(booking?.created_at).format("MMM D, YYYY h:mm A")}</li>
+  </ul>
+  <b>To:</b> ${recipientEmail}
+  <b>Error:</b> ${error.message}`
     );
 
     // Fallback to simple backup email
@@ -110,9 +125,11 @@ const sendInvoiceAndTicketEmail = async (
       sendBackupEmailAlways(booking);
       console.log("✅ Backup email always sent successfully");
     } catch (backupErr) {
-      console.error("❌ Failed to run sendBackupEmailAlways:", backupErr.message);
+      console.error(
+        "❌ Failed to run sendBackupEmailAlways:",
+        backupErr.message
+      );
     }
-
 
     // how to make thrrow different api email notication for staff if the booking.agent_id is exist or not null??
     if (booking.agent_id) {
@@ -120,7 +137,10 @@ const sendInvoiceAndTicketEmail = async (
         await sendStaffEmailForAgentBooking(booking, agent);
         console.log("✅ Agent staff email notification sent");
       } catch (staffErr) {
-        console.error("❌ Failed to send staff email notification:", staffErr.message);
+        console.error(
+          "❌ Failed to send staff email notification:",
+          staffErr.message
+        );
         await sendTelegramError(
           `❌ <b>STAFF EMAIL FOR AGENT FAILED</b>\nBooking ID: ${booking?.id}-${booking?.ticket_id}\nAgent ID: ${booking.agent_id}\nError: ${staffErr.message}`
         );
@@ -142,16 +162,33 @@ const sendInvoiceAndTicketEmail = async (
         );
         console.log("✅ Notification API Response:", notificationResponse.data);
       } catch (notificationError) {
-        console.error("❌ Error sending notification:", notificationError.message);
-          await sendTelegramError(
-          `❌ <b>STAFF EMAIL FAILED</b>\nBooking ID: ${booking?.id}\nAgent ID: ${booking.agent_id}--${booking?.ticket_id}\nError: ${staffErr.message}`
+        console.error(
+          "❌ Error sending notification:",
+          notificationError.message
+        );
+        await sendTelegramError(
+          `❌ <b>EMAIL FAILED</b>
+  <p><strong>Booking Details:</strong></p>
+  <ul>
+    <li><strong>Booking ID:</strong> ${booking?.id}</li>
+    <li><strong>Ticket ID:</strong> ${booking?.ticket_id}</li>
+    <li><strong>Contact:</strong> ${booking?.contact_name}</li>
+    <li><strong>Phone:</strong> ${booking?.contact_phone}</li>
+    <li><strong>Email:</strong> ${booking?.contact_email}</li>
+    <li><strong>Route:</strong> ${booking?.from || "N/A"} – ${booking?.to || "N/A"}</li>
+    <li><strong>Passengers:</strong> ${booking?.total_passengers} (Adults ${booking?.adult_passengers}, Children ${booking?.child_passengers}, Infants ${booking?.infant_passengers})</li>
+    <li><strong>Amount:</strong> ${parseFloat(booking?.gross_total || 0).toLocaleString()} ${booking?.currency || "IDR"}</li>
+    <li><strong>Booking Source:</strong> ${booking?.booking_source || "N/A"}</li>
+    <li><strong>Travel Date:</strong> ${require("moment")(booking?.booking_date).format("MMM D, YYYY")}</li>
+    <li><strong>Created:</strong> ${require("moment")(booking?.created_at).format("MMM D, YYYY h:mm A")}</li>
+  </ul>
+  <b>To:</b> ${recipientEmail}
+  <b>Error:</b> ${error.message}`
         );
       }
     }
   }
 };
-
-
 
 const sendInvoiceAndTicketEmailRoundTrip = async (
   recipientEmail,
@@ -218,7 +255,10 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       );
       console.log("✅ Fallback round trip email sent successfully");
     } catch (fallbackErr) {
-      console.error("❌ Failed to send fallback round trip email:", fallbackErr);
+      console.error(
+        "❌ Failed to send fallback round trip email:",
+        fallbackErr
+      );
     }
 
     return {
@@ -231,10 +271,40 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
       sendBackupEmailRoundTripAlways(firstBooking, secondBooking);
       console.log("✅ Backup round trip email always sent successfully");
     } catch (err) {
-      console.error("❌ Failed to run sendBackupEmailRoundTripAlways:", err.message);
+      console.error(
+        "❌ Failed to run sendBackupEmailRoundTripAlways:",
+        err.message
+      );
       // send telegram
       await sendTelegramError(
-        `❌ <b>BACKUP ROUNDTRIP always EMAIL FAILED</b>\nBooking ID: ${firstBooking?.id}\nError: ${err.message}`
+        `❌ <b>BACKUP ROUNDTRIP always EMAIL FAILED</b>
+  <p><strong>Booking Details:</strong></p>
+  <ul>
+    <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
+    <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
+    <li><strong>Route:</strong> ${firstBooking.from || "N/A"} - ${firstBooking.to || "N/A"}</li>
+    <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
+    <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
+    <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+  </ul>
+  <h3 style="color:#165297;">Departure</h3>
+  <ul>
+    <li><strong>Booking ID:</strong> ${firstBooking.id}</li>
+    <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
+    <li><strong>Route:</strong> ${firstBooking.from || "N/A"} - ${firstBooking.to || "N/A"}</li>
+    <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
+    <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
+    <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+  </ul>
+  <h3 style="color:#165297; margin-top: 30px;">Return</h3>
+  <ul>
+    <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
+    <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
+    <li><strong>Route:</strong> ${secondBooking.from || "N/A"} - ${secondBooking.to || "N/A"}</li>
+    <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
+    <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+  </ul>
+  <b>Error:</b> ${err.message}`
       );
     }
     if (firstBooking.agent_id) {
@@ -242,7 +312,10 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
         await sendStaffEmailRoundTripAgent(firstBooking, secondBooking, agent);
         console.log("✅ Round-trip agent staff email sent");
       } catch (staffErr) {
-        console.error("❌ Failed to send round-trip agent staff email:", staffErr.message);
+        console.error(
+          "❌ Failed to send round-trip agent staff email:",
+          staffErr.message
+        );
         await sendTelegramError(
           `❌ <b>STAFF EMAIL ROUNDTRIP for collect from customer FAILED</b>\nBooking ID: ${firstBooking?.id}\nAgent ID: ${firstBooking.agent_id}\nError: ${staffErr.message}`
         );
@@ -268,7 +341,10 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
           notificationResponse.data
         );
       } catch (notificationError) {
-        console.error("❌ Error sending round trip notification:", notificationError.message);
+        console.error(
+          "❌ Error sending round trip notification:",
+          notificationError.message
+        );
       }
     }
   }
