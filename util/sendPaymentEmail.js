@@ -410,7 +410,7 @@ const sendBackupEmailAgentStaff = async (
 
   const mailOptions = {
     from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
