@@ -2216,11 +2216,22 @@ const sendEmailNotification = async (
       ? [recipientEmail, agentEmail]
       : recipientEmail;
 
+    // Set subject and from based on agent existence
+    const subject = agentEmail
+      ? "PLEASE CHECK!! Agent Notification: Departure Date Updated"
+      : "Departure Date Updated";
+    const from = agentEmail
+      ? process.env.EMAIL_AGENT
+      : process.env.EMAIL_BOOKING;
+    const cc = agentEmail
+      ? process.env.EMAIL_AGENT
+      : process.env.EMAIL_BOOKING;
+
     const mailOptions = {
-      from: process.env.EMAIL_BOOKING,
+      from,
       to: recipients,
-      cc: process.env.EMAIL_BOOKING,
-      subject: "Departure Date Updated",
+      cc,
+      subject,
       html: message,
     };
 
