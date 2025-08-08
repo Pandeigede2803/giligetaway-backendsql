@@ -1802,14 +1802,14 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
     // Helper function to check if date is in July or August
     const isJulyOrAugust = (date) => {
       if (!useJulyAugustAdjustment) {
-        console.log("July/August adjustment is turned off");
+        // console.log("July/August adjustment is turned off");
         return false; // Skip if toggle off
       }
       const month = date.getMonth(); // 0 = Jan, 6 = Jul, 7 = Aug
       const isAdjustmentMonth = month === 6 || month === 7;
-      console.log(
-        `Month check: ${month}, Is July/August: ${isAdjustmentMonth}`
-      );
+      // console.log(
+      //   `Month check: ${month}, Is July/August: ${isAdjustmentMonth}`
+      // );
       return isAdjustmentMonth;
     };
     // Helper function to adjust available seats for boat ID 1 in July/August

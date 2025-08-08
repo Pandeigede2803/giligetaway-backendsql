@@ -500,7 +500,41 @@ const findMissingRelatedByTicketId = async (req, res) => {
   }
 };
 
+const deleteBookingSeat = async (req, res) => {
+  const { id } = req.params;
 
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'BookingSeatAvailability id is required' });
+  }
+
+  try {
+    // 1️⃣ Cari dulu data BSA yang akan dihapus
+    const bsa = await BookingSeatAvailability.findOne({
+      where: { id },
+      raw: true,
+    });
+
+    if (!bsa) {
+      return res.status(404).json({ success: false, message: 'BookingSeatAvailability not found' });
+    }
+
+    // 2️⃣ Hapus recordnya
+    await BookingSeatAvailability.destroy({
+      where: { id },
+    });
+
+    console.log(`🗑️ Deleted BookingSeatAvailability id ${id}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Booking seat deleted successfully',
+      deleted_id: id,
+    });
+  } catch (err) {
+    console.error('Error deleting booking seat:', err);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
 
 const createBookingSeatAvailabilityBatch = async (req, res) => {
   const { booking_id, seat_availability_ids } = req.body;
@@ -1299,6 +1333,6 @@ module.exports = {
     findSeatAvailabilityByIdSimple,
     findSeatAvailabilityByTicketId ,
     createBookingSeatAvailabilityBatch,deleteBookingSeatAvailabilityById,
-    findMissingRelatedByTicketId
+    findMissingRelatedByTicketId,deleteBookingSeat
 };
 

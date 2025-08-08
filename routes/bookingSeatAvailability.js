@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const validateSeatRelation = require('../middleware/seatRelation');
-const { findSeatAvailabilityById,getFilteredBookingsBySeatAvailability,findMissingRelatedByTicketId,createBookingSeatAvailabilityBatch,findSeatAvailabilityByTicketId,findSeatAvailabilityByIdSimple,findRelatedPassengerBySeatAvailabilityId } = require('../controllers/bookingSeatAvailabilityController');
+const { findSeatAvailabilityById,getFilteredBookingsBySeatAvailability,findMissingRelatedByTicketId,createBookingSeatAvailabilityBatch,findSeatAvailabilityByTicketId,findSeatAvailabilityByIdSimple,findRelatedPassengerBySeatAvailabilityId, deleteBookingSeat } = require('../controllers/bookingSeatAvailabilityController');
 
 const {testTelegram} = require('../controllers/telegramController');
 
@@ -20,6 +20,10 @@ router.post('/booking-seat-availability/batch', createBookingSeatAvailabilityBat
 router.get('/missing-related-by-ticket', findMissingRelatedByTicketId);
 
 router.get('/test-telegram', testTelegram);
+
+
+// Route to delete a booking seat availability by ID
+router.delete('/booking-seat-availability/:id', deleteBookingSeat);
 
 
 
