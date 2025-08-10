@@ -366,7 +366,7 @@ const sendBackupEmailAgentStaff = async (
   agentEmail
 ) => {
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `BACKUP TICKET AGENT BOOKING - ${agentName} - Gili Getaway ${booking.ticket_id}`;
+  const subject = `A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name}- Ticket ID: ${booking.ticket_id}`;
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
 
@@ -374,8 +374,8 @@ const sendBackupEmailAgentStaff = async (
 
   const message = `
     <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
-    <p>ATT STAFF</p>
-      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest & agent with their booking confirmation</p>
+    <p>A new Agent booking has been made from ${agentName}</p>
+      <p>Please see booking details below to check whether you have received system confirmation.</p>
       <p><strong>Booking Details:</strong></p>
       <ul>
         <li><strong>Booking ID:</strong> ${booking.id}</li>
