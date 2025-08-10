@@ -23,7 +23,7 @@ const sendWaitingListEmail = async (params) => {
   try {
     const { to, type, waitingListData, availableSeats,cc } = params;
 
-    console.log(`📧 Preparing ${type} waiting list email to: ${to} AND CC TO ${cc}`);
+    // console.log(`📧 Preparing ${type} waiting list email to: ${to} AND CC TO ${cc}`);
 
     // Generate email content based on type
     const emailContent = generateWaitingListEmailContent(type, waitingListData, availableSeats);
@@ -609,6 +609,11 @@ const generateStaffEmailContent = (data, availableSeats, formatDate, formatTime)
                         <tr style="border-bottom: 1px solid #eee;">
                             <td style="padding: 8px 0; font-weight: bold; color: #495057;">Available Seats:</td>
                             <td style="padding: 8px 0; color: #28a745; font-weight: bold;">${availableSeats}</td>
+                        </tr>
+
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 8px 0; font-weight: bold; color: #495057;">Created At:</td>
+                            <td style="padding: 8px 0;">${formatDate(data.created_at) || 'N/A'}</td>
                         </tr>
                         <tr style="border-bottom: 1px solid #eee;">
                             <td style="padding: 8px 0; font-weight: bold; color: #495057;">Seat Availability ID:</td>
