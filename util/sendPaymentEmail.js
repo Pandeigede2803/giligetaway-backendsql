@@ -366,7 +366,11 @@ const sendBackupEmailAgentStaff = async (
   agentName,
   agentEmail
 ) => {
-  const emailUrl = process.env.FRONTEND_URL;
+  const emailUrl = process.env.FRONTEND_URL;;
+
+  // console.log("detailbooking", JSON.stringify(booking.transportBookings, null, 2));
+  // // console log final state
+  // console.log("final state", JSON.stringify(booking.final_state, null, 2));
 
   const subject = `A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name} - Ticket ID: ${booking.ticket_id}`;
 
@@ -381,266 +385,223 @@ const sendBackupEmailAgentStaff = async (
       minimumFractionDigits: 0,
     }).format(value || 0);
 
-  const message = `
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #333; background: #f8f9fa; padding: 15px; margin: 0;">
-    <div style="max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
-      
-      <!-- HEADER -->
-      <div style="background: linear-gradient(135deg, #165297 0%, #1e5aa8 100%); color: white; padding: 25px 20px; position: relative;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-          <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1739515682609" 
-                 alt="Gili Getaway Logo" 
-                 style="width: 60px; height: 60px; border-radius: 8px; background: white; padding: 5px; object-fit: contain;" />
-            <div>
-              <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">INVOICE</h1>
-              <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">#${booking.ticket_id}</p>
-            </div>
-          </div>
+
+    const message = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #333; padding: 30px; background: #ffffff; max-width: 700px; margin: auto; line-height: 1.6;">
+
+  <!-- HEADER -->
+  <div style="text-align: center; margin-bottom: 40px;">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: #333;">AGENT BOOKING</h1>
+    <p style="margin: 10px 0 0; font-size: 16px; color: #666;">Ticket ID: ${booking.ticket_id}</p>
+  </div>
+
+  <!-- FROM & BILLED TO SECTION -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 40px;">
+    
+    <!-- FROM SECTION -->
+    <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px;">
+      <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #333;">From</h3>
+      <div style="line-height: 1.7;">
+        <div style="font-weight: 600; margin-bottom: 5px;">Gili Getaway Fast Boat</div>
+        <div style="margin-bottom: 5px;">
+          <a href="mailto:bookings@giligetaway.com" style="color: #007bff; text-decoration: none;">bookings@giligetaway.com</a>
         </div>
+        <div style="color: #666;">Serangan, Bali</div>
       </div>
-
-      <!-- BILLING INFO -->
-      <div style="padding: 25px 20px;">
-        <!-- Agent Info Card -->
-        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px; border-left: 4px solid #165297;">
-          <h3 style="margin: 0 0 15px; font-size: 16px; color: #165297; font-weight: 600;">Bill To</h3>
-          <div style="line-height: 1.6;">
-            <div style="font-weight: 600; margin-bottom: 8px; font-size: 15px;">${agentName}</div>
-            <div style="margin-bottom: 5px;">
-              <a href="mailto:${agentEmail}" style="color: #165297; text-decoration: none; font-weight: 500;">${agentEmail}</a>
-            </div>
-            ${booking.Agent.phone ? `<div style="color: #666;">${booking.Agent.phone}</div>` : "-"}
-          </div>
-        </div>
-
-        <!-- Payment Details Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px;">
-          
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Payment Method</div>
-            <div style="font-weight: 600;">${booking.payment_method || "N/A"}</div>
-          </div>
-
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Status</div>
-            <span style="
-              display: inline-block;
-              padding: 6px 12px;
-              border-radius: 20px;
-              font-size: 12px;
-              font-weight: 600;
-              text-transform: uppercase;
-              color: ${
-                booking.payment_method === "invoiced"
-                  ? "#856404"
-                  : booking.payment_method === "collect from customer"
-                    ? "#721c24"
-                    : booking.payment_status === "paid"
-                      ? "#155724"
-                      : "#333"
-              };
-              background-color: ${
-                booking.payment_method === "invoiced"
-                  ? "#fff3cd"
-                  : booking.payment_method === "collect from customer"
-                    ? "#f8d7da"
-                    : booking.payment_status === "paid"
-                      ? "#d4edda"
-                      : "#e2e3e5"
-              };
-            ">
-              ${
-                booking.payment_method === "invoiced"
-                  ? "INVOICED"
-                  : booking.payment_method === "collect from customer"
-                    ? "UNPAID"
-                    : (booking.payment_status || "N/A").toUpperCase()
-              }
-            </span>
-          </div>
-
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Invoice Date</div>
-            <div style="font-weight: 600;">${moment(booking.created_at).format("MMM D, YYYY")}</div>
-          </div>
-
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Travel Date</div>
-            <div style="font-weight: 600;">${moment(booking.booking_date).format("MMM D, YYYY")}</div>
-          </div>
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Passenger Name</div>
-            <div style="font-weight: 600;">${booking.contact_name || "N/A"}</div>
-          </div>
-
-          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
-            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Passenger Phone</div>
-            <div style="font-weight: 600;">${booking.contact_phone || "N/A"}</div>
-          </div>
-
-        </div>
-
-        <!-- Order Summary -->
-        <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden; margin-bottom: 25px;">
-          <div style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #e9ecef;">
-            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">Order Summary</h3>
-          </div>
-          
-          <div style="padding: 20px;">
-            <!-- Trip Details -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
-              <div style="flex: 1; min-width: 200px;">
-                <div style="font-weight: 600; font-size: 15px; margin-bottom: 5px;">
-                  ${bookingData.from || "N/A"} → ${bookingData.to || "N/A"}
-                </div>
-                <div style="color: #666; font-size: 13px;">
-                  ${booking.total_passengers} passenger${booking.total_passengers > 1 ? "s" : ""}
-                </div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-weight: 700; font-size: 18px; color: #165297;">
-                  ${formatIDR(booking.gross_total)}
-                </div>
-              </div>
-            </div>
-
-            <!-- Total -->
-            <div style="border-top: 2px solid #e9ecef; padding-top: 15px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 16px; font-weight: 600;">Total Amount</span>
-                <span style="font-size: 20px; font-weight: 700; color: #165297;">
-                  ${formatIDR(booking.gross_total)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Company Details -->
-        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-          <h4 style="margin: 0 0 15px; font-size: 14px; font-weight: 600; color: #165297;">Payment Details</h4>
-          <div style="font-size: 13px; line-height: 1.6; color: #555;">
-            <div style="font-weight: 600;">Gili Alam Semesta PT.</div>
-            <div>Bank: BCA - Branch Mataram</div>
-            <div>Account: 056-129-7788</div>
-            <div>Swift Code: CENAIDJA</div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
-          <div style="flex: 1; min-width: 200px;">
-            <a href="${invoiceDownloadUrl}" 
-               style="
-                 display: block;
-                 text-align: center;
-                 padding: 15px 20px;
-                 background: #165297;
-                 color: white;
-                 text-decoration: none;
-                 border-radius: 8px;
-                 font-weight: 600;
-                 transition: background-color 0.2s;
-                 border: 2px solid #165297;
-               ">
-              📄 Download Invoice
-            </a>
-            <div style="text-align: center; margin-top: 8px;">
-              <a href="${invoiceDownloadUrl}" 
-                 style="font-size: 11px; color: #666; text-decoration: none; word-break: break-all;">
-                ${invoiceDownloadUrl}
-              </a>
-            </div>
-          </div>
-          
-          <div style="flex: 1; min-width: 200px;">
-            <a href="${ticketDownloadUrl}" 
-               style="
-                 display: block;
-                 text-align: center;
-                 padding: 15px 20px;
-                 background: #28a745;
-                 color: white;
-                 text-decoration: none;
-                 border-radius: 8px;
-                 font-weight: 600;
-                 transition: background-color 0.2s;
-                 border: 2px solid #28a745;
-               ">
-              🎫 Download Ticket
-            </a>
-            <div style="text-align: center; margin-top: 8px;">
-              <a href="${ticketDownloadUrl}" 
-                 style="font-size: 11px; color: #666; text-decoration: none; word-break: break-all;">
-                ${ticketDownloadUrl}
-              </a>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div style="background: #165297; color: white; padding: 20px; text-align: center;">
-        <div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">
-          Thank you for choosing Gili Getaway! 🌊
-        </div>
-        <div style="font-size: 13px; opacity: 0.9;">
-          We hope you have a wonderful journey
-        </div>
-      </div>
-
     </div>
 
-    <!-- Mobile Responsive Styles -->
-    <style>
-      @media only screen and (max-width: 600px) {
-        .invoice-container {
-          margin: 10px !important;
-          border-radius: 8px !important;
+    <!-- BILLED TO SECTION -->
+    <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px;">
+      <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #333;">Billed To (Agent)</h3>
+      <div style="line-height: 1.7;">
+        <div style="font-weight: 600; margin-bottom: 5px;">${booking.Agent?.name || agentName || "-"}</div>
+        <div style="margin-bottom: 5px;">
+          ${booking.Agent?.email || agentEmail ? 
+            `<a href="mailto:${booking.Agent?.email || agentEmail}" style="color: #007bff; text-decoration: none;">${booking.Agent?.email || agentEmail}</a>` : 
+            "-"
+          }
+        </div>
+        <div style="color: #666;">${booking.Agent?.phone || "-"}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT INFO GRID -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-bottom: 40px; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+    
+    <div style="background: #f8f9fa; padding: 15px; border-right: 1px solid #e9ecef;">
+      <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Payment Method</div>
+      <div style="font-weight: 500;">${booking.payment_method || "N/A"}</div>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 15px;">
+      <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Payment Status</div>
+      <div style="font-weight: 500; color: ${
+        booking.payment_status === "paid" ? "#28a745" :
+        booking.payment_method === "invoiced" ? "#ffc107" :
+        booking.payment_method === "collect from customer" ? "#dc3545" : "#6c757d"
+      };">
+        ${
+          booking.payment_method === "invoiced" ? "INVOICED" :
+          booking.payment_method === "collect from customer" ? "UNPAID" :
+          (booking.payment_status || "N/A").toUpperCase()
         }
-        
-        .header-content {
-          flex-direction: column !important;
-          text-align: center !important;
-        }
-        
-        .grid-container {
-          grid-template-columns: 1fr !important;
-        }
-        
-        .button-container {
-          flex-direction: column !important;
-        }
-        
-        .trip-details {
-          flex-direction: column !important;
-          text-align: center !important;
-        }
-        
-        .amount-total {
-          text-align: center !important;
-          margin-top: 10px !important;
-        }
+      </div>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 15px; border-right: 1px solid #e9ecef; border-top: 1px solid #e9ecef;">
+      <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Invoice Date</div>
+      <div style="font-weight: 500;">${moment(booking.created_at).format("MMMM D, YYYY")}</div>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 15px; border-top: 1px solid #e9ecef;">
+      <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Travel Date</div>
+      <div style="font-weight: 500;">${moment(booking.booking_date).format("MMMM D, YYYY")}</div>
+    </div>
+
+  </div>
+
+  <!-- PASSENGER INFO -->
+  <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-bottom: 40px;">
+    <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #333;">Passenger Information</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Name</div>
+        <div style="font-weight: 500;">${booking.contact_name || "N/A"}</div>
+      </div>
+      <div>
+        <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Phone</div>
+        <div style="font-weight: 500;">${booking.contact_phone || "N/A"}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING ORDER -->
+  <h3 style="margin: 0 0 20px; font-size: 18px; font-weight: 600; color: #333;">Booking Order</h3>
+
+  <!-- ORDER TABLE -->
+  <table style="width: 100%; border-collapse: collapse; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden; margin-bottom: 40px;">
+    <thead>
+      <tr style="background: #f8f9fa;">
+        <th style="padding: 15px; text-align: left; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef;">Details</th>
+        <th style="padding: 15px; text-align: center; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef;">Departure Date</th>
+        <th style="padding: 15px; text-align: center; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef;">Quantity</th>
+        <th style="padding: 15px; text-align: right; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef;">Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <!-- MAIN TRIP -->
+      <tr>
+        <td style="padding: 15px; border-bottom: 1px solid #e9ecef;">
+          <div style="font-weight: 600; margin-bottom: 5px;">${bookingData.from || "N/A"} → ${bookingData.to || "N/A"}</div>
+          <div style="font-size: 13px; color: #666;">Travelers: ${booking.total_passengers}</div>
+        </td>
+        <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e9ecef;">
+          ${moment(booking.booking_date).format("DD MMM YYYY")}
+        </td>
+        <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e9ecef;">1</td>
+        <td style="padding: 15px; text-align: right; border-bottom: 1px solid #e9ecef; font-weight: 600;">
+          ${formatIDR(booking.ticket_total)}
+        </td>
+      </tr>
+
+      ${booking.transportBookings?.length ? 
+        booking.transportBookings.map((transport, index) => `
+          <tr>
+            <td style="padding: 15px; border-bottom: 1px solid #e9ecef;">
+              <div style="font-weight: 600; margin-bottom: 5px;">${transport.transport_type}</div>
+              <div style="font-size: 13px; color: #666;">
+                ${transport.note ? transport.note.replace(/,/g, ' • ') : 'No description'}
+              </div>
+            </td>
+            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e9ecef;">N/A</td>
+            <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e9ecef;">${transport.quantity}</td>
+            <td style="padding: 15px; text-align: right; border-bottom: 1px solid #e9ecef; font-weight: 600;">
+              ${formatIDR(transport.transport_price)}
+            </td>
+          </tr>
+        `).join('') : 
+        ''
+      }
+
+      <!-- TOTALS -->
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Bank Fee</td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">Rp 0</td>
+      </tr>
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Discount</td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">-Rp 0</td>
+      </tr>
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 700; font-size: 16px; background: #f8f9fa; color: #333;">Total</td>
+        <td style="padding: 15px; text-align: right; font-weight: 700; font-size: 16px; background: #f8f9fa; color: #333;">
+          ${formatIDR(booking.gross_total)}
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- DOWNLOAD BUTTONS -->
+  <div style="display: flex; gap: 15px; margin-bottom: 40px; flex-wrap: wrap;">
+    <a href="${invoiceDownloadUrl}" 
+       style="flex: 1; min-width: 200px; padding: 15px 20px; background: #007bff; color: white; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px;">
+      Download Invoice
+    </a>
+    <a href="${ticketDownloadUrl}" 
+       style="flex: 1; min-width: 200px; padding: 15px 20px; background: #28a745; color: white; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px;">
+      Download Ticket
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align: center; color: #666; font-size: 14px;">
+    Thank you for choosing our service!
+  </div>
+
+  <!-- Mobile Responsive -->
+  <style>
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr !important;
+        gap: 20px !important;
       }
       
-      @media only screen and (max-width: 400px) {
-        .main-container {
-          padding: 10px !important;
-        }
-        
-        .section-padding {
-          padding: 15px !important;
-        }
-        
-        .header-section {
-          padding: 20px 15px !important;
-        }
+      .payment-grid {
+        grid-template-columns: 1fr !important;
       }
-    </style>
-  </div>
+      
+      table, th, td {
+        font-size: 13px !important;
+      }
+      
+      th, td {
+        padding: 10px !important;
+      }
+      
+      .buttons {
+        flex-direction: column !important;
+      }
+    }
+  </style>
+</div>
 `;
+
+  const mailOptions = {
+    from: process.env.EMAIL_AGENT,
+    to: recipientEmail,
+    // cc: process.env.EMAIL_BOOKING,
+    subject,
+    html: message,
+  };
+  const mailOptionsTitan = {
+    from: process.env.EMAIL_USER_TITAN,
+    to: process.env.EMAIL_AGENT,
+    subject,
+    html: message,
+  };
 
   try {
     console.log("Sending email with main transporter...");

@@ -117,7 +117,7 @@ const processBookedSeats = (bookedSeatsSet, boost, boatData) => {
   }
 
   // Jika boost tidak aktif, proses pasangan kursi seperti biasa
-  console.log("⚙️ Boost is not enabled. Processing booked seats...");
+  // console.log("⚙️ Boost is not enabled. Processing booked seats...");
   const resultSet = new Set(bookedSeatsSet);
 
   for (const seat of bookedSeatsSet) {
