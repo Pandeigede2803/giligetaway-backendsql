@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const moment = require("moment");
+const {sendTelegramMessage} = require("./telegram");
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST_BREVO, // SMTP Server (e.g., smtp.gmail.com)
@@ -366,57 +367,305 @@ const sendBackupEmailAgentStaff = async (
   agentEmail
 ) => {
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name}- Ticket ID: ${booking.ticket_id}`;
+
+  const subject = `A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name} - Ticket ID: ${booking.ticket_id}`;
+
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
-
   const bookingData = booking.final_state?.bookingData || {};
 
+  const formatIDR = (value) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: booking.currency || "IDR",
+      minimumFractionDigits: 0,
+    }).format(value || 0);
+
   const message = `
-    <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333;">
-    <p>A new Agent booking has been made from ${agentName}</p>
-      <p>Please see booking details below to check whether you have received system confirmation.</p>
-      <p><strong>Booking Details:</strong></p>
-      <ul>
-        <li><strong>Booking ID:</strong> ${booking.id}</li>
-        <li><strong>Ticket ID:</strong> ${booking.ticket_id}</li>
-        <li><strong>Contact:</strong> ${booking.contact_name}</li>
-        <li><strong>Phone:</strong> ${booking.contact_phone}</li>
-        <li><strong>Email:</strong> ${booking.contact_email}</li>
-           <li><strong>Email:</strong> ${agentName}-${agentEmail}</li>
-        <li><strong>Route:</strong> ${bookingData.from || "N/A"} - ${bookingData.to || "N/A"}</li>
-        <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})</li>
-        <li><strong>Amount:</strong> ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}</li>
-        <li><strong>Booking Source:</strong> ${booking.booking_source || "N/A"}</li>
-        <li><strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}</li>
-        <li><strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}</li>
-      </ul>
-
-      <p>You can download your documents below:</p>
-
-      <div style="margin: 25px 0; text-align: center;">
-        <a href="${invoiceDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#165297; color:white; text-decoration:none; border-radius:6px; margin-bottom:10px;">View/Download Invoice</a>
-        <p style="font-size: 12px; color: #666;">Or copy this link: ${invoiceDownloadUrl}</p>
-
-        <a href="${ticketDownloadUrl}" style="display:inline-block; padding:10px 20px; background:#28a745; color:white; text-decoration:none; border-radius:6px; margin-top:10px;">View/Download Ticket</a>
-        <p style="font-size: 12px; color: #666;">Or copy this link: ${ticketDownloadUrl}</p>
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; color: #333; background: #f8f9fa; padding: 15px; margin: 0;">
+    <div style="max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e9ecef;">
+      
+      <!-- HEADER -->
+      <div style="background: linear-gradient(135deg, #165297 0%, #1e5aa8 100%); color: white; padding: 25px 20px; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1739515682609" 
+                 alt="Gili Getaway Logo" 
+                 style="width: 60px; height: 60px; border-radius: 8px; background: white; padding: 5px; object-fit: contain;" />
+            <div>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">INVOICE</h1>
+              <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">#${booking.ticket_id}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <p><strong>If you already get the notification, please ignore this email.</strong></p>
+      <!-- BILLING INFO -->
+      <div style="padding: 25px 20px;">
+        <!-- Agent Info Card -->
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px; border-left: 4px solid #165297;">
+          <h3 style="margin: 0 0 15px; font-size: 16px; color: #165297; font-weight: 600;">Bill To</h3>
+          <div style="line-height: 1.6;">
+            <div style="font-weight: 600; margin-bottom: 8px; font-size: 15px;">${agentName}</div>
+            <div style="margin-bottom: 5px;">
+              <a href="mailto:${agentEmail}" style="color: #165297; text-decoration: none; font-weight: 500;">${agentEmail}</a>
+            </div>
+            ${booking.Agent.phone ? `<div style="color: #666;">${booking.Agent.phone}</div>` : "-"}
+          </div>
+        </div>
 
-      <p>Thank you,<br><strong>The Gili Getaway Team</strong></p>
+        <!-- Payment Details Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 30px;">
+          
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Payment Method</div>
+            <div style="font-weight: 600;">${booking.payment_method || "N/A"}</div>
+          </div>
+
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Status</div>
+            <span style="
+              display: inline-block;
+              padding: 6px 12px;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: 600;
+              text-transform: uppercase;
+              color: ${
+                booking.payment_method === "invoiced"
+                  ? "#856404"
+                  : booking.payment_method === "collect from customer"
+                    ? "#721c24"
+                    : booking.payment_status === "paid"
+                      ? "#155724"
+                      : "#333"
+              };
+              background-color: ${
+                booking.payment_method === "invoiced"
+                  ? "#fff3cd"
+                  : booking.payment_method === "collect from customer"
+                    ? "#f8d7da"
+                    : booking.payment_status === "paid"
+                      ? "#d4edda"
+                      : "#e2e3e5"
+              };
+            ">
+              ${
+                booking.payment_method === "invoiced"
+                  ? "INVOICED"
+                  : booking.payment_method === "collect from customer"
+                    ? "UNPAID"
+                    : (booking.payment_status || "N/A").toUpperCase()
+              }
+            </span>
+          </div>
+
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Invoice Date</div>
+            <div style="font-weight: 600;">${moment(booking.created_at).format("MMM D, YYYY")}</div>
+          </div>
+
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Travel Date</div>
+            <div style="font-weight: 600;">${moment(booking.booking_date).format("MMM D, YYYY")}</div>
+          </div>
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Passenger Name</div>
+            <div style="font-weight: 600;">${booking.contact_name || "N/A"}</div>
+          </div>
+
+          <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px;">
+            <div style="color: #666; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Passenger Phone</div>
+            <div style="font-weight: 600;">${booking.contact_phone || "N/A"}</div>
+          </div>
+
+        </div>
+
+        <!-- Order Summary -->
+        <div style="background: #fff; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden; margin-bottom: 25px;">
+          <div style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #e9ecef;">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #333;">Order Summary</h3>
+          </div>
+          
+          <div style="padding: 20px;">
+            <!-- Trip Details -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+              <div style="flex: 1; min-width: 200px;">
+                <div style="font-weight: 600; font-size: 15px; margin-bottom: 5px;">
+                  ${bookingData.from || "N/A"} → ${bookingData.to || "N/A"}
+                </div>
+                <div style="color: #666; font-size: 13px;">
+                  ${booking.total_passengers} passenger${booking.total_passengers > 1 ? "s" : ""}
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 700; font-size: 18px; color: #165297;">
+                  ${formatIDR(booking.gross_total)}
+                </div>
+              </div>
+            </div>
+
+            <!-- Total -->
+            <div style="border-top: 2px solid #e9ecef; padding-top: 15px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 16px; font-weight: 600;">Total Amount</span>
+                <span style="font-size: 20px; font-weight: 700; color: #165297;">
+                  ${formatIDR(booking.gross_total)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Company Details -->
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+          <h4 style="margin: 0 0 15px; font-size: 14px; font-weight: 600; color: #165297;">Payment Details</h4>
+          <div style="font-size: 13px; line-height: 1.6; color: #555;">
+            <div style="font-weight: 600;">Gili Alam Semesta PT.</div>
+            <div>Bank: BCA - Branch Mataram</div>
+            <div>Account: 056-129-7788</div>
+            <div>Swift Code: CENAIDJA</div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+          <div style="flex: 1; min-width: 200px;">
+            <a href="${invoiceDownloadUrl}" 
+               style="
+                 display: block;
+                 text-align: center;
+                 padding: 15px 20px;
+                 background: #165297;
+                 color: white;
+                 text-decoration: none;
+                 border-radius: 8px;
+                 font-weight: 600;
+                 transition: background-color 0.2s;
+                 border: 2px solid #165297;
+               ">
+              📄 Download Invoice
+            </a>
+            <div style="text-align: center; margin-top: 8px;">
+              <a href="${invoiceDownloadUrl}" 
+                 style="font-size: 11px; color: #666; text-decoration: none; word-break: break-all;">
+                ${invoiceDownloadUrl}
+              </a>
+            </div>
+          </div>
+          
+          <div style="flex: 1; min-width: 200px;">
+            <a href="${ticketDownloadUrl}" 
+               style="
+                 display: block;
+                 text-align: center;
+                 padding: 15px 20px;
+                 background: #28a745;
+                 color: white;
+                 text-decoration: none;
+                 border-radius: 8px;
+                 font-weight: 600;
+                 transition: background-color 0.2s;
+                 border: 2px solid #28a745;
+               ">
+              🎫 Download Ticket
+            </a>
+            <div style="text-align: center; margin-top: 8px;">
+              <a href="${ticketDownloadUrl}" 
+                 style="font-size: 11px; color: #666; text-decoration: none; word-break: break-all;">
+                ${ticketDownloadUrl}
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="background: #165297; color: white; padding: 20px; text-align: center;">
+        <div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">
+          Thank you for choosing Gili Getaway! 🌊
+        </div>
+        <div style="font-size: 13px; opacity: 0.9;">
+          We hope you have a wonderful journey
+        </div>
+      </div>
+
     </div>
-  `;
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_AGENT,
-    subject,
-    html: message,
-  };
+    <!-- Mobile Responsive Styles -->
+    <style>
+      @media only screen and (max-width: 600px) {
+        .invoice-container {
+          margin: 10px !important;
+          border-radius: 8px !important;
+        }
+        
+        .header-content {
+          flex-direction: column !important;
+          text-align: center !important;
+        }
+        
+        .grid-container {
+          grid-template-columns: 1fr !important;
+        }
+        
+        .button-container {
+          flex-direction: column !important;
+        }
+        
+        .trip-details {
+          flex-direction: column !important;
+          text-align: center !important;
+        }
+        
+        .amount-total {
+          text-align: center !important;
+          margin-top: 10px !important;
+        }
+      }
+      
+      @media only screen and (max-width: 400px) {
+        .main-container {
+          padding: 10px !important;
+        }
+        
+        .section-padding {
+          padding: 15px !important;
+        }
+        
+        .header-section {
+          padding: 20px 15px !important;
+        }
+      }
+    </style>
+  </div>
+`;
 
-  await transporterTitan.sendMail(mailOptions);
+  try {
+    console.log("Sending email with main transporter...");
+    await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully with main transporter.");
+  } catch (error) {
+    console.error(
+      "Main transporter failed, falling back to Titan:",
+      error.message
+    );
+    try {
+      await transporterTitan.sendMail(mailOptionsTitan);
+      console.log("Fallback email sent successfully with Titan transporter.");
+    } catch (titanError) {
+      console.error(
+        "Both main and fallback transporters failed:",
+        titanError.message
+      );
+      // throw telegram error
+      await sendTelegramMessage(titanError);
+      throw titanError; // biar error bisa ditangani di level atas
+    }
+  }
 };
+
 const sendBackupEmailRoundTripAgentStaff = async (
   recipientEmail,
   firstBooking,
@@ -2223,9 +2472,7 @@ const sendEmailNotification = async (
     const from = agentEmail
       ? process.env.EMAIL_AGENT
       : process.env.EMAIL_BOOKING;
-    const cc = agentEmail
-      ? process.env.EMAIL_AGENT
-      : process.env.EMAIL_BOOKING;
+    const cc = agentEmail ? process.env.EMAIL_AGENT : process.env.EMAIL_BOOKING;
 
     const mailOptions = {
       from,
@@ -2333,8 +2580,11 @@ const sendEmailNotificationAgentDateChange = async (
 const sendFollowUpPaymentEmail = async (booking) => {
   try {
     const recipientEmail = booking.contact_email;
-    const emailUrl = process.env.FRONTEND_URL || "https://giligetaway-widget.my.id";
-    const subject = "Please Complete Your Payment for Gili Getaway Booking ID: " + booking.ticket_id;
+    const emailUrl =
+      process.env.FRONTEND_URL || "https://giligetaway-widget.my.id";
+    const subject =
+      "Please Complete Your Payment for Gili Getaway Booking ID: " +
+      booking.ticket_id;
 
     const message = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;">
@@ -2948,5 +3198,5 @@ module.exports = {
   sendBackupEmailRoundTripAlways,
   sendStaffEmailForAgentBooking,
   sendStaffEmailRoundTripAgent,
-  sendFollowUpPaymentEmail
+  sendFollowUpPaymentEmail,
 };
