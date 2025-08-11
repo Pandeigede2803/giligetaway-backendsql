@@ -591,7 +591,7 @@ const sendBackupEmailAgentStaff = async (
 
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: recipientEmail,
+    to: process.env.EMAIL_AGENT,
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
