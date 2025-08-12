@@ -369,7 +369,6 @@ const sendBackupEmailAgentStaff = async (
   const emailUrl = process.env.FRONTEND_URL;
 
 
-  console.log("detailbooking", JSON.stringify(booking, null, 2));
   // // console log final state
   // console.log("final state", JSON.stringify(booking.final_state, null, 2));
 
