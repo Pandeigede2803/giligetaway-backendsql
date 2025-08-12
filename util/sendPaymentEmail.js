@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 const moment = require("moment");
-const {sendTelegramMessage} = require("./telegram");
+const { sendTelegramMessage } = require("./telegram");
 
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST_BREVO, // SMTP Server (e.g., smtp.gmail.com)
@@ -366,9 +366,10 @@ const sendBackupEmailAgentStaff = async (
   agentName,
   agentEmail
 ) => {
-  const emailUrl = process.env.FRONTEND_URL;;
+  const emailUrl = process.env.FRONTEND_URL;
 
-  // console.log("detailbooking", JSON.stringify(booking.transportBookings, null, 2));
+
+  console.log("detailbooking", JSON.stringify(booking, null, 2));
   // // console log final state
   // console.log("final state", JSON.stringify(booking.final_state, null, 2));
 
@@ -377,6 +378,7 @@ const sendBackupEmailAgentStaff = async (
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
   const bookingData = booking.final_state?.bookingData || {};
+  const passengerData = booking.passengers || [];
 
   const formatIDR = (value) =>
     new Intl.NumberFormat("id-ID", {
@@ -385,8 +387,7 @@ const sendBackupEmailAgentStaff = async (
       minimumFractionDigits: 0,
     }).format(value || 0);
 
-
-    const message = `
+  const message = `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #333; padding: 30px; background: #ffffff; max-width: 700px; margin: auto; line-height: 1.6;">
 
   <!-- HEADER -->
@@ -419,9 +420,10 @@ const sendBackupEmailAgentStaff = async (
       <div style="line-height: 1.7;">
         <div style="font-weight: 600; margin-bottom: 5px;">${booking.Agent?.name || agentName || "-"}</div>
         <div style="margin-bottom: 5px;">
-          ${booking.Agent?.email || agentEmail ? 
-            `<a href="mailto:${booking.Agent?.email || agentEmail}" style="color: #007bff; text-decoration: none;">${booking.Agent?.email || agentEmail}</a>` : 
-            "-"
+          ${
+            booking.Agent?.email || agentEmail
+              ? `<a href="mailto:${booking.Agent?.email || agentEmail}" style="color: #007bff; text-decoration: none;">${booking.Agent?.email || agentEmail}</a>`
+              : "-"
           }
         </div>
         <div style="color: #666;">${booking.Agent?.phone || "-"}</div>
@@ -440,14 +442,20 @@ const sendBackupEmailAgentStaff = async (
     <div style="background: #f8f9fa; padding: 15px;">
       <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Payment Status</div>
       <div style="font-weight: 500; color: ${
-        booking.payment_status === "paid" ? "#28a745" :
-        booking.payment_method === "invoiced" ? "#ffc107" :
-        booking.payment_method === "collect from customer" ? "#dc3545" : "#6c757d"
+        booking.payment_status === "paid"
+          ? "#28a745"
+          : booking.payment_method === "invoiced"
+            ? "#ffc107"
+            : booking.payment_method === "collect from customer"
+              ? "#dc3545"
+              : "#6c757d"
       };">
         ${
-          booking.payment_method === "invoiced" ? "INVOICED" :
-          booking.payment_method === "collect from customer" ? "UNPAID" :
-          (booking.payment_status || "N/A").toUpperCase()
+          booking.payment_method === "invoiced"
+            ? "INVOICED"
+            : booking.payment_method === "collect from customer"
+              ? "UNPAID"
+              : (booking.payment_status || "N/A").toUpperCase()
         }
       </div>
     </div>
@@ -464,7 +472,7 @@ const sendBackupEmailAgentStaff = async (
 
   </div>
 
-  <!-- PASSENGER INFO -->
+  <!-- CONTACT INFO -->
   <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-bottom: 40px;">
     <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #333;">Passenger Information</h3>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -477,6 +485,58 @@ const sendBackupEmailAgentStaff = async (
         <div style="font-weight: 500;">${booking.contact_phone || "N/A"}</div>
       </div>
     </div>
+  </div>
+
+ 
+<!-- PASSENGER DETAILS -->
+  <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-bottom: 40px;">
+    <h3 style="margin: 0 0 15px; font-size: 16px; font-weight: 600; color: #333;">Passenger Details</h3>
+    
+    <!-- Passenger Table -->
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #e9ecef; border-radius: 6px; overflow: hidden; background: white;">
+      <thead>
+        <tr style="background: #f1f3f4;">
+          <th style="padding: 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef; font-size: 14px;">Name</th>
+          <th style="padding: 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef; font-size: 14px;">Nationality</th>
+          <th style="padding: 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef; font-size: 14px;">Passport ID</th>
+          <th style="padding: 12px; text-align: center; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef; font-size: 14px;">Type</th>
+          <th style="padding: 12px; text-align: center; font-weight: 600; color: #333; border-bottom: 1px solid #e9ecef; font-size: 14px;">Seat</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${passengerData
+          .map(
+            (passenger, index) => `
+          <tr style="border-bottom: 1px solid #f0f0f0;">
+            <td style="padding: 12px; font-weight: 500; color: #333;">${passenger.name || "-"}</td>
+            <td style="padding: 12px; color: #666;">${passenger.nationality || "-"}</td>
+            <td style="padding: 12px; color: #666; font-family: monospace;">${passenger.passport_id || "-"}</td>
+            <td style="padding: 12px; text-align: center;">
+              <span style="padding: 4px 8px; background: ${
+                passenger.passenger_type === "Adult" 
+                  ? "#e3f2fd" 
+                  : passenger.passenger_type === "Child" 
+                    ? "#fff3e0" 
+                    : "#f3e5f5"
+              }; color: ${
+                passenger.passenger_type === "Adult" 
+                  ? "#1565c0" 
+                  : passenger.passenger_type === "Child" 
+                    ? "#f57c00" 
+                    : "#7b1fa2"
+              }; border-radius: 12px; font-size: 12px; font-weight: 500;">
+                ${passenger.passenger_type || "-"}
+              </span>
+            </td>
+            <td style="padding: 12px; text-align: center; font-weight: 600; color: #007bff;">
+              ${passenger.seat_number || "-"}
+            </td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
   </div>
 
   <!-- BOOKING ORDER -->
@@ -509,13 +569,16 @@ const sendBackupEmailAgentStaff = async (
         </td>
       </tr>
 
-      ${booking.transportBookings?.length ? 
-        booking.transportBookings.map((transport, index) => `
+      ${
+        booking.transportBookings?.length
+          ? booking.transportBookings
+              .map(
+                (transport, index) => `
           <tr>
             <td style="padding: 15px; border-bottom: 1px solid #e9ecef;">
               <div style="font-weight: 600; margin-bottom: 5px;">${transport.transport_type}</div>
               <div style="font-size: 13px; color: #666;">
-                ${transport.note ? transport.note.replace(/,/g, ' • ') : 'No description'}
+                ${transport.note ? transport.note.replace(/,/g, " • ") : "No description"}
               </div>
             </td>
             <td style="padding: 15px; text-align: center; border-bottom: 1px solid #e9ecef;">N/A</td>
@@ -524,8 +587,10 @@ const sendBackupEmailAgentStaff = async (
               ${formatIDR(transport.transport_price)}
             </td>
           </tr>
-        `).join('') : 
-        ''
+        `
+              )
+              .join("")
+          : ""
       }
 
       <!-- TOTALS -->
@@ -564,7 +629,7 @@ const sendBackupEmailAgentStaff = async (
     Thank you for choosing our service!
   </div>
 
-  <!-- Mobile Responsive -->
+<!-- Mobile Responsive Styles (Add this to your existing style section) -->
   <style>
     @media (max-width: 768px) {
       .grid-2 {
@@ -586,6 +651,35 @@ const sendBackupEmailAgentStaff = async (
       
       .buttons {
         flex-direction: column !important;
+      }
+      
+      /* Passenger table mobile responsiveness */
+      .passenger-table th:nth-child(3),
+      .passenger-table td:nth-child(3) {
+        display: none;
+      }
+      
+      .passenger-table th,
+      .passenger-table td {
+        padding: 8px !important;
+        font-size: 12px !important;
+      }
+    }
+    
+    /* Additional mobile optimization for very small screens */
+    @media (max-width: 480px) {
+      .passenger-table {
+        font-size: 11px !important;
+      }
+      
+      .passenger-table th:nth-child(2),
+      .passenger-table td:nth-child(2) {
+        display: none;
+      }
+      
+      .passenger-table th,
+      .passenger-table td {
+        padding: 6px !important;
       }
     }
   </style>

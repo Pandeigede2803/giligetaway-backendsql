@@ -8,6 +8,7 @@ const {
   Agent,
   Schedule,
   SubSchedule,
+  Passenger
 } = require("../models");
 const {
   updateAgentCommission,
@@ -1653,6 +1654,8 @@ const updateAgentTransactionStatusHandlerWithEmail = async (req, res) => {
           as: "subSchedule",
           attributes: ["id", "trip_type"],
         },
+        // open passenger
+        { model: Passenger, as: "passengers" },
       ],
       transaction: dbTransaction,
     });
