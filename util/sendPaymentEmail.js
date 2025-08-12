@@ -372,7 +372,7 @@ const sendBackupEmailAgentStaff = async (
   // // console log final state
   // console.log("final state", JSON.stringify(booking.final_state, null, 2));
 
-  const subject = `A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name} - Ticket ID: ${booking.ticket_id}`;
+  const subject = `BACKUP A new Agent booking has been made from ${agentName} in the system. Please see the details below: - Gili Getaway ${booking.contact_name} - Ticket ID: ${booking.ticket_id}`;
 
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
@@ -392,6 +392,9 @@ const sendBackupEmailAgentStaff = async (
   <!-- HEADER -->
   <div style="text-align: center; margin-bottom: 40px;">
     <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: #333;">AGENT BOOKING</h1>
+     <p>ATT STAFF</p>
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest with their booking confirmation</p>
+
     <p style="margin: 10px 0 0; font-size: 16px; color: #666;">Ticket ID: ${booking.ticket_id}</p>
   </div>
 
