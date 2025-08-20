@@ -148,6 +148,11 @@ const Booking = sequelize.define('Booking', {
         allowNull: true,
         comment: 'Number of hours before the booking that a reminder should be sent'
     },
+        google_data: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        comment: 'Google Ads attribution data (gclid, utm, etc.)'
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

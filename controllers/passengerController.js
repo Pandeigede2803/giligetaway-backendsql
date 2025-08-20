@@ -538,6 +538,22 @@ const getPassengerCountBySchedule = async (req, res) => {
           ? sumTotalPassengers(mainAvailability.BookingSeatAvailabilities)
           : 0;
 
+          // Filter hanya booking yang memang untuk schedule utama (subschedule_id null)
+const realPassengersMain =
+  mainAvailability?.BookingSeatAvailabilities?.filter((bsa) => {
+    return (
+      bsa?.Booking && bsa.Booking.subschedule_id === null
+    );
+  }) || [];
+
+// Hitung jumlah real passenger
+const totalRealPassengersMain =
+  realPassengersMain.length > 0
+    ? realPassengersMain.reduce((sum, bsa) => {
+        return sum + (bsa.Booking?.total_passengers || 0);
+      }, 0)
+    : 0;
+
         const capacity =
           mainAvailability?.boost && schedule.Boat
             ? schedule.Boat.capacity
@@ -545,7 +561,11 @@ const getPassengerCountBySchedule = async (req, res) => {
             ? schedule.Boat.published_capacity
             : 0;
 
-        const remainingSeats = capacity - totalPassengers;
+            // change the query for remaining seats , just take availablity_seats from schedule
+               // change the query for remaining seats , just take availablity_seats from schedule
+        const remainingSeats = typeof mainAvailability?.available_seats === 'number'
+          ? mainAvailability.available_seats
+          : Math.max(0, capacity - totalPassengers);
 
         // Bangun route untuk schedule utama
         const route = buildRouteFromSchedule(schedule, null);
@@ -626,7 +646,7 @@ const getPassengerCountBySchedule = async (req, res) => {
           capacity,
           remainingSeats,
           total_passengers: totalPassengers,
-
+          total_real_passengers: totalRealPassengersMain,
           departure_time: schedule.departure_time,
           arrival_time: schedule.arrival_time,
           journey_time: schedule.journey_time,
