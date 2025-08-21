@@ -1168,7 +1168,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             discount_data,
             final_state,
             booked_by,
-            google_data,
+            // google_data,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ),

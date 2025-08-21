@@ -15,6 +15,7 @@ const {
   fixSeatMismatch,
 findMissingRelatedBySeatId,
   fixSeatMismatchBatch, getDuplicateSeatReport,
+  fixSeatMismatchBatch2,
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 
 const authenticate = require("../middleware/authenticate");
@@ -52,7 +53,7 @@ router.get("/check-all", authenticate, checkAllAvailableSeats);
 router.post('/fix-mismatch/:id', authenticate, fixSeatMismatch);
 
 // Fix seat mismatch for multiple seat availabilities
-router.post('/fix-mismatch-batch', authenticate, fixSeatMismatchBatch);
+router.post('/fix-mismatch-batch', authenticate, fixSeatMismatchBatch2);
 
 // updateseatavailability
 
