@@ -1103,6 +1103,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
           final_state,
           discount_data,
           booked_by,
+          google_data
         } = data;
 
         console.log(
@@ -1167,6 +1168,7 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
             discount_data,
             final_state,
             booked_by,
+            google_data,
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ),
@@ -1775,6 +1777,7 @@ const createBookingWithTransitQueue = async (req, res) => {
     final_state,
     discount_data,
     booked_by,
+    google_data,
   } = req.body;
 
   if (typeof final_state !== "object" || final_state === null) {
@@ -1845,6 +1848,7 @@ const createBookingWithTransitQueue = async (req, res) => {
           discount_data,
           note,
           booked_by,
+          google_data,
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
           ),
