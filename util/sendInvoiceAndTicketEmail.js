@@ -6,6 +6,7 @@ const {
   sendBackupEmailRoundTrip,
   sendEmailBackupAgentStaff,
   sendBackupEmailAlways,
+    sendBackupEmailAlways2,
   sendBackupEmailAgentStaff,
   sendBackupEmailRoundTripAgentStaff,
   sendBackupEmailRoundTripAlways,
@@ -166,6 +167,18 @@ const sendInvoiceAndTicketEmail = async (
           "❌ Error sending notification:",
           notificationError.message
         );
+
+        // try to send email backup
+        try {
+          await sendBackupEmailAlways2(booking);
+          console.log("✅ Backup email always sent successfully after notification failed");
+        } catch (backupErr) {
+          console.error(
+            "❌ Failed to run sendBackupEmailAlways2 after notification failed:",
+            backupErr.message
+          );
+        }
+
         await sendTelegramError(
           `❌ <b>EMAIL FAILED</b>
   <p><strong>Booking Details:</strong></p>
@@ -176,7 +189,8 @@ const sendInvoiceAndTicketEmail = async (
     <li><strong>Phone:</strong> ${booking?.contact_phone}</li>
     <li><strong>Email:</strong> ${booking?.contact_email}</li>
     <li><strong>Route:</strong> ${booking?.from || "N/A"} – ${booking?.to || "N/A"}</li>
-    <li><strong>Passengers:</strong> ${booking?.total_passengers} (Adults ${booking?.adult_passengers}, Children ${booking?.child_passengers}, Infants ${booking?.infant_passengers})</li>
+    <li><strong>Passengers:</strong> ${booking?.total_passengers} (Adults ${booking?.adult_passengers},
+     Children ${booking?.child_passengers}, Infants ${booking?.infant_passengers})</li>
     <li><strong>Amount:</strong> ${parseFloat(booking?.gross_total || 0).toLocaleString()} ${booking?.currency || "IDR"}</li>
     <li><strong>Booking Source:</strong> ${booking?.booking_source || "N/A"}</li>
     <li><strong>Travel Date:</strong> ${require("moment")(booking?.booking_date).format("MMM D, YYYY")}</li>
@@ -189,6 +203,9 @@ const sendInvoiceAndTicketEmail = async (
     }
   }
 };
+
+
+
 
 const sendInvoiceAndTicketEmailRoundTrip = async (
   recipientEmail,

@@ -195,6 +195,70 @@ const sendBackupEmailAlways = async (booking) => {
     console.log("✅ Backup email sent via Gmail");
   }
 };
+const sendBackupEmailAlways2 = async (booking) => {
+  /* ▸ Generate HTML body */
+  const bookingData = booking.final_state?.bookingData || {};
+  const emailUrl = process.env.FRONTEND_URL;
+  const subject = `!!BACKUP TICKET One Way Trip Gili Getaway ${booking.ticket_id}`;
+  const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
+  const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
+
+  const message = `
+    <div style="font-family:Arial,sans-serif;font-size:15px;color:#333">
+      <p>ATT STAFF</p>
+      <p>Please see booking details below to check whether you have received system confirmation. If you have not received system confirmation and only received this BACKUP NOTIFICATION, please contact the guest with their booking confirmation</p>
+
+      <p><strong>Booking Details:</strong></p>
+      <ul>
+        <li><strong>Booking ID:</strong> ${booking.id}</li>
+        <li><strong>Ticket ID:</strong>  ${booking.ticket_id}</li>
+        <li><strong>Contact:</strong>    ${booking.contact_name}</li>
+        <li><strong>Phone:</strong>      ${booking.contact_phone}</li>
+        <li><strong>Email:</strong>      ${booking.contact_email}</li>
+        <li><strong>Route:</strong>      ${bookingData.from || "N/A"} – ${bookingData.to || "N/A"}</li>
+        <li><strong>Passengers:</strong> ${booking.total_passengers} (Adults ${booking.adult_passengers}, Children ${booking.child_passengers}, Infants ${booking.infant_passengers})</li>
+        <li><strong>Amount:</strong>     ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}</li>
+        <li><strong>Booking Source:</strong> ${booking.booking_source || "N/A"}</li>
+        <li><strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}</li>
+        <li><strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}</li>
+      </ul>
+
+      <p>You can download your documents below:</p>
+      <div style="margin:25px 0;text-align:center">
+        <a href="${invoiceDownloadUrl}" style="display:inline-block;padding:10px 20px;background:#165297;color:#fff;text-decoration:none;border-radius:6px;margin-bottom:10px">View/Download Invoice</a><br/>
+        <a href="${ticketDownloadUrl}"  style="display:inline-block;padding:10px 20px;background:#28a745;color:#fff;text-decoration:none;border-radius:6px;margin-top:10px">View/Download Ticket</a>
+      </div>
+
+      <p>Questions? Reply to this email or contact <a href="mailto:bookings@giligetaway.com">bookings@giligetaway.com</a>.</p>
+      <p>Thank you,<br/><strong>The Gili Getaway Team</strong></p>
+    </div>
+  `;
+
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
+    to: process.env.EMAIL_BOOKING,
+    subject,
+    html: message,
+  };
+
+  const mailOptionsTitan = {
+    from: process.env.EMAIL_USER_TITAN,
+    to: process.env.EMAIL_BOOKING,
+    subject,
+    html: message,
+  };
+
+  /* ① Coba Brevo (timeout panjang) lebih dulu */
+  try {
+    await transporterTitan.sendMail(mailOptionsTitan);
+    console.log("✅ Backup email sent via Brevo");
+  } catch (brevoErr) {
+    console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
+    /* ② Jika Brevo tetap gagal, pakai titan */
+    await transporterGmail.sendMail(mailOptionsGmail);
+    console.log("✅ Backup email sent via Gmail");
+  }
+};
 
 const sendStaffEmailForAgentBooking = async (booking, agent) => {
   /* ▸ Generate HTML body */
@@ -3251,6 +3315,7 @@ module.exports = {
   sendBackupEmailRoundTrip,
   sendBackupEmailAgentStaff,
   sendBackupEmailAlways,
+    sendBackupEmailAlways2,
   sendBackupEmailRoundTripAgentStaff,
   sendBackupEmailRoundTripAlways,
   sendStaffEmailForAgentBooking,
