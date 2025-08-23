@@ -25,7 +25,7 @@ const corsOptions = {
       process.env.CORS_ORIGIN,
       process.env.CORS_ORIGIN_2,
       process.env.CORS_ORIGIN_3,
-      process.env.CORS_ORIGIN_4,
+      process.env.CORS_ORIGIN_4
   
     ];
     

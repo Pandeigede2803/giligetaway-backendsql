@@ -838,6 +838,7 @@ const getAllSchedulesWithSubSchedules = async (req, res) => {
 
 const getScheduleSubschedule = async (req, res) => {
   const { boat_id } = req.query;
+ 
 
   try {
     let schedules;
@@ -983,33 +984,71 @@ const getScheduleSubschedule = async (req, res) => {
       const main_route = `${schedule.FromDestination?.name || "N/A"} to ${
         schedule.ToDestination?.name || "N/A"
       }`;
+      const note = schedule.note;
+
       const days_of_week = getDayNamesFromBitmask(schedule.days_of_week);
 
       // Format the main schedule similarly to a sub-schedule
+      // const formattedMainSchedule = {
+      //   id: schedule.id,
+      //   schedule_id: schedule.id, // Main schedule has its own ID
+      //   from: schedule.FromDestination?.name || "N/A",
+      //   to: schedule.ToDestination?.name || "N/A",
+      //   transits: schedule.Transits
+      //     ? schedule.Transits.map((transit) => ({
+      //         destination:
+      //           transit.Destination?.name ||
+      //           (transit.destination_id
+      //             ? `Destination ${transit.Destination.name}`
+      //             : "N/A"),
+      //         departure_time: transit.departure_time || "N/A",
+      //         arrival_time: transit.arrival_time || "N/A",
+      //         journey_time: transit.journey_time || "N/A",
+      //       }))
+      //     : [],
+      //   route_image: schedule.route_image || "N/A", // Add if schedule has an image
+      //   departure_time: schedule.departure_time || "N/A",
+      //   check_in_time: schedule.check_in_time || "N/A",
+      //   arrival_time: schedule.arrival_time || "N/A",
+      //   journey_time: schedule.journey_time
+      //     ? calculateJourneyTime(schedule.departure_time, schedule.arrival_time)
+      //     : "N/A",
+      //   boat_id: schedule.Boat?.id || "N/A",
+      //   low_season_price: schedule.low_season_price || "N/A",
+      //   high_season_price: schedule.high_season_price || "N/A",
+      //   peak_season_price: schedule.peak_season_price || "N/A",
+      //   validity: `${formatDate(schedule.validity_start)} to ${formatDate(
+      //     schedule.validity_end
+      //   )}`,
+      // };
+
       const formattedMainSchedule = {
         id: schedule.id,
         schedule_id: schedule.id, // Main schedule has its own ID
         from: schedule.FromDestination?.name || "N/A",
         to: schedule.ToDestination?.name || "N/A",
-        transits: schedule.Transits
-          ? schedule.Transits.map((transit) => ({
-              destination:
-                transit.Destination?.name ||
-                (transit.destination_id
-                  ? `Destination ${transit.Destination.name}`
-                  : "N/A"),
-              departure_time: transit.departure_time || "N/A",
-              arrival_time: transit.arrival_time || "N/A",
-              journey_time: transit.journey_time || "N/A",
-            }))
-          : [],
-        route_image: schedule.route_image || "N/A", // Add if schedule has an image
+        transits:
+          schedule.Transits?.map((transit) => ({
+            destination:
+              transit.Destination?.name ||
+              (transit.destination_id
+                ? `Destination ${transit.destination_id}`
+                : "N/A"),
+            departure_time: transit.departure_time || "N/A",
+            arrival_time: transit.arrival_time || "N/A",
+            journey_time: transit.journey_time || "N/A",
+          })) || [],
+        route_image: schedule.route_image || "N/A",
         departure_time: schedule.departure_time || "N/A",
         check_in_time: schedule.check_in_time || "N/A",
         arrival_time: schedule.arrival_time || "N/A",
-        journey_time: schedule.journey_time
-          ? calculateJourneyTime(schedule.departure_time, schedule.arrival_time)
-          : "N/A",
+        journey_time:
+          schedule.departure_time && schedule.arrival_time
+            ? calculateJourneyTime(
+                schedule.departure_time,
+                schedule.arrival_time
+              )
+            : "N/A",
         boat_id: schedule.Boat?.id || "N/A",
         low_season_price: schedule.low_season_price || "N/A",
         high_season_price: schedule.high_season_price || "N/A",
@@ -1103,6 +1142,7 @@ const getScheduleSubschedule = async (req, res) => {
         boat_name,
         main_route,
         days_of_week,
+        note,
         allSchedules: [formattedMainSchedule, ...formattedSubSchedules], // Main schedule first, then sub-schedules (if any)
       };
     });
@@ -1828,7 +1868,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         destination_to_id: to,
         availability: 1,
         validity_start: { [Op.lte]: selectedDate },
-        validity_end: { [Op.gte]: selectedDate },
+        validity_end: { [Op.gt]: selectedDate },
+        
         [Op.and]: sequelize.literal(
           `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
         ),
@@ -2058,8 +2099,8 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         where: {
           schedule_id: schedule.id,
           date: selectedDate,
-              subschedule_id: null, // ✅ tambahkan ini!
-          
+          subschedule_id: null, // ✅ tambahkan ini!
+
           // availability: 1,
           // available_seats: { [Op.gte]: passengers_total },
         },
@@ -3200,8 +3241,8 @@ const duplicateScheduleWithTransits = async (req, res) => {
   try {
     const originalSchedule = await Schedule.findByPk(id, {
       include: [
-        { model: Transit, as: 'Transits' },
-        { model: SubSchedule, as: 'SubSchedules' },
+        { model: Transit, as: "Transits" },
+        { model: SubSchedule, as: "SubSchedules" },
       ],
       transaction: t,
     });
@@ -3936,6 +3977,8 @@ const updateSchedule = async (req, res) => {
   try {
     const scheduleId = req.params.id;
     const scheduleData = req.body;
+
+    console.log("DATA BODY YANG DITERIMA:", scheduleData);
 
     // console.log("DATA BODY YNG DITERMIMA`:", scheduleData);
 
