@@ -1755,9 +1755,9 @@ const fixAllSeatMismatches = async () => {
 
     if (seatAvailability.available_seats !== correctAvailableSeats) {
       await seatAvailability.update({ available_seats: correctAvailableSeats });
-      console.log(
-        `✅ Fix Seat ID ${seatAvailability.id} date: ${seatAvailability.date}`
-      );
+      // console.log(
+      //   `✅ Fix Seat ID ${seatAvailability.id} date: ${seatAvailability.date}`
+      // );
       totalFixed++;
     }
   }
