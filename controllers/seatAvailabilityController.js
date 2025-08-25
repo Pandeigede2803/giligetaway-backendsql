@@ -1829,7 +1829,7 @@ const fixAllSeatMismatches2 = async () => {
 
     if (sa.available_seats !== correctAvailableSeats) {
       await sa.update({ available_seats: correctAvailableSeats });
-      console.log(`✅ Fixed SA ID ${sa.id} (${sa.date})`);
+      // console.log(`✅ Fixed SA ID ${sa.id} (${sa.date})`);
       totalFixed++;
     }
   }
@@ -2500,6 +2500,60 @@ const checkAllAvailableSeatsBookingCount = async (req, res) => {
   }
 };
 
+const setAllSeatsAvailabilityById = async (req, res) => {
+  const { id, availability } = req.body;
+
+  const desiredAvailability =
+    typeof availability === "string"
+      ? availability.toLowerCase() === "true"
+      : Boolean(availability);
+
+  const t = await sequelize.transaction();
+  try {
+    // 1) Ambil base row (acuan)
+    const baseSA = await SeatAvailability.findByPk(id, { transaction: t });
+    if (!baseSA) {
+      await t.rollback();
+      return res
+        .status(404)
+        .json({ status: "error", message: `Seat availability not found for ID ${id}.` });
+    }
+
+    // 2) Update SEMUA row di schedule_id + date yg sama (base + semua sub)
+    const [affectedCount] = await SeatAvailability.update(
+      { availability: desiredAvailability },
+      {
+        where: {
+          schedule_id: baseSA.schedule_id,
+          date: baseSA.date,
+          // tidak pakai filter subschedule_id → semua termasuk base ikut berubah
+        },
+        transaction: t,
+      }
+    );
+
+    await t.commit();
+    return res.status(200).json({
+      status: "success",
+      message: `Updated availability for ${affectedCount} row(s) on ${baseSA.date} (schedule ${baseSA.schedule_id}).`,
+      data: {
+        base_id: baseSA.id,
+        schedule_id: baseSA.schedule_id,
+        date: baseSA.date,
+        set_availability_to: desiredAvailability,
+        affected: affectedCount,
+      },
+    });
+  } catch (err) {
+    await t.rollback();
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to update seat availability for the day.",
+      error: err.message,
+    });
+  }
+};
+
 const updateSeatAvailability = async (req, res) => {
   const { id } = req.params;
   const {
@@ -2928,5 +2982,6 @@ module.exports = {
   findMissingRelatedBySeatId,
   getDuplicateSeatReport,
     findBoostedSeats,
-    notifyTelegramSeatBoosted
+    notifyTelegramSeatBoosted,
+    setAllSeatsAvailabilityById
 };
