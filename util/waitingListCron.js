@@ -371,7 +371,7 @@ const checkAndNotifyWaitingList = async () => {
       if (bookingDate < validityStart || bookingDate > validityEnd) {
 
       } else {
-        console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
+        // console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
       }
 
       // Validasi 2: Apakah booking_date sesuai dengan days_of_week schedule?
