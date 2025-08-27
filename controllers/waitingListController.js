@@ -167,6 +167,214 @@ exports.create = async (req, res) => {
     });
   }
 };
+
+
+
+// add the validation of the seat
+exports.createv2 = async (req, res) => {
+  try {
+    const {
+      contact_name,
+      contact_phone,
+      contact_email,
+      schedule_id,
+      subschedule_id,
+      booking_date,
+      total_passengers,
+      adult_passengers,
+      child_passengers,
+      infant_passengers,
+      status,
+      follow_up_notes,
+      follow_up_date,
+    } = req.body;
+
+    console.log("Creating waiting list entry with data:", req.body);
+
+    // // 1) Validasi field wajib
+    // if (
+    //   !contact_name ||
+    //   !contact_phone ||
+    //   !contact_email ||
+    //   !schedule_id ||
+    //   !booking_date ||
+    //   !total_passengers
+    // ) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Missing required fields",
+    //   });
+    // }
+
+    // 2) Siapkan whereClause SA (subschedule_id harus eksplisit null jika tidak ada)
+    const whereClause = {
+      date: booking_date,
+      schedule_id: schedule_id,
+      subschedule_id: subschedule_id ?? null,
+    };
+
+    // 3) Cari SA dulu; kalau tidak ada → create baru
+    let createdNewSA = false;
+    let seatAvailability = await SeatAvailability.findOne({ where: whereClause });
+
+    if (!seatAvailability) {
+      const schedule = await Schedule.findByPk(schedule_id);
+      if (!schedule) {
+        return res.status(404).json({
+          success: false,
+          message: "Schedule not found",
+        });
+      }
+
+      const boat = await Boat.findByPk(schedule.boat_id);
+      if (!boat) {
+        return res.status(404).json({
+          success: false,
+          message: "Boat not found for the given schedule",
+        });
+      }
+
+      seatAvailability = await SeatAvailability.create({
+        schedule_id,
+        subschedule_id: subschedule_id ?? null,
+        date: booking_date,
+        available_seats: boat.capacity,
+        availability: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      createdNewSA = true;
+      console.log(`Created new seat availability with ID: ${seatAvailability.id}`);
+    }
+
+    // 4) VALIDASI SEKALI LAGI (otoritatif)
+    //    Re-lookup SA berdasarkan trio kunci (schedule_id, subschedule_id/null, date)
+    //    untuk menghindari SA.id yang “tidak cocok” tercatat.
+    const authoritativeSA = await SeatAvailability.findOne({ where: whereClause });
+    if (!authoritativeSA) {
+      // Sangat jarang terjadi (karena barusan dibuat kalau tidak ada), tapi fail-safe saja.
+      return res.status(500).json({
+        success: false,
+        message: "Authoritative SeatAvailability not found after creation.",
+      });
+    }
+
+    // 5) Hitung apakah kursi sebenarnya masih cukup untuk total_passengers
+    //    Prefer 'remainingSeats' jika skema kamu menyediakannya; fallback ke 'available_seats'.
+  const remaining = Number(authoritativeSA.available_seats);
+
+    const isAvailableFlag =
+      typeof authoritativeSA.availability === "boolean"
+        ? authoritativeSA.availability
+        : true; // default true kalau kolom tidak ada
+
+const seatsSufficient = Number(authoritativeSA.available_seats) >= Number(total_passengers);
+
+
+    // 6) Buat WaitingList (pakai SA otoritatif)
+    const waitingList = await WaitingList.create({
+      contact_name,
+      contact_phone,
+      contact_email,
+      schedule_id,
+      subschedule_id: subschedule_id ?? null,
+      seat_availability_id: authoritativeSA.id, // ← pakai yang otoritatif
+      booking_date,
+      total_passengers,
+      adult_passengers: adult_passengers || 0,
+      child_passengers: child_passengers || 0,
+      infant_passengers: infant_passengers || 0,
+      status: status || "pending",
+      follow_up_notes,
+      follow_up_date,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    // 7) Ambil detail schedule untuk email
+    const scheduleForEmail = await Schedule.findByPk(schedule_id, {
+      include: [
+        { model: Destination, as: "DestinationFrom" },
+        { model: Destination, as: "DestinationTo" },
+      ],
+    });
+
+    const formattedDate = new Date(booking_date).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    // 8) Setup transporter
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST_BREVO,
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_LOGIN_BREVO,
+        pass: process.env.EMAIL_PASS_BREVO,
+      },
+    });
+
+    // 9) Kirim email ke customer selalu
+    await sendWaitingListConfirmationEmail(
+      transporter,
+      contact_email,
+      contact_name,
+      scheduleForEmail,
+      formattedDate,
+      total_passengers,
+      follow_up_notes
+    );
+
+    // 10) Pengecualian: jika kursi sebenarnya cukup → jangan email admin, kirim Telegram warning
+    if (seatsSufficient) {
+      const routeText = scheduleForEmail
+        ? `${scheduleForEmail?.DestinationFrom?.name || "From"} → ${
+            scheduleForEmail?.DestinationTo?.name || "To"
+          }`
+        : `schedule_id ${schedule_id}`;
+
+      const subTxt = subschedule_id ? `, subschedule_id ${subschedule_id}` : "";
+      const msg =
+        `⚠️ Warning: A waiting list was created while seats are still available.\n\n` +
+        `<b>Date:</b> ${formattedDate}\n` +
+        `<b>Route:</b> ${routeText}\n` +
+        `<b>Schedule ID:</b> ${schedule_id}${subTxt}\n` +
+        `<b>SeatAvailability ID:</b> ${authoritativeSA.id}\n` +
+        `<b>Remaining/Available:</b> ${remaining}\n` +
+        `<b>Requested Passengers:</b> ${total_passengers}\n\n` +
+        `Please investigate and fix soon.`;
+
+      await sendTelegramError(msg);
+    } else {
+      // Kalau kursi tidak cukup → kirim notifikasi admin seperti biasa
+      await sendAdminNotificationEmail(
+        transporter,
+        waitingList,
+        scheduleForEmail,
+        formattedDate,
+        follow_up_notes
+      );
+    }
+
+    return res.status(201).json({
+      success: true,
+      data: waitingList,
+      seat_availability: authoritativeSA,
+      seat_availability_created: createdNewSA,
+      seats_sufficient: seatsSufficient,
+    });
+  } catch (error) {
+    console.error("Error creating waiting list:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
 // Function to send confirmation email to the customer
 // Get all waiting list entries
 exports.findAll = async (req, res) => {

@@ -5,8 +5,8 @@ const waitingListController = require('../controllers/waitingListController');
 // const triggerManual = require('../util/waitingListNotify');
 
 // Create a new waiting list entry
-router.post('/', waitingListController.create);
-
+router.post('/', waitingListController.createv2);
+// router.post('/', waitingListController.create);
 // Get all waiting list entries
 router.get('/', waitingListController.findAll);
 
