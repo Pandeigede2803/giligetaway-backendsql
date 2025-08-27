@@ -8,6 +8,7 @@ const seatFixCron = require('./util/seatFixCron');
 const waitingListCron = require('./util/waitingListCron');
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs');
 const cronFrequencySeatDuplicates = require('./util/cronFrequencySeatDuplicates');
+const {scheduleSeatCapacityCron} = require('./util/seatCapacityCron');
 const { initWebSocketServer } = require('./config/websocket');
 const http = require('http');
 const dotenv = require('dotenv');
@@ -184,7 +185,13 @@ sequelize.sync()
       cronFrequencySeatDuplicates.scheduleDuplicateSeatJob();
       // console.log('🕒 Duplicate seat checker cronjob registered');
       cronFrequencySeatDuplicates.seatBoostedJob();
-      console.log('🕒 Seat boosted checker cronjob registered');
+ 
+            scheduleSeatCapacityCron();
+             console.log('🗣️ SeatCapacityCron registered');
+
+    
+
+
     });
   })
   .catch(err => {

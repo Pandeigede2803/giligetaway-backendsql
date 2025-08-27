@@ -171,6 +171,22 @@ exports.create = async (req, res) => {
 
 
 // add the validation of the seat
+// controllers/waitingListController.js (misal file ini)
+// Import yang dibutuhkan
+
+
+// ===== Helper: bitmask day-of-week (0=Sun ... 6=Sat) =====
+// schedule.days_of_week adalah angka penjumlahan bit:
+// bit 0 (1) = Sunday, bit 1 (2) = Monday, ... bit 6 (64) = Saturday
+function scheduleAcceptsDayBitmask(daysOfWeekNumber, bookingDow) {
+  if (typeof daysOfWeekNumber !== 'number') {
+    // jika tidak ada info, fail-open (anggap diterima)
+    return true;
+  }
+  const bit = 1 << bookingDow;
+  return (daysOfWeekNumber & bit) !== 0;
+}
+
 exports.createv2 = async (req, res) => {
   try {
     const {
@@ -189,48 +205,38 @@ exports.createv2 = async (req, res) => {
       follow_up_date,
     } = req.body;
 
-    console.log("Creating waiting list entry with data:", req.body);
-
-    // // 1) Validasi field wajib
-    // if (
-    //   !contact_name ||
-    //   !contact_phone ||
-    //   !contact_email ||
-    //   !schedule_id ||
-    //   !booking_date ||
-    //   !total_passengers
-    // ) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Missing required fields",
-    //   });
-    // }
-
-    // 2) Siapkan whereClause SA (subschedule_id harus eksplisit null jika tidak ada)
+    // === Kunci pencarian SeatAvailability ===
     const whereClause = {
       date: booking_date,
       schedule_id: schedule_id,
       subschedule_id: subschedule_id ?? null,
     };
 
-    // 3) Cari SA dulu; kalau tidak ada → create baru
+    // === Ambil Schedule (sekali) untuk validasi hari + email + boat ===
+    const scheduleBase = await Schedule.findByPk(schedule_id, {
+      include: [
+        { model: Destination, as: 'DestinationFrom' },
+        { model: Destination, as: 'DestinationTo' },
+        { model: Boat, as: 'Boat' },
+      ],
+    });
+    if (!scheduleBase) {
+      return res.status(404).json({ success: false, message: 'Schedule not found' });
+    }
+
+    // === Cari/buat SeatAvailability ===
     let createdNewSA = false;
     let seatAvailability = await SeatAvailability.findOne({ where: whereClause });
 
     if (!seatAvailability) {
-      const schedule = await Schedule.findByPk(schedule_id);
-      if (!schedule) {
-        return res.status(404).json({
-          success: false,
-          message: "Schedule not found",
-        });
-      }
+      const boat =
+        scheduleBase.Boat ||
+        (scheduleBase.boat_id ? await Boat.findByPk(scheduleBase.boat_id) : null);
 
-      const boat = await Boat.findByPk(schedule.boat_id);
       if (!boat) {
         return res.status(404).json({
           success: false,
-          message: "Boat not found for the given schedule",
+          message: 'Boat not found for the given schedule',
         });
       }
 
@@ -247,65 +253,54 @@ exports.createv2 = async (req, res) => {
       console.log(`Created new seat availability with ID: ${seatAvailability.id}`);
     }
 
-    // 4) VALIDASI SEKALI LAGI (otoritatif)
-    //    Re-lookup SA berdasarkan trio kunci (schedule_id, subschedule_id/null, date)
-    //    untuk menghindari SA.id yang “tidak cocok” tercatat.
+    // === Re-lookup authoritative SA (fail-safe) ===
     const authoritativeSA = await SeatAvailability.findOne({ where: whereClause });
     if (!authoritativeSA) {
-      // Sangat jarang terjadi (karena barusan dibuat kalau tidak ada), tapi fail-safe saja.
       return res.status(500).json({
         success: false,
-        message: "Authoritative SeatAvailability not found after creation.",
+        message: 'Authoritative SeatAvailability not found after creation.',
       });
     }
 
-    // 5) Hitung apakah kursi sebenarnya masih cukup untuk total_passengers
-    //    Prefer 'remainingSeats' jika skema kamu menyediakannya; fallback ke 'available_seats'.
-  const remaining = Number(authoritativeSA.available_seats);
+    // === VALIDASI HARI (bitmask days_of_week) ===
+    // 0=Sunday, 1=Monday, ... 6=Saturday
+    const bookingDow = new Date(booking_date).getDay();
+    const dayAccepted = scheduleAcceptsDayBitmask(scheduleBase.days_of_week, bookingDow);
 
-    const isAvailableFlag =
-      typeof authoritativeSA.availability === "boolean"
-        ? authoritativeSA.availability
-        : true; // default true kalau kolom tidak ada
+    // === Cek kursi cukup? (pakai available_seats saja) ===
+    const remaining = Number(authoritativeSA.available_seats);
+    const seatsSufficient = remaining >= Number(total_passengers);
 
-const seatsSufficient = Number(authoritativeSA.available_seats) >= Number(total_passengers);
+    // === Tentukan status WL: jika hari tidak cocok → HOLD, else gunakan status request/pending ===
+    const computedStatus = dayAccepted ? (status || 'pending') : 'hold';
 
-
-    // 6) Buat WaitingList (pakai SA otoritatif)
+    // === Buat WaitingList ===
     const waitingList = await WaitingList.create({
       contact_name,
       contact_phone,
       contact_email,
       schedule_id,
       subschedule_id: subschedule_id ?? null,
-      seat_availability_id: authoritativeSA.id, // ← pakai yang otoritatif
+      seat_availability_id: authoritativeSA.id,
       booking_date,
       total_passengers,
       adult_passengers: adult_passengers || 0,
       child_passengers: child_passengers || 0,
       infant_passengers: infant_passengers || 0,
-      status: status || "pending",
+      status: computedStatus,
       follow_up_notes,
       follow_up_date,
       created_at: new Date(),
       updated_at: new Date(),
     });
 
-    // 7) Ambil detail schedule untuk email
-    const scheduleForEmail = await Schedule.findByPk(schedule_id, {
-      include: [
-        { model: Destination, as: "DestinationFrom" },
-        { model: Destination, as: "DestinationTo" },
-      ],
+    // === Email Customer (selalu kirim) ===
+    const formattedDate = new Date(booking_date).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
     });
 
-    const formattedDate = new Date(booking_date).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-
-    // 8) Setup transporter
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST_BREVO,
       port: 587,
@@ -316,64 +311,68 @@ const seatsSufficient = Number(authoritativeSA.available_seats) >= Number(total_
       },
     });
 
-    // 9) Kirim email ke customer selalu
     await sendWaitingListConfirmationEmail(
       transporter,
       contact_email,
       contact_name,
-      scheduleForEmail,
+      scheduleBase,
       formattedDate,
       total_passengers,
       follow_up_notes
     );
 
-    // 10) Pengecualian: jika kursi sebenarnya cukup → jangan email admin, kirim Telegram warning
+    // === Notifikasi admin/telegram bergantung kondisi ===
     if (seatsSufficient) {
-      const routeText = scheduleForEmail
-        ? `${scheduleForEmail?.DestinationFrom?.name || "From"} → ${
-            scheduleForEmail?.DestinationTo?.name || "To"
-          }`
-        : `schedule_id ${schedule_id}`;
+      // Kursi masih cukup → JANGAN email admin, tapi kirim Telegram warning
+      const routeText = `${scheduleBase?.DestinationFrom?.name || 'From'} → ${
+        scheduleBase?.DestinationTo?.name || 'To'
+      }`;
+      const subTxt = subschedule_id ? `, subschedule_id ${subschedule_id}` : '';
+      const dowNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-      const subTxt = subschedule_id ? `, subschedule_id ${subschedule_id}` : "";
       const msg =
         `⚠️ Warning: A waiting list was created while seats are still available.\n\n` +
-        `<b>Date:</b> ${formattedDate}\n` +
+        `<b>Date:</b> ${formattedDate} (${dowNames[bookingDow]})\n` +
         `<b>Route:</b> ${routeText}\n` +
         `<b>Schedule ID:</b> ${schedule_id}${subTxt}\n` +
         `<b>SeatAvailability ID:</b> ${authoritativeSA.id}\n` +
         `<b>Remaining/Available:</b> ${remaining}\n` +
-        `<b>Requested Passengers:</b> ${total_passengers}\n\n` +
+        `<b>Requested Passengers:</b> ${total_passengers}\n` +
+        (dayAccepted ? `` : `<b>Status set to:</b> HOLD (day not accepted)\n`) +
         `Please investigate and fix soon.`;
 
       await sendTelegramError(msg);
-    } else {
-      // Kalau kursi tidak cukup → kirim notifikasi admin seperti biasa
+    } else if (dayAccepted) {
+      // Kursi tidak cukup DAN hari cocok → email admin seperti biasa
       await sendAdminNotificationEmail(
         transporter,
         waitingList,
-        scheduleForEmail,
+        scheduleBase,
         formattedDate,
         follow_up_notes
       );
     }
+    // else: kursi tidak cukup TAPI hari TIDAK cocok → TIDAK kirim email admin (sesuai permintaanmu)
 
+    // === Response ===
     return res.status(201).json({
       success: true,
       data: waitingList,
       seat_availability: authoritativeSA,
       seat_availability_created: createdNewSA,
       seats_sufficient: seatsSufficient,
+      schedule_day_accepted: dayAccepted,
     });
   } catch (error) {
-    console.error("Error creating waiting list:", error);
+    console.error('Error creating waiting list:', error);
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: 'Internal server error',
       error: error.message,
     });
   }
 };
+
 
 // Function to send confirmation email to the customer
 // Get all waiting list entries

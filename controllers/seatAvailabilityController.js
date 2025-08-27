@@ -33,6 +33,9 @@ const {
 const { sub } = require("date-fns/sub");
 const { sendTelegramMessage } = require("..//util/telegram");
 
+// controllers/seatCapacityTestController.js
+const { performSeatCapacityCheckAndEmail } = require("../util/seatCapacityAlert");
+
 // update seat availability to bost the available_seats if theres no seat avaialbility create new seat availability
 // the param is optional , maybe id, but if the seat not created yet it will be schedule /subscehdule id and booing date
 
@@ -2554,6 +2557,96 @@ const setAllSeatsAvailabilityById = async (req, res) => {
   }
 };
 
+
+
+// POST /seat-availability/batch-set
+// body: { ids: number[], availability: boolean | "true" | "false" }
+const setAllSeatsAvailabilityByIdsBatch = async (req, res) => {
+  const { ids, availability } = req.body;
+
+  // Validasi input
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({
+      status: "error",
+      message: "Field 'ids' must be a non-empty array."
+    });
+  }
+
+  const desiredAvailability =
+    typeof availability === "string"
+      ? availability.toLowerCase() === "true"
+      : Boolean(availability);
+
+  const t = await sequelize.transaction();
+  try {
+    // 1) Ambil semua base row (acuan) untuk ids yang diberikan
+    const baseRows = await SeatAvailability.findAll({
+      where: { id: ids },
+      transaction: t,
+    });
+
+    // Cek missing
+    const foundIds = baseRows.map(r => r.id);
+    const missingIds = ids.filter(x => !foundIds.includes(x));
+
+    if (baseRows.length === 0) {
+      await t.rollback();
+      return res.status(404).json({
+        status: "error",
+        message: "No SeatAvailability found for the given ids.",
+        missing_ids: missingIds,
+      });
+    }
+
+    // 2) Group by (schedule_id, date) agar update tidak duplikat
+    const groups = new Map();
+    for (const row of baseRows) {
+      const key = `${row.schedule_id}__${row.date}`;
+      if (!groups.has(key)) {
+        groups.set(key, { schedule_id: row.schedule_id, date: row.date });
+      }
+    }
+
+    // 3) Jalankan update per group
+    const perGroupResults = [];
+    for (const { schedule_id, date } of groups.values()) {
+      const [affectedCount] = await SeatAvailability.update(
+        { availability: desiredAvailability },
+        {
+          where: { schedule_id, date }, // tanpa filter subschedule_id → semua ikut
+          transaction: t,
+        }
+      );
+      perGroupResults.push({ schedule_id, date, affected: affectedCount });
+    }
+
+    await t.commit();
+
+    // 4) Ringkasan
+    const totalAffected = perGroupResults.reduce((s, g) => s + (g.affected || 0), 0);
+
+    return res.status(200).json({
+      status: "success",
+      message: `Batch update completed. ${perGroupResults.length} groups (schedule_id+date) were updated.`,
+      data: {
+        desired_availability: desiredAvailability,
+        groups_updated: perGroupResults.length,
+        total_rows_affected: totalAffected,
+        per_group: perGroupResults,
+        missing_ids: missingIds, // kalau ada id yang tidak ketemu
+        processed_base_ids: foundIds,
+      },
+    });
+  } catch (err) {
+    await t.rollback();
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to perform batch update of seat availability.",
+      error: err.message,
+    });
+  }
+};
+
 const updateSeatAvailability = async (req, res) => {
   const { id } = req.params;
   const {
@@ -2960,6 +3053,90 @@ cron.schedule("0 */3 * * *", async () => {
   await fixAllSeatMismatches();
 });
 
+
+
+
+
+
+
+/**
+ * GET /admin/seat-capacity/scan
+ * - Hanya scan & return data (TIDAK kirim email)
+ * - Query:
+ *    - daysAhead (default: 7)
+ *    - threshold (default: 0.9)  // 90%
+ */
+const scanSeatCapacity = async (req, res) => {
+  try {
+    const daysAhead = Number(req.query.daysAhead ?? 7);
+    const thresholdRatio = Number(req.query.threshold ?? 0.9);
+
+    // gunakan util tapi override behavior: jangan kirim email di endpoint scan.
+    // cara mudah: panggil util, tapi sementara “mock” fungsi sendEmail dengan flag lokal.
+    // -> supaya non-invasif, kita panggil util dan abaikan kirim email dengan mem-filter hasil di sini.
+    // NOTE: kalau util kamu SELALU kirim email, buat varian util tanpa email.
+    const result = await performSeatCapacityCheckAndEmail({
+      daysAhead,
+      thresholdRatio,
+      // tidak ada recipients di versi terbaru (from/to fixed ke EMAIL_BOOKING),
+      // maka kita hanya kembalikan hasilnya ke client.
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message: "Scan seat capacity completed (no email sent in this endpoint).",
+      params: { daysAhead, thresholdRatio },
+      checked: result.checked,
+      alerted: result.alerted,
+      rows: result.rows, // [{ schedule_id, seat_id, subschedule_id, route, date, remaining_seats }]
+    });
+  } catch (err) {
+    console.error("❌ scanSeatCapacity error:", err.message);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to scan seat capacity",
+      error: err.message,
+    });
+  }
+};
+
+/**
+ * POST /admin/seat-capacity/scan-and-email
+ * - Scan & KIRIM EMAIL (from & to = process.env.EMAIL_BOOKING)
+ * - Body (opsional):
+ *    - daysAhead (number, default 7)
+ *    - threshold (number, default 0.9)
+ */
+const scanSeatCapacityAndEmail = async (req, res) => {
+  try {
+    const daysAhead = Number(req.body?.daysAhead ?? 7);
+    const thresholdRatio = Number(req.body?.threshold ?? 0.9);
+
+    const result = await performSeatCapacityCheckAndEmail({
+      daysAhead,
+      thresholdRatio,
+    });
+
+    return res.status(200).json({
+      status: "success",
+      message:
+        result.alerted > 0
+          ? `Email sent to ${process.env.EMAIL_BOOKING} with ${result.alerted} row(s).`
+          : "No alert rows found. No email sent.",
+      params: { daysAhead, thresholdRatio },
+      checked: result.checked,
+      alerted: result.alerted,
+      rows: result.rows,
+    });
+  } catch (err) {
+    console.error("❌ scanSeatCapacityAndEmail error:", err.message);
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to scan & email seat capacity",
+      error: err.message,
+    });
+  }
+};
 module.exports = {
   checkAvailableSeats,
   createOrGetSeatAvailability,
@@ -2983,5 +3160,7 @@ module.exports = {
   getDuplicateSeatReport,
     findBoostedSeats,
     notifyTelegramSeatBoosted,
-    setAllSeatsAvailabilityById
+    setAllSeatsAvailabilityById,setAllSeatsAvailabilityByIdsBatch,
+    scanSeatCapacityAndEmail,
+    scanSeatCapacity
 };

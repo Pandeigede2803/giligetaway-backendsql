@@ -363,26 +363,15 @@ const checkAndNotifyWaitingList = async () => {
       const validityEnd = new Date(entry.WaitingListSchedule.validity_end);
       const daysOfWeek = entry.WaitingListSchedule.days_of_week || 0;
 
-      // console.log(`\n🔍 Checking entry ID ${entry.id}:`, {
-      //   booking_date: entry.booking_date,
-      //   validity_start: entry.WaitingListSchedule.validity_start,
-      //   validity_end: entry.WaitingListSchedule.validity_end,
-      //   days_of_week: daysOfWeek,
-      //   schedule_id: entry.schedule_id
-      // });
 
       let isValid = true;
       let invalidReason = '';
 
       // Validasi 1: Apakah booking_date dalam periode validity schedule?
       if (bookingDate < validityStart || bookingDate > validityEnd) {
-        // console.log(`❌ Entry ${entry.id} - Booking date is OUTSIDE schedule validity period`);
-        // console.log(`   📅 Schedule valid: ${validityStart.toISOString().split('T')[0]} to ${validityEnd.toISOString().split('T')[0]}`);
-        // console.log(`   📅 Booking date: ${bookingDate.toISOString().split('T')[0]}`);
-        // isValid = false;
-        // invalidReason = 'Outside validity period';
+
       } else {
-        // console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
+        console.log(`✅ Entry ${entry.id} - Booking date is within schedule validity period`);
       }
 
       // Validasi 2: Apakah booking_date sesuai dengan days_of_week schedule?
@@ -390,17 +379,10 @@ const checkAndNotifyWaitingList = async () => {
         const bookingDayOfWeek = bookingDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
         const dayBitValue = Math.pow(2, bookingDayOfWeek); // Convert day to bit value
         
-        // console.log(`🗓️ Checking days_of_week for entry ${entry.id}:`);
-        // console.log(`   - Booking date: ${entry.booking_date} (${getDayName(bookingDayOfWeek)})`);
-        // console.log(`   - Schedule days_of_week: ${daysOfWeek} (${getDayOfWeekText(daysOfWeek)})`);
-        // console.log(`   - Day bit value: ${dayBitValue}`);
-        // console.log(`   - Bit check: ${daysOfWeek} & ${dayBitValue} = ${daysOfWeek & dayBitValue}`);
+    
         
         if ((daysOfWeek & dayBitValue) === 0) {
-          // console.log(`❌ Entry ${entry.id} - Schedule does NOT operate on ${getDayName(bookingDayOfWeek)}`);
-          // console.log(`   📅 Schedule only operates on: ${getDayOfWeekText(daysOfWeek)}`);
-          // isValid = false;
-          // invalidReason = `Schedule doesn't operate on ${getDayName(bookingDayOfWeek)}`;
+    
         } else {
           // console.log(`✅ Entry ${entry.id} - Schedule operates on ${getDayName(bookingDayOfWeek)}`);
         }
@@ -429,9 +411,7 @@ const checkAndNotifyWaitingList = async () => {
       }
     }
 
-    // console.log(`\n📊 Validation Summary:`);
-    // console.log(`   ✅ Valid entries (within validity period AND correct day of week): ${validEntries}`);
-    // console.log(`   ❌ Invalid entries (outside validity period OR wrong day of week): ${invalidEntries}`);
+
 
     // Process invalid entries - Send follow-up emails dan update status
     if (invalidWaitingListIds.length > 0) {

@@ -15,7 +15,7 @@ const {
   fixSeatMismatch,
 findMissingRelatedBySeatId,
   fixSeatMismatchBatch, getDuplicateSeatReport,
-  fixSeatMismatchBatch2,setAllSeatsAvailabilityById
+  fixSeatMismatchBatch2,setAllSeatsAvailabilityById,setAllSeatsAvailabilityByIdsBatch,scanSeatCapacity,scanSeatCapacityAndEmail
 } = require("../controllers/seatAvailabilityController"); // Adjust the path as needed
 
 const authenticate = require("../middleware/authenticate");
@@ -63,8 +63,15 @@ router.put("/update-seat/:id", authenticate, updateSeatAvailability);
 // update availability all seat in a day
 router.patch("/update-all-seat/set-availability",authenticate, setAllSeatsAvailabilityById);
 
+// Route batch update
+router.post("/batch-set",authenticate, setAllSeatsAvailabilityByIdsBatch);
+
 
 router.get("/related-seat/:id", authenticate, getFilteredSeatAvailabilityById);
+
+// send email scan the seat nearlly full
+router.get("/seat-capacity/scan",authenticate, scanSeatCapacity);
+router.post("/seat-capacity/scan-and-email",authenticate,scanSeatCapacityAndEmail);
 
 // Route to check all available seats for a specific schedule and date
 router.get(
