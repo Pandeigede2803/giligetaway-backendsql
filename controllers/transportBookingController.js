@@ -8,6 +8,151 @@ const getExchangeRate = require("../util/getExchangeRate");
 const { sendEmailTransportBookingUpdate } = require("../util/sendPaymentEmail");
 
 // Get all transport bookings with transport details
+
+// Controller: getAllTransportBookings with pagination & flexible filters
+// Assumes Sequelize is already imported where you define models; if not:
+// const { Op } = require('sequelize');
+
+exports.getAllTransportBookings2 = async (req, res) => {
+  const { Op, col } = require('sequelize');
+
+  try {
+    // --- pagination
+    const page  = Math.max(parseInt(req.query.page ?? '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit ?? '20', 10), 1), 200);
+    const offset = (page - 1) * limit;
+
+    // --- sorting
+    const sortBy  = req.query.sortBy ?? 'created_at'; // field on Booking
+    const sortDir = (req.query.sortDir ?? 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // --- filters
+    const paymentStatusRaw = (req.query.payment_status ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const paymentStatusFilter = paymentStatusRaw.length
+      ? { payment_status: { [Op.in]: paymentStatusRaw } }
+      : {};
+
+    const toStartOfDaySQL = (d) => {
+      const x = new Date(d); x.setHours(0,0,0,0);
+      return x.toISOString().slice(0, 19).replace('T', ' ');
+    };
+    const toEndOfDaySQL = (d) => {
+      const x = new Date(d); x.setHours(23,59,59,999);
+      return x.toISOString().slice(0, 19).replace('T', ' ');
+    };
+    const lastDay = (y, m) => new Date(y, m, 0).toISOString().slice(8, 10);
+
+    let dateRangeFilter = {};
+    const dateFrom = req.query.date_from;
+    const dateTo   = req.query.date_to;
+    const dateOne  = req.query.date;
+
+    if (dateFrom || dateTo) {
+      dateRangeFilter = {
+        booking_date: {
+          [Op.between]: [
+            dateFrom ? toStartOfDaySQL(dateFrom) : '0001-01-01 00:00:00',
+            dateTo   ? toEndOfDaySQL(dateTo)     : '9999-12-31 23:59:59',
+          ],
+        },
+      };
+    } else if (dateOne) {
+      const parts = dateOne.split('-');
+      if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
+        const y = parts[0];
+        dateRangeFilter = {
+          booking_date: { [Op.between]: [toStartOfDaySQL(`${y}-01-01`), toEndOfDaySQL(`${y}-12-31`)] },
+        };
+      } else if (parts.length === 2 && /^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1])) {
+        const [y, mm] = parts;
+        const ld = lastDay(parseInt(y,10), parseInt(mm,10));
+        dateRangeFilter = {
+          booking_date: { [Op.between]: [toStartOfDaySQL(`${y}-${mm}-01`), toEndOfDaySQL(`${y}-${mm}-${ld}`)] },
+        };
+      } else if (parts.length === 3) {
+        const d = `${parts[0]}-${parts[1]}-${parts[2]}`;
+        dateRangeFilter = { booking_date: { [Op.between]: [toStartOfDaySQL(d), toEndOfDaySQL(d)] } };
+      }
+    }
+
+    const bookingWhere = { ...paymentStatusFilter, ...dateRangeFilter };
+
+    // --- full include for data fetch
+    const includeTree = [
+      {
+        model: Transport,
+        as: 'Transport',
+        attributes: [
+          'id','pickup_area','pickup_time','duration','check_in_time',
+          'pickup_time_2','check_in_time_2','cost','interval_time','description',
+        ],
+      },
+      {
+        model: Booking,
+        required: Object.keys(bookingWhere).length > 0,
+        attributes: [
+          'id','ticket_id','booking_source','contact_email','contact_phone',
+          'contact_name','booking_date','created_at','updated_at','payment_status',
+        ],
+        where: bookingWhere,
+        include: [{ model: Passenger, as: 'passengers' }],
+      },
+    ];
+
+    // --- lean include for COUNT to avoid alias bug
+    const countInclude = [
+      {
+        model: Booking,
+        required: Object.keys(bookingWhere).length > 0,
+        attributes: [],          // <- important: keep count lean
+        where: bookingWhere,
+      },
+      // no Transport / no passengers in the count
+    ];
+
+    // ✅ FIX: distinct count on primary key without broken alias
+    const total = await TransportBooking.count({
+      include: countInclude,
+      distinct: true,
+      col: 'id',                // counts DISTINCT(`TransportBooking`.`id`)
+      // subQuery not needed here
+    });
+
+    // --- fetch page
+    const transportBookings = await TransportBooking.findAll({
+      include: includeTree,
+      offset,
+      limit,
+      subQuery: false,
+      // order by a field on Booking:
+      order: [[{ model: Booking }, sortBy, sortDir]],
+    });
+
+    res.status(200).json({
+      data: transportBookings,
+      meta: {
+        page, limit, total,
+        totalPages: Math.max(Math.ceil(total / limit), 1),
+        sortBy, sortDir,
+        filters: {
+          payment_status: paymentStatusRaw.length ? paymentStatusRaw : null,
+          date_from: dateFrom ?? null,
+          date_to: dateTo ?? null,
+          date: dateOne ?? null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Failed to fetch transport bookings:', error);
+    res.status(500).json({ message: 'Failed to fetch transport bookings', error: String(error) });
+  }
+};
+
+
 exports.getAllTransportBookings = async (req, res) => {
   try {
     console.log("Fetching all transport bookings...");

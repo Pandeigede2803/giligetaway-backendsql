@@ -4,7 +4,7 @@ const transportBookingController = require('../controllers/transportBookingContr
 const authenticate = require('../middleware/authenticate');
 
 // Get all transport bookings
-router.get('/',authenticate, transportBookingController.getAllTransportBookings);
+router.get('/',authenticate, transportBookingController.getAllTransportBookings2);
 
 router.get('/review',authenticate, transportBookingController.getAllTransportBookingsReview);
 

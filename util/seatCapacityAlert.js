@@ -49,7 +49,7 @@ const sendEmail = async ({ subject, html }) => {
 
   await transporter.sendMail({
     from: process.env.EMAIL_BOOKING, // ✅ ganti di sini
-    to: process.env.EMAIL_USER_TITAN, // ✅ ganti di sini
+    to: process.env.EMAIL_BOOKING, // ✅ ganti di sini
     cc: [
       "ooppssainy@gmail.com",
       "kadekgetaway@gmail.com",
