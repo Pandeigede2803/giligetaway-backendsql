@@ -21,6 +21,7 @@ const {
 } = require("../models");
 
 const { extractIds, classifyAttributionFromIds, classifyAttribution } = require("../util/googleAttribution");
+const { buildRouteFromSchedule } = require("../util/buildRoute");
 
 
 const getBookingsWithGoogleData = async (req, res) => {
@@ -63,14 +64,85 @@ const getBookingsWithGoogleData = async (req, res) => {
         "ticket_id",
         "contact_email",
         "contact_nationality",
+        "booking_date",
         "google_data",    // JSON mentah
         "created_at",
+      ],
+      include: [
+        {
+          model: Schedule,
+          as: "schedule",
+          attributes: ["id", "boat_id"],
+          include: [
+            {
+              model: Transit,
+              as: "Transits",
+              attributes: ["id"],
+              include: [
+                {
+                  model: Destination,
+                  as: "Destination",
+                  attributes: ["id", "name"],
+                },
+              ],
+            },
+            { model: Destination, as: "FromDestination", attributes: ["name"] },
+            { model: Destination, as: "ToDestination", attributes: ["name"] },
+          ],
+        },
+   
+        {
+          model: SubSchedule,
+          as: "subSchedule",
+          attributes: ["id"],
+          include: [
+            { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+            { model: Destination, as: "DestinationTo", attributes: ["name"] },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              attributes: ["id"],
+              include: [{ model: Destination, as: "Destination" }],
+            },
+          ],
+        },
       ],
       order: [[sortKey, sortOrder]],
       limit,
       offset,
     });
 
+      
     // Normalisasi + klasifikasi di Node
     const normalized = rows.map((r) => {
       const gd  = r.google_data || {};
@@ -81,10 +153,12 @@ const getBookingsWithGoogleData = async (req, res) => {
         id: r.id,
         contact_name: r.contact_name,
         ticket_id: r.ticket_id,
+        departure_date: r.booking_date,
         contact_email: r.contact_email,
         contact_nationality: r.contact_nationality,
         gross_total: r.gross_total,
         created_at: r.created_at,
+          route: buildRouteFromSchedule(r.schedule, r.subSchedule),
 
         // data mentah yang kamu simpan
         google_data_raw: gd,
@@ -105,6 +179,8 @@ const getBookingsWithGoogleData = async (req, res) => {
         _hasAdsId: !!(ids.gclid || ids._gcl_aw),
         // human-friendly summary for quick filtering/reading
         summary: classifyAttribution(ids),
+
+      
       };
     });
 
