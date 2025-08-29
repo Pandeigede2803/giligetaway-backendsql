@@ -143,6 +143,7 @@ router.get("/date", authenticate, bookingController.getBookingsByDate);
 
 // GET /bookings/google-data?page=1&limit=20
 router.get("/google-data",authenticate, bookingGoogleDataController.getBookingsWithGoogleData);
+router.get("/google-data/summary",authenticate, bookingGoogleDataController.getGoogleBookingsSummary);
 // READ booking by id
 router.get("/:id", bookingController.getBookingById);
 

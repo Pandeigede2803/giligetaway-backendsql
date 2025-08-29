@@ -158,11 +158,9 @@ const getBookingsWithGoogleData = async (req, res) => {
         contact_nationality: r.contact_nationality,
         gross_total: r.gross_total,
         created_at: r.created_at,
-          route: buildRouteFromSchedule(r.schedule, r.subSchedule),
-
+        route: buildRouteFromSchedule(r.schedule, r.subSchedule),
         // data mentah yang kamu simpan
         google_data_raw: gd,
-
         google_data_convert: {
           gclid: ids.gclid || null,
           _gcl_aw: ids._gcl_aw || null,
@@ -212,8 +210,67 @@ const getBookingsWithGoogleData = async (req, res) => {
   }
 };
 
+const getGoogleBookingsSummary = async (req, res) => {
+  try {
+    const q       = (req.query.q || "").trim();
+    const start   = (req.query.start || "").trim();
+    const end     = (req.query.end || "").trim();
+    const adsOnly = req.query.adsOnly === "0" ? false : true; // default: true
+
+    // where dasar sama seperti list
+    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } } ] };
+
+    if (q) {
+      where[Op.and].push({
+        [Op.or]: [
+          { contact_name:  { [Op.like]: `%${q}%` } },
+          { contact_email: { [Op.like]: `%${q}%` } },
+        ],
+      });
+    }
+    if (start) where[Op.and].push({ created_at: { [Op.gte]: new Date(start) } });
+    if (end)   where[Op.and].push({ created_at: { [Op.lte]: new Date(end) } });
+
+    // Ambil kolom minimal (tanpa include relasi) → super ringan
+    const rows = await Booking.findAll({
+      where,
+      attributes: ["gross_total", "google_data"],
+      raw: true,
+    });
+
+    // Normalisasi minimal untuk adsOnly
+    let pool = rows.map(r => {
+      const gd  = r.google_data || {};
+      const ids = extractIds(gd);
+      const s   = classifyAttribution(ids); // ada flag is_ads_conversion
+      return {
+        gross_total: Number(r.gross_total || 0),
+        is_ads_conversion: !!(s && s.is_ads_conversion),
+      };
+    });
+
+    if (adsOnly) {
+      pool = pool.filter(x => x.is_ads_conversion);
+    }
+
+    const totalRevenue   = pool.reduce((sum, x) => sum + x.gross_total, 0);
+    const totalBookings  = pool.length;
+    const averageBooking = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+
+    return res.status(200).json({
+      success: true,
+      filters: { q: q || undefined, start: start || undefined, end: end || undefined, adsOnly },
+      summary: { totalRevenue, totalBookings, averageBooking }
+    });
+  } catch (err) {
+    console.error("❌ getGoogleBookingsSummary error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error", error: err.message });
+  }
+};
+
 module.exports = {
 
   getBookingsWithGoogleData,
+  getGoogleBookingsSummary,
  
 };
