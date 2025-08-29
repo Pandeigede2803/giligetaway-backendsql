@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bookingController = require("../controllers/bookingController");
+const bookingGoogleDataController = require("../controllers/bookingGoogleDataController");
 const seatAvailabilityController = require("../controllers/seatAvailabilityController");
 const authenticate = require("../middleware/authenticate");
 const bookingRateLimiter = require("../middleware/rateLimiter"); // Rate limiting middleware
@@ -20,7 +21,7 @@ const {
   checkAgentPassword,
   checkBookingDateUpdate2,
   checkBookingDateUpdateDirect,
-  validateSeatNumberConflictOnDateChange
+  validateSeatNumberConflictOnDateChange,
 } = require("../middleware/checkSeatAvailabilityForUpdate");
 const {
   validateBookingCreation,
@@ -36,6 +37,7 @@ const {
   generateRoundTripTicketIds,
 } = require("../controllers/bookingController");
 const bookingSummaryCron = require("../util/bookingSummaryCron");
+
 
 // Setup multer untuk upload file
 
@@ -138,6 +140,9 @@ router.get("/generate-id/roundtrip", generateRoundTripTicketIds);
 // READ bookings
 router.get("/date", authenticate, bookingController.getBookingsByDate);
 
+
+// GET /bookings/google-data?page=1&limit=20
+router.get("/google-data",authenticate, bookingGoogleDataController.getBookingsWithGoogleData);
 // READ booking by id
 router.get("/:id", bookingController.getBookingById);
 
@@ -241,6 +246,8 @@ router.post("/bulk-multi-csv", (req, res, next) => {
 
 
 
+
+
 // Route untuk bulk booking dengan CSV
 
 // Route untuk mendapatkan history bulk booking
@@ -275,6 +282,9 @@ router.get(
   authenticate,
   bulkBookingController.getTransportsTemplate
 );
+
+// GET /bookings/google-data?page=1&limit=20
+
 
 
 

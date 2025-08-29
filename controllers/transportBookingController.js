@@ -14,7 +14,23 @@ const { sendEmailTransportBookingUpdate } = require("../util/sendPaymentEmail");
 // const { Op } = require('sequelize');
 
 exports.getAllTransportBookings2 = async (req, res) => {
-  const { Op, col } = require('sequelize');
+  const { Op } = require('sequelize');
+
+  // ---- util: format lokal tanpa UTC shift (YYYY-MM-DD HH:mm:ss)
+  const pad = (n) => String(n).padStart(2, '0');
+  const formatLocal = (d, endOfDay = false) => {
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return null;
+    if (endOfDay) x.setHours(23, 59, 59, 999); else x.setHours(0, 0, 0, 0);
+    const y = x.getFullYear();
+    const m = pad(x.getMonth() + 1);
+    const day = pad(x.getDate());
+    const hh = pad(x.getHours());
+    const mm = pad(x.getMinutes());
+    const ss = pad(x.getSeconds());
+    return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
+  };
+  const lastDayNum = (y, m1to12) => new Date(y, m1to12, 0).getDate();
 
   try {
     // --- pagination
@@ -22,29 +38,18 @@ exports.getAllTransportBookings2 = async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit ?? '20', 10), 1), 200);
     const offset = (page - 1) * limit;
 
-    // --- sorting
-    const sortBy  = req.query.sortBy ?? 'created_at'; // field on Booking
+    // --- sorting (whitelist kolom Booking)
+    const allowedSort = new Set(['created_at', 'updated_at', 'booking_date', 'payment_status']);
+    const sortByReq = (req.query.sortBy ?? 'created_at').trim();
+    const sortBy = allowedSort.has(sortByReq) ? sortByReq : 'created_at';
     const sortDir = (req.query.sortDir ?? 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
     // --- filters
     const paymentStatusRaw = (req.query.payment_status ?? '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-
+      .split(',').map(s => s.trim()).filter(Boolean);
     const paymentStatusFilter = paymentStatusRaw.length
       ? { payment_status: { [Op.in]: paymentStatusRaw } }
       : {};
-
-    const toStartOfDaySQL = (d) => {
-      const x = new Date(d); x.setHours(0,0,0,0);
-      return x.toISOString().slice(0, 19).replace('T', ' ');
-    };
-    const toEndOfDaySQL = (d) => {
-      const x = new Date(d); x.setHours(23,59,59,999);
-      return x.toISOString().slice(0, 19).replace('T', ' ');
-    };
-    const lastDay = (y, m) => new Date(y, m, 0).toISOString().slice(8, 10);
 
     let dateRangeFilter = {};
     const dateFrom = req.query.date_from;
@@ -52,36 +57,37 @@ exports.getAllTransportBookings2 = async (req, res) => {
     const dateOne  = req.query.date;
 
     if (dateFrom || dateTo) {
-      dateRangeFilter = {
-        booking_date: {
-          [Op.between]: [
-            dateFrom ? toStartOfDaySQL(dateFrom) : '0001-01-01 00:00:00',
-            dateTo   ? toEndOfDaySQL(dateTo)     : '9999-12-31 23:59:59',
-          ],
-        },
-      };
+      const fromSQL = dateFrom ? formatLocal(dateFrom, false) : '0001-01-01 00:00:00';
+      const toSQL   = dateTo   ? formatLocal(dateTo, true)   : '9999-12-31 23:59:59';
+      dateRangeFilter = { booking_date: { [Op.between]: [fromSQL, toSQL] } };
     } else if (dateOne) {
-      const parts = dateOne.split('-');
-      if (parts.length === 1 && /^\d{4}$/.test(parts[0])) {
-        const y = parts[0];
+      const p = dateOne.split('-').map(s => s.trim());
+      if (p.length === 1 && /^\d{4}$/.test(p[0])) {
+        const y = p[0];
         dateRangeFilter = {
-          booking_date: { [Op.between]: [toStartOfDaySQL(`${y}-01-01`), toEndOfDaySQL(`${y}-12-31`)] },
+          booking_date: {
+            [Op.between]: [`${y}-01-01 00:00:00`, `${y}-12-31 23:59:59`],
+          },
         };
-      } else if (parts.length === 2 && /^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1])) {
-        const [y, mm] = parts;
-        const ld = lastDay(parseInt(y,10), parseInt(mm,10));
+      } else if (p.length === 2 && /^\d{4}$/.test(p[0]) && /^\d{2}$/.test(p[1])) {
+        const y = parseInt(p[0], 10), m = parseInt(p[1], 10);
+        const ld = lastDayNum(y, m);
         dateRangeFilter = {
-          booking_date: { [Op.between]: [toStartOfDaySQL(`${y}-${mm}-01`), toEndOfDaySQL(`${y}-${mm}-${ld}`)] },
+          booking_date: {
+            [Op.between]: [`${p[0]}-${p[1]}-01 00:00:00`, `${p[0]}-${p[1]}-${String(ld).padStart(2,'0')} 23:59:59`],
+          },
         };
-      } else if (parts.length === 3) {
-        const d = `${parts[0]}-${parts[1]}-${parts[2]}`;
-        dateRangeFilter = { booking_date: { [Op.between]: [toStartOfDaySQL(d), toEndOfDaySQL(d)] } };
+      } else if (p.length === 3) {
+        const day = `${p[0]}-${p[1]}-${p[2]}`;
+        dateRangeFilter = {
+          booking_date: { [Op.between]: [`${day} 00:00:00`, `${day} 23:59:59`] },
+        };
       }
     }
 
     const bookingWhere = { ...paymentStatusFilter, ...dateRangeFilter };
 
-    // --- full include for data fetch
+    // --- include tree (pakai separate untuk passengers)
     const includeTree = [
       {
         model: Transport,
@@ -99,27 +105,30 @@ exports.getAllTransportBookings2 = async (req, res) => {
           'contact_name','booking_date','created_at','updated_at','payment_status',
         ],
         where: bookingWhere,
-        include: [{ model: Passenger, as: 'passengers' }],
+        include: [
+          {
+            model: Passenger,
+            as: 'passengers',
+            separate: true,      // ⬅️ hindari row duplikasi
+            // attributes: ['id','full_name', ...]  // bisa di-trim kalau perlu
+            order: [['id','ASC']],
+          },
+        ],
       },
     ];
 
-    // --- lean include for COUNT to avoid alias bug
-    const countInclude = [
-      {
-        model: Booking,
-        required: Object.keys(bookingWhere).length > 0,
-        attributes: [],          // <- important: keep count lean
-        where: bookingWhere,
-      },
-      // no Transport / no passengers in the count
-    ];
-
-    // ✅ FIX: distinct count on primary key without broken alias
+    // --- count (lean) untuk hindari alias bug
     const total = await TransportBooking.count({
-      include: countInclude,
+      include: [
+        {
+          model: Booking,
+          required: Object.keys(bookingWhere).length > 0,
+          attributes: [],
+          where: bookingWhere,
+        },
+      ],
       distinct: true,
-      col: 'id',                // counts DISTINCT(`TransportBooking`.`id`)
-      // subQuery not needed here
+      col: 'id', // => COUNT(DISTINCT `TransportBooking`.`id`)
     });
 
     // --- fetch page
@@ -127,9 +136,13 @@ exports.getAllTransportBookings2 = async (req, res) => {
       include: includeTree,
       offset,
       limit,
-      subQuery: false,
-      // order by a field on Booking:
-      order: [[{ model: Booking }, sortBy, sortDir]],
+      subQuery: false,     // limit di parent
+      distinct: true,      // SELECT DISTINCT parent.id (aman walau ada join lain)
+      order: [
+        [{ model: Booking }, sortBy, sortDir],
+        // fallback tie-breaker supaya paging stabil:
+        ['id', 'DESC'],
+      ],
     });
 
     res.status(200).json({

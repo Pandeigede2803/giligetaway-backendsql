@@ -68,6 +68,8 @@ const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabi
 const AgentCommission = require("../models/AgentComission");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
 const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
+
+
 const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
@@ -6921,6 +6923,11 @@ const createAgentBooking = async (req, res) => {
   }
 };
 
+
+// GOOGLE_DATA FETCH
+
+
+
 module.exports = {
   createBooking,
   sendFollowUpPendingBookingEmail,
@@ -6951,6 +6958,7 @@ module.exports = {
   updateBookingPayment,
   updateBookingDate,
   getBookingsByDate,
+
   updateBookingDateAgent,
   cancelBooking,
   findRelatedSubSchedulesGet,

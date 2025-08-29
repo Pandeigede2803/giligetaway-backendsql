@@ -15,6 +15,8 @@ exports.createDiscount = async (req, res) => {
   }
 };
 
+
+
 // Get all discounts
 exports.getAllDiscounts = async (req, res) => {
   try {
