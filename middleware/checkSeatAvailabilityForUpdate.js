@@ -56,7 +56,7 @@ const validateSeatAvailabilityExist = async (req, res, next) => {
 
 
 
-const checkSeatAvailabilityForUpdate = async (req, res, next) => {
+const checkSeatAvailabilityForUpdate3 = async (req, res, next) => {
     const { id } = req.params;
     const { booking_date } = req.body;
 
@@ -254,6 +254,249 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
         });
     }
 };
+
+
+const checkSeatAvailabilityForUpdate = async (req, res, next) => {
+  const { id } = req.params;
+  const { booking_date } = req.body;
+
+  console.log('\n=== Starting Seat Availability Check ===');
+  console.log(`📋 Booking ID: ${id}`);
+  console.log(`📅 Requested Date: ${booking_date}`);
+
+  try {
+    // 1) Input validation
+    if (!booking_date) {
+      console.log('❌ Error: Booking date is missing');
+      return res.status(400).json({
+        success: false,
+        type: 'BOOKING_DATE_REQUIRED',
+        message: 'Booking date is required',
+      });
+    }
+
+    // 2) Find booking with relations
+    console.log('\n🔍 Finding booking details...');
+    const booking = await Booking.findByPk(id, {
+      include: [
+        {
+          model: Schedule,
+          as: 'schedule',
+          include: [{
+            model: Boat,
+            as: 'Boat',
+            attributes: ['capacity']
+          }]
+        },
+        {
+          model: SubSchedule,
+          as: 'subSchedule'
+        }
+      ]
+    });
+
+    if (!booking) {
+      console.log('❌ Error: Booking not found');
+      return res.status(404).json({
+        success: false,
+        type: 'BOOKING_NOT_FOUND',
+        message: 'Booking not found',
+      });
+    }
+
+    console.log('\n📊 Booking Details:');
+    console.log(`- Schedule ID: ${booking.schedule_id}`);
+    console.log(`- SubSchedule ID: ${booking.subschedule_id || 'None'}`);
+    console.log(`- Total Passengers: ${booking.total_passengers}`);
+    console.log(`- Boat Capacity: ${booking.schedule?.Boat?.capacity}`);
+
+    // 3) Schedule availability check
+    console.log('\n🔍 Checking schedule availability...');
+    if (!booking.schedule?.availability) {
+      console.log('❌ Main schedule is unavailable');
+      return res.status(400).json({
+        success: false,
+        type: 'SCHEDULE_UNAVAILABLE',
+        message: 'The main schedule is currently unavailable',
+      });
+    }
+    console.log('✅ Main schedule is available');
+
+    const availabilityChecks = [];
+
+    if (!booking.subschedule_id) {
+      // 4a) Main schedule seat availability
+      console.log('\n🔍 Checking main schedule seat availability...');
+      const mainScheduleSeatAvailability = await SeatAvailability.findOne({
+        where: {
+          schedule_id: booking.schedule_id,
+          subschedule_id: null,
+          date: booking_date
+        }
+      });
+
+      if (mainScheduleSeatAvailability) {
+        availabilityChecks.push({
+          scope: 'MAIN',
+          type: 'Main Schedule',
+          id: booking.schedule_id,
+          available: !!mainScheduleSeatAvailability.availability,
+          availableSeats: Number(mainScheduleSeatAvailability.available_seats || 0),
+          needed: Number(booking.total_passengers || 0),
+          sufficient: Number(mainScheduleSeatAvailability.available_seats || 0) >= Number(booking.total_passengers || 0),
+        });
+      } else {
+        // Tidak ada SA → gunakan kapasitas boat sebagai fallback (logika eksistingmu)
+        availabilityChecks.push({
+          scope: 'MAIN',
+          type: 'Main Schedule',
+          id: booking.schedule_id,
+          available: true,
+          availableSeats: Number(booking.schedule?.Boat?.capacity || 0),
+          needed: Number(booking.total_passengers || 0),
+          sufficient: Number(booking.schedule?.Boat?.capacity || 0) >= Number(booking.total_passengers || 0),
+        });
+      }
+    } else {
+      // 4b) Sub-schedule & related
+      console.log('\n🔍 Checking sub-schedule and related schedules...');
+
+      if (!booking.subSchedule) {
+        return res.status(404).json({
+          success: false,
+          type: 'SUBSCHEDULE_NOT_FOUND',
+          message: 'SubSchedule not found',
+        });
+      }
+
+      if (booking.subSchedule.availability === false) {
+        console.log('❌ Selected sub-schedule is unavailable');
+        return res.status(400).json({
+          success: false,
+          type: 'SUBSCHEDULE_UNAVAILABLE',
+          message: 'The selected sub-schedule is currently unavailable',
+        });
+      }
+      console.log('✅ Selected sub-schedule is available');
+
+      const relatedSubSchedules = await findRelatedSubSchedules(
+        booking.schedule_id,
+        booking.subSchedule
+      );
+      console.log(`Found ${relatedSubSchedules.length} related sub-schedules`);
+
+      for (const subSchedule of relatedSubSchedules) {
+        const seatAvailability = await SeatAvailability.findOne({
+          where: {
+            schedule_id: booking.schedule_id,
+            subschedule_id: subSchedule.id,
+            date: booking_date
+          }
+        });
+
+        if (seatAvailability) {
+          availabilityChecks.push({
+            scope: 'SUB',
+            type: 'Sub Schedule',
+            id: subSchedule.id,
+            available: !!seatAvailability.availability,
+            availableSeats: Number(seatAvailability.available_seats || 0),
+            needed: Number(booking.total_passengers || 0),
+            sufficient: Number(seatAvailability.available_seats || 0) >= Number(booking.total_passengers || 0),
+          });
+        } else {
+          // Tidak ada SA → fallback kapasitas boat
+          availabilityChecks.push({
+            scope: 'SUB',
+            type: 'Sub Schedule',
+            id: subSchedule.id,
+            available: true,
+            availableSeats: Number(booking.schedule?.Boat?.capacity || 0),
+            needed: Number(booking.total_passengers || 0),
+            sufficient: Number(booking.schedule?.Boat?.capacity || 0) >= Number(booking.total_passengers || 0),
+          });
+        }
+      }
+    }
+
+    // 5) Log & evaluate
+console.log('\n📊 Seat Availability Summary:');
+availabilityChecks.forEach(check => {
+  console.log(`\n${check.type} (ID: ${check.id}):`);
+  console.log(`- Available flag: ${check.available ? 'Yes' : 'No'}`);   // flag tanggal dibuka/tutup
+  console.log(`- Available Seats: ${check.availableSeats}`);            // jumlah kursi
+  console.log(`- Needed Seats: ${check.needed}`);
+  console.log(`- Sufficient: ${check.sufficient ? 'Yes' : 'No'}`);     //  availableSeats >= needed
+});
+
+// Prioritaskan kasus "slot ditutup" (availability=false)
+const failedUnavailable = availabilityChecks.find(check => check.available === false);
+if (failedUnavailable) {
+  console.log('\n❌ Seat availability is CLOSED for this date/segment:');
+  console.log(`- Failed at: ${failedUnavailable.type} (ID: ${failedUnavailable.id})`);
+
+  return res.status(400).json({
+    success: false,
+    type: 'SEAT_BLOCKED', // atau 'SUBSCHEDULE_UNAVAILABLE' jika mau konsisten penamaan
+    message: `Seat availability is closed for ${failedUnavailable.type.toLowerCase()} ${failedUnavailable.id} on ${booking_date}`,
+    scope: failedUnavailable.scope, // 'MAIN' | 'SUB'
+    scheduleId: booking.schedule_id,
+    subscheduleId: booking.subschedule_id || null,
+    targetId: failedUnavailable.id,
+    date: booking_date,
+  });
+}
+
+// Lalu cek kursi tidak cukup (availability=true tapi sufficient=false)
+const failedInsufficient = availabilityChecks.find(check => check.available === true && check.sufficient === false);
+if (failedInsufficient) {
+  console.log('\n❌ Not enough seats:');
+  console.log(`- Failed at: ${failedInsufficient.type} (ID: ${failedInsufficient.id})`);
+  console.log(`- Available seats: ${failedInsufficient.availableSeats}`);
+  console.log(`- Needed seats: ${failedInsufficient.needed}`);
+
+  return res.status(400).json({
+    success: false,
+    type: 'SEAT_NOT_AVAILABLE',
+    message: `Not enough seats available in ${failedInsufficient.type.toLowerCase()} ${failedInsufficient.id}`,
+    scope: failedInsufficient.scope, // 'MAIN' | 'SUB'
+    scheduleId: booking.schedule_id,
+    subscheduleId: booking.subschedule_id || null,
+    targetId: failedInsufficient.id,
+    availableSeats: failedInsufficient.availableSeats,
+    neededSeats: failedInsufficient.needed,
+    bookingPassengers: booking.total_passengers,
+    date: booking_date,
+  });
+}
+
+console.log('\n✅ All seat availability checks passed');
+
+// 6) Pass downstream
+req.bookingDetails = {
+  booking,
+  availabilityChecks,
+  boatCapacity: booking.schedule?.Boat?.capacity,
+  totalPassengers: booking.total_passengers,
+  scheduleId: booking.schedule_id,
+  subscheduleId: booking.subschedule_id || null,
+};
+
+console.log('\n=== Seat Availability Check Completed ===\n');
+next();
+  } catch (error) {
+    console.error('\n❌ Error in seat availability middleware:', error);
+    return res.status(500).json({
+      success: false,
+      type: 'INTERNAL_ERROR',
+      message: 'Internal server error while checking seat availability',
+      detail: error.message,
+    });
+  }
+};
+
+
+
 
 const checkSeatAvailabilityForUpdate2 = async (req, res, next) => {
     const { booking_id } = req.params;
