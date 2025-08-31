@@ -127,7 +127,6 @@ const performSeatCapacityCheckAndEmail = async ({
   // Ambil SA aktif dalam rentang tanggal
   const seatAvailabilities = await SeatAvailability.findAll({
     where: {
-      availability: true,
       date: {
         [Op.between]: [start, until],
       },
