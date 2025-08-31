@@ -5251,15 +5251,15 @@ const updateBookingDate = async (req, res) => {
       console.log("\n=== Booking Date Update Process Completed ===");
 
       // 6. Kirim email notifikasi setelah transaksi sukses
-      console.log("\n📧 Sending email notification...", booking.contact_email);
-      if (booking.contact_email) {
-        sendEmailNotification(
-          booking.contact_email,
-          booking.ticket_id,
-          originalBookingDate,
-          booking_date
-        );
-      }
+      // console.log("\n📧 Sending email notification...", booking.contact_email);
+      // if (booking.contact_email) {
+      //   sendEmailNotification(
+      //     booking.contact_email,
+      //     booking.ticket_id,
+      //     originalBookingDate,
+      //     booking_date
+      //   );
+      // }
 
       // 7. Response ke client
       res.status(200).json({
