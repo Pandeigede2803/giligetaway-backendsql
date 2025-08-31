@@ -1836,7 +1836,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
   const { from, to, date, passengers_total } = req.query;
 
   try {
-    const selectedDate = new Date(date);
+    const selectedDate = date;
     const selectedDayOfWeek = getDay(selectedDate);
 
     // Helper function to check if date is in July or August
@@ -1868,6 +1868,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         destination_to_id: to,
         availability: 1,
         validity_start: { [Op.lte]: selectedDate },
+        // gt is greater than
         validity_end: { [Op.gt]: selectedDate },
         
         [Op.and]: sequelize.literal(
