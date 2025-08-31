@@ -2935,66 +2935,136 @@ const findMissingRelatedBySeatId = async (req, res) => {
 };
 
 const findDuplicateSeats = async () => {
-  const skipConditionsArray = [
-    `(b.schedule_id = 61 AND b.subschedule_id IN (118,123))`,
-    `(b.schedule_id = 67 AND b.subschedule_id IN (134,135))`,
-    `(b.schedule_id = 60 AND b.subschedule_id IN (117,112))`,
-    `(b.schedule_id = 64 AND b.subschedule_id IN (129,128))`,
-    `(b.schedule_id = 65 AND b.subschedule_id IN (130,131))`,
-    `(b.schedule_id = 66 AND b.subschedule_id IN (133,132))`,
-    `(b.schedule_id = 62 AND b.subschedule_id IN (125,124))`,
-  ];
-
-  const skipConditions = skipConditionsArray.length
-    ? `AND NOT (${skipConditionsArray.join(" OR ")})`
-    : "";
-
   const query = `
     SELECT
       sa.id AS seat_availability_id,
       sa.date AS availability_date,
-      p.seat_number,
-      COUNT(*) AS seat_count,
-      GROUP_CONCAT(DISTINCT CONCAT(b.ticket_id, ' (', b.contact_name, ')') ORDER BY b.ticket_id SEPARATOR ', ') AS ticket_details
+
+      -- seat_key: kursi sudah dibersihkan (trim, hapus enter/spasi, jadi huruf besar)
+      UPPER(
+        REPLACE(
+          REPLACE(
+            REPLACE(TRIM(p.seat_number), CHAR(13), ''), -- buang \r
+          CHAR(10), ''),                               -- buang \n
+        ' ', ''                                        -- buang spasi tengah
+        )
+      ) AS seat_key,
+
+      COUNT(DISTINCT p.id) AS seat_count,
+
+      -- daftar booking yg tabrakan
+      GROUP_CONCAT(
+        DISTINCT CONCAT(b.ticket_id, ' (', b.contact_name, ')')
+        ORDER BY b.ticket_id SEPARATOR ', '
+      ) AS ticket_details,
+
+      -- tambahan debug
+      GROUP_CONCAT(DISTINCT p.seat_number ORDER BY p.seat_number SEPARATOR ', ') AS raw_variants,
+      GROUP_CONCAT(DISTINCT b.id ORDER BY b.id SEPARATOR ',') AS booking_ids,
+      GROUP_CONCAT(DISTINCT p.id ORDER BY p.id SEPARATOR ',') AS passenger_ids
+
     FROM Passengers p
     JOIN Bookings b ON b.id = p.booking_id
     JOIN BookingSeatAvailability bsa ON bsa.booking_id = b.id
     JOIN SeatAvailability sa ON sa.id = bsa.seat_availability_id
-    WHERE b.payment_status IN ('paid', 'invoiced', 'unpaid')
+
+    WHERE b.payment_status IN ('paid','invoiced','unpaid')
       AND sa.date >= '2025-07-17'
-      AND p.passenger_type != 'infant'
+      AND (p.passenger_type IS NULL OR p.passenger_type <> 'infant')
       AND p.seat_number IS NOT NULL
-      ${skipConditions}
-    GROUP BY sa.id, sa.date, p.seat_number
-    HAVING seat_count > 1
+      AND TRIM(p.seat_number) <> ''
+
+      -- skip pakai tuple NOT IN, NULL aman dengan COALESCE
+      AND (b.schedule_id, COALESCE(b.subschedule_id,-1)) NOT IN (
+        (61,118),(61,123),
+        (67,134),(67,135),
+        (60,117),(60,112),
+        (64,129),(64,128),
+        (65,130),(65,131),
+        (66,133),(66,132),
+        (62,125),(62,124),
+        (63,126),(63,127)
+      )
+
+    GROUP BY sa.id, sa.date, seat_key
+    HAVING COUNT(DISTINCT p.id) > 1
     ORDER BY availability_date DESC
   `;
 
   return sequelize.query(query, { type: QueryTypes.SELECT });
 };
+const MAX_TG_LEN = 3900; // jaga-jaga dari limit 4096
+const escapeHtml = (s = '') =>
+  String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+const fmtDate = (d) => {
+  try {
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return String(d); // biar aman kalau bukan Date
+    const yyyy = x.getFullYear();
+    const mm = String(x.getMonth() + 1).padStart(2, '0');
+    const dd = String(x.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  } catch { return String(d); }
+};
 const notifyTelegram = async (duplicates) => {
-  if (!duplicates.length) {
-    await sendTelegramMessage("✅ No duplicated seats found.");
+  if (!duplicates || !duplicates.length) {
+    await sendTelegramMessage('✅ No duplicated seats found.');
     return;
   }
 
-  let message = `⚠️ <b>DUPLICATED SEATS DETECTED</b> (${duplicates.length} rows)\n\n`;
+  let header = `⚠️ <b>DUPLICATED SEATS DETECTED</b> (${duplicates.length} rows)\n\n`;
 
-  message += duplicates
-    .slice(0, 50)
-    .map(
-      (d) =>
-        `• <b>SA#${d.seat_availability_id}</b> - ${d.availability_date}, seat <b>${d.seat_number}</b> ×${d.seat_count}\nBookings: ${d.ticket_details}`
-    )
-    .join("\n\n");
+  // render up to 50 rows, with safe fallbacks
+  const rows = duplicates.slice(0, 50).map((d) => {
+    const seat =
+      d.seat_number || d.seat_key || d.seat || 'UNKNOWN'; // <-- fix undefined
+    const date = fmtDate(d.availability_date);
+    const tickets = escapeHtml(d.ticket_details || d.ticket_ids || '');
+    return `• <b>SA#${d.seat_availability_id}</b> - ${date}, seat <b>${escapeHtml(seat)}</b> ×${d.seat_count}\nBookings: ${tickets}`;
+  });
 
   if (duplicates.length > 50) {
-    message += `\n\n…and ${duplicates.length - 50} more rows`;
+    rows.push(`\n…and ${duplicates.length - 50} more rows`);
   }
 
-  await sendTelegramMessage(message);
-};;
+  // gabung dan kirim dalam beberapa pesan jika perlu (hindari 4096 char limit)
+  let buffer = header;
+  for (const line of rows) {
+    if ((buffer + line + '\n\n').length > MAX_TG_LEN) {
+      await sendTelegramMessage(buffer);
+      buffer = ''; // reset
+    }
+    buffer += (buffer ? '' : '') + line + '\n\n';
+  }
+  if (buffer) {
+    await sendTelegramMessage(buffer);
+  }
+};
+// const notifyTelegram = async (duplicates) => {
+//   if (!duplicates.length) {
+//     await sendTelegramMessage("✅ No duplicated seats found.");
+//     return;
+//   }
+
+//   let message = `⚠️ <b>DUPLICATED SEATS DETECTED</b> (${duplicates.length} rows)\n\n`;
+
+//   message += duplicates
+//     .slice(0, 50)
+//     .map(
+//       (d) =>
+//         `• <b>SA#${d.seat_availability_id}</b> - ${d.availability_date}, seat <b>${d.seat_number}</b> ×${d.seat_count}\nBookings: ${d.ticket_details}`
+//     )
+//     .join("\n\n");
+
+//   if (duplicates.length > 50) {
+//     message += `\n\n…and ${duplicates.length - 50} more rows`;
+//   }
+
+//   await sendTelegramMessage(message);
+// };;
 
 const notifyTelegramSeatBoosted = async (boostedSeats) => {
   if (!boostedSeats.length) {
