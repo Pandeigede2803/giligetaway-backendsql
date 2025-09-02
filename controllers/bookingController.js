@@ -5291,33 +5291,28 @@ const updateScheduleBooking = async (req, res) => {
   const {
     new_schedule_id,
     new_subschedule_id = null,
-    new_booking_date, // bisa kosong kalau mau ambil dari middleware
+    new_booking_date,
   } = req.body;
 
   console.log('[updateScheduleBooking] Request body:', req.body);
 
-  // Ambil tanggal target dari middleware (kalau ada), atau dari body
   const targetDate =
     req._validatedSchedule?.newBookingDate ??
     (new_booking_date ? String(new_booking_date) : null);
 
-  // Guard awal (middleware juga sudah cek, tapi kita jaga-jaga)
   if (!new_schedule_id || !targetDate) {
     return res.status(400).json({
       error: 'new_schedule_id and new_booking_date are required',
     });
   }
 
-  try {
-    let payload;
+  let payload;         // response body
+  let telegramMessage; // message to send after commit
 
-    // ===== Transaksi tanpa opsi isolationLevel yang bikin error =====
+  try {
     await sequelize.transaction(async (t) => {
-      // 0) Ambil + lock booking
-      const booking = await Booking.findByPk(id, {
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
+      // 0) Load + lock booking
+      const booking = await Booking.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE });
       if (!booking) throw new Error('Booking not found');
 
       const {
@@ -5327,7 +5322,7 @@ const updateScheduleBooking = async (req, res) => {
         total_passengers,
       } = booking;
 
-      // 0b) no-op guard: jadwal, sub, dan tanggal sama
+      // no-op guard
       const sameSchedule = Number(old_schedule_id) === Number(new_schedule_id);
       const sameSub =
         (old_subschedule_id == null && new_subschedule_id == null) ||
@@ -5339,13 +5334,10 @@ const updateScheduleBooking = async (req, res) => {
         throw new Error('New schedule/subschedule/date equals current values');
       }
 
-      // 1) Release & delete BSA lama (increment ketersediaan di SA lama)
-      await deleteOldBookingSeatLinks(booking, t, {
-        totalPassengers: total_passengers,
-      });
+      // 1) release + delete previous links
+      await deleteOldBookingSeatLinks(booking, t, { totalPassengers: total_passengers });
 
-      // 2) Alokasikan SA untuk route + tanggal baru via correlation helpers
-      //    (helpers akan handle kapasitas & decrement seats)
+      // 2) create new links using correlation helpers
       const { createdSaIds } = await createBookingSeatLinksForRoute(
         booking,
         {
@@ -5354,14 +5346,14 @@ const updateScheduleBooking = async (req, res) => {
           date: targetDate,
         },
         t,
-        { requireSameDate: true } // safety: semua SA harus di tanggal yang sama
+        { requireSameDate: true }
       );
 
       if (!createdSaIds || !createdSaIds.length) {
         throw new Error('No SeatAvailability rows produced by correlation helpers');
       }
 
-      // 3) Update booking: route + tanggal baru
+      // 3) update booking (route + date)
       await booking.update(
         {
           schedule_id: new_schedule_id,
@@ -5371,10 +5363,10 @@ const updateScheduleBooking = async (req, res) => {
         { transaction: t }
       );
 
-      // 4) Cek duplikat seat_number pada passengers (non-blocking warning)
+      // 4) duplicate seat warning (optional)
       const dupCheck = await checkDuplicateSeatNumbers(booking.id, t);
 
-      // 5) Susun payload sukses
+      // 5) build response payload
       payload = {
         message: 'Booking schedule & date updated',
         booking: {
@@ -5394,23 +5386,183 @@ const updateScheduleBooking = async (req, res) => {
         warnings: dupCheck.hasDuplicates
           ? {
               duplicate_seats: true,
-              details: dupCheck.duplicates, // [{ seat_number, count, passenger_ids, passengers:[{id,name,seat_number}]}]
+              details: dupCheck.duplicates,
               note: 'Duplicate seat numbers detected. Consider reassigning seats.',
             }
           : null,
       };
+
+      // 6) prepare Telegram message (send after commit)
+      const dupLine = dupCheck.hasDuplicates
+        ? `\n⚠️ <b>Duplicate seats</b>: ${dupCheck.duplicates
+            .map(d => `#${d.seat_number} x${d.count}`)
+            .join(', ')}`
+        : '';
+
+      telegramMessage =
+        `✅ <b>Booking Updated</b>\n` +
+        `• <b>ID</b>: ${booking.id}\n` +
+        `• <b>Date</b>: ${targetDate}\n` +
+        `• <b>Old</b>: sched ${old_schedule_id}` +
+        `${old_subschedule_id ? ` (sub ${old_subschedule_id})` : ''} — ${String(old_booking_date).slice(0,10)}\n` +
+        `• <b>New</b>: sched ${new_schedule_id}` +
+        `${new_subschedule_id ? ` (sub ${new_subschedule_id})` : ''}\n` +
+        `• <b>Passengers</b>: ${total_passengers}\n` +
+        `• <b>New SA IDs</b>: ${createdSaIds.join(', ')}` +
+        dupLine;
     });
 
-    // 6) Kirim response sukses
+    // Send Telegram after transaction success (non-blocking for response)
+    if (telegramMessage) {
+      sendTelegramMessage(telegramMessage).catch((err) =>
+        console.error('Telegram send error (post-commit):', err.message)
+      );
+    }
+
     return res.status(200).json(payload);
   } catch (err) {
     console.error('[updateScheduleBooking] ERROR:', err);
+
+    // Send a failure notification too (best-effort)
+    const failMsg =
+      `❌ <b>Booking Update Failed</b>\n` +
+      `• <b>Booking ID</b>: ${id}\n` +
+      `• <b>New</b>: sched ${new_schedule_id}` +
+      `${new_subschedule_id ? ` (sub ${new_subschedule_id})` : ''} — ${targetDate}\n` +
+      `• <b>Error</b>: ${err.message}`;
+    sendTelegramMessage(failMsg).catch(() => { /* ignore */ });
+
     return res.status(400).json({
       error: 'Failed to update schedule and date',
       details: err.message,
     });
   }
 };
+// const updateScheduleBooking = async (req, res) => {
+//   const { id } = req.params;
+//   const {
+//     new_schedule_id,
+//     new_subschedule_id = null,
+//     new_booking_date, // bisa kosong kalau mau ambil dari middleware
+//   } = req.body;
+
+//   console.log('[updateScheduleBooking] Request body:', req.body);
+
+//   // Ambil tanggal target dari middleware (kalau ada), atau dari body
+//   const targetDate =
+//     req._validatedSchedule?.newBookingDate ??
+//     (new_booking_date ? String(new_booking_date) : null);
+
+//   // Guard awal (middleware juga sudah cek, tapi kita jaga-jaga)
+//   if (!new_schedule_id || !targetDate) {
+//     return res.status(400).json({
+//       error: 'new_schedule_id and new_booking_date are required',
+//     });
+//   }
+
+//   try {
+//     let payload;
+
+//     // ===== Transaksi tanpa opsi isolationLevel yang bikin error =====
+//     await sequelize.transaction(async (t) => {
+//       // 0) Ambil + lock booking
+//       const booking = await Booking.findByPk(id, {
+//         transaction: t,
+//         lock: t.LOCK.UPDATE,
+//       });
+//       if (!booking) throw new Error('Booking not found');
+
+//       const {
+//         schedule_id: old_schedule_id,
+//         subschedule_id: old_subschedule_id,
+//         booking_date: old_booking_date,
+//         total_passengers,
+//       } = booking;
+
+//       // 0b) no-op guard: jadwal, sub, dan tanggal sama
+//       const sameSchedule = Number(old_schedule_id) === Number(new_schedule_id);
+//       const sameSub =
+//         (old_subschedule_id == null && new_subschedule_id == null) ||
+//         Number(old_subschedule_id) === Number(new_subschedule_id);
+//       const sameDate =
+//         String(old_booking_date).slice(0, 10) === String(targetDate).slice(0, 10);
+
+//       if (sameSchedule && sameSub && sameDate) {
+//         throw new Error('New schedule/subschedule/date equals current values');
+//       }
+
+//       // 1) Release & delete BSA lama (increment ketersediaan di SA lama)
+//       await deleteOldBookingSeatLinks(booking, t, {
+//         totalPassengers: total_passengers,
+//       });
+
+//       // 2) Alokasikan SA untuk route + tanggal baru via correlation helpers
+//       //    (helpers akan handle kapasitas & decrement seats)
+//       const { createdSaIds } = await createBookingSeatLinksForRoute(
+//         booking,
+//         {
+//           scheduleId: Number(new_schedule_id),
+//           subscheduleId: new_subschedule_id ?? null,
+//           date: targetDate,
+//         },
+//         t,
+//         { requireSameDate: true } // safety: semua SA harus di tanggal yang sama
+//       );
+
+//       if (!createdSaIds || !createdSaIds.length) {
+//         throw new Error('No SeatAvailability rows produced by correlation helpers');
+//       }
+
+//       // 3) Update booking: route + tanggal baru
+//       await booking.update(
+//         {
+//           schedule_id: new_schedule_id,
+//           subschedule_id: new_subschedule_id,
+//           booking_date: targetDate,
+//         },
+//         { transaction: t }
+//       );
+
+//       // 4) Cek duplikat seat_number pada passengers (non-blocking warning)
+//       const dupCheck = await checkDuplicateSeatNumbers(booking.id, t);
+
+//       // 5) Susun payload sukses
+//       payload = {
+//         message: 'Booking schedule & date updated',
+//         booking: {
+//           id: booking.id,
+//           previous: {
+//             schedule_id: old_schedule_id,
+//             subschedule_id: old_subschedule_id,
+//             booking_date: old_booking_date,
+//           },
+//           current: {
+//             schedule_id: new_schedule_id,
+//             subschedule_id: new_subschedule_id,
+//             booking_date: targetDate,
+//           },
+//           seat_availability: { new_sa_ids: createdSaIds },
+//         },
+//         warnings: dupCheck.hasDuplicates
+//           ? {
+//               duplicate_seats: true,
+//               details: dupCheck.duplicates, // [{ seat_number, count, passenger_ids, passengers:[{id,name,seat_number}]}]
+//               note: 'Duplicate seat numbers detected. Consider reassigning seats.',
+//             }
+//           : null,
+//       };
+//     });
+
+//     // 6) Kirim response sukses
+//     return res.status(200).json(payload);
+//   } catch (err) {
+//     console.error('[updateScheduleBooking] ERROR:', err);
+//     return res.status(400).json({
+//       error: 'Failed to update schedule and date',
+//       details: err.message,
+//     });
+//   }
+// };
 
 
 
