@@ -43,7 +43,7 @@ const getSeasonPrice = (
  * @returns {Array} - Formatted schedules.
  */
 const formatSchedules = (schedules, selectedDate) => {
-  console.log("scehdules:", JSON.stringify(schedules, null, 2));
+  // console.log("scehdules:", JSON.stringify(schedules, null, 2));
   return schedules.map((schedule) => ({
     id: schedule.id,
     schedule_id:schedule.id || "N/A",

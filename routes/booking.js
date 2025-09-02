@@ -4,6 +4,7 @@ const bookingController = require("../controllers/bookingController");
 const bookingGoogleDataController = require("../controllers/bookingGoogleDataController");
 const seatAvailabilityController = require("../controllers/seatAvailabilityController");
 const authenticate = require("../middleware/authenticate");
+
 const bookingRateLimiter = require("../middleware/rateLimiter"); // Rate limiting middleware
 const {
   validateScheduleAndSubSchedule,
@@ -23,6 +24,8 @@ const {
   checkBookingDateUpdateDirect,
   validateSeatNumberConflictOnDateChange,
 } = require("../middleware/checkSeatAvailabilityForUpdate");
+
+
 const {
   validateBookingCreation,
   validateTransportData,
@@ -37,6 +40,7 @@ const {
   generateRoundTripTicketIds,
 } = require("../controllers/bookingController");
 const bookingSummaryCron = require("../util/bookingSummaryCron");
+const validateScheduleForBookingChange = require("../middleware/validateScheduleForBookingChange");
 
 
 // Setup multer untuk upload file
@@ -183,6 +187,11 @@ router.put(
   validatePaymentUpdate,
   bookingController.updateBookingPayment
 );
+
+
+// PATCH because we’re updating part of the booking (schedule/subschedule)
+router.patch('/:id/update-schedule', authenticate,validateScheduleForBookingChange, bookingController.updateScheduleBooking);
+
 
 router.put(
   "/date/:id",

@@ -2564,7 +2564,7 @@ const getFilteredBookings = async (req, res) => {
       ticket_id,
       id,
     } = req.query;
-    console.log("ANJING", req.query);
+   
 
     // Filter data
     let dateFilter = {};
@@ -5246,9 +5246,9 @@ const updateBookingDate = async (req, res) => {
           { transaction: t }
         );
       }
-      console.log("✅ New BookingSeatAvailabilities created successfully");
+      // console.log("✅ New BookingSeatAvailabilities created successfully");
 
-      console.log("\n=== Booking Date Update Process Completed ===");
+      // console.log("\n=== Booking Date Update Process Completed ===");
 
       // 6. Kirim email notifikasi setelah transaksi sukses
       // console.log("\n📧 Sending email notification...", booking.contact_email);
@@ -5282,6 +5282,119 @@ const updateBookingDate = async (req, res) => {
     });
   }
 };
+
+const updateScheduleBooking = async (req, res) => {
+  const { id } = req.params;
+  const {
+    new_schedule_id,
+    new_subschedule_id = null,
+    new_booking_date,
+  } = req.body;
+
+  console.log("[updateScheduleBooking] Request body:", req.body);
+
+  // quick guards (middleware should have validated too)
+  if (!new_schedule_id || !new_booking_date) {
+    return res.status(400).json({ error: 'new_schedule_id and new_booking_date are required' });
+  }
+
+  try {
+    let payload;
+
+    await sequelize.transaction(
+      { isolationLevel: sequelize.Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        // 0) Load + lock booking
+        const booking = await Booking.findByPk(id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!booking) throw new Error('Booking not found');
+
+        const {
+          schedule_id: old_schedule_id,
+          subschedule_id: old_subschedule_id,
+          booking_date: old_booking_date,
+          total_passengers,
+        } = booking;
+
+        // 0b) no-op guard: if schedule, subschedule, AND date are all unchanged
+        const sameSchedule = Number(old_schedule_id) === Number(new_schedule_id);
+        const sameSub =
+          (old_subschedule_id == null && new_subschedule_id == null) ||
+          Number(old_subschedule_id) === Number(new_subschedule_id);
+        const sameDate = String(old_booking_date).slice(0,10) === String(new_booking_date).slice(0,10);
+
+        if (sameSchedule && sameSub && sameDate) {
+          throw new Error('New schedule/subschedule/date equals current values');
+        }
+
+        // 1) release + delete old links (increments old SA by total_passengers)
+        await deleteOldBookingSeatLinks(booking, t, { totalPassengers: total_passengers });
+
+        // 2–3) allocate SA for the NEW route + NEW date via your correlation helpers
+        const { createdSaIds } = await createBookingSeatLinksForRoute(
+          booking,
+          {
+            scheduleId: Number(new_schedule_id),
+            subscheduleId: new_subschedule_id ?? null,
+            date: new_booking_date, // <-- NEW date
+          },
+          t,
+          { requireSameDate: true }
+        );
+
+        if (!createdSaIds || !createdSaIds.length) {
+          throw new Error('No SeatAvailability rows produced by correlation helpers');
+        }
+
+        // 4) update booking route + date
+        await booking.update(
+          {
+            schedule_id: new_schedule_id,
+            subschedule_id: new_subschedule_id,
+            booking_date: new_booking_date,
+          },
+          { transaction: t }
+        );
+
+        // 5) duplicate seat-number warning (non-blocking)
+        const dupCheck = await checkDuplicateSeatNumbers(booking.id, t);
+
+        payload = {
+          message: 'Booking schedule & date updated',
+          booking: {
+            id: booking.id,
+            previous: {
+              schedule_id: old_schedule_id,
+              subschedule_id: old_subschedule_id,
+              booking_date: old_booking_date,
+            },
+            current: {
+              schedule_id: new_schedule_id,
+              subschedule_id: new_subschedule_id,
+              booking_date: new_booking_date,
+            },
+            seat_availability: { new_sa_ids: createdSaIds },
+          },
+          warnings: dupCheck.hasDuplicates
+            ? {
+                duplicate_seats: true,
+                details: dupCheck.duplicates,
+                note: 'Duplicate seat numbers detected. Consider reassigning seats.',
+              }
+            : null,
+        };
+      }
+    );
+
+    return res.status(200).json(payload);
+  } catch (err) {
+    console.error('[updateScheduleBooking] ERROR:', err);
+    return res.status(400).json({
+      error: 'Failed to update schedule and date',
+      details: err.message,
+    });
+  }
+};
+
 
 const updateBookingDateAgent = async (req, res) => {
   const { booking_id } = req.params; // Booking ID from URL params
@@ -6770,13 +6883,13 @@ module.exports = {
   updateBookingPayment,
   updateBookingDate,
   getBookingsByDate,
-
   updateBookingDateAgent,
   cancelBooking,
   findRelatedSubSchedulesGet,
   createRoundBookingWithTransitQueue,
   createAgentBooking,
-  sendMissBooking
+  sendMissBooking,
+  updateScheduleBooking
 };
 
 

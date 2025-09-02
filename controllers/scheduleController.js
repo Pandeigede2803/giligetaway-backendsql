@@ -1838,6 +1838,7 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
   try {
     const selectedDate = date;
     const selectedDayOfWeek = getDay(selectedDate);
+    console.log("Selected Date:", selectedDate);
 
     // Helper function to check if date is in July or August
     const isJulyOrAugust = (date) => {
@@ -1862,71 +1863,83 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       return originalSeats;
     };
 
-    const schedules = await Schedule.findAll({
-      where: {
-        destination_from_id: from,
-        destination_to_id: to,
-        availability: 1,
-        validity_start: { [Op.lte]: selectedDate },
-        // gt is greater than
-        validity_end: { [Op.gt]: selectedDate },
-        
-        [Op.and]: sequelize.literal(
-          `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
-        ),
-      },
+console.log("🔎 selectedDate:", selectedDate);
+console.log("📅 selectedDayOfWeek:", selectedDayOfWeek, " | bitmask:", 1 << selectedDayOfWeek);
+
+const schedules = await Schedule.findAll({
+  where: {
+    destination_from_id: from,
+    destination_to_id: to,
+    availability: 1,
+    validity_start: { [Op.lte]: selectedDate },
+    validity_end: { [Op.gte]: selectedDate },
+    [Op.and]: sequelize.literal(
+      `(Schedule.days_of_week & ${1 << selectedDayOfWeek}) != 0`
+    ),
+  },
+  include: [
+    {
+      model: Destination,
+      as: "FromDestination",
+      attributes: ["id", "name", "port_map_url", "image_url"],
+    },
+    {
+      model: SeatAvailability,
+      as: "SeatAvailabilities",
+    },
+    {
+      model: Destination,
+      as: "ToDestination",
+      attributes: ["id", "name", "port_map_url", "image_url"],
+    },
+    {
+      model: Boat,
+      as: "Boat",
+      attributes: ["id", "capacity", "boat_name"],
+    },
+    {
+      model: Transit,
+      attributes: [
+        "id",
+        "destination_id",
+        "departure_time",
+        "arrival_time",
+        "journey_time",
+        "check_in_time",
+      ],
       include: [
         {
           model: Destination,
-          as: "FromDestination",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model: SeatAvailability,
-          as: "SeatAvailabilities",
-        },
-        {
-          model: Destination,
-          as: "ToDestination",
-          attributes: ["id", "name", "port_map_url", "image_url"],
-        },
-        {
-          model: Boat,
-          as: "Boat",
-          attributes: ["id", "capacity", "boat_name"],
-        },
-        {
-          model: Transit,
-          attributes: [
-            "id",
-            "destination_id",
-            "departure_time",
-            "arrival_time",
-            "journey_time",
-            "check_in_time",
-          ],
-          include: [
-            {
-              model: Destination,
-              as: "Destination",
-              attributes: ["id", "name"],
-            },
-          ],
+          as: "Destination",
+          attributes: ["id", "name"],
         },
       ],
-      attributes: [
-        "id",
-        "route_image",
-        "low_season_price",
-        "high_season_price",
-        "peak_season_price",
-        "departure_time",
-        "check_in_time",
-        "arrival_time",
-        "journey_time",
-      ],
-    });
+    },
+  ],
+  attributes: [
+    "id",
+    "route_image",
+    "low_season_price",
+    "high_season_price",
+    "peak_season_price",
+    "departure_time",
+    "check_in_time",
+    "arrival_time",
+    "journey_time",
+    // ⬇️ tambahin ini biar bisa dilog
+    "validity_start",
+    "validity_end",
+  ],
+  // ⬇️ tampilkan SQL hasil build Sequelize
+  // logging: (sql) => console.log("📜 Executed SQL (Schedule):", sql),
+});
 
+// 🛥 log validity tiap schedule
+schedules.forEach((s) => {
+  console.log(
+    `🛥 Schedule #${s.id} | validity_start: ${s.validity_start} | validity_end: ${s.validity_end} | selectedDate: ${selectedDate}`
+  );
+});
     // Fetch SubSchedules
     const subSchedules = await SubSchedule.findAll({
       where: {
@@ -2137,11 +2150,11 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
       };
 
       // Log untuk debugging kondisi khusus boat ID 1
-      if (schedule.Boat?.id === 1 && isJulyOrAugust(selectedDate)) {
-        console.log(
-          `🚢 Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
-        );
-      }
+      // if (schedule.Boat?.id === 1 && isJulyOrAugust(selectedDate)) {
+      //   console.log(
+      //     ` Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
+      //   );
+      // }
 
       // Debugging log for schedules
       // console.log(
@@ -2188,15 +2201,15 @@ const searchSchedulesAndSubSchedules = async (req, res) => {
         date: selectedDate,
       };
 
-      // Log untuk debugging kondisi khusus boat ID 1 pada SubSchedule
-      if (
-        subSchedule.Schedule?.Boat?.id === 1 &&
-        isJulyOrAugust(selectedDate)
-      ) {
-        console.log(
-          `🚢 SubSchedule Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
-        );
-      }
+      // // Log untuk debugging kondisi khusus boat ID 1 pada SubSchedule
+      // if (
+      //   subSchedule.Schedule?.Boat?.id === 1 &&
+      //   isJulyOrAugust(selectedDate)
+      // ) {
+      //   console.log(
+      //     `🚢 SubSchedule Boat ID 1 - July/August adjustment: Original seats: ${seatAvailability.available_seats}, Adjusted seats: ${adjustedAvailableSeats}`
+      //   );
+      // }
 
       // Debugging log for subschedules
       // console.log(
