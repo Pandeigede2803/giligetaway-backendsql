@@ -175,4 +175,4 @@ async function checkDuplicateSeatNumbers(bookingId, t) {
 
 
 
-module.exports = { deleteOldBookingSeatLinks, createBookingSeatLinksForRoute };
+module.exports = { deleteOldBookingSeatLinks, createBookingSeatLinksForRoute,checkDuplicateSeatNumbers };
