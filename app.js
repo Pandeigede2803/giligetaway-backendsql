@@ -186,7 +186,7 @@ sequelize.sync()
       // console.log('🕒 Duplicate seat checker cronjob registered');
       cronFrequencySeatDuplicates.seatBoostedJob();
  
-            scheduleSeatCapacityCron();
+      scheduleSeatCapacityCron();
              console.log('🗣️ SeatCapacityCron registered');
 
     
