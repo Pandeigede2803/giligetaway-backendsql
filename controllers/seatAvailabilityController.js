@@ -2985,7 +2985,7 @@ const findDuplicateSeats = async () => {
         (62,125),(62,124),
         (63,126),(63,127),
         (72,163),(72,164),
-        (72,165),(72,166)
+        (73,165),(73,166)
       )
 
     GROUP BY sa.id, sa.date, seat_key
