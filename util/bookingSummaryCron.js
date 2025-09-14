@@ -3,6 +3,7 @@ const nodemailer = require("nodemailer");
 const Booking = require("../models/booking");
 const { Op } = require("sequelize");
 const moment = require("moment");
+const {sendTelegramMessage} = require("./telegram");
 
 /**
  * Cron job untuk mengirim rangkuman booking harian
@@ -357,10 +358,10 @@ const formatBookingsToText = (bookings) => {
     }
   });
   // console log the first booking
-  console.log(
-    "First booking for debugging:",
-    bookings[0].final_state.bookingData
-  );
+  // console.log(
+  //   "First booking for debugging:",
+  //   bookings[0].final_state.bookingData
+  // );
 
 
 
@@ -492,6 +493,8 @@ const sendDailyBookingSummary = async () => {
     );
   } catch (error) {
     console.error("❌ Error sending daily booking summary:", error);
+    // send error to telegram
+    await sendTelegramMessage(`❌ Error sending daily booking summary: ${error.message}`);
   }
 };
 
