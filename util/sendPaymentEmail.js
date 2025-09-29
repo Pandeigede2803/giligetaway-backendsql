@@ -547,6 +547,11 @@ const sendBackupEmailAgentStaff = async (
         <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Phone</div>
         <div style="font-weight: 500;">${booking.contact_phone || "N/A"}</div>
       </div>
+       <div>
+        <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Email</div>
+        <div style="font-weight: 500;">${booking.contact_email || "N/A"}</div>
+      </div>
+      
     </div>
   </div>
 
