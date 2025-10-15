@@ -1,9 +1,29 @@
 const cron = require("node-cron");
 const nodemailer = require("nodemailer");
-const Booking = require("../models/booking");
+
+const {
+  sequelize,
+  Booking,
+  SeatAvailability,
+  Destination,
+  Transport,
+  Schedule,
+  SubSchedule,
+  Transaction,
+  Passenger,
+  Transit,
+  TransportBooking,
+  AgentMetrics,
+  //   AgentCommission,
+  Agent,
+  BookingSeatAvailability,
+  Boat,
+  Discount,
+} = require("../models");
 const { Op } = require("sequelize");
 const moment = require("moment");
 const {sendTelegramMessage} = require("./telegram");
+const { buildRouteFromSchedule } = require("../util/buildRoute");
 
 /**
  * Cron job untuk mengirim rangkuman booking harian
@@ -45,6 +65,110 @@ const getYesterdayPaidBookings = async () => {
           [Op.in]: ["website", "agent", "staff"], // Only include website and agent bookings
         },
       },
+      include: [
+           {
+        model: Schedule,
+        as: "schedule",
+        attributes: [
+          "id",
+        ],
+        include: [
+          {
+            model: Transit,
+            as: "Transits",
+            attributes: ["id"],
+            include: [
+              {
+                model: Destination,
+                as: "Destination",
+                attributes: ["id", "name"],
+              },
+            ],
+          },
+          { model: Destination, as: "FromDestination", attributes: ["name"] },
+          { model: Destination, as: "ToDestination", attributes: ["name"] },
+        ],
+      },
+        {
+        model: SubSchedule,
+        as: "subSchedule",
+        attributes: [
+          "id",
+        ],
+        include: [
+          { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+          { model: Destination, as: "DestinationTo", attributes: ["name"] },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            attributes: ["id", ],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            attributes: ["id", ],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit1",
+            attributes: ["id",],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit2",
+            attributes: ["id", ],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit3",
+            attributes: ["id", ],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "Transit4",
+            attributes: ["id", ],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+        ],
+      },
+          {
+        model: TransportBooking,
+        as: "transportBookings",
+        attributes: ["id", "transport_price", "quantity"],
+        include: [
+          {
+            model: Transport,
+            as: "transport",
+            attributes: [
+              "id",
+              "pickup_area",
+              "description",
+            ],
+          },
+        ],
+      },
+
+      ], // No associations to
+      // include
+   
+        
       attributes: [
         "id",
         "contact_name",
@@ -60,18 +184,31 @@ const getYesterdayPaidBookings = async () => {
         "booking_date",
         "ticket_id",
         "created_at",
-        "final_state",
+        // "final_state",
         "booked_by", // Include booked_by field
       ],
       order: [["created_at", "ASC"]],
     });
 
-    return paidBookings;
+    // Process additional data for response - add route to each booking
+    const bookingsWithRoute = paidBookings.map(booking => {
+      const schedule = booking.schedule || null;
+      const subSchedule = booking.subSchedule || null;
+      const route = buildRouteFromSchedule(schedule, subSchedule);
+
+      return {
+        ...booking.toJSON(),
+        route: route
+      };
+    });
+
+    return bookingsWithRoute;
   } catch (error) {
     console.error("❌ Error fetching yesterday's paid bookings:", error);
     throw error;
   }
 };
+
 
 /**
  * Fungsi untuk memformat data booking menjadi text sederhana
@@ -290,7 +427,7 @@ const formatBookingsToHTML = (bookings) => {
             <div>
               <div style="font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: 500; margin-bottom: 4px;">Travel Details</div>
               <div style="font-size: 14px; color: #495057; line-height: 1.5;">
-                <strong>Route:</strong> ${booking.final_state.bookingData?.from || "N/A"} → ${booking.final_state.bookingData?.to || "N/A"}<br>
+                <strong>Route:</strong> ${booking.route || "-"}<br>
                 <strong>Travel Date:</strong> ${moment(booking.booking_date).format("MMM D, YYYY")}<br>
                 <strong>Created:</strong> ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
               </div>
@@ -358,11 +495,55 @@ const formatBookingsToText = (bookings) => {
     }
   });
   // console log the first booking
-  // console.log(
-  //   "First booking for debugging:",
-  //   bookings[0].final_state.bookingData
-  // );
-
+  console.log(
+    "First booking for debugging:",
+    bookings[0]
+  );
+   console.log(
+    "Tranport Booking for debugging:",
+    bookings[0].transportBookings
+  );
+  console.log("schedule:", bookings[0].schedule);
+  console.log("subSchedule:", bookings[0].subSchedule);
+// First booking for debugging: Booking {
+//   dataValues: {
+//     id: 15150,
+//     contact_name: 'Frederic Lemaitre Auger',
+//     contact_phone: '15144457603',
+//     contact_email: 'flemaitreauger@gmail.com',
+//     gross_total: '1881900.00',
+//     currency: 'IDR',
+//     total_passengers: 2,
+//     adult_passengers: 2,
+//     child_passengers: 0,
+//     infant_passengers: 0,
+//     booking_source: 'website',
+//     booking_date: '2025-10-14',
+//     ticket_id: 'GG-OW-072404',
+//     created_at: 2025-10-11T23:25:21.000Z,
+//     final_state: {
+//       note: '',
+//       agentId: '',
+//       bank_fee: 36900,
+//       bookedBy: '',
+//       order_Id: 'GG-OW-072404',
+//       tripType: 'One Way Trip',
+//       passengers: [Array],
+//       pickupTime: '10:45',
+//       bookingData: [Object],
+//       checkinTime: [],
+//       gross_amount: 1881900,
+//       orderDetails: [Object],
+//       paymentMethod: 'Doku',
+//       booking_source: 'website',
+//       passengersAdult: [Array],
+//       passengersChild: [],
+//       transportStatus: [Object],
+//       gross_total_in_usd: 112.91,
+//       passengerunderthree: []
+//     },
+//     booked_by: '-'
+//   },
 
 
   const sourceIcons = {
@@ -409,22 +590,15 @@ ${sourceIcons[source] || "📋"} ${source.toUpperCase()} BOOKINGS
 📞 Phone: ${booking.contact_phone}
 👨🏻‍🚀 booking by : ${booking.booked_by}
 📧 Email: ${booking.contact_email}
-🛣️  Route: ${booking.final_state.bookingData?.from || "N/A"} → ${booking.final_state.bookingData?.to || "N/A"}
+🛣️  Route: ${booking.route || "-"}
 👥 Passengers: ${booking.total_passengers} (Adults: ${booking.adult_passengers}, Children: ${booking.child_passengers}, Infants: ${booking.infant_passengers})
 💰 Amount: ${parseFloat(booking.gross_total || 0).toLocaleString()} ${booking.currency || "IDR"}
 📍 Source: ${booking.booking_source || "N/A"}
 📅 Travel Date: ${moment(booking.booking_date).format("MMM D, YYYY")}
 🕐 Created: ${moment(booking.created_at).format("MMM D, YYYY h:mm A")}
 🔗 Check Ticket: https://giligetaway-widget.my.id/check-ticket/${booking.ticket_id}
-🚗 Transport Details:
-   Pickup Area: ${booking.final_state.transportStatus.pickupDetails.area || "-"}
-   Pickup Note: ${booking.final_state.transportStatus.pickupDetails.note || "-"}
-   Pickup description: ${booking.final_state.transportStatus.pickupDetails.description || "-"}
-   Pickup Price: ${booking.final_state.transportStatus.pickupDetails.price || "-"}
-   Dropoff Area: ${booking.final_state.transportStatus.dropOffDetails.area || "-"}
-   Dropoff Note: ${booking.final_state.transportStatus.dropOffDetails.note || "-"}
-   Dropoff description: ${booking.final_state.transportStatus.dropOffDetails.description || "-"}
-   Dropoff Price: ${booking.final_state.transportStatus.dropOffDetails.price || "-"}
+${booking.transportBookings && booking.transportBookings.length > 0 ? `🚗 Transport Details:
+${booking.transportBookings.map(tb => `   - ${tb.transport?.pickup_area || "-"} (${tb.transport?.description || "-"}) - ${tb.quantity}x @ ${parseFloat(tb.transport_price || 0).toLocaleString()} ${booking.currency || "IDR"}`).join('\n')}` : '🚗 Transport Details: None'}
 
 `;
     });
@@ -451,9 +625,7 @@ const sendDailyBookingSummary = async () => {
   try {
     // Mengambil data booking
     const paidBookings = await getYesterdayPaidBookings();
-    console.log(
-      `📋 Found ${paidBookings.length} paid bookings from website and agent sources for yesterday.`
-    );
+   
 
     // Jika tidak ada booking, bisa skip atau tetap kirim email kosong
     if (
@@ -468,8 +640,8 @@ const sendDailyBookingSummary = async () => {
     const emailSubject = `Daily Booking Summary (${yesterdayDate})`;
 
     // Mengambil email penerima dari environment
-    const recipientEmail = process.env.EMAIL_BOOKING;
-
+    // const recipientEmail = process.env.EMAIL_BOOKING;
+const recipientEmail = "booking@giligetaway.site";
     if (!recipientEmail) {
       console.warn(
         "⚠️ No recipient email configured in EMAIL_BOOKING. Add it in your .env file."

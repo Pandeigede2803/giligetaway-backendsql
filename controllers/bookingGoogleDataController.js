@@ -231,14 +231,14 @@ const getGoogleBookingsSummary = async (req, res) => {
     if (start) where[Op.and].push({ created_at: { [Op.gte]: new Date(start) } });
     if (end)   where[Op.and].push({ created_at: { [Op.lte]: new Date(end) } });
 
-    // Ambil kolom minimal (tanpa include relasi) → super ringan
+    // Ambil kolom dengan nationality dan created_at untuk analisis lebih lanjut
     const rows = await Booking.findAll({
       where,
-      attributes: ["gross_total", "google_data"],
+      attributes: ["gross_total", "google_data", "contact_nationality", "created_at"],
       raw: true,
     });
 
-    // Normalisasi minimal untuk adsOnly
+    // Normalisasi dengan data tambahan
     let pool = rows.map(r => {
       const gd  = r.google_data || {};
       const ids = extractIds(gd);
@@ -246,6 +246,9 @@ const getGoogleBookingsSummary = async (req, res) => {
       return {
         gross_total: Number(r.gross_total || 0),
         is_ads_conversion: !!(s && s.is_ads_conversion),
+        ads_type: s.ads_type || "none", // direct, prior, none
+        contact_nationality: r.contact_nationality || "Unknown",
+        created_at: r.created_at,
       };
     });
 
@@ -257,10 +260,62 @@ const getGoogleBookingsSummary = async (req, res) => {
     const totalBookings  = pool.length;
     const averageBooking = totalBookings > 0 ? totalRevenue / totalBookings : 0;
 
+    // 1. Ads Type Distribution
+    const adsTypeDistribution = pool.reduce((acc, item) => {
+      acc[item.ads_type] = (acc[item.ads_type] || 0) + 1;
+      return acc;
+    }, {});
+
+    // 2. Top Countries by Booking Count
+    const countriesMap = pool.reduce((acc, item) => {
+      const country = item.contact_nationality;
+      if (!acc[country]) {
+        acc[country] = { bookings: 0, revenue: 0 };
+      }
+      acc[country].bookings += 1;
+      acc[country].revenue += item.gross_total;
+      return acc;
+    }, {});
+
+    const topCountries = Object.entries(countriesMap)
+      .map(([country, data]) => ({
+        country,
+        bookings: data.bookings,
+        revenue: data.revenue,
+      }))
+      .sort((a, b) => b.bookings - a.bookings)
+      .slice(0, 10);
+
+    // 3. Daily Bookings (based on created_at)
+    const dailyBookingsMap = pool.reduce((acc, item) => {
+      const date = new Date(item.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
+      if (!acc[date]) {
+        acc[date] = { bookings: 0, revenue: 0 };
+      }
+      acc[date].bookings += 1;
+      acc[date].revenue += item.gross_total;
+      return acc;
+    }, {});
+
+    const dailyBookings = Object.entries(dailyBookingsMap)
+      .map(([date, data]) => ({
+        date,
+        bookings: data.bookings,
+        revenue: data.revenue,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
     return res.status(200).json({
       success: true,
       filters: { q: q || undefined, start: start || undefined, end: end || undefined, adsOnly },
-      summary: { totalRevenue, totalBookings, averageBooking }
+      summary: {
+        totalRevenue,
+        totalBookings,
+        averageBooking,
+        adsTypeDistribution,
+        topCountries,
+        dailyBookings,
+      }
     });
   } catch (err) {
     console.error("❌ getGoogleBookingsSummary error:", err);

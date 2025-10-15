@@ -2,6 +2,7 @@ const axios = require("axios");
 const crypto = require("crypto");
 const { generateSignature } = require("../config/doku");
 const { broadcast } = require("../config/websocket");
+const { sendPurchaseToGA4 } = require("../util/ga4Tracker");
 
 const { Op, literal, col } = require("sequelize");
 const {
@@ -25,6 +26,8 @@ const {
   sendInvoiceAndTicketEmailRoundTrip,
   
 } = require("../util/sendInvoiceAndTicketEmail");
+
+
 
 const DOKU_BASE_URL = process.env.DOKU_BASE_URL;
 const CLIENT_ID = process.env.DOKU_CLIENT_ID;
@@ -266,6 +269,14 @@ exports.handleNotification = async (req, res) => {
           payment_method: notificationData.service?.id || "DOKU",
           expiration_time: null,
         });
+
+          // ✅ Kirim ke GA4
+  // await sendPurchaseToGA4(
+  //   invoiceNumber,
+  //   notificationData.order?.amount,
+  //   "IDR"
+  // );
+
 
         // console.log(`Booking ${booking.id} marked as paid`);
 

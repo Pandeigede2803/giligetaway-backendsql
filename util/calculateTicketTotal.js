@@ -84,7 +84,7 @@ const getScheduleData = async (schedule_id, subschedule_id = null) => {
         include: [
           {
             model: Schedule,
-            as: 'schedule'
+            as: 'Schedule'
           }
         ]
       });
@@ -113,107 +113,281 @@ const getScheduleData = async (schedule_id, subschedule_id = null) => {
 };
 
 // ============= CALCULATE TICKET TOTAL UTILITY =============
-const calculateTicketTotal = async (schedule_id, subschedule_id = null, booking_date, adult_passengers, child_passengers, infant_passengers = 0) => {
+const calculateTicketTotal = async (
+  schedule_id, subschedule_id = null, booking_date, adult_passengers, child_passengers, infant_passengers = 0) => {
   try {
     // 1. Get schedule data
     const scheduleData = await getScheduleData(schedule_id, subschedule_id);
-    
-    // 2. Extract price data based on schedule type
-    let priceData;
+
+    // 2. Determine which schedule type and extract flat pricing
     let scheduleType;
-    
+    let priceData;
+
     if (subschedule_id && subschedule_id !== null && subschedule_id !== undefined) {
-      // For subschedule, use subschedule prices
       scheduleType = "subschedule";
       priceData = {
-        lowSeasonPrice: scheduleData.adult_low_season_price,
-        highSeasonPrice: scheduleData.adult_high_season_price,
-        peakSeasonPrice: scheduleData.adult_peak_season_price,
-        childLowSeasonPrice: scheduleData.child_low_season_price,
-        childHighSeasonPrice: scheduleData.child_high_season_price,
-        childPeakSeasonPrice: scheduleData.child_peak_season_price
+        lowSeasonPrice: scheduleData.low_season_price,
+        highSeasonPrice: scheduleData.high_season_price,
+        peakSeasonPrice: scheduleData.peak_season_price,
       };
     } else {
-      // For main schedule, use main schedule prices
       scheduleType = "main_schedule";
       priceData = {
-        lowSeasonPrice: scheduleData.adult_low_season_price,
-        highSeasonPrice: scheduleData.adult_high_season_price,
-        peakSeasonPrice: scheduleData.adult_peak_season_price,
-        childLowSeasonPrice: scheduleData.child_low_season_price,
-        childHighSeasonPrice: scheduleData.child_high_season_price,
-        childPeakSeasonPrice: scheduleData.child_peak_season_price
+        lowSeasonPrice: scheduleData.low_season_price,
+        highSeasonPrice: scheduleData.high_season_price,
+        peakSeasonPrice: scheduleData.peak_season_price,
       };
     }
 
-    // 3. Calculate adult ticket price based on season
-    const adultPrice = getSeasonPrice(
+    // 3. Get ticket price based on season
+    const flatPrice = getSeasonPrice(
       booking_date,
       priceData.lowSeasonPrice,
       priceData.highSeasonPrice,
       priceData.peakSeasonPrice
     );
 
-    // 4. Calculate child ticket price based on season
-    const childPrice = getSeasonPrice(
-      booking_date,
-      priceData.childLowSeasonPrice,
-      priceData.childHighSeasonPrice,
-      priceData.childPeakSeasonPrice
-    );
-
-    // 5. Validate prices
-    if (adultPrice === "N/A") {
-      throw new Error("Adult price not available for the selected date");
-    }
-    if (child_passengers > 0 && childPrice === "N/A") {
-      throw new Error("Child price not available for the selected date");
+    // 4. Validate price
+    if (flatPrice === "N/A" || !flatPrice) {
+      throw new Error("No valid price available for the selected date");
     }
 
-    // 6. Calculate total for each passenger type
-    const adultTotal = parseFloat(adultPrice) * adult_passengers;
-    const childTotal = parseFloat(childPrice) * child_passengers;
-    const infantTotal = 0; // Infants are free
+    // 5. Calculate total ticket cost (all passengers same price)
+    const totalPassengers = adult_passengers + child_passengers + infant_passengers;
+    const ticketTotal = parseFloat(flatPrice) * totalPassengers;
 
-    // 7. Calculate grand total
-    const ticketTotal = adultTotal + childTotal + infantTotal;
-
-    console.log(`Ticket Total Calculation (${scheduleType}):
+    console.log(`🎟️ Ticket Total Calculation (${scheduleType}):
       - Schedule ID: ${schedule_id}
       - SubSchedule ID: ${subschedule_id || 'N/A (Main Route)'}
-      - Adult: ${adult_passengers} x ${adultPrice} = ${adultTotal}
-      - Child: ${child_passengers} x ${childPrice} = ${childTotal}
-      - Infant: ${infant_passengers} x 0 = ${infantTotal}
+      - Price per passenger: ${flatPrice}
+      - Total passengers: ${totalPassengers}
       - Total: ${ticketTotal}`);
 
+    // 6. Return result
     return {
       success: true,
       ticketTotal,
       breakdown: {
-        adultPrice: parseFloat(adultPrice),
-        childPrice: parseFloat(childPrice),
-        infantPrice: 0,
-        adultTotal,
-        childTotal,
-        infantTotal,
-        totalPassengers: adult_passengers + child_passengers + infant_passengers
+        flatPrice: parseFloat(flatPrice),
+        totalPassengers,
+        total: ticketTotal,
       },
       scheduleInfo: {
         schedule_id,
         subschedule_id: subschedule_id || null,
-        booking_date,
+        departure_date: booking_date,
         season: getSeason(booking_date),
-        schedule_type: scheduleType
-      }
+        schedule_type: scheduleType,
+      },
     };
-
   } catch (error) {
-    console.error("Error calculating ticket total:", error.message);
+    console.error("❌ Error calculating ticket total:", error.message);
     return {
       success: false,
       error: error.message,
-      ticketTotal: 0
+      ticketTotal: 0,
     };
+  }
+};
+
+const generateOneWayTicketId = async () => {
+  try {
+    let ticketId;
+    let exists = true;
+
+    while (exists) {
+      const now = new Date();
+      const hh = now.getHours().toString().padStart(2, "0");
+      const mm = now.getMinutes().toString().padStart(2, "0");
+      const ss = now.getSeconds().toString().padStart(2, "0");
+
+      const numberPart = `${hh}${mm}${ss}`;
+      ticketId = `GG-OW-${numberPart}`;
+
+      // cek collision di DB
+      exists = await Booking.findOne({ where: { ticket_id: ticketId } });
+      if (exists) {
+        const msToNextSecond = 1000 - now.getMilliseconds();
+        await new Promise((r) => setTimeout(r, msToNextSecond));
+      }
+    }
+
+    console.log(`✅ Generated ticket ID: ${ticketId}`);
+    return ticketId;
+  } catch (error) {
+    console.error("❌ Error generating one-way ticket ID:", error);
+    throw new Error("Failed to generate one-way ticket ID");
+  }
+};
+
+const generateRoundTripTicketIds = async (req, res) => {
+  try {
+    // Dapatkan timestamp saat ini
+    const now = Date.now();
+
+    // Fungsi untuk menghasilkan 6 digit acak yang valid
+    const generateValidSixDigits = () => {
+      let randomNum;
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      do {
+        attempts++;
+        // Angka acak antara 100000-999999
+        randomNum = 100000 + Math.floor(Math.random() * 900000);
+
+        // Pastikan angka ganjil untuk tiket keberangkatan
+        if (randomNum % 2 === 0) randomNum++;
+
+        // console.log(`🔍 Checking number: ${randomNum}, ends with: ${randomNum.toString().slice(-2)}`);
+
+        // ✨ VALIDASI UTAMA: Pastikan tidak berakhir 99
+        // Karena jika berakhir 99, maka pasangannya akan berakhir 00
+        if (randomNum.toString().endsWith("99")) {
+          console.log(
+            `❌ Number ${randomNum} ends with 99, will cause 00 pair. Regenerating...`
+          );
+          continue;
+        }
+
+        // ✨ VALIDASI TAMBAHAN: Pastikan pasangan tidak berakhir 00
+        const pairedNumber = randomNum + 1;
+        if (pairedNumber.toString().endsWith("00")) {
+          console.log(
+            `❌ Paired number ${pairedNumber} ends with 00. Regenerating...`
+          );
+          continue;
+        }
+
+        // // Jika sampai sini, berarti valid
+        // console.log(`✅ Valid number found: ${randomNum}, pair: ${pairedNumber}`);
+        break;
+      } while (attempts < maxAttempts);
+
+      if (attempts >= maxAttempts) {
+        throw new Error(
+          "Could not generate valid number after maximum attempts"
+        );
+      }
+
+      return randomNum;
+    };
+
+    let baseNumber = generateValidSixDigits();
+    let ticketIdDeparture = "";
+    let ticketIdReturn = "";
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+
+      // Pastikan baseNumber selalu ganjil (sudah dihandle di generateValidSixDigits)
+      if (baseNumber % 2 === 0) baseNumber++;
+
+      // ✨ DOUBLE CHECK: Pastikan tidak berakhir 99
+      if (baseNumber.toString().endsWith("99")) {
+        console.log(
+          `🔄 Base number ${baseNumber} ends with 99, regenerating...`
+        );
+        baseNumber = generateValidSixDigits();
+        continue;
+      }
+
+      // Buat ticket ID dengan format: GG-RT-XXXXXX
+      ticketIdDeparture = `GG-RT-${baseNumber}`;
+      ticketIdReturn = `GG-RT-${baseNumber + 1}`;
+
+      console.log(
+        `🔄 Mencoba pasangan ID ke-${attempts}: ${ticketIdDeparture} dan ${ticketIdReturn}`
+      );
+
+      // ✨ VALIDASI AKHIR: Pastikan return ticket tidak berakhir 00
+      if ((baseNumber + 1).toString().endsWith("00")) {
+        console.log(
+          `❌ Return ticket ${ticketIdReturn} ends with 00, regenerating base number...`
+        );
+        baseNumber = generateValidSixDigits();
+        continue;
+      }
+
+      // Cek apakah ID sudah ada di database
+      const existing = await Booking.findAll({
+        where: {
+          ticket_id: {
+            [Op.in]: [ticketIdDeparture, ticketIdReturn],
+          },
+        },
+      });
+
+      // Jika tidak ada yang sama, keluar dari loop
+      if (existing.length === 0) {
+        console.log(
+          `✅ Menemukan pasangan ID yang tersedia: ${ticketIdDeparture} dan ${ticketIdReturn}`
+        );
+        console.log(
+          `🎯 Final validation - Departure ends with: ${baseNumber
+            .toString()
+            .slice(-2)}, Return ends with: ${(baseNumber + 1)
+            .toString()
+            .slice(-2)}`
+        );
+        break;
+      }
+
+      console.log(`⚠️ ID sudah digunakan, mencoba pasangan berikutnya...`);
+
+      // Jika terjadi konflik, buat nomor acak baru sepenuhnya
+      baseNumber = generateValidSixDigits();
+    }
+
+    // Jika mencapai batas percobaan, beri tahu pengguna
+    if (attempts >= maxAttempts) {
+      return res.status(500).json({
+        error: "Could not generate unique ticket IDs",
+        message: "Reached maximum attempts",
+      });
+    }
+
+    // ✨ FINAL SAFETY CHECK sebelum return
+    const finalDepartureEnding = baseNumber.toString().slice(-2);
+    const finalReturnEnding = (baseNumber + 1).toString().slice(-2);
+
+    if (finalReturnEnding === "00") {
+      console.error(
+        `🚨 CRITICAL ERROR: About to return ticket ending with 00!`
+      );
+      return res.status(500).json({
+        error: "Generated invalid ticket ending with 00",
+        message: "Internal validation failed",
+      });
+    }
+
+    console.log(`🎉 SUCCESS: Generated valid ticket pair`);
+    console.log(
+      `📋 Departure: ${ticketIdDeparture} (ends with: ${finalDepartureEnding})`
+    );
+    console.log(
+      `📋 Return: ${ticketIdReturn} (ends with: ${finalReturnEnding})`
+    );
+
+    return res.json({
+      ticket_id_departure: ticketIdDeparture,
+      ticket_id_return: ticketIdReturn,
+      timestamp: new Date().toISOString(),
+      validation: {
+        departure_ending: finalDepartureEnding,
+        return_ending: finalReturnEnding,
+        is_valid:
+          finalReturnEnding !== "00" && !finalDepartureEnding.endsWith("99"),
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error generating round-trip ticket IDs:", error);
+    return res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+    });
   }
 };
 
@@ -224,5 +398,7 @@ module.exports = {
   getSeasonPrice,
   getScheduleData,
   getSeason,
+  generateOneWayTicketId,
+  generateRoundTripTicketIds, 
   validatePassengerCounts
 };
