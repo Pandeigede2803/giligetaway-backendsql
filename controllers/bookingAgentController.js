@@ -45,7 +45,7 @@ const cronJobs = require("../util/cronJobs");
 const { createTransaction } = require("../util/transactionUtils");
 const Queue = require("bull");
 const bookingAgentQueue = new Queue("bookingAgentQueue"); // Inisialisasi Bull Queue
-const bookingAgentRoundQueue = new Queue("bookingRoundQueue");
+const bookingAgentRoundQueue = new Queue("bookingAgentRoundQueue");
 const { sendTelegramMessage } = require("../util/telegram");
 
 const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
@@ -671,9 +671,9 @@ bookingAgentRoundQueue.process(async (job, done) => {
     await transaction.commit();
     console.log(`🎉 Agent round-trip queue success for booking ${booking_id}`);
 
-    sendTelegramMessage(
-      `✅ <b>[QUEUE SUCCESS]</b>\nBooking ID: <code>${booking_id}</code>\nType: <code>${type}</code>\n🕒 ${new Date().toLocaleString()}`
-    );
+    // sendTelegramMessage(
+    //   `✅ <b>[QUEUE SUCCESS]</b>\nBooking ID: <code>${booking_id}</code>\nType: <code>${type}</code>\n🕒 ${new Date().toLocaleString()}`
+    // );
 
     done();
   } catch (error) {
