@@ -391,6 +391,109 @@ const generateRoundTripTicketIds = async (req, res) => {
   }
 };
 
+/**
+ * Generate paired round-trip ticket IDs for agent bookings
+ * Returns { ticket_id_departure, ticket_id_return }
+ */
+const generateAgentRoundTripTicketId = async () => {
+  const generateValidSixDigits = () => {
+    let randomNum;
+    let attempts = 0;
+    const maxAttempts = 50;
+
+    do {
+      attempts++;
+      randomNum = 100000 + Math.floor(Math.random() * 900000);
+
+      // Ensure odd number for departure ticket
+      if (randomNum % 2 === 0) randomNum++;
+
+      // Validate: must not end with 99 (would cause return ticket to end with 00)
+      if (randomNum.toString().endsWith("99")) {
+        continue;
+      }
+
+      // Validate: paired number must not end with 00
+      const pairedNumber = randomNum + 1;
+      if (pairedNumber.toString().endsWith("00")) {
+        continue;
+      }
+
+      break;
+    } while (attempts < maxAttempts);
+
+    if (attempts >= maxAttempts) {
+      throw new Error("Could not generate valid number after maximum attempts");
+    }
+
+    return randomNum;
+  };
+
+  let baseNumber = generateValidSixDigits();
+  let ticketIdDeparture = "";
+  let ticketIdReturn = "";
+  let attempts = 0;
+  const maxAttempts = 100;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+
+    // Ensure baseNumber is always odd
+    if (baseNumber % 2 === 0) baseNumber++;
+
+    // Double check: must not end with 99
+    if (baseNumber.toString().endsWith("99")) {
+      baseNumber = generateValidSixDigits();
+      continue;
+    }
+
+    // Create ticket IDs with format: GG-RT-XXXXXX (same as regular round-trip)
+    ticketIdDeparture = `GG-RT-${baseNumber}`;
+    ticketIdReturn = `GG-RT-${baseNumber + 1}`;
+
+    // Final validation: return ticket must not end with 00
+    if ((baseNumber + 1).toString().endsWith("00")) {
+      baseNumber = generateValidSixDigits();
+      continue;
+    }
+
+    // Check if IDs already exist in database
+    const existing = await Booking.findAll({
+      where: {
+        ticket_id: {
+          [Op.in]: [ticketIdDeparture, ticketIdReturn],
+        },
+      },
+    });
+
+    // If no conflicts, we're done
+    if (existing.length === 0) {
+      console.log(
+        `✅ Generated agent round-trip pair: ${ticketIdDeparture} and ${ticketIdReturn}`
+      );
+      break;
+    }
+
+    // If conflict, regenerate base number
+    baseNumber = generateValidSixDigits();
+  }
+
+  if (attempts >= maxAttempts) {
+    throw new Error("Could not generate unique agent round-trip ticket IDs");
+  }
+
+  // Final safety check
+  const finalReturnEnding = (baseNumber + 1).toString().slice(-2);
+  if (finalReturnEnding === "00") {
+    throw new Error("Generated invalid ticket ending with 00");
+  }
+
+  return {
+    ticket_id_departure: ticketIdDeparture,
+    ticket_id_return: ticketIdReturn,
+  };
+};
+
 
 
 module.exports = {
@@ -399,6 +502,7 @@ module.exports = {
   getScheduleData,
   getSeason,
   generateOneWayTicketId,
-  generateRoundTripTicketIds, 
+  generateRoundTripTicketIds,
+  generateAgentRoundTripTicketId,
   validatePassengerCounts
 };

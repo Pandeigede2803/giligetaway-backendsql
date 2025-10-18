@@ -4,7 +4,7 @@ const { Agent, Schedule, SubSchedule } = require("../models");
 module.exports = async (req, res, next) => {
   try {
     const data = req.body;
-    console.log("🔍 Validating agent booking data:", data);
+    console.log("🔍 Validating agent round booking data:", data);
     console.log("start validation")
 
     // 🔹 1. Pastikan schedule_id dan subschedule_id valid numerik

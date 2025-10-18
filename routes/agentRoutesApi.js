@@ -9,6 +9,7 @@ const transitController = require('../controllers/transitController');
 const cors = require('cors');
 const bookingAgentController = require('../controllers/bookingAgentController')
 const validateAgentBooking = require("../middleware/validateAgentBooking");
+const validateAgentRoundTripBooking = require("../middleware/validateAgentRoundTripBooking");
 
 
 const transportController = require('../controllers/transportController');
@@ -21,7 +22,7 @@ router.get('/search-schedule/v3', validateApiKey, (req, res, next) => {
   // console.log('Query params:', req.query);
   // console.log('Headers:', req.headers);
   next();
-}, scheduleController.searchSchedulesAndSubSchedulesAgent);
+}, scheduleController.searchSchedulesAndSubSchedulesAgent);;
 
 // get all transport
 router.get('/search-transports/v3',validateApiKey,transportController.getTransports);
@@ -31,5 +32,6 @@ router.get('/search-transports/v3',validateApiKey,transportController.getTranspo
 
 
 router.post('/book/v1', validateApiKey, validateAgentBooking, bookingAgentController.createAgentBooking);
+router.post('/round-trip-book/v1', validateApiKey, validateAgentRoundTripBooking, bookingAgentController.createAgentRoundTripBooking);
 
-module.exports = router;
+module.exports = router;;

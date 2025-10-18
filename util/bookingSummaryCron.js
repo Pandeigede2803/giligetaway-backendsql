@@ -640,8 +640,8 @@ const sendDailyBookingSummary = async () => {
     const emailSubject = `Daily Booking Summary (${yesterdayDate})`;
 
     // Mengambil email penerima dari environment
-    // const recipientEmail = process.env.EMAIL_BOOKING;
-const recipientEmail = "booking@giligetaway.site";
+    const recipientEmail = process.env.EMAIL_BOOKING;
+
     if (!recipientEmail) {
       console.warn(
         "⚠️ No recipient email configured in EMAIL_BOOKING. Add it in your .env file."

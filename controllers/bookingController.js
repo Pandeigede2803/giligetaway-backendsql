@@ -562,6 +562,8 @@ const createRoundBookingWithTransitQueue = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+
 const notifyQueueError = (error, context = {}, label = "QUEUE ERROR") => {
   const {
     booking_id = "-",
