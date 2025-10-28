@@ -10,7 +10,7 @@ const scheduleDuplicateSeatJob = () => {
   const cronFrequency =
     process.env.CRON_FREQUENCY_SEAT_DUPLICATE || "0 */1 * * *"; // Default to every hour if not set
 
-  console.log(`📆 Registering DuplicateSeatCron with frequency: ${cronFrequency}`);
+  // console.log(`📆 Registering DuplicateSeatCron with frequency: ${cronFrequency}`);
 
  cron.schedule(cronFrequency, async () => {
   console.log("🕒 Running scheduled duplicate seat checker...");

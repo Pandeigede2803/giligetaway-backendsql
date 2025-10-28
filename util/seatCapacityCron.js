@@ -7,6 +7,8 @@ let isRunning = false;
 const scheduleSeatCapacityCron = () => {
   // change 2 am in the morning
   const expr = process.env.SEAT_ALERT_CRON || "0 2 * * *";
+  // how time is it there? Default to Jakarta time
+  // 
   const timezone = process.env.CRON_TZ || "Asia/Jakarta";
 
   if (!cron.validate(expr)) {

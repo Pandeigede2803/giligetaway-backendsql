@@ -55,8 +55,8 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
         // Format booking date to 'YYYY-MM-DD'
         const formattedDate = booking_date.split('T')[0];
         
-        // Fetch Schedule and associated Boat
-        console.log(`✅ Fetching Schedule with ID: ${schedule_id}`);
+        // // Fetch Schedule and associated Boat
+        // console.log(`✅ Fetching Schedule with ID: ${schedule_id}`);
         const schedule = await Schedule.findByPk(schedule_id, {
             include: [{ model: sequelize.models.Boat, as: 'Boat' }],
             transaction,
@@ -67,10 +67,10 @@ const releaseMainScheduleSeats = async (schedule_id, booking_date, total_passeng
         }
         
         const boat = schedule.Boat;
-        console.log(`✅ Boat info: ID=${boat.id}, Capacity=${boat.capacity}`);
+        // console.log(`✅ Boat info: ID=${boat.id}, Capacity=${boat.capacity}`);
         
-        // Fetch and validate Main Schedule SeatAvailability
-        console.log(`✅ Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
+        // // Fetch and validate Main Schedule SeatAvailability
+        // console.log(`✅ Fetching SeatAvailability for Main Schedule ID: ${schedule_id}`);
         let mainScheduleSeatAvailability = await SeatAvailability.findOne({
             where: {
                 schedule_id: schedule_id,
@@ -87,9 +87,9 @@ if (!mainScheduleSeatAvailability) {
 }
 
         
-        // SELALU TAMBAHKAN KURSI TERLEBIH DAHULU - tanpa pengecekan kapasitas
-        console.log(`✅ Current available seats for Main Schedule: ${mainScheduleSeatAvailability.available_seats}`);
-        console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
+        // // SELALU TAMBAHKAN KURSI TERLEBIH DAHULU - tanpa pengecekan kapasitas
+        // console.log(`✅ Current available seats for Main Schedule: ${mainScheduleSeatAvailability.available_seats}`);
+        // console.log(`✅ Returning ${total_passengers} seats to Main Schedule ID: ${schedule_id}`);
         
         mainScheduleSeatAvailability.available_seats += total_passengers;
         await mainScheduleSeatAvailability.save({ transaction });
@@ -98,7 +98,7 @@ if (!mainScheduleSeatAvailability) {
         releasedSeatIds.push(mainScheduleSeatAvailability.id);
         
         // Fetch related SubSchedules
-        console.log(`✅ Fetching related SubSchedules for Main Schedule ID: ${schedule_id}`);
+        // console.log(`✅ Fetching related SubSchedules for Main Schedule ID: ${schedule_id}`);
         const relatedSubSchedules = await SubSchedule.findAll({
             where: { schedule_id: schedule_id },
             transaction,
@@ -106,7 +106,7 @@ if (!mainScheduleSeatAvailability) {
         
         // Process each related SubSchedule
         for (const subSchedule of relatedSubSchedules) {
-            console.log(`✅ Processing SubSchedule ID: ${subSchedule.id}`);
+            // console.log(`✅ Processing SubSchedule ID: ${subSchedule.id}`);
             
             let subScheduleSeatAvailability = await SeatAvailability.findOne({
                 where: {
@@ -128,9 +128,9 @@ if (!mainScheduleSeatAvailability) {
                 }, { transaction });
             }
             
-            // SELALU TAMBAHKAN KURSI TERLEBIH DAHULU - tanpa pengecekan kapasitas
-            console.log(`✅ Current available seats for SubSchedule ID ${subSchedule.id}: ${subScheduleSeatAvailability.available_seats}`);
-            console.log(`✅ Returning ${total_passengers} seats to SubSchedule ID: ${subSchedule.id}`);
+            // // SELALU TAMBAHKAN KURSI TERLEBIH DAHULU - tanpa pengecekan kapasitas
+            // console.log(`✅ Current available seats for SubSchedule ID ${subSchedule.id}: ${subScheduleSeatAvailability.available_seats}`);
+            // console.log(`✅ Returning ${total_passengers} seats to SubSchedule ID: ${subSchedule.id}`);
             
             subScheduleSeatAvailability.available_seats += total_passengers;
             await subScheduleSeatAvailability.save({ transaction });
@@ -140,7 +140,7 @@ if (!mainScheduleSeatAvailability) {
         }
         
         // Panggil adjustSeatCapacity di akhir untuk memastikan semua kapasitas sesuai
-        console.log(`✅ Semua kursi telah dikembalikan. Menyesuaikan dengan kapasitas maksimum...`);
+        // console.log(`✅ Semua kursi telah dikembalikan. Menyesuaikan dengan kapasitas maksimum...`);
         await adjustSeatCapacity(schedule_id, formattedDate, transaction);
         
         return releasedSeatIds; // Return all updated SeatAvailability IDs
@@ -154,7 +154,7 @@ if (!mainScheduleSeatAvailability) {
 // Fungsi adjustSeatCapacity yang konsisten
 const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
     try {
-        console.log(`✅ Memulai penyesuaian kapasitas untuk Schedule ID: ${schedule_id}`);
+        // console.log(`✅ Memulai penyesuaian kapasitas untuk Schedule ID: ${schedule_id}`);
         
         // Ambil data kapal
         const schedule = await Schedule.findByPk(schedule_id, {
@@ -172,7 +172,7 @@ const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
         }
         
         const boat = schedule.Boat;
-        console.log(`✅ Info Boat: ID=${boat.id}, Kapasitas=${boat.capacity}`);
+        // console.log(`✅ Info Boat: ID=${boat.id}, Kapasitas=${boat.capacity}`);
         
         // Ambil semua SeatAvailability untuk schedule ini pada tanggal yang ditentukan
         const seatAvailabilities = await SeatAvailability.findAll({
@@ -192,7 +192,7 @@ const adjustSeatCapacity = async (schedule_id, booking_date, transaction) => {
                 ? boat.capacity 
                 // : boat.published_capacity;
                 : calculatePublicCapacity(boat);
-            console.log("✅ Kapasitas Maksimum:", maxCapacity);
+            // console.log("✅ Kapasitas Maksimum:", maxCapacity);
             // Cek apakah melebihi kapasitas
             if (seatAvailability.available_seats > maxCapacity) {
                 console.log(`⚠️ PERINGATAN: SeatAvailability ID=${seatAvailability.id} melebihi kapasitas`);

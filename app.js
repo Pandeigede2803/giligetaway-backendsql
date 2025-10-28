@@ -4,6 +4,7 @@ const sequelize = require('./config/database');
 const cors = require('cors');
 const cronJobs = require('./util/cronJobs');
 const bookingSummaryCron = require('./util/bookingSummaryCron');
+const customEmailSchedulerCron = require('./util/customEmailJob');
 const seatFixCron = require('./util/seatFixCron');
 const waitingListCron = require('./util/waitingListCron');
 const unpaidReminderCronJobs = require('./util/unpaidReminderCronJobs');
@@ -95,6 +96,8 @@ const csvUploadRoutes = require('./routes/csvUploadRoutes');
 const discountRoutes = require('./routes/discountRoutes');
 const subSchedulesRelationRoutes = require('./routes/subScheduleRelationsRoute');
 const waitingListRoutes = require('./routes/waitingtListRoutes');
+const customEmailSchedulerRoutes = require('./routes/customEmailSchedulerRoutes');
+const emailLogRoutes = require('./routes/emailLogRoutes');
 
 // ========== ROUTES ==========
 // PUBLIC API AGENT (sudah di-handle CORS di middleware atas)
@@ -127,6 +130,8 @@ app.use("/api/upload-multiple-csv-booking", csvUploadRoutes);
 app.use("/api/discount", discountRoutes);
 app.use("/api/subschedules-relation", subSchedulesRelationRoutes);
 app.use('/api/waiting-list', waitingListRoutes);;
+app.use('/api/custom-email-scheduler', customEmailSchedulerRoutes);
+app.use('/api/email-logs', emailLogRoutes);
 
 app.get('/', (req, res) => {
   res.send('<h1>this is giligetaway my sql express backend</h1>');
@@ -185,6 +190,9 @@ sequelize.sync()
       cronFrequencySeatDuplicates.scheduleDuplicateSeatJob();
       // console.log('🕒 Duplicate seat checker cronjob registered');
       cronFrequencySeatDuplicates.seatBoostedJob();
+
+      customEmailSchedulerCron.scheduleCustomEmailJob();
+console.log('📧 Custom Email Scheduler cron registered'); 
  
       scheduleSeatCapacityCron();
              console.log('🗣️ SeatCapacityCron registered');

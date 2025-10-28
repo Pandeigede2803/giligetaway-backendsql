@@ -24,6 +24,8 @@ const Transaction = require('./Transaction');
 const BulkBookingResult = require('./BulkBookingResult');
 const BulkBookingUpload = require('./BulkBookingUpload');
 const Discount = require('./discount');
+const EmailSendLog = require('./EmailSendLog');
+const CustomEmailSchedulers = require('./CustomEmailScheduler');
 
 
 const models = {
@@ -45,6 +47,8 @@ const models = {
     Transaction,
     SubScheduleRelation,
     Discount,
+    EmailSendLog,
+        CustomEmailSchedulers,
     WaitingList,BulkBookingResult,BulkBookingUpload
 };
 

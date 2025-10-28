@@ -109,9 +109,9 @@ const releaseSeats = async (booking, transaction) => {
 
   try {
     if (subschedule_id) {
-      console.log(
-        `start releaseSubScheduleSeats, schedule_id: ${schedule_id}, subschedule_id: ${subschedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
-      );
+      // console.log(
+      //   `start releaseSubScheduleSeats, schedule_id: ${schedule_id}, subschedule_id: ${subschedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      // );
       // Jika SubSchedule ada, kembalikan kursi untuk SubSchedule
       await releaseSubScheduleSeats(
         schedule_id,
@@ -122,10 +122,10 @@ const releaseSeats = async (booking, transaction) => {
       );
     } else {
       // Jika Main Schedule, kembalikan kursi untuk Main Schedule
-      console.log("start releaseMainScheduleSeats");
-      console.log(
-        `schedule_id: ${schedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
-      );
+      // console.log("start releaseMainScheduleSeats");
+      // console.log(
+      //   `schedule_id: ${schedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      // );
       await releaseMainScheduleSeats(
         schedule_id,
         booking_date,
@@ -188,15 +188,15 @@ const handleExpiredBookings = async () => {
           await sequelize.transaction(async (t) => {
             const contactEmail = booking.contact_email;
             
-            console.log(`\n🔄 Processing expired booking ID: ${booking.id}, ticket: ${booking.ticket_id}`);
+            // console.log(`\n🔄 Processing expired booking ID: ${booking.id}, ticket: ${booking.ticket_id}`);
             
-            // Release seats dengan transaksi
-            console.log(`\n🪑 Releasing seats for expired booking ID: ${booking.id}`);
+            // // Release seats dengan transaksi
+            // console.log(`\n🪑 Releasing seats for expired booking ID: ${booking.id}`);
             const releasedSeatIds = await releaseSeats(booking, t);
-            // console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"}`);
+            console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"}`);
             
             // Update booking status dalam transaksi yang sama
-            console.log(`\n🔄 Updating booking status to ${expiredStatus}`);
+            // console.log(`\n🔄 Updating booking status to ${expiredStatus}`);
             booking.payment_status = expiredStatus;
             booking.abandoned = true;
             await booking.save({ transaction: t });
@@ -243,26 +243,26 @@ const handleExpiredBookings = async () => {
 
               if (shouldSendEmail) {
                 // Queue email dengan sistem antrian untuk menghindari overload
-                console.log(`\n📨 Queueing expired booking email for ${contactEmail}`);
+                // console.log(`\n📨 Queueing expired booking email for ${contactEmail}`);
                 const queued = await queueExpiredBookingEmail(contactEmail, booking);
                 
                 if (queued) {
                   // Tandai email sudah dikirim untuk menghindari duplikasi
                   emailedContacts.add(contactEmail);
-                  console.log(`📧 Expired email queued for ${contactEmail} (Booking ID: ${booking.id})`);
+                  // console.log(`📧 Expired email queued for ${contactEmail} (Booking ID: ${booking.id})`);
                 } else {
-                  console.log(`❌ Failed to queue email for ${contactEmail} (Booking ID: ${booking.id})`);
+                  // console.log(`❌ Failed to queue email for ${contactEmail} (Booking ID: ${booking.id})`);
                 }
               } else {
-                console.log(`🔄 No email needed for ${booking.ticket_id} based on ticket rules`);
+                // console.log(`🔄 No email needed for ${booking.ticket_id} based on ticket rules`);
               }
             } else {
               console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
             }
           } else if (!contactEmail) {
-            console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
+            // console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
           } else {
-            console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
+            // console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
           }
           
         } catch (bookingError) {
