@@ -15,6 +15,7 @@ const releaseMainScheduleSeats = require("../util/releaseMainScheduleSeats");
 const releaseSubScheduleSeats = require("../util/releaseSubScheduleSeats");
 const {fetchMidtransPaymentStatus} = require("../util/fetchMidtransPaymentStatus");
 const { fixAllSeatMismatches } = require("../controllers/seatAvailabilityController");
+const { sendTelegramMessage } = require("../util/telegram");
 /**
  * Fungsi untuk melepaskan kursi yang sudah dipesan ke available_seats
  * jika pemesanan telah melewati waktu kedaluwarsa
@@ -105,15 +106,16 @@ const releaseSeats = async (booking, transaction) => {
   const { schedule_id, subschedule_id, total_passengers, booking_date } =
     booking;
 
-  // console.log(`✅ MEMULAI RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
+  console.log(`✅ MEMULAI RELEASE SEATS FOR BOOKING ID: ${booking.id}...`);
 
   try {
+    let result;
     if (subschedule_id) {
-      // console.log(
-      //   `start releaseSubScheduleSeats, schedule_id: ${schedule_id}, subschedule_id: ${subschedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
-      // );
+      console.log(
+        `start releaseSubScheduleSeats, schedule_id: ${schedule_id}, subschedule_id: ${subschedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      );
       // Jika SubSchedule ada, kembalikan kursi untuk SubSchedule
-      await releaseSubScheduleSeats(
+      result = await releaseSubScheduleSeats(
         schedule_id,
         subschedule_id,
         booking_date,
@@ -122,11 +124,11 @@ const releaseSeats = async (booking, transaction) => {
       );
     } else {
       // Jika Main Schedule, kembalikan kursi untuk Main Schedule
-      // console.log("start releaseMainScheduleSeats");
-      // console.log(
-      //   `schedule_id: ${schedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
-      // );
-      await releaseMainScheduleSeats(
+      console.log("start releaseMainScheduleSeats");
+      console.log(
+        `schedule_id: ${schedule_id}, booking_date: ${booking_date}, total_passengers: ${total_passengers}`
+      );
+      result = await releaseMainScheduleSeats(
         schedule_id,
         booking_date,
         total_passengers,
@@ -134,12 +136,13 @@ const releaseSeats = async (booking, transaction) => {
       );
     }
 
-    // console.log(
-    //   `🎉Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}🎉`
-    // );
+    console.log(
+      `🎉Berhasil melepaskan ${total_passengers} kursi untuk Booking ID: ${booking.id}🎉`
+    );
+    return result;
   } catch (error) {
     console.error(
-      `😻Gagal melepaskan kursi untuk Booking ID: ${booking.id} dan ticket ID: ${booking.ticket_id}`, 
+      `😻Gagal melepaskan kursi untuk Booking ID: ${booking.id} dan ticket ID: ${booking.ticket_id}`,
       error
     );
     throw error;
@@ -193,7 +196,12 @@ const handleExpiredBookings = async () => {
             // // Release seats dengan transaksi
             // console.log(`\n🪑 Releasing seats for expired booking ID: ${booking.id}`);
             const releasedSeatIds = await releaseSeats(booking, t);
-            console.log(`✅ Released seats: ${releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"}`);
+            // Handle both Array (from releaseMainScheduleSeats) and Set (from releaseSubScheduleSeats)
+            const seatCount = releasedSeatIds instanceof Set ? releasedSeatIds.size : (releasedSeatIds?.length || 0);
+            const seatList = releasedSeatIds instanceof Set
+              ? Array.from(releasedSeatIds).join(", ")
+              : (releasedSeatIds?.join(", ") || "");
+            console.log(`✅ Released seats: ${seatCount > 0 ? seatList : "None"}`);
             
             // Update booking status dalam transaksi yang sama
             // console.log(`\n🔄 Updating booking status to ${expiredStatus}`);
@@ -267,6 +275,31 @@ const handleExpiredBookings = async () => {
           
         } catch (bookingError) {
           console.error(`❌ Error processing expired booking ${booking.id}:`, bookingError);
+
+          // Send Telegram notification for critical errors
+          try {
+            const errorMessage = `
+🚨 <b>CRONJOB ERROR - Expired Booking Processing</b>
+
+<b>Booking ID:</b> ${booking.id}
+<b>Ticket ID:</b> ${booking.ticket_id || 'N/A'}
+<b>Contact:</b> ${booking.contact_email || 'N/A'}
+<b>Schedule ID:</b> ${booking.schedule_id || 'N/A'}
+<b>SubSchedule ID:</b> ${booking.subschedule_id || 'N/A'}
+<b>Passengers:</b> ${booking.total_passengers || 'N/A'}
+
+<b>Error:</b> ${bookingError.message}
+
+<b>Time:</b> ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })}
+
+⚠️ Seats may not have been released. Manual check required.
+            `.trim();
+
+            await sendTelegramMessage(errorMessage);
+          } catch (telegramError) {
+            console.error('❌ Failed to send Telegram notification:', telegramError.message);
+          }
+
           // Lanjutkan ke booking berikutnya meskipun ada error
         }
       }
@@ -277,6 +310,27 @@ const handleExpiredBookings = async () => {
     console.log("🏁 Finished processing all expired bookings.");
   } catch (error) {
     console.error("❌ Error handling expired bookings:", error);
+
+    // Send Telegram notification for fatal errors
+    try {
+      const errorMessage = `
+🔥 <b>CRONJOB FATAL ERROR - handleExpiredBookings</b>
+
+<b>Error Type:</b> ${error.name || 'Unknown'}
+<b>Error Message:</b> ${error.message}
+
+<b>Stack Trace:</b>
+<code>${error.stack?.substring(0, 500) || 'N/A'}</code>
+
+<b>Time:</b> ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })}
+
+🚨 Critical: Entire expired bookings process failed!
+      `.trim();
+
+      await sendTelegramMessage(errorMessage);
+    } catch (telegramError) {
+      console.error('❌ Failed to send Telegram notification:', telegramError.message);
+    }
   }
 };
 

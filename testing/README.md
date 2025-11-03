@@ -16,7 +16,7 @@ npm install axios
 
 2. Set environment variables:
 ```bash
-export BASE_URL=http://localhost:3000
+export BASE_URL=http://localhost:3000 (OR )
 export API_KEY=your-api-key-here
 ```
 

@@ -65,6 +65,10 @@ const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
 const { formatBookingsToText } = require("../util/bookingSummaryCron");
+const {
+  sendEmailApiAgentStaff,
+  sendEmailApiRoundTripAgentStaff,
+} = require("../util/sendPaymentEmailApiAgent");
 
 // ===============================
 // ✅ HELPER FUNCTIONS
@@ -220,11 +224,6 @@ const createAgentBooking = async (req, res) => {
         "Step 9: Created transaction record",
         transactionEntry.transaction_id
       );
-  console.log(
-        "Step 10: Created transaction record",
-        transactionEntry.transaction_id
-      );
-
 
       // 💰 Langsung hitung dan buat agent commission
       let commissionResult = null;
@@ -261,30 +260,34 @@ const createAgentBooking = async (req, res) => {
 
             console.log(
               commissionResult.success
-                ? `✅ Commission created for agent   ${bookingData.agent_id} with payment method ${bookingData.payment_method}: ${commissionResult.commission}`
-                : `ℹ️ Commission already exists for agent ${bookingData.agent_id}`
+                ? `✅ Step 10: Commission created for agent ${bookingData.agent_id} with payment method ${bookingData.payment_method}: ${commissionResult.commission}`
+                : `ℹ️ Step 10: Commission already exists for agent ${bookingData.agent_id}`
             );
           } else {
-            console.warn("⚠️ Trip type missing; skipping commission.");
+            console.warn("⚠️ Step 10: Trip type missing; skipping commission.");
           }
         } else {
-          console.warn(`⚠️ Agent not found with ID ${bookingData.agent_id}`);
+          console.warn(`⚠️ Step 10: Agent not found with ID ${bookingData.agent_id}`);
         }
       }
 
-      // 7️⃣ Queue for background processing (seat + transport)
+      // 🔄 Queue for background processing (seat + transport + passengers + email)
       bookingAgentQueue.add({
         schedule_id: bookingData.schedule_id,
         subschedule_id: bookingData.subschedule_id,
         departure_date: bookingData.departure_date,
         total_passengers: bookingData.total_passengers,
         transports: bookingData.transports,
+        passengers: bookingData.passengers,
         booking_id: booking.id,
         agent_id: bookingData.agent_id,
+        agent_email: bookingData.agent_email,
         gross_total: grossTotal,
         payment_status: "invoiced",
+        commission_amount: commissionResult?.commission || 0,
+        transportTotal: transportTotal,
       });
-      console.log("Step 10: Added booking to processing queue");
+      console.log("Step 11: Added booking to processing queue");
       return { booking, transactionEntry, commissionResult };
     });
 
@@ -324,16 +327,18 @@ bookingAgentQueue.process(async (job, done) => {
     departure_date,
     total_passengers,
     transports,
+    passengers,
     booking_id,
-    agent_id,
-    gross_total,
-    payment_status,
+    agent_email,
+    commission_amount,
+    transportTotal
   } = job.data;
 
   console.log("🔄 Processing Agent Booking Queue:", job.data);
 
   const transaction = await sequelize.transaction();
   try {
+    // 1️⃣ Handle seat availability
     let remainingSeatAvailabilities;
 
     if (subschedule_id) {
@@ -372,12 +377,114 @@ bookingAgentQueue.process(async (job, done) => {
       );
     }
 
+    // 2️⃣ Add transport bookings
     if (transports?.length > 0) {
       await addTransportBookings(transports, booking_id, total_passengers, transaction);
     }
 
+    // 3️⃣ Add passengers
+    if (passengers && passengers.length > 0) {
+      await addPassengers(passengers, booking_id, transaction);
+      console.log(`✅ Added ${passengers.length} passengers`);
+    }
+
     await transaction.commit();
     console.log(`🎉 Queue completed for agent booking ${booking_id}`);
+
+    // 4️⃣ Send email (after transaction commit, non-blocking)
+    try {
+      const bookingWithDetails = await Booking.findByPk(booking_id, {
+        include: [
+          { model: Agent, as: "Agent" },
+          { model: Passenger, as: "passengers" },
+          { model: TransportBooking, as: "transportBookings" },
+        ],
+      });
+
+      // Attach commission and transport total from queue data instead of querying
+      bookingWithDetails.totalCommission = commission_amount;
+      bookingWithDetails.transportTotal = transportTotal;
+
+      // Fetch schedule with destinations separately if needed
+      if (bookingWithDetails && bookingWithDetails.schedule_id) {
+        bookingWithDetails.schedule = await Schedule.findByPk(bookingWithDetails.schedule_id, {
+          include: [
+            { model: Boat, as: "Boat" },
+            {
+              model: Transit,
+              as: "Transits",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            { model: Destination, as: "FromDestination" },
+            { model: Destination, as: "ToDestination" },
+          ]
+        });
+      }
+
+      // Fetch subschedule with transits separately if needed
+      if (bookingWithDetails && bookingWithDetails.subschedule_id) {
+        bookingWithDetails.subSchedule = await SubSchedule.findByPk(bookingWithDetails.subschedule_id, {
+          include: [
+            { model: Destination, as: "DestinationFrom" },
+            {
+              model: Schedule,
+              as: "Schedule",
+              attributes: [
+                "id",
+                "arrival_time",
+                "departure_time",
+                "journey_time",
+              ],
+            },
+            { model: Destination, as: "DestinationTo" },
+            {
+              model: Transit,
+              as: "TransitFrom",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "TransitTo",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit1",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit2",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit3",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+            {
+              model: Transit,
+              as: "Transit4",
+              include: [{ model: Destination, as: "Destination" }],
+            },
+          ]
+        });
+      }
+
+      if (bookingWithDetails) {
+        await sendEmailApiAgentStaff(
+          process.env.EMAIL_AGENT,
+          bookingWithDetails,
+          bookingWithDetails.Agent?.name || "Unknown Agent",
+          bookingWithDetails.Agent?.email || agent_email
+        );
+        console.log("✅ Email notification sent successfully");
+      }
+    } catch (emailError) {
+      console.error("⚠️ Email sending failed:", emailError.message);
+      // Don't fail the queue if email fails
+    }
+
     done();
   } catch (error) {
     await transaction.rollback();
@@ -536,13 +643,21 @@ const createAgentRoundTripBooking = async (req, res) => {
 
         // 🔟 Add to queue for heavy operations
         bookingAgentRoundQueue.add({
-          ...data,
+          schedule_id: data.schedule_id,
+          subschedule_id: data.subschedule_id,
+          booking_date: data.booking_date,
+          total_passengers: data.total_passengers,
+          transports: data.transports,
+          passengers: data.passengers,
           booking_id: booking.id,
+          agent_id: data.agent_id,
+          agent_email: data.agent_email,
           ticket_total,
           gross_total,
           ticket_id,
           payment_status: "invoiced",
           type,
+          commission_amount: commissionResult?.commission || 0,
         });
 
         return { booking, transaction: transactionEntry, ticketCalculation, commission: commissionResult };
@@ -606,6 +721,9 @@ const createAgentRoundTripBooking = async (req, res) => {
   }
 };
 
+// Track round-trip completion status
+const roundTripCompletionMap = new Map();
+
 bookingAgentRoundQueue.process(async (job, done) => {
   const {
     schedule_id,
@@ -613,8 +731,12 @@ bookingAgentRoundQueue.process(async (job, done) => {
     booking_date,
     total_passengers,
     transports,
+    passengers,
     booking_id,
+    agent_email,
+    ticket_id,
     type,
+    commission_amount,
   } = job.data;
 
   console.log(`\n[Queue] 🌀 Processing ${type.toUpperCase()} booking ID ${booking_id}`);
@@ -622,7 +744,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
   const transaction = await sequelize.transaction();
 
   try {
-    // Step 1: Seat Availability
+    // 1️⃣ Seat Availability
     let remainingSeatAvailabilities;
     if (subschedule_id) {
       remainingSeatAvailabilities = await handleSubScheduleBooking(
@@ -641,7 +763,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
       );
     }
 
-    // Step 2: Pivot BookingSeatAvailability
+    // 2️⃣ Pivot BookingSeatAvailability
     if (remainingSeatAvailabilities && remainingSeatAvailabilities.length > 0) {
       const pivotData = remainingSeatAvailabilities.map((sa) => ({
         booking_id,
@@ -656,7 +778,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
       console.log(`⚠️ No seat availability found for booking ${booking_id}`);
     }
 
-    // Step 3: Add Transport Bookings
+    // 3️⃣ Add Transport Bookings
     if (transports && transports.length > 0) {
       await addTransportBookings(
         transports,
@@ -667,13 +789,201 @@ bookingAgentRoundQueue.process(async (job, done) => {
       console.log(`🚐 Transport bookings added for booking ${booking_id}`);
     }
 
-    // Step 4: Commit transaction
+    // 4️⃣ Add passengers
+    if (passengers && passengers.length > 0) {
+      await addPassengers(passengers, booking_id, transaction);
+      console.log(`✅ Added ${passengers.length} passengers for ${type}`);
+    }
+
     await transaction.commit();
     console.log(`🎉 Agent round-trip queue success for booking ${booking_id}`);
 
-    // sendTelegramMessage(
-    //   `✅ <b>[QUEUE SUCCESS]</b>\nBooking ID: <code>${booking_id}</code>\nType: <code>${type}</code>\n🕒 ${new Date().toLocaleString()}`
-    // );
+    // 5️⃣ Track completion and send email when BOTH legs are done
+    const baseTicketId = ticket_id.replace(/-(DEP|RET)$/, '');
+
+    if (!roundTripCompletionMap.has(baseTicketId)) {
+      roundTripCompletionMap.set(baseTicketId, {
+        [type]: booking_id,
+        [`${type}_commission`]: commission_amount
+      });
+      console.log(`📝 Tracking ${type} for ticket ${baseTicketId}`);
+    } else {
+      const existingData = roundTripCompletionMap.get(baseTicketId);
+      existingData[type] = booking_id;
+      existingData[`${type}_commission`] = commission_amount;
+
+      // Check if both departure and return are completed
+      if (existingData.departure && existingData.return) {
+        console.log(`✅ Both legs completed for ${baseTicketId}, sending email...`);
+
+        try {
+          const departureBooking = await Booking.findByPk(existingData.departure, {
+            include: [
+              { model: Agent, as: "Agent" },
+              { model: Passenger, as: "passengers" },
+              { model: TransportBooking, as: "transportBookings" },
+            ],
+          });
+
+          const returnBooking = await Booking.findByPk(existingData.return, {
+            include: [
+              { model: Agent, as: "Agent" },
+              { model: Passenger, as: "passengers" },
+              { model: TransportBooking, as: "transportBookings" },
+            ],
+          });
+
+          // Attach commission from tracked data
+          departureBooking.totalCommission = existingData.departure_commission || 0;
+          returnBooking.totalCommission = existingData.return_commission || 0;
+
+          // Fetch schedule/subschedule details separately to avoid association conflicts
+          if (departureBooking && departureBooking.schedule_id) {
+            departureBooking.schedule = await Schedule.findByPk(departureBooking.schedule_id, {
+              include: [
+                { model: Boat, as: "Boat" },
+                {
+                  model: Transit,
+                  as: "Transits",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                { model: Destination, as: "FromDestination" },
+                { model: Destination, as: "ToDestination" },
+              ]
+            });
+          }
+
+          if (departureBooking && departureBooking.subschedule_id) {
+            departureBooking.subSchedule = await SubSchedule.findByPk(departureBooking.subschedule_id, {
+              include: [
+                { model: Destination, as: "DestinationFrom" },
+                {
+                  model: Schedule,
+                  as: "Schedule",
+                  attributes: [
+                    "id",
+                    "arrival_time",
+                    "departure_time",
+                    "journey_time",
+                  ],
+                },
+                { model: Destination, as: "DestinationTo" },
+                {
+                  model: Transit,
+                  as: "TransitFrom",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "TransitTo",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit1",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit2",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit3",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit4",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+              ]
+            });
+          }
+
+          if (returnBooking && returnBooking.schedule_id) {
+            returnBooking.schedule = await Schedule.findByPk(returnBooking.schedule_id, {
+              include: [
+                { model: Boat, as: "Boat" },
+                {
+                  model: Transit,
+                  as: "Transits",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                { model: Destination, as: "FromDestination" },
+                { model: Destination, as: "ToDestination" },
+              ]
+            });
+          }
+
+          if (returnBooking && returnBooking.subschedule_id) {
+            returnBooking.subSchedule = await SubSchedule.findByPk(returnBooking.subschedule_id, {
+              include: [
+                { model: Destination, as: "DestinationFrom" },
+                {
+                  model: Schedule,
+                  as: "Schedule",
+                  attributes: [
+                    "id",
+                    "arrival_time",
+                    "departure_time",
+                    "journey_time",
+                  ],
+                },
+                { model: Destination, as: "DestinationTo" },
+                {
+                  model: Transit,
+                  as: "TransitFrom",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "TransitTo",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit1",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit2",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit3",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+                {
+                  model: Transit,
+                  as: "Transit4",
+                  include: [{ model: Destination, as: "Destination" }],
+                },
+              ]
+            });
+          }
+
+          if (departureBooking && returnBooking) {
+            await sendEmailApiRoundTripAgentStaff(
+              process.env.EMAIL_AGENT,
+              departureBooking,
+              returnBooking,
+              departureBooking.Agent?.name || "Unknown Agent",
+              departureBooking.Agent?.email || agent_email
+            );
+            console.log("✅ Round-trip email notification sent successfully");
+          }
+
+          // Clean up tracking
+          roundTripCompletionMap.delete(baseTicketId);
+        } catch (emailError) {
+          console.error("⚠️ Round-trip email sending failed:", emailError.message);
+        }
+      }
+    }
 
     done();
   } catch (error) {
