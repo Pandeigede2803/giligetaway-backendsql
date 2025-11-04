@@ -109,7 +109,7 @@ const notifyQueueError = (error, context, title) => {
 const createAgentBooking = async (req, res) => {
   const bookingData = req.body;
 
-  console.log("Received agent booking data:", bookingData);
+  // console.log("Received agent booking data:", bookingData);
   try {
     // 1️⃣ Validate passenger counts
     validatePassengerCounts(
@@ -118,7 +118,7 @@ const createAgentBooking = async (req, res) => {
       bookingData.infant_passengers || 0,
       bookingData.total_passengers
     );
-    console.log("Step 1: Validate passenger counts");
+    // console.log("Step 1: Validate passenger counts");
 
     // 2️⃣ Calculate ticket total
     const ticketCalculation = await calculateTicketTotal(
@@ -129,7 +129,7 @@ const createAgentBooking = async (req, res) => {
       bookingData.child_passengers,
       bookingData.infant_passengers || 0
     );
-    console.log("Step 2: Calculate ticket total", ticketCalculation);
+    // console.log("Step 2: Calculate ticket total", ticketCalculation);
 
     if (!ticketCalculation.success) {
       return res.status(400).json({
@@ -138,13 +138,13 @@ const createAgentBooking = async (req, res) => {
       });
     }
 
-    console.log("Step 3: Ticket calculation success");
+    // console.log("Step 3: Ticket calculation success");
 
     const calculatedTicketTotal = ticketCalculation.ticketTotal;
 
     // 3️⃣ Generate unique ticket_id
     const ticket_id = await generateOneWayTicketId();
-    console.log("Step 4: Generated ticket ID", ticket_id);
+    // console.log("Step 4: Generated ticket ID", ticket_id);
 
     // 4️⃣ Safety check for duplicates
     const existingBooking = await Booking.findOne({ where: { ticket_id } });
@@ -154,7 +154,7 @@ const createAgentBooking = async (req, res) => {
         message: `The ticket ID '${ticket_id}' is already in use.`,
       });
     }
-    console.log("Step 5: Ticket ID is unique");
+    // console.log("Step 5: Ticket ID is unique");
 
     // 5️⃣ Calculate transport total & gross total
 
@@ -182,7 +182,7 @@ const createAgentBooking = async (req, res) => {
         bookingData.total_passengers
       );
 
-      console.log("Step 7: Seat availability result", seatAvailabilityResult);
+      // console.log("Step 7: Seat availability result", seatAvailabilityResult);
 
       if (!seatAvailabilityResult.success) {
         throw new Error(seatAvailabilityResult.message);
@@ -204,7 +204,7 @@ const createAgentBooking = async (req, res) => {
         },
         { transaction: t }
       );
-      console.log("Step 8: Created booking record", booking.id);
+      // console.log("Step 8: Created booking record", booking.id);
 
       const shortTransactionId = uuidv4().replace(/-/g, "").substring(0, 16);
       const transactionEntry = await createTransaction(
@@ -224,6 +224,11 @@ const createAgentBooking = async (req, res) => {
         "Step 9: Created transaction record",
         transactionEntry.transaction_id
       );
+
+      // 7️⃣ Add passengers
+      if (bookingData.passengers && bookingData.passengers.length > 0) {
+        await addPassengers(bookingData.passengers, booking.id, t);
+      }
 
       // 💰 Langsung hitung dan buat agent commission
       let commissionResult = null;
@@ -287,7 +292,7 @@ const createAgentBooking = async (req, res) => {
         commission_amount: commissionResult?.commission || 0,
         transportTotal: transportTotal,
       });
-      console.log("Step 11: Added booking to processing queue");
+      // console.log("Step 11: Added booking to processing queue");
       return { booking, transactionEntry, commissionResult };
     });
 
@@ -327,14 +332,14 @@ bookingAgentQueue.process(async (job, done) => {
     departure_date,
     total_passengers,
     transports,
-    passengers,
+    // passengers, // Already added in controller, not needed in queue
     booking_id,
     agent_email,
     commission_amount,
     transportTotal
   } = job.data;
 
-  console.log("🔄 Processing Agent Booking Queue:", job.data);
+  // console.log("🔄 Processing Agent Booking Queue:", job.data);
 
   const transaction = await sequelize.transaction();
   try {
@@ -342,7 +347,7 @@ bookingAgentQueue.process(async (job, done) => {
     let remainingSeatAvailabilities;
 
     if (subschedule_id) {
-      console.log(`🧩 Handling sub-schedule booking (${subschedule_id})`);
+      // console.log(`🧩 Handling sub-schedule booking (${subschedule_id})`);
       remainingSeatAvailabilities = await handleSubScheduleBooking(
         schedule_id,
         subschedule_id,
@@ -351,7 +356,7 @@ bookingAgentQueue.process(async (job, done) => {
         transaction
       );
     } else {
-      console.log(`🚤 Handling main schedule booking (${schedule_id})`);
+      // console.log(`🚤 Handling main schedule booking (${schedule_id})`);
       remainingSeatAvailabilities = await handleMainScheduleBooking(
         schedule_id,
         departure_date,
@@ -382,14 +387,10 @@ bookingAgentQueue.process(async (job, done) => {
       await addTransportBookings(transports, booking_id, total_passengers, transaction);
     }
 
-    // 3️⃣ Add passengers
-    if (passengers && passengers.length > 0) {
-      await addPassengers(passengers, booking_id, transaction);
-      console.log(`✅ Added ${passengers.length} passengers`);
-    }
+    // 3️⃣ Passengers already added in controller before queue, skip here to avoid duplicates
 
     await transaction.commit();
-    console.log(`🎉 Queue completed for agent booking ${booking_id}`);
+    // console.log(`🎉 Queue completed for agent booking ${booking_id}`);
 
     // 4️⃣ Send email (after transaction commit, non-blocking)
     try {
@@ -397,7 +398,11 @@ bookingAgentQueue.process(async (job, done) => {
         include: [
           { model: Agent, as: "Agent" },
           { model: Passenger, as: "passengers" },
-          { model: TransportBooking, as: "transportBookings" },
+          {
+            model: TransportBooking,
+            as: "transportBookings",
+            include: [{ model: Transport, as: "transport" }]
+          },
         ],
       });
 
@@ -478,7 +483,7 @@ bookingAgentQueue.process(async (job, done) => {
           bookingWithDetails.Agent?.name || "Unknown Agent",
           bookingWithDetails.Agent?.email || agent_email
         );
-        console.log("✅ Email notification sent successfully");
+        // console.log("✅ Email notification sent successfully");
       }
     } catch (emailError) {
       console.error("⚠️ Email sending failed:", emailError.message);
@@ -515,7 +520,7 @@ const createAgentRoundTripBooking = async (req, res) => {
       // 1️⃣ Generate ticket ID pair ONCE for both legs
       const ticketPair = await generateAgentRoundTripTicketId();
 
-      console.log(`🎫 Generated ticket pair: ${ticketPair.ticket_id_departure} & ${ticketPair.ticket_id_return}`);
+      // console.log(`🎫 Generated ticket pair: ${ticketPair.ticket_id_departure} & ${ticketPair.ticket_id_return}`);
 
       // Helper to process each leg (departure / return)
       const handleLeg = async (data, type, ticket_id) => {
@@ -595,8 +600,12 @@ const createAgentRoundTripBooking = async (req, res) => {
           t
         );
 
-        // 8️⃣ Add passengers directly
-        await addPassengers(data.passengers, booking.id, t);
+        // 8️⃣ Add passengers with correct seat number for this leg
+        const passengersForThisLeg = data.passengers.map(p => ({
+          ...p,
+          seat_number: type === 'departure' ? p.seat_number_departure : p.seat_number_return
+        }));
+        await addPassengers(passengersForThisLeg, booking.id, t);
 
         // 9️⃣ Generate Agent Commission
         let commissionResult = null;
@@ -648,7 +657,7 @@ const createAgentRoundTripBooking = async (req, res) => {
           booking_date: data.booking_date,
           total_passengers: data.total_passengers,
           transports: data.transports,
-          passengers: data.passengers,
+          passengers: data.passengers, // Pass original passengers with both seat numbers
           booking_id: booking.id,
           agent_id: data.agent_id,
           agent_email: data.agent_email,
@@ -731,7 +740,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
     booking_date,
     total_passengers,
     transports,
-    passengers,
+    passengers, // Keep for passing to email
     booking_id,
     agent_email,
     ticket_id,
@@ -739,7 +748,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
     commission_amount,
   } = job.data;
 
-  console.log(`\n[Queue] 🌀 Processing ${type.toUpperCase()} booking ID ${booking_id}`);
+  // console.log(`\n[Queue] 🌀 Processing ${type.toUpperCase()} booking ID ${booking_id}`);
 
   const transaction = await sequelize.transaction();
 
@@ -786,42 +795,63 @@ bookingAgentRoundQueue.process(async (job, done) => {
         total_passengers,
         transaction
       );
-      console.log(`🚐 Transport bookings added for booking ${booking_id}`);
+      // console.log(`🚐 Transport bookings added for booking ${booking_id}`);
     }
 
-    // 4️⃣ Add passengers
-    if (passengers && passengers.length > 0) {
-      await addPassengers(passengers, booking_id, transaction);
-      console.log(`✅ Added ${passengers.length} passengers for ${type}`);
-    }
+    // 4️⃣ Passengers already added in controller before queue, skip here to avoid duplicates
 
     await transaction.commit();
-    console.log(`🎉 Agent round-trip queue success for booking ${booking_id}`);
+    // console.log(`🎉 Agent round-trip queue success for booking ${booking_id}`);
 
     // 5️⃣ Track completion and send email when BOTH legs are done
-    const baseTicketId = ticket_id.replace(/-(DEP|RET)$/, '');
+    // Extract base number from ticket (GG-RT-429813 -> 429812 for pairing)
+    // Departure tickets are odd numbers, return tickets are even (odd + 1)
+    // So we use (ticketNumber - 1) to get the base, which is always even
+    const ticketMatch = ticket_id.match(/GG-RT-(\d+)/);
+    if (!ticketMatch) {
+      console.error(`⚠️ Invalid ticket format: ${ticket_id}`);
+      done();
+      return;
+    }
+
+    const ticketNumber = parseInt(ticketMatch[1]);
+    const baseNumber = ticketNumber % 2 === 0 ? ticketNumber - 1 : ticketNumber; // Convert to odd (departure) number
+    const baseTicketId = `GG-RT-${baseNumber}`;
 
     if (!roundTripCompletionMap.has(baseTicketId)) {
       roundTripCompletionMap.set(baseTicketId, {
         [type]: booking_id,
-        [`${type}_commission`]: commission_amount
+        [`${type}_commission`]: commission_amount,
+        [`${type}_ticket`]: ticket_id,
+        passengers, // Store original passengers array for email
+        agent_email
       });
-      console.log(`📝 Tracking ${type} for ticket ${baseTicketId}`);
+      // console.log(`📝 Tracking ${type} for base ticket ${baseTicketId} (actual: ${ticket_id})`);
     } else {
       const existingData = roundTripCompletionMap.get(baseTicketId);
       existingData[type] = booking_id;
       existingData[`${type}_commission`] = commission_amount;
+      existingData[`${type}_ticket`] = ticket_id;
+      existingData.passengers = passengers; // Update passengers
+      existingData.agent_email = agent_email;
 
       // Check if both departure and return are completed
       if (existingData.departure && existingData.return) {
-        console.log(`✅ Both legs completed for ${baseTicketId}, sending email...`);
+        // console.log(`✅ Both legs completed for ${baseTicketId}`);
+        // console.log(`   Departure: ${existingData.departure_ticket} (ID: ${existingData.departure})`);
+        // console.log(`   Return: ${existingData.return_ticket} (ID: ${existingData.return})`);
+        // console.log(`   📧 Sending round-trip email...`);
 
         try {
           const departureBooking = await Booking.findByPk(existingData.departure, {
             include: [
               { model: Agent, as: "Agent" },
               { model: Passenger, as: "passengers" },
-              { model: TransportBooking, as: "transportBookings" },
+              {
+                model: TransportBooking,
+                as: "transportBookings",
+                include: [{ model: Transport, as: "transport" }]
+              },
             ],
           });
 
@@ -829,7 +859,11 @@ bookingAgentRoundQueue.process(async (job, done) => {
             include: [
               { model: Agent, as: "Agent" },
               { model: Passenger, as: "passengers" },
-              { model: TransportBooking, as: "transportBookings" },
+              {
+                model: TransportBooking,
+                as: "transportBookings",
+                include: [{ model: Transport, as: "transport" }]
+              },
             ],
           });
 
@@ -972,9 +1006,10 @@ bookingAgentRoundQueue.process(async (job, done) => {
               departureBooking,
               returnBooking,
               departureBooking.Agent?.name || "Unknown Agent",
-              departureBooking.Agent?.email || agent_email
+              departureBooking.Agent?.email || existingData.agent_email,
+              existingData.passengers // Pass original passengers array with both seat numbers
             );
-            console.log("✅ Round-trip email notification sent successfully");
+            // console.log("✅ Round-trip email notification sent successfully");
           }
 
           // Clean up tracking

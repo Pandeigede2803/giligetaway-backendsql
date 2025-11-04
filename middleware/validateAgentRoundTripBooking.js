@@ -14,7 +14,7 @@ module.exports = async (req, res, next) => {
   try {
     const { agent_id, departure, return: returnData } = req.body;
 
-    console.log("🔍 Validating agent round trip booking data");
+    // console.log("🔍 Validating agent round trip booking data");
 
     // ============================================
     // 1. Validate top-level structure
@@ -52,7 +52,7 @@ module.exports = async (req, res, next) => {
           message: `No agent found with ID ${parsedAgentId}`,
         });
       }
-      console.log(`✅ Agent validated: ${agent.name}`);
+      // console.log(`✅ Agent validated: ${agent.name}`);
 
       // Attach validated agent_id to both legs
       req.body.departure.agent_id = parsedAgentId;
@@ -63,7 +63,7 @@ module.exports = async (req, res, next) => {
     // 3. Validate each leg (departure & return)
     // ============================================
     const validateLeg = async (legData, legName) => {
-      console.log(`🔍 Validating ${legName} leg`);
+      // console.log(`🔍 Validating ${legName} leg`);
 
       // 3.1 Validate schedule_id
       const scheduleId = parseInt(legData.schedule_id?.value || legData.schedule_id);
@@ -82,7 +82,7 @@ module.exports = async (req, res, next) => {
           message: `No schedule found with ID ${scheduleId}`,
         };
       }
-      console.log(`✅ ${legName} schedule found: ${schedule.id}`);
+      // console.log(`✅ ${legName} schedule found: ${schedule.id}`);
 
       // 3.2 Validate subschedule_id (if provided)
       if (legData.subschedule_id) {
@@ -112,7 +112,7 @@ module.exports = async (req, res, next) => {
             message: `SubSchedule ID ${subScheduleId} does not belong to Schedule ID ${scheduleId}`,
           };
         }
-        console.log(`✅ ${legName} subschedule found: ${subSchedule.id}`);
+        // console.log(`✅ ${legName} subschedule found: ${subSchedule.id}`);
       }
 
       // 3.3 Validate booking_date
@@ -157,9 +157,9 @@ module.exports = async (req, res, next) => {
       legData.infant_passengers = infantPassengers;
       legData.total_passengers = totalPassengers;
 
-      console.log(
-        `✅ ${legName} passengers validated: ${totalPassengers} total (${adultPassengers}A, ${childPassengers}C, ${infantPassengers}I)`
-      );
+      // console.log(
+      //   `✅ ${legName} passengers validated: ${totalPassengers} total (${adultPassengers}A, ${childPassengers}C, ${infantPassengers}I)`
+      // );
 
       // 3.5 Validate contact information
       const requiredContactFields = [
@@ -224,7 +224,7 @@ module.exports = async (req, res, next) => {
         }
       }
 
-      console.log(`✅ ${legName} passengers array validated: ${legData.passengers.length} passengers`);
+      // console.log(`✅ ${legName} passengers array validated: ${legData.passengers.length} passengers`);
 
       // 3.7 Validate transports (if provided)
       if (Array.isArray(legData.transports)) {
@@ -252,7 +252,7 @@ module.exports = async (req, res, next) => {
           const quantity = parseInt(transport.quantity) || 1;
           transport.quantity = quantity;
         }
-        console.log(`✅ ${legName} transports validated: ${legData.transports.length} items`);
+        // console.log(`✅ ${legName} transports validated: ${legData.transports.length} items`);
       }
 
       // 3.8 Validate currency
@@ -271,7 +271,7 @@ module.exports = async (req, res, next) => {
         };
       }
 
-      console.log(`✅ ${legName} leg validation completed`);
+      // console.log(`✅ ${legName} leg validation completed`);
       return null; // No error
     };
 

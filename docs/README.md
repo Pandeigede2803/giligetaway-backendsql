@@ -6,6 +6,13 @@ This directory contains technical documentation for the Gili Getaway Backend sys
 
 ## Recent Updates
 
+### Agent Booking Email Enhancement (Nov 4, 2025)
+
+Enhanced round-trip booking emails with complete passenger details and transport information.
+
+**Quick Links:**
+- 📧 [Email Enhancement Guide](agent-booking-email-enhancement.md) - Complete documentation of passenger data flow and email improvements
+
 ### CronJob Error Fix (Nov 3, 2025)
 
 Critical bug fix for expired booking processing with Telegram error notifications.
@@ -20,13 +27,19 @@ Critical bug fix for expired booking processing with Telegram error notification
 
 ## Documentation Files
 
+### Feature Enhancements
+
+| File | Description | Language | Status |
+|------|-------------|----------|--------|
+| [agent-booking-email-enhancement.md](agent-booking-email-enhancement.md) | Round-trip email passenger details & transport info fix | 🇬🇧 EN | ✅ Current |
+
 ### Bug Fixes & Analysis
 
-| File | Description | Language |
-|------|-------------|----------|
-| [CRONJOB-ERROR-FIX-SUMMARY.md](CRONJOB-ERROR-FIX-SUMMARY.md) | Quick summary of the cronjob error fix | 🇬🇧 EN |
-| [bug-fix-cronjob-release-seats-error.md](bug-fix-cronjob-release-seats-error.md) | Detailed analysis of cronjob release seats error | 🇬🇧 EN |
-| [bug-fix-cronjob-release-seats-error-id.md](bug-fix-cronjob-release-seats-error-id.md) | Analisis detail error release seats di cronjob | 🇮🇩 ID |
+| File | Description | Language | Status |
+|------|-------------|----------|--------|
+| [CRONJOB-ERROR-FIX-SUMMARY.md](CRONJOB-ERROR-FIX-SUMMARY.md) | Quick summary of the cronjob error fix | 🇬🇧 EN | ✅ Current |
+| [bug-fix-cronjob-release-seats-error.md](bug-fix-cronjob-release-seats-error.md) | Detailed analysis of cronjob release seats error | 🇬🇧 EN | ✅ Current |
+| [bug-fix-cronjob-release-seats-error-id.md](bug-fix-cronjob-release-seats-error-id.md) | Analisis detail error release seats di cronjob | 🇮🇩 ID | ✅ Current |
 
 ### Setup Guides
 
@@ -115,4 +128,4 @@ Links to related documentation
 
 ---
 
-Last Updated: November 3, 2025
+Last Updated: November 4, 2025

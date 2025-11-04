@@ -3,8 +3,8 @@ const { Agent } = require('../models');
 const validateApiKey = async (req, res, next) => {
   const agent_id = req.body.agent_id || req.query.agent_id;
   const api_key = req.body.api_key || req.query.api_key;
-  console.log('Validating API key... agent_id:', agent_id, 'api_key:', api_key);
-  console.log("req.body", JSON.stringify(req.body, null, 2));
+  // console.log('Validating API key... agent_id:', agent_id, 'api_key:', api_key);
+  // console.log("req.body", JSON.stringify(req.body, null, 2));
 
   if (!agent_id || !api_key) {
     console.log(
