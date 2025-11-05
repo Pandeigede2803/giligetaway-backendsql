@@ -3,7 +3,7 @@ const { runCustomEmailJob } = require("../controllers/customEmailSchedulerContro
 const { sendTelegramMessage } = require("./telegram");
 
 const scheduleCustomEmailJob = () => {
-  const cronFrequency = process.env.CRON_FREQUENCY_CUSTOM_EMAIL || "*/40 * * * *"; // Default tiap 10 menit
+  const cronFrequency = process.env.CRON_FREQUENCY_CUSTOM_EMAIL || "0 */2 * * *"; // Default tiap 2 jam
 
   console.log(`📆 Registering CustomEmailCron with frequency: ${cronFrequency}`);
 

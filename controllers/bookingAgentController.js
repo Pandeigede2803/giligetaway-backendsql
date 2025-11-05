@@ -53,6 +53,7 @@ const { checkSeatAvailability } = require("../util/checkSeatNumber");
 const {
   generateMidtransToken,
 } = require("../util/payment/generateMidtransToken"); // MidTrans utility
+const getExchangeRate = require("../util/getExchangeRate");
 const {
   handleMultipleSeatsBooking,
 } = require("../util/handleMultipleSeatsBooking");
@@ -173,7 +174,27 @@ const createAgentBooking = async (req, res) => {
       grossTotal,
     });
 
-    // 6️⃣ Create booking + transaction
+    // 6️⃣ Fetch exchange rate and calculate USD total
+    let exchangeRate = null;
+    let grossTotalInUsd = null;
+
+    if (bookingData.currency === "IDR") {
+      try {
+        exchangeRate = await getExchangeRate("IDR");
+        grossTotalInUsd = (grossTotal / exchangeRate).toFixed(2);
+        console.log("Step 6a: Exchange rate fetched", {
+          exchangeRate,
+          grossTotalInUsd,
+        });
+      } catch (error) {
+        console.warn("⚠️ Failed to fetch exchange rate:", error.message);
+      }
+    } else if (bookingData.currency === "USD") {
+      exchangeRate = 1;
+      grossTotalInUsd = grossTotal;
+    }
+
+    // 7️⃣ Create booking + transaction
     const result = await sequelize.transaction(async (t) => {
       const seatAvailabilityResult = await validateSeatAvailabilitySingleTrip(
         bookingData.schedule_id,
@@ -195,8 +216,11 @@ const createAgentBooking = async (req, res) => {
           ticket_id,
           ticket_total: calculatedTicketTotal,
           gross_total: grossTotal,
+          gross_total_in_usd: grossTotalInUsd,
+          exchange_rate: exchangeRate,
           payment_status: "invoiced",
           payment_method: "invoiced",
+          booked_by: "api booking agent",
           booking_source: "agent",
           expiration_time: new Date(
             Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
@@ -567,6 +591,22 @@ const createAgentRoundTripBooking = async (req, res) => {
         const { transportTotal } = calculateTotals(data.transports);
         const gross_total = ticket_total + transportTotal;
 
+        // 5a️⃣ Fetch exchange rate and calculate USD total
+        let exchangeRate = null;
+        let grossTotalInUsd = null;
+
+        if (data.currency === "IDR") {
+          try {
+            exchangeRate = await getExchangeRate("IDR");
+            grossTotalInUsd = (gross_total / exchangeRate).toFixed(2);
+          } catch (error) {
+            console.warn(`⚠️ [${type}] Failed to fetch exchange rate:`, error.message);
+          }
+        } else if (data.currency === "USD") {
+          exchangeRate = 1;
+          grossTotalInUsd = gross_total;
+        }
+
         // 6️⃣ Create booking
         const booking = await Booking.create(
           {
@@ -574,9 +614,12 @@ const createAgentRoundTripBooking = async (req, res) => {
             ticket_id,
             ticket_total,
             gross_total,
+            gross_total_in_usd: grossTotalInUsd,
+            exchange_rate: exchangeRate,
             payment_status: "invoiced",
             payment_method: "invoiced",
             booking_source: "agent",
+             booked_by: "api booking agent",
             expiration_time: new Date(
               Date.now() + (process.env.EXPIRATION_TIME_MINUTES || 30) * 60000
             ),
