@@ -77,18 +77,6 @@ const sendUnpaidReminders = async () => {
     const customerEmail = booking.contact_email || booking.email;
     const agentEmail = booking.Agent?.email || null;
 
-    // === 🆕 SEND FOLLOW-UP PAYMENT EMAIL at hour 1 if no reminder yet ===
-    if (booking.reminder_hours === 0 && hoursSince >= 1) {
-      try {
-        await sendFollowUpPaymentEmail(booking);
-        if (enableLogging) {
-          console.log(`📩 Fallback follow-up email sent at 1h for Booking ID ${booking.id}`);
-        }
-      } catch (err) {
-        console.error(`❌ Failed to send fallback follow-up email for Booking ID ${booking.id}:`, err);
-      }
-    }
-
     if (enableLogging) {
       console.log(
         `🕓 Booking ID ${booking.id} | hoursSince=${hoursSince} | reminder_hours=${booking.reminder_hours}`

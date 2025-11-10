@@ -4,9 +4,9 @@ const validateScheduleAndSubSchedule = async (req, res, next) => {
   try {
     const { schedule_id, subschedule_id } = req.body;
 
-    console.log('Starting validation for schedule_id and subschedule_id...');
-    console.log(`Received schedule_id: ${schedule_id}`);
-    console.log(`Received subschedule_id: ${subschedule_id}`);
+    // console.log('Starting validation for schedule_id and subschedule_id...');
+    // console.log(`Received schedule_id: ${schedule_id}`);
+    // console.log(`Received subschedule_id: ${subschedule_id}`);
 
     // Step 1: Check if schedule_id exists in the Schedule table
     const schedule = await Schedule.findByPk(schedule_id);

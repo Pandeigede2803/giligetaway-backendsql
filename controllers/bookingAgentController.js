@@ -48,8 +48,7 @@ const bookingAgentQueue = new Queue("bookingAgentQueue"); // Inisialisasi Bull Q
 const bookingAgentRoundQueue = new Queue("bookingAgentRoundQueue");
 const { sendTelegramMessage } = require("../util/telegram");
 
-const { createPayPalOrder } = require("../util/payment/paypal"); // PayPal utility
-const { checkSeatAvailability } = require("../util/checkSeatNumber");
+
 const {
   generateMidtransToken,
 } = require("../util/payment/generateMidtransToken"); // MidTrans utility
@@ -60,8 +59,7 @@ const {
 const validateSeatAvailability = require("../util/validateSeatAvailability");
 const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabilitySingleTrip");
 const AgentCommission = require("../models/AgentComission");
-const { buildRouteFromSchedule } = require("../util/buildRoute");
-const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
+
 const {
   buildRouteFromSchedule2,
 } = require("../util/schedulepassenger/buildRouteFromSchedule");
@@ -69,6 +67,7 @@ const { formatBookingsToText } = require("../util/bookingSummaryCron");
 const {
   sendEmailApiAgentStaff,
   sendEmailApiRoundTripAgentStaff,
+  sendAgentBookingSuccessEmail,
 } = require("../util/sendPaymentEmailApiAgent");
 
 // ===============================
@@ -507,7 +506,24 @@ bookingAgentQueue.process(async (job, done) => {
           bookingWithDetails.Agent?.name || "Unknown Agent",
           bookingWithDetails.Agent?.email || agent_email
         );
-        // console.log("✅ Email notification sent successfully");
+        // console.log("✅ Staff email notification sent successfully");
+
+        // Send success email to agent
+        const routeInfo = bookingWithDetails.subSchedule
+          ? `${bookingWithDetails.subSchedule.DestinationFrom?.name || bookingWithDetails.subSchedule.TransitFrom?.Destination?.name || 'Origin'} → ${bookingWithDetails.subSchedule.DestinationTo?.name || bookingWithDetails.subSchedule.TransitTo?.Destination?.name || 'Destination'}`
+          : `${bookingWithDetails.schedule?.FromDestination?.name || 'Origin'} → ${bookingWithDetails.schedule?.ToDestination?.name || 'Destination'}`;
+
+        await sendAgentBookingSuccessEmail({
+          agentEmail: bookingWithDetails.Agent?.email || agent_email,
+          agentName: bookingWithDetails.Agent?.name || "Agent",
+          ticketId: bookingWithDetails.ticket_id,
+          contactName: bookingWithDetails.contact_name,
+          bookingDate: bookingWithDetails.booking_date,
+          routeInfo,
+          invoiceDownloadUrl: `${process.env.FRONTEND_URL}/invoice/${bookingWithDetails.ticket_id}`,
+          ticketDownloadUrl: `${process.env.FRONTEND_URL}/ticket/${bookingWithDetails.ticket_id}`,
+        });
+        // console.log("✅ Agent email notification sent successfully");
       }
     } catch (emailError) {
       console.error("⚠️ Email sending failed:", emailError.message);
@@ -1052,7 +1068,40 @@ bookingAgentRoundQueue.process(async (job, done) => {
               departureBooking.Agent?.email || existingData.agent_email,
               existingData.passengers // Pass original passengers array with both seat numbers
             );
-            // console.log("✅ Round-trip email notification sent successfully");
+            // console.log("✅ Staff round-trip email notification sent successfully");
+
+            // Send success email to agent for departure
+            const departureRouteInfo = departureBooking.subSchedule
+              ? `${departureBooking.subSchedule.DestinationFrom?.name || departureBooking.subSchedule.TransitFrom?.Destination?.name || 'Origin'} → ${departureBooking.subSchedule.DestinationTo?.name || departureBooking.subSchedule.TransitTo?.Destination?.name || 'Destination'}`
+              : `${departureBooking.schedule?.FromDestination?.name || 'Origin'} → ${departureBooking.schedule?.ToDestination?.name || 'Destination'}`;
+
+            await sendAgentBookingSuccessEmail({
+              agentEmail: departureBooking.Agent?.email || existingData.agent_email,
+              agentName: departureBooking.Agent?.name || "Agent",
+              ticketId: departureBooking.ticket_id,
+              contactName: departureBooking.contact_name,
+              bookingDate: departureBooking.booking_date,
+              routeInfo: `${departureRouteInfo} (Departure)`,
+              invoiceDownloadUrl: `${process.env.FRONTEND_URL}/invoice/${departureBooking.ticket_id}`,
+              ticketDownloadUrl: `${process.env.FRONTEND_URL}/ticket/${departureBooking.ticket_id}`,
+            });
+
+            // Send success email to agent for return
+            const returnRouteInfo = returnBooking.subSchedule
+              ? `${returnBooking.subSchedule.DestinationFrom?.name || returnBooking.subSchedule.TransitFrom?.Destination?.name || 'Origin'} → ${returnBooking.subSchedule.DestinationTo?.name || returnBooking.subSchedule.TransitTo?.Destination?.name || 'Destination'}`
+              : `${returnBooking.schedule?.FromDestination?.name || 'Origin'} → ${returnBooking.schedule?.ToDestination?.name || 'Destination'}`;
+
+            await sendAgentBookingSuccessEmail({
+              agentEmail: returnBooking.Agent?.email || existingData.agent_email,
+              agentName: returnBooking.Agent?.name || "Agent",
+              ticketId: returnBooking.ticket_id,
+              contactName: returnBooking.contact_name,
+              bookingDate: returnBooking.booking_date,
+              routeInfo: `${returnRouteInfo} (Return)`,
+              invoiceDownloadUrl: `${process.env.FRONTEND_URL}/invoice/${returnBooking.ticket_id}`,
+              ticketDownloadUrl: `${process.env.FRONTEND_URL}/ticket/${returnBooking.ticket_id}`,
+            });
+            // console.log("✅ Agent round-trip email notifications sent successfully");
           }
 
           // Clean up tracking

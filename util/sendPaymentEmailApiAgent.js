@@ -69,8 +69,7 @@ const sendEmailApiAgentStaff = async (
 
   // // console log final state
   // //console.log("final state", JSON.stringify(booking.final_state, null, 2));
-
-  const subject = `API BOOKING A new Agent booking has been made from ${agentName} in the system using API. Please see the details below: - Gili Getaway ${booking.contact_name} - Ticket ID: ${booking.ticket_id}`;
+  const subject = `API AGENT BOOKING - ${agentName} - ${booking.ticket_id}`;
 
   const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
@@ -124,7 +123,7 @@ const sendEmailApiAgentStaff = async (
       <div style="line-height: 1.7;">
         <div style="font-weight: 600; margin-bottom: 5px;">Gili Getaway Fast Boat</div>
         <div style="margin-bottom: 5px;">
-          <a href="mailto:bookings@giligetaway.com" style="color: #007bff; text-decoration: none;">bookings@giligetaway.com</a>
+          <a href="mailto:agentbookings@giligetaway.com" style="color: #007bff; text-decoration: none;">agentbookings@giligetaway.com</a>
         </div>
         <div style="color: #666;">Serangan, Bali</div>
       </div>
@@ -434,7 +433,7 @@ const sendEmailApiAgentStaff = async (
 
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to:"bajuboss21@gmail.com",
+    to: process.env.EMAIL_AGENT,
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
@@ -480,7 +479,7 @@ const sendEmailApiRoundTripAgentStaff = async (
 ) => {
   // //console.log("firstBooking", firstBooking, secondBooking);
   const emailUrl = process.env.FRONTEND_URL;
-  const subject = `API BOOKING ROUND TRIP TICKET – ${agentName} Gili Getaway ${firstBooking.ticket_id}`;
+  const subject = `API BOOKING ROUND TRIP - ${firstBooking.ticket_id} -${agentName}`;
 
   const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
@@ -557,7 +556,7 @@ const sendEmailApiRoundTripAgentStaff = async (
       <div style="line-height: 1.7;">
         <div style="font-weight: 600; margin-bottom: 5px;">Gili Getaway Fast Boat</div>
         <div style="margin-bottom: 5px;">
-          <a href="mailto:bookings@giligetaway.com" style="color: #007bff; text-decoration: none;">bookings@giligetaway.com</a>
+          <a href="mailto:agentbookings@giligetaway.com" style="color: #007bff; text-decoration: none;">agentbookings@giligetaway.com</a>
         </div>
         <div style="color: #666;">Serangan, Bali</div>
       </div>
@@ -825,7 +824,7 @@ const sendEmailApiRoundTripAgentStaff = async (
 
   <!-- FOOTER -->
   <div style="text-align: center; color: #666; font-size: 14px;">
-    <p>If you have any questions, contact us at <a href="mailto:bookings@giligetaway.com" style="color: #007bff;">bookings@giligetaway.com</a></p>
+    <p>If you have any questions, contact us at <a href="mailto:agentbookings@giligetaway.com" style="color: #007bff;">agentbookings@giligetaway.com</a></p>
     <p>Thank you for choosing Gili Getaway!</p>
   </div>
 
@@ -833,8 +832,124 @@ const sendEmailApiRoundTripAgentStaff = async (
   `;
 
   const mailOptions = {
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_AGENT,
+    subject,
+    html: message,
+  };
+
+  const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
-    to: "bajuboss21@gmail.com",
+    to: process.env.EMAIL_AGENT,
+    subject,
+    html: message,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error(
+      "Main transporter failed, falling back to Titan:",
+      error.message
+    );
+
+    try {
+      await transporterTitan.sendMail(mailOptionsTitan);
+    } catch (titanError) {
+      console.error(
+        "Both main and fallback transporters failed:",
+        titanError.message
+      );
+      await sendTelegramMessage(titanError);
+      throw titanError;
+    }
+  }
+};
+
+
+const sendAgentBookingSuccessEmail = async ({
+  agentEmail,
+  agentName,
+  ticketId,
+  contactName,
+  bookingDate,
+  routeInfo,
+  invoiceDownloadUrl,
+  ticketDownloadUrl,
+}) => {
+  const subject = `Booking Confirmed - ${ticketId}`;
+
+  const message = `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
+
+  <!-- HEADER -->
+  <div style="background: linear-gradient(135deg, #165297 0%, #134782 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <img src="https://ik.imagekit.io/m1akscp5q/landing%20page%20giligetaway/Logo-02.jpg?updatedAt=1745113322565"
+         alt="Gili Getaway"
+         style="max-width: 180px; height: auto; margin-bottom: 15px;" />
+    <h1 style="margin: 0; font-size: 28px;">Booking Success! 🎉</h1>
+  </div>
+
+  <!-- BODY -->
+  <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+
+    <p style="font-size: 16px; color: #333; margin-bottom: 10px;">
+      Dear <strong>${agentName}</strong>,
+    </p>
+
+    <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
+      Thank you for your booking! Your reservation has been successfully confirmed.
+    </p>
+
+    <!-- BOOKING DETAILS -->
+    <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; border-left: 4px solid #165297; margin-bottom: 25px;">
+      <h3 style="margin-top: 0; color: #165297;">Booking Details</h3>
+      <table style="width: 100%; font-size: 15px; color: #333;">
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600;">Ticket ID:</td>
+          <td style="padding: 8px 0;">${ticketId}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600;">Passenger Name:</td>
+          <td style="padding: 8px 0;">${contactName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600;">Travel Date:</td>
+          <td style="padding: 8px 0;">${moment(bookingDate).format("DD MMM YYYY")}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; font-weight: 600;">Route:</td>
+          <td style="padding: 8px 0;">${routeInfo}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- DOWNLOAD BUTTONS -->
+    <div style="display: flex; gap: 15px; margin-bottom: 40px; flex-wrap: wrap;">
+      <a href="${invoiceDownloadUrl}"
+         style="flex: 1; min-width: 200px; padding: 15px 20px; background: #165297; color: white; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px; display: block;">
+        📄 Download Invoice
+      </a>
+      <a href="${ticketDownloadUrl}"
+         style="flex: 1; min-width: 200px; padding: 15px 20px; background: #FFBF00; color: #134782; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px; display: block;">
+        🎫 Download Ticket
+      </a>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="text-align: center; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
+      <p>If you have any questions, contact us at <a href="mailto:agentbookings@giligetaway.com" style="color: #2991D6;">agentbookings@giligetaway.com</a></p>
+      <p>Thank you for choosing Gili Getaway!</p>
+    </div>
+
+  </div>
+
+</div>
+  `;
+
+  const mailOptions = {
+    from: process.env.EMAIL_AGENT,
+    to: agentEmail,
     subject,
     html: message,
   };
@@ -842,8 +957,8 @@ const sendEmailApiRoundTripAgentStaff = async (
   await transporterTitan.sendMail(mailOptions);
 };
 
-
 module.exports = {
   sendEmailApiAgentStaff,
   sendEmailApiRoundTripAgentStaff,
+  sendAgentBookingSuccessEmail,
 };

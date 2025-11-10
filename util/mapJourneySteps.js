@@ -11,9 +11,10 @@
 /**
  * Generate journey steps based on schedule and transits.
  * @param {Object} schedule - Schedule object from DB (with Transits, FromDestination, ToDestination).
+ * @param {Object} subSchedule - SubSchedule object (optional, for filtering actual route).
  * @returns {JourneyStep[]}
  */
-const mapJourneySteps = (schedule) => {
+const mapJourneySteps = (schedule, subSchedule = null) => {
   if (!schedule) return [];
 
   const calculateDuration = (startTime, endTime) => {
@@ -40,17 +41,87 @@ const mapJourneySteps = (schedule) => {
     return date.toTimeString().slice(0, 8);
   };
 
+  // If subSchedule exists, use its from/to destinations
+  let fromDestination, toDestination, departureTime, arrivalTime, checkInTime;
+
+  if (subSchedule) {
+    // SubSchedule has specific route segment
+    fromDestination = subSchedule.DestinationFrom || subSchedule.TransitFrom?.Destination;
+    toDestination = subSchedule.DestinationTo || subSchedule.TransitTo?.Destination;
+
+    // Determine departure time
+    if (subSchedule.TransitFrom) {
+      departureTime = subSchedule.TransitFrom.departure_time;
+    } else {
+      departureTime = schedule.departure_time;
+    }
+
+    // Determine arrival time
+    if (subSchedule.TransitTo) {
+      arrivalTime = subSchedule.TransitTo.arrival_time;
+    } else if (subSchedule.DestinationTo) {
+      arrivalTime = schedule.arrival_time;
+    } else {
+      arrivalTime = schedule.arrival_time;
+    }
+
+    checkInTime = subSchedule.Schedule?.check_in_time || schedule.check_in_time;
+  } else {
+    // Main schedule: full route
+    fromDestination = schedule.FromDestination;
+    toDestination = schedule.ToDestination;
+    departureTime = schedule.departure_time;
+    arrivalTime = schedule.arrival_time;
+    checkInTime = schedule.check_in_time;
+  }
+
   const steps = [];
-  const transits = schedule.Transits || [];
+  const allTransits = schedule.Transits || [];
+
+  // Filter transits: only include those BETWEEN fromDestination and toDestination
+  let filteredTransits = [];
+
+  if (subSchedule && allTransits.length > 0) {
+    const fromDestId = fromDestination?.id;
+    const toDestId = toDestination?.id;
+
+    // Find indices of from/to in the transit chain
+    let fromIsOrigin = fromDestId === schedule.FromDestination?.id;
+    let toIsFinalDest = toDestId === schedule.ToDestination?.id;
+
+    let fromTransitIndex = fromIsOrigin ? -1 : allTransits.findIndex(t => t.destination_id === fromDestId);
+    let toTransitIndex = toIsFinalDest ? allTransits.length : allTransits.findIndex(t => t.destination_id === toDestId);
+
+    // Get transits BETWEEN from and to (not including them)
+    if (fromTransitIndex !== -1 && toTransitIndex !== -1) {
+      // fromTransitIndex + 1 = start after the from transit
+      // toTransitIndex = stop before the to transit
+      filteredTransits = allTransits.slice(fromTransitIndex + 1, toTransitIndex);
+    } else if (fromIsOrigin && toTransitIndex !== -1) {
+      // From origin to a transit: include transits before the to transit
+      filteredTransits = allTransits.slice(0, toTransitIndex);
+    } else if (fromTransitIndex !== -1 && toIsFinalDest) {
+      // From a transit to final destination: include transits after the from transit
+      filteredTransits = allTransits.slice(fromTransitIndex + 1);
+    } else if (fromIsOrigin && toIsFinalDest) {
+      // Full route
+      filteredTransits = allTransits;
+    }
+  } else if (!subSchedule) {
+    // Use all transits for main schedule
+    filteredTransits = allTransits;
+  }
+
+  const transits = filteredTransits;
 
   if (transits.length > 0) {
     steps.push({
-      departuretime: schedule.departure_time,
+      departuretime: departureTime,
       timearrived: transits[0].arrival_time,
-      duration: calculateDuration(schedule.departure_time, transits[0].arrival_time),
-      departure: schedule.FromDestination?.name || 'Origin',
+      duration: calculateDuration(departureTime, transits[0].arrival_time),
+      departure: fromDestination?.name || 'Origin',
       arrived: transits[0].Destination?.name || 'Transit',
-      checkInTime: schedule.check_in_time,
+      checkInTime: checkInTime,
     });
 
     for (let i = 0; i < transits.length - 1; i++) {
@@ -60,27 +131,27 @@ const mapJourneySteps = (schedule) => {
         duration: calculateDuration(transits[i].departure_time, transits[i + 1].arrival_time),
         departure: transits[i].Destination?.name || 'Transit',
         arrived: transits[i + 1].Destination?.name || 'Transit',
-        checkInTime: subtractThirtyMinutes(transits[i + 1].departure_time),
+        checkInTime: subtractThirtyMinutes(transits[i].departure_time),
       });
     }
 
     const lastTransit = transits[transits.length - 1];
     steps.push({
       departuretime: lastTransit.departure_time,
-      timearrived: schedule.arrival_time,
-      duration: calculateDuration(lastTransit.departure_time, schedule.arrival_time),
+      timearrived: arrivalTime,
+      duration: calculateDuration(lastTransit.departure_time, arrivalTime),
       departure: lastTransit.Destination?.name || 'Transit',
-      arrived: schedule.ToDestination?.name || 'Destination',
-      checkInTime: subtractThirtyMinutes(schedule.departure_time),
+      arrived: toDestination?.name || 'Destination',
+      checkInTime: subtractThirtyMinutes(lastTransit.departure_time),
     });
   } else {
     steps.push({
-      departuretime: schedule.departure_time,
-      timearrived: schedule.arrival_time,
-      duration: calculateDuration(schedule.departure_time, schedule.arrival_time),
-      departure: schedule.FromDestination?.name || 'Origin',
-      arrived: schedule.ToDestination?.name || 'Destination',
-      checkInTime: schedule.check_in_time,
+      departuretime: departureTime,
+      timearrived: arrivalTime,
+      duration: calculateDuration(departureTime, arrivalTime),
+      departure: fromDestination?.name || 'Origin',
+      arrived: toDestination?.name || 'Destination',
+      checkInTime: checkInTime,
     });
   }
 

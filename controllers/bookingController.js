@@ -3338,13 +3338,15 @@ const getBookingByTicketId = async (req, res) => {
         {
           model: Schedule,
           as: "schedule",
+         
           include: [
-            {
+              {
               model: Boat,
               as: "Boat",
+              attributes: ["id", "boat_name"],
+         
+
             },
-          ],
-          include: [
             {
               model: Destination,
               as: "FromDestination",
@@ -3532,7 +3534,7 @@ const getBookingByTicketId = async (req, res) => {
       }
 
       // ✅ Tambahkan journeySteps di response
-      enhancedBooking.journeySteps = mapJourneySteps(booking.schedule);
+      enhancedBooking.journeySteps = mapJourneySteps(booking.schedule, booking.subSchedule);
 
       res.status(200).json(enhancedBooking);
     } else {
@@ -3803,7 +3805,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
 
       // ✅ Add journeySteps like in single booking response
       resultBookings[i].dataValues.journeySteps = booking.schedule
-        ? mapJourneySteps(booking.schedule)
+        ? mapJourneySteps(booking.schedule, booking.subSchedule)
         : [];
     }
 
