@@ -94,6 +94,7 @@ const sendEmailApiAgentStaff = async (
   const totalCommission = parseFloat(booking.totalCommission || 0);
   const transportTotal = parseFloat(booking.transportTotal || 0);
   const ticketTotal = parseFloat(booking.ticket_total || 0);
+  const discountAmount = parseFloat(booking.discount_data?.discountValue || 0);
   const netAmount = parseFloat(booking.gross_total) - totalCommission;
 
   const formatIDR = (value) =>
@@ -333,6 +334,14 @@ const sendEmailApiAgentStaff = async (
         </td>
       </tr>
       ` : ''}
+      ${discountAmount > 0 ? `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Discount${booking.discount_data?.discountPercentage && booking.discount_data.discountPercentage !== "0" ? ` (${booking.discount_data.discountPercentage}%)` : ''}</td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
+          -${formatIDR(discountAmount)}
+        </td>
+      </tr>
+      ` : ''}
       <tr style="border-top: 2px solid #dee2e6;">
         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Subtotal</td>
         <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">
@@ -431,41 +440,50 @@ const sendEmailApiAgentStaff = async (
 </div>
 `;
 
-  const mailOptions = {
-    from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_AGENT,
-    cc:process.env.EMAIL_USER_TITAN,
+  // const mailOptions = {
+  //   from: process.env.EMAIL_LOGIN_BREVO, // Brevo authenticated user
+  //   to: process.env.EMAIL_USER_TITAN,
+  //   cc: process.env.EMAIL_AGENT,
+  //   subject,
+  //   html: message,
+  // };
+
+  const mailOptionsTitan = {
+    from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    to: process.env.EMAIL_USER_TITAN,
+    cc: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
-  to:process.env.EMAIL_AGENT,
-  cc:process.env.EMAIL_USER_TITAN,
+
+    const mailOptions = {
+    from: process.env.EMAIL_BOOKING,
+    to: toEmail,
+    cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
   try {
-    //console.log("Sending email with main transporter...");
+    // Use Brevo as primary
     await transporter.sendMail(mailOptions);
-    //console.log("Email sent successfully with main transporter.");
+    console.log("✅ Email sent successfully with Brevo transporter.");
   } catch (error) {
     console.error(
-      "Main transporter failed, falling back to Titan:",
+      "Brevo transporter failed, falling back to Titan:",
       error.message
     );
     try {
       await transporterTitan.sendMail(mailOptionsTitan);
-      //console.log("Fallback email sent successfully with Titan transporter.");
+      console.log("✅ Fallback email sent successfully with Titan transporter.");
     } catch (titanError) {
       console.error(
-        "Both main and fallback transporters failed:",
+        "Both Brevo and Titan transporters failed:",
         titanError.message
       );
       // throw telegram error
       await sendTelegramMessage(titanError);
-      throw titanError; // biar error bisa ditangani di level atas
+      throw titanError;
     }
   }
 };
@@ -524,6 +542,11 @@ const sendEmailApiRoundTripAgentStaff = async (
   const ticketTotalDep = parseFloat(firstBooking.ticket_total || 0);
   const ticketTotalRet = parseFloat(secondBooking.ticket_total || 0);
   const totalTickets = ticketTotalDep + ticketTotalRet;
+
+  // Calculate discount totals
+  const discountAmountDep = parseFloat(firstBooking.discount_data?.discountValue || 0);
+  const discountAmountRet = parseFloat(secondBooking.discount_data?.discountValue || 0);
+  const totalDiscount = discountAmountDep + discountAmountRet;
 
   const grossTotal = parseFloat(firstBooking.gross_total) + parseFloat(secondBooking.gross_total);
   const netAmount = grossTotal - totalCommission;
@@ -787,6 +810,18 @@ const sendEmailApiRoundTripAgentStaff = async (
         </td>
       </tr>
       ` : ''}
+      ${totalDiscount > 0 ? `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">
+          Total Discount
+          ${discountAmountDep > 0 && firstBooking.discount_data?.discountPercentage && firstBooking.discount_data.discountPercentage !== "0" ? ` (Dep: ${firstBooking.discount_data.discountPercentage}%)` : ''}
+          ${discountAmountRet > 0 && secondBooking.discount_data?.discountPercentage && secondBooking.discount_data.discountPercentage !== "0" ? ` (Ret: ${secondBooking.discount_data.discountPercentage}%)` : ''}
+        </td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
+          -${formatIDR(totalDiscount)}
+        </td>
+      </tr>
+      ` : ''}
       <tr style="border-top: 2px solid #dee2e6;">
         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Subtotal</td>
         <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">
@@ -832,35 +867,37 @@ const sendEmailApiRoundTripAgentStaff = async (
 </div>
   `;
 
-  const mailOptions = {
-    from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_AGENT,
-    cc:process.env.EMAIL_USER_TITAN,
+   const mailOptions = {
+    from: process.env.EMAIL_BOOKING,
+    to: toEmail,
+    cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
   const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
+    from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
     to: process.env.EMAIL_AGENT,
-    cc:process.env.EMAIL_USER_TITAN,
+    cc: process.env.EMAIL_USER_TITAN,
     subject,
     html: message,
   };
 
   try {
+    // Use Brevo as primary
     await transporter.sendMail(mailOptions);
+    console.log("✅ Round-trip email sent successfully with Brevo transporter.");
   } catch (error) {
     console.error(
-      "Main transporter failed, falling back to Titan:",
+      "Brevo transporter failed, falling back to Titan:",
       error.message
     );
-
     try {
       await transporterTitan.sendMail(mailOptionsTitan);
+      console.log("✅ Fallback round-trip email sent successfully with Titan transporter.");
     } catch (titanError) {
       console.error(
-        "Both main and fallback transporters failed:",
+        "Both Brevo and Titan transporters failed:",
         titanError.message
       );
       await sendTelegramMessage(titanError);

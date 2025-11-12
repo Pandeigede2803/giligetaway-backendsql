@@ -99,6 +99,7 @@ const calculateTotals = (transports = []) => {
  */
 const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = 'all') => {
   if (!discount) {
+    console.log("❌ Discount validation failed: No discount object provided");
     return {
       discountAmount: 0,
       finalTotal: grossTotal,
@@ -109,6 +110,10 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
   // Validate schedule_id if discount has specific schedule restrictions
   if (Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0) {
     if (!discount.schedule_ids.includes(parseInt(scheduleId))) {
+      console.log("❌ Discount validation failed: Schedule ID not in allowed list", {
+        scheduleId,
+        allowedScheduleIds: discount.schedule_ids
+      });
       return {
         discountAmount: 0,
         finalTotal: grossTotal,
@@ -119,6 +124,10 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
 
   // Validate direction
   if (discount.applicable_direction !== 'all' && discount.applicable_direction !== direction) {
+    console.log("❌ Discount validation failed: Direction mismatch", {
+      requiredDirection: discount.applicable_direction,
+      providedDirection: direction
+    });
     return {
       discountAmount: 0,
       finalTotal: grossTotal,
@@ -128,6 +137,10 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
 
   // Check minimum purchase requirement
   if (discount.min_purchase && grossTotal < parseFloat(discount.min_purchase)) {
+    console.log("❌ Discount validation failed: Minimum purchase not met", {
+      minPurchase: discount.min_purchase,
+      grossTotal
+    });
     return {
       discountAmount: 0,
       finalTotal: grossTotal,
@@ -139,11 +152,25 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
 
   // Calculate discount based on type
   if (discount.discount_type === 'percentage') {
+    console.log("📊 Calculating percentage discount:", {
+      grossTotal,
+      discountValue: discount.discount_value,
+      discountValueParsed: parseFloat(discount.discount_value),
+      calculation: `(${grossTotal} * ${parseFloat(discount.discount_value)}) / 100`
+    });
+
     discountAmount = (grossTotal * parseFloat(discount.discount_value)) / 100;
 
-    // Apply max_discount cap if set
-    if (discount.max_discount && discountAmount > parseFloat(discount.max_discount)) {
-      discountAmount = parseFloat(discount.max_discount);
+    console.log("📊 After calculation:", {
+      discountAmount,
+      maxDiscount: discount.max_discount
+    });
+
+    // Apply max_discount cap if set (only if max_discount is greater than 0)
+    const maxDiscountValue = parseFloat(discount.max_discount);
+    if (discount.max_discount && maxDiscountValue > 0 && discountAmount > maxDiscountValue) {
+      console.log("🔒 Applying max_discount cap");
+      discountAmount = maxDiscountValue;
     }
   } else if (discount.discount_type === 'fixed') {
     discountAmount = parseFloat(discount.discount_value);
@@ -157,6 +184,14 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
     discountValue: parseFloat(discountAmount.toFixed(2)),
     discountPercentage: discount.discount_type === 'percentage' ? discount.discount_value.toString() : "0"
   };
+
+  console.log("✅ Discount calculation successful", {
+    discountType: discount.discount_type,
+    discountValue: discount.discount_value,
+    originalTotal: grossTotal,
+    discountAmount: parseFloat(discountAmount.toFixed(2)),
+    finalTotal: parseFloat(finalTotal.toFixed(2))
+  });
 
   return {
     discountAmount: parseFloat(discountAmount.toFixed(2)),
@@ -268,6 +303,7 @@ const createAgentBooking = async (req, res) => {
             'departure' // one-way is considered departure
           );
 
+          const originalGrossTotal = grossTotal;
           discountAmount = discountResult.discountAmount;
           discountData = discountResult.discountData;
           grossTotal = discountResult.finalTotal;
@@ -275,7 +311,7 @@ const createAgentBooking = async (req, res) => {
           console.log("Step 6a: Discount applied", {
             code: bookingData.discount_code,
             discountAmount,
-            originalTotal: discountResult.discountData.originalAmount,
+            originalTotal: originalGrossTotal,
             finalTotal: grossTotal
           });
         } else {
@@ -742,6 +778,7 @@ const createAgentRoundTripBooking = async (req, res) => {
                 type // 'departure' or 'return'
               );
 
+              const originalGrossTotal = gross_total;
               discountAmount = discountResult.discountAmount;
               discountData = discountResult.discountData;
               gross_total = discountResult.finalTotal;
@@ -749,7 +786,7 @@ const createAgentRoundTripBooking = async (req, res) => {
               console.log(`✅ [${type}] Discount applied`, {
                 code: data.discount_code,
                 discountAmount,
-                originalTotal: discountResult.discountData.originalAmount,
+                originalTotal: originalGrossTotal,
                 finalTotal: gross_total
               });
             } else {
