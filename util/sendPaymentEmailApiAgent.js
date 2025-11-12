@@ -204,7 +204,12 @@ const sendEmailApiAgentStaff = async (
         <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Email</div>
         <div style="font-weight: 500;">${booking.contact_email || "N/A"}</div>
       </div>
-      
+      ${booking.note ? `
+      <div style="grid-column: 1 / -1;">
+        <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Booking Note</div>
+        <div style="font-weight: 500; color: #007bff;">${booking.note}</div>
+      </div>
+      ` : ''}
     </div>
   </div>
 
@@ -457,9 +462,9 @@ const sendEmailApiAgentStaff = async (
   };
 
     const mailOptions = {
-    from: process.env.EMAIL_BOOKING,
-    to: toEmail,
-    cc: process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
@@ -642,6 +647,12 @@ const sendEmailApiRoundTripAgentStaff = async (
         <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Email</div>
         <div style="font-weight: 500;">${firstBooking.contact_email || "N/A"}</div>
       </div>
+      ${firstBooking.note || secondBooking.note ? `
+      <div style="grid-column: 1 / -1;">
+        <div style="color: #666; font-size: 13px; margin-bottom: 5px;">Booking Note</div>
+        <div style="font-weight: 500; color: #007bff;">${firstBooking.note || secondBooking.note || "N/A"}</div>
+      </div>
+      ` : ''}
     </div>
   </div>
 
@@ -868,9 +879,9 @@ const sendEmailApiRoundTripAgentStaff = async (
   `;
 
    const mailOptions = {
-    from: process.env.EMAIL_BOOKING,
-    to: toEmail,
-    cc: process.env.EMAIL_BOOKING,
+    from: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
@@ -918,6 +929,7 @@ const sendAgentBookingSuccessEmail = async ({
   ticketDownloadUrl,
 }) => {
   const subject = `Booking Confirmed - ${ticketId}`;
+  console.log("Sending agent booking success email to:", agentEmail);
 
   const message = `
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9f9f9;">
@@ -964,17 +976,7 @@ const sendAgentBookingSuccessEmail = async ({
       </table>
     </div>
 
-    <!-- DOWNLOAD BUTTONS -->
-    <div style="display: flex; gap: 15px; margin-bottom: 40px; flex-wrap: wrap;">
-      <a href="${invoiceDownloadUrl}"
-         style="flex: 1; min-width: 200px; padding: 15px 20px; background: #165297; color: white; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px; display: block;">
-        📄 Download Invoice
-      </a>
-      <a href="${ticketDownloadUrl}"
-         style="flex: 1; min-width: 200px; padding: 15px 20px; background: #FFBF00; color: #134782; text-decoration: none; text-align: center; font-weight: 600; border-radius: 6px; display: block;">
-        🎫 Download Ticket
-      </a>
-    </div>
+    
 
     <!-- FOOTER -->
     <div style="text-align: center; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
@@ -990,12 +992,11 @@ const sendAgentBookingSuccessEmail = async ({
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
     to: agentEmail,
-    
     subject,
     html: message,
   };
 
-  await transporterTitan.sendMail(mailOptions);
+  await transporter.sendMail(mailOptions);
 };
 
 module.exports = {
