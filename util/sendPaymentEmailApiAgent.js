@@ -434,13 +434,14 @@ const sendEmailApiAgentStaff = async (
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
     to: process.env.EMAIL_AGENT,
-    // cc: process.env.EMAIL_BOOKING,
+    cc:process.env.EMAIL_USER_TITAN,
     subject,
     html: message,
   };
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
   to:process.env.EMAIL_AGENT,
+  cc:process.env.EMAIL_USER_TITAN,
     subject,
     html: message,
   };
@@ -834,6 +835,7 @@ const sendEmailApiRoundTripAgentStaff = async (
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
     to: process.env.EMAIL_AGENT,
+    cc:process.env.EMAIL_USER_TITAN,
     subject,
     html: message,
   };
@@ -841,6 +843,7 @@ const sendEmailApiRoundTripAgentStaff = async (
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN,
     to: process.env.EMAIL_AGENT,
+    cc:process.env.EMAIL_USER_TITAN,
     subject,
     html: message,
   };
@@ -950,6 +953,7 @@ const sendAgentBookingSuccessEmail = async ({
   const mailOptions = {
     from: process.env.EMAIL_AGENT,
     to: agentEmail,
+    
     subject,
     html: message,
   };

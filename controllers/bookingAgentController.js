@@ -90,6 +90,82 @@ const calculateTotals = (transports = []) => {
 };
 
 /**
+ * Calculate discount and apply to gross total
+ * @param {Object} discount - Discount object from database
+ * @param {number} grossTotal - Total before discount
+ * @param {number} scheduleId - Schedule ID to validate
+ * @param {string} direction - 'departure', 'return', or 'all'
+ * @returns {Object} { discountAmount, finalTotal, discountData }
+ */
+const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = 'all') => {
+  if (!discount) {
+    return {
+      discountAmount: 0,
+      finalTotal: grossTotal,
+      discountData: null
+    };
+  }
+
+  // Validate schedule_id if discount has specific schedule restrictions
+  if (Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0) {
+    if (!discount.schedule_ids.includes(parseInt(scheduleId))) {
+      return {
+        discountAmount: 0,
+        finalTotal: grossTotal,
+        discountData: null
+      };
+    }
+  }
+
+  // Validate direction
+  if (discount.applicable_direction !== 'all' && discount.applicable_direction !== direction) {
+    return {
+      discountAmount: 0,
+      finalTotal: grossTotal,
+      discountData: null
+    };
+  }
+
+  // Check minimum purchase requirement
+  if (discount.min_purchase && grossTotal < parseFloat(discount.min_purchase)) {
+    return {
+      discountAmount: 0,
+      finalTotal: grossTotal,
+      discountData: null
+    };
+  }
+
+  let discountAmount = 0;
+
+  // Calculate discount based on type
+  if (discount.discount_type === 'percentage') {
+    discountAmount = (grossTotal * parseFloat(discount.discount_value)) / 100;
+
+    // Apply max_discount cap if set
+    if (discount.max_discount && discountAmount > parseFloat(discount.max_discount)) {
+      discountAmount = parseFloat(discount.max_discount);
+    }
+  } else if (discount.discount_type === 'fixed') {
+    discountAmount = parseFloat(discount.discount_value);
+  }
+
+  const finalTotal = Math.max(0, grossTotal - discountAmount);
+
+  // Prepare discount_data JSON for storing in booking
+  const discountData = {
+    discountId: discount.id.toString(),
+    discountValue: parseFloat(discountAmount.toFixed(2)),
+    discountPercentage: discount.discount_type === 'percentage' ? discount.discount_value.toString() : "0"
+  };
+
+  return {
+    discountAmount: parseFloat(discountAmount.toFixed(2)),
+    finalTotal: parseFloat(finalTotal.toFixed(2)),
+    discountData
+  };
+};
+
+/**
  * Send Telegram notification for queue errors
  */
 const notifyQueueError = (error, context, title) => {
@@ -166,12 +242,49 @@ const createAgentBooking = async (req, res) => {
         )
       : 0;
 
-    const grossTotal = (Number(calculatedTicketTotal) || 0) + transportTotal;
+    let grossTotal = (Number(calculatedTicketTotal) || 0) + transportTotal;
 
     console.log("Step 6: Calculated transport and gross totals", {
       transportTotal,
       grossTotal,
     });
+
+    // 6a️⃣ Apply discount if discount_code is provided
+    let discountAmount = 0;
+    let discountData = null;
+    let discount = null;
+
+    if (bookingData.discount_code) {
+      try {
+        discount = await Discount.findOne({
+          where: { code: bookingData.discount_code }
+        });
+
+        if (discount) {
+          const discountResult = calculateDiscountAmount(
+            discount,
+            grossTotal,
+            bookingData.schedule_id,
+            'departure' // one-way is considered departure
+          );
+
+          discountAmount = discountResult.discountAmount;
+          discountData = discountResult.discountData;
+          grossTotal = discountResult.finalTotal;
+
+          console.log("Step 6a: Discount applied", {
+            code: bookingData.discount_code,
+            discountAmount,
+            originalTotal: discountResult.discountData.originalAmount,
+            finalTotal: grossTotal
+          });
+        } else {
+          console.warn(`⚠️ Discount code '${bookingData.discount_code}' not found`);
+        }
+      } catch (discountError) {
+        console.error("❌ Error applying discount:", discountError.message);
+      }
+    }
 
     // 6️⃣ Fetch exchange rate and calculate USD total
     let exchangeRate = null;
@@ -217,6 +330,7 @@ const createAgentBooking = async (req, res) => {
           gross_total: grossTotal,
           gross_total_in_usd: grossTotalInUsd,
           exchange_rate: exchangeRate,
+          discount_data: discountData,
           payment_status: "invoiced",
           payment_method: "invoiced",
           booked_by: "api booking agent",
@@ -328,6 +442,8 @@ const createAgentBooking = async (req, res) => {
         transaction_id: result.transactionEntry.transaction_id,
         ticket_total: calculatedTicketTotal,
         transport_total: transportTotal,
+        discount_amount: discountAmount,
+        discount_data: discountData,
         gross_total: grossTotal,
         payment_status: "invoiced",
         payment_method: "invoiced",
@@ -605,7 +721,44 @@ const createAgentRoundTripBooking = async (req, res) => {
 
         // 5️⃣ Compute totals
         const { transportTotal } = calculateTotals(data.transports);
-        const gross_total = ticket_total + transportTotal;
+        let gross_total = ticket_total + transportTotal;
+
+        // 5a️⃣ Apply discount if discount_code is provided
+        let discountAmount = 0;
+        let discountData = null;
+        let discount = null;
+
+        if (data.discount_code) {
+          try {
+            discount = await Discount.findOne({
+              where: { code: data.discount_code }
+            });
+
+            if (discount) {
+              const discountResult = calculateDiscountAmount(
+                discount,
+                gross_total,
+                data.schedule_id,
+                type // 'departure' or 'return'
+              );
+
+              discountAmount = discountResult.discountAmount;
+              discountData = discountResult.discountData;
+              gross_total = discountResult.finalTotal;
+
+              console.log(`✅ [${type}] Discount applied`, {
+                code: data.discount_code,
+                discountAmount,
+                originalTotal: discountResult.discountData.originalAmount,
+                finalTotal: gross_total
+              });
+            } else {
+              console.warn(`⚠️ [${type}] Discount code '${data.discount_code}' not found`);
+            }
+          } catch (discountError) {
+            console.error(`❌ [${type}] Error applying discount:`, discountError.message);
+          }
+        }
 
         // 5a️⃣ Fetch exchange rate and calculate USD total
         let exchangeRate = null;
@@ -632,6 +785,7 @@ const createAgentRoundTripBooking = async (req, res) => {
             gross_total,
             gross_total_in_usd: grossTotalInUsd,
             exchange_rate: exchangeRate,
+            discount_data: discountData,
             payment_status: "invoiced",
             payment_method: "invoiced",
             booking_source: "agent",
@@ -728,7 +882,14 @@ const createAgentRoundTripBooking = async (req, res) => {
           commission_amount: commissionResult?.commission || 0,
         });
 
-        return { booking, transaction: transactionEntry, ticketCalculation, commission: commissionResult };
+        return {
+          booking,
+          transaction: transactionEntry,
+          ticketCalculation,
+          commission: commissionResult,
+          discountAmount,
+          discountData
+        };
       };
 
       // 🚤 Process both legs with their respective ticket IDs
@@ -751,6 +912,8 @@ const createAgentRoundTripBooking = async (req, res) => {
           ticket_id: result.departure.booking.ticket_id,
           transaction_id: result.departure.transaction.transaction_id,
           ticket_total: result.departure.booking.ticket_total,
+          discount_amount: result.departure.discountAmount,
+          discount_data: result.departure.discountData,
           gross_total: result.departure.booking.gross_total,
           pricing_breakdown: result.departure.ticketCalculation.breakdown,
           commission: result.departure.commission,
@@ -760,11 +923,14 @@ const createAgentRoundTripBooking = async (req, res) => {
           ticket_id: result.return.booking.ticket_id,
           transaction_id: result.return.transaction.transaction_id,
           ticket_total: result.return.booking.ticket_total,
+          discount_amount: result.return.discountAmount,
+          discount_data: result.return.discountData,
           gross_total: result.return.booking.gross_total,
           pricing_breakdown: result.return.ticketCalculation.breakdown,
           commission: result.return.commission,
         },
         total_gross: totalGross,
+        total_discount: (result.departure.discountAmount || 0) + (result.return.discountAmount || 0),
         payment_status: "invoiced",
         status: "processing",
       },

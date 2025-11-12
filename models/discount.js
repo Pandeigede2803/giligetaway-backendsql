@@ -71,6 +71,11 @@ const Discount = sequelize.define(
       allowNull: true,
       comment: "Array of schedule IDs where the discount applies",
     },
+    agent_ids: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: "Array of agent IDs who can use this discount",
+    },
     updated_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
