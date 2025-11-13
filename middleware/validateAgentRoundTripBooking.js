@@ -201,27 +201,71 @@ module.exports = async (req, res, next) => {
         };
       }
 
-      // Validate each passenger
+      // Validate each passenger and count by type
+      let adultCount = 0, childCount = 0, infantCount = 0;
+      const validPassengerTypes = ['adult', 'child', 'infant'];
+
       for (let i = 0; i < legData.passengers.length; i++) {
         const passenger = legData.passengers[i];
+
+        // Validate name
         if (!passenger.name || String(passenger.name).trim() === "") {
           return {
-            error: `Invalid ${legName} passenger`,
-            message: `${legName} passenger[${i}] must have a name`,
+            error: `Invalid ${legName} passenger name`,
+            message: `${legName} passenger[${i}] must have a valid name`,
           };
         }
+
+        // Validate nationality
         if (!passenger.nationality || String(passenger.nationality).trim() === "") {
           return {
-            error: `Invalid ${legName} passenger`,
-            message: `${legName} passenger[${i}] must have a nationality`,
+            error: `Invalid ${legName} passenger nationality`,
+            message: `${legName} passenger[${i}] must have a valid nationality`,
           };
         }
-        if (!passenger.passenger_type) {
+
+        // Validate passport_id
+        if (!passenger.passport_id || String(passenger.passport_id).trim() === "") {
           return {
-            error: `Invalid ${legName} passenger`,
-            message: `${legName} passenger[${i}] must have a passenger_type`,
+            error: `Invalid ${legName} passenger passport_id`,
+            message: `${legName} passenger[${i}] must have a valid passport_id`,
           };
         }
+
+        // Validate passenger_type
+        if (!passenger.passenger_type || !validPassengerTypes.includes(passenger.passenger_type)) {
+          return {
+            error: `Invalid ${legName} passenger_type`,
+            message: `${legName} passenger[${i}] must have passenger_type: adult, child, or infant`,
+          };
+        }
+
+        // Count passengers by type
+        if (passenger.passenger_type === 'adult') adultCount++;
+        else if (passenger.passenger_type === 'child') childCount++;
+        else if (passenger.passenger_type === 'infant') infantCount++;
+      }
+
+      // Validate passenger counts match the breakdown
+      if (adultCount !== adultPassengers) {
+        return {
+          error: `${legName} adult passengers mismatch`,
+          message: `Expected ${adultPassengers} adults, but got ${adultCount} in passengers array`,
+        };
+      }
+
+      if (childCount !== childPassengers) {
+        return {
+          error: `${legName} child passengers mismatch`,
+          message: `Expected ${childPassengers} children, but got ${childCount} in passengers array`,
+        };
+      }
+
+      if (infantCount !== infantPassengers) {
+        return {
+          error: `${legName} infant passengers mismatch`,
+          message: `Expected ${infantPassengers} infants, but got ${infantCount} in passengers array`,
+        };
       }
 
       // console.log(`✅ ${legName} passengers array validated: ${legData.passengers.length} passengers`);

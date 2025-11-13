@@ -70,7 +70,87 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    // 🔹 5. Validasi data transports (kalau ada)
+    // 🔹 5. Validasi passengers array
+    if (!Array.isArray(data.passengers) || data.passengers.length === 0) {
+      return res.status(400).json({
+        error: "Passengers required",
+        message: "Passengers array must not be empty",
+      });
+    }
+
+    // Validasi jumlah passengers array harus sama dengan total_passengers
+    if (data.passengers.length !== parseInt(data.total_passengers)) {
+      return res.status(400).json({
+        error: "Passengers count mismatch",
+        message: `Passengers array length (${data.passengers.length}) must match total_passengers (${data.total_passengers})`,
+      });
+    }
+
+    // Validasi setiap passenger
+    let adultCount = 0, childCount = 0, infantCount = 0;
+    for (let i = 0; i < data.passengers.length; i++) {
+      const p = data.passengers[i];
+
+      // Field wajib
+      if (!p.name || typeof p.name !== 'string' || p.name.trim() === '') {
+        return res.status(400).json({
+          error: "Invalid passenger name",
+          message: `Passenger at index ${i} must have a valid name`,
+        });
+      }
+
+      if (!p.nationality || typeof p.nationality !== 'string' || p.nationality.trim() === '') {
+        return res.status(400).json({
+          error: "Invalid passenger nationality",
+          message: `Passenger at index ${i} must have a valid nationality`,
+        });
+      }
+
+      if (!p.passport_id || typeof p.passport_id !== 'string' || p.passport_id.trim() === '') {
+        return res.status(400).json({
+          error: "Invalid passenger passport_id",
+          message: `Passenger at index ${i} must have a valid passport_id`,
+        });
+      }
+
+      // Validasi passenger_type
+      const validTypes = ['adult', 'child', 'infant'];
+      if (!p.passenger_type || !validTypes.includes(p.passenger_type)) {
+        return res.status(400).json({
+          error: "Invalid passenger_type",
+          message: `Passenger at index ${i} must have passenger_type: adult, child, or infant`,
+        });
+      }
+
+      // Hitung jumlah per tipe
+      if (p.passenger_type === 'adult') adultCount++;
+      else if (p.passenger_type === 'child') childCount++;
+      else if (p.passenger_type === 'infant') infantCount++;
+    }
+
+    // Validasi jumlah per tipe passenger harus sesuai
+    if (adultCount !== parseInt(data.adult_passengers)) {
+      return res.status(400).json({
+        error: "Adult passengers mismatch",
+        message: `Expected ${data.adult_passengers} adults, but got ${adultCount} in passengers array`,
+      });
+    }
+
+    if (childCount !== parseInt(data.child_passengers)) {
+      return res.status(400).json({
+        error: "Child passengers mismatch",
+        message: `Expected ${data.child_passengers} children, but got ${childCount} in passengers array`,
+      });
+    }
+
+    if (infantCount !== parseInt(data.infant_passengers)) {
+      return res.status(400).json({
+        error: "Infant passengers mismatch",
+        message: `Expected ${data.infant_passengers} infants, but got ${infantCount} in passengers array`,
+      });
+    }
+
+    // 🔹 6. Validasi data transports (kalau ada)
     if (Array.isArray(data.transports)) {
       for (const t of data.transports) {
         if (!t.transport_id || isNaN(parseInt(t.transport_id))) {
@@ -88,7 +168,7 @@ module.exports = async (req, res, next) => {
       }
     }
 
-    // 🔹 6. Semua validasi lolos, lanjut ke controller
+    // 🔹 7. Semua validasi lolos, lanjut ke controller
     console.log("✅ Agent booking validation passed");
     next();
   } catch (error) {

@@ -455,15 +455,15 @@ const sendEmailApiAgentStaff = async (
 
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
-    to: process.env.EMAIL_USER_TITAN,
-    cc: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_AGENT,
+    // cc: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
 
     const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    to: process.env.EMAIL_AGENT, // booking@giligetaway.site
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
@@ -880,7 +880,7 @@ const sendEmailApiRoundTripAgentStaff = async (
 
    const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    to: process.env.EMAIL_AGENT, // booking@giligetaway.site
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
