@@ -4316,7 +4316,7 @@ const handleRefundFlow = async ({
 
 const updateBookingPayment = async (req, res) => {
   const { id } = req.params;
-  const { payment_method, payment_status } = req.body;
+  const { payment_method, payment_status, send_email = true } = req.body;
 
   try {
     await sequelize.transaction(async (t) => {
@@ -4324,7 +4324,7 @@ const updateBookingPayment = async (req, res) => {
       console.log(
         `📝 Request data: { payment_method: '${
           payment_method || "unchanged"
-        }', payment_status: '${payment_status || "unchanged"}' }`
+        }', payment_status: '${payment_status || "unchanged"}', send_email: ${send_email} }`
       );
 
       console.log("\n🔍 Finding booking details...");
@@ -4338,8 +4338,8 @@ const updateBookingPayment = async (req, res) => {
         throw new Error("Booking not found");
       }
 
-      console.log(`🔍 Current payment status: ${booking.payment_status}`);
-      console.log(`🔍 Requested payment status: ${payment_status}`);
+      // console.log(`🔍 Current payment status: ${booking.payment_status}`);
+      // console.log(`🔍 Requested payment status: ${payment_status}`);
 
       // === HANDLE CANCELLATION WITHOUT REFUND ===
       if (
@@ -4382,7 +4382,7 @@ const updateBookingPayment = async (req, res) => {
           console.log("\n✅ Cancellation process completed successfully");
 
           // Send email notification
-          if (booking.contact_email) {
+          if (booking.contact_email && send_email) {
             console.log(
               `\n📧 Sending email notification to ${booking.contact_email}...`
             );
@@ -4430,7 +4430,7 @@ const updateBookingPayment = async (req, res) => {
           payment_method,
           t,
           releaseBookingSeats, // pakai fungsi kamu yang sudah ada
-          sendPaymentEmail, // pakai fungsi kamu yang sudah ada
+          sendPaymentEmail: send_email ? sendPaymentEmail : () => {}, // hanya kirim email jika send_email true
         });
         return res.status(status).json(body);
       }
@@ -4466,7 +4466,7 @@ const updateBookingPayment = async (req, res) => {
         }
 
         // Send email notification
-        if (booking.contact_email) {
+        if (booking.contact_email && send_email) {
           console.log(
             `\n📧 Sending email notification to ${booking.contact_email}...`
           );
