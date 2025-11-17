@@ -59,7 +59,28 @@ const sendEmail = async ({ subject, html }) => {
     html,
   });
 };
+const sendEmail2 = async ({ subject, html }) => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST_BREVO,
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_LOGIN_BREVO,
+      pass: process.env.EMAIL_PASS_BREVO,
+    },
+  });
 
+  await transporter.sendMail({
+    from: process.env.EMAIL_BOOKING, // ✅ ganti di sini
+    to: process.env.EMAIL_USER_TITAN, // ✅ ganti di sini
+    cc: [
+      "ooppssainy@gmail.com",
+      "kadekgetaway@gmail.com",
+    ],
+    subject,
+    html,
+  });
+};
 // Format tanggal (YYYY-MM-DD → 18 August 2025)
 const formatDate = (d) =>
   new Date(d).toLocaleDateString("en-GB", {
@@ -219,6 +240,114 @@ const performSeatCapacityCheckAndEmail = async ({
   return { checked: seatAvailabilities.length, alerted: rows.length, rows };
 };
 
+const performSeatCapacityCheckAndEmail70 = async ({
+  daysAhead = 7,
+  thresholdRatio = 0.7, // 70%
+  //   recipients = (process.env.SEAT_ALERT_RECIPIENTS || "").split(",").filter(Boolean),
+} = {}) => {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + 1); // ← mulai BESOK
+
+  const until = new Date(start);
+  until.setDate(until.getDate() + daysAhead);
+
+  // Ambil SA aktif dalam rentang tanggal
+  const seatAvailabilities = await SeatAvailability.findAll({
+    where: {
+      date: {
+        [Op.between]: [start, until],
+      },
+    },
+    attributes: [
+      "id",
+      "schedule_id",
+      "subschedule_id",
+      "available_seats",
+      "boost",
+      "date",
+    ],
+    include: [
+      {
+        model: Schedule,
+        required: true,
+        attributes: ["id", "departure_time"],
+        include: [
+          {
+            model: Boat,
+            as: "Boat",
+            attributes: ["capacity", "published_capacity"],
+          },
+          { model: Destination, as: "FromDestination", attributes: ["name"] },
+          { model: Destination, as: "ToDestination", attributes: ["name"] },
+        ],
+      },
+      {
+        model: SubSchedule,
+        required: false,
+        as: "SubSchedule",
+        attributes: ["id"],
+        include: [
+          { model: Destination, as: "DestinationFrom", attributes: ["name"] },
+          { model: Destination, as: "DestinationTo", attributes: ["name"] },
+          {
+            model: Transit,
+            as: "TransitFrom",
+            attributes: ["id"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+          {
+            model: Transit,
+            as: "TransitTo",
+            attributes: ["id"],
+            include: [
+              { model: Destination, as: "Destination", attributes: ["name"] },
+            ],
+          },
+        ],
+      },
+    ],
+    order: [
+      ["date", "ASC"],
+      ["created_at", "ASC"],
+    ],
+  });
+
+  // Filter ≥ 70% terisi
+  const rows = [];
+  for (const sa of seatAvailabilities) {
+    const capacity = getEffectiveCapacity(sa, sa.Schedule);
+    if (!capacity) continue;
+
+    const remaining = Number(sa.available_seats || 0);
+    const used = capacity - remaining;
+    const ratio = used / capacity;
+
+    if (ratio >= thresholdRatio) {
+      rows.push({
+        schedule_id: sa.schedule_id,
+        seat_id: sa.id,
+        subschedule_id: sa.subschedule_id,
+        route: buildRouteName(sa.Schedule, sa.SubSchedule),
+        date: sa.date,
+        remaining_seats: remaining,
+      });
+    }
+  }
+
+  // Kirim email jika ada data
+  if (rows.length) {
+    const subject = `⚠️ Seat Alert: ≥70% Full (7 days ahead) — ${rows.length} items`;
+    const html = buildHtmlTable(rows);
+    await sendEmail2({ subject, html });
+  }
+
+  return { checked: seatAvailabilities.length, alerted: rows.length, rows };
+};
+
 module.exports = {
   performSeatCapacityCheckAndEmail,
+  performSeatCapacityCheckAndEmail70,
 };
