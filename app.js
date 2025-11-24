@@ -190,13 +190,9 @@ sequelize.sync()
       cronFrequencySeatDuplicates.scheduleDuplicateSeatJob();
       // console.log('🕒 Duplicate seat checker cronjob registered');
       cronFrequencySeatDuplicates.seatBoostedJob();
-
       customEmailSchedulerCron.scheduleCustomEmailJob();
-// console.log('📧 Custom Email Scheduler cron registered'); 
- 
       scheduleSeatCapacityCron();
             //  console.log('🗣️ SeatCapacityCron registered');
-
       scheduleSeatCapacityCron70();
             //  console.log('🗣️ SeatCapacityCron70 registered');
 

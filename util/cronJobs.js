@@ -316,6 +316,9 @@ const handleExpiredBookings = async () => {
       const errorMessage = `
 🔥 <b>CRONJOB FATAL ERROR - handleExpiredBookings</b>
 
+<b>Batch Offset:</b> ${offset}
+<b>Batch Size:</b> ${batchSize}
+
 <b>Error Type:</b> ${error.name || 'Unknown'}
 <b>Error Message:</b> ${error.message}
 
