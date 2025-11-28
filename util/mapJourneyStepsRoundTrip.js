@@ -9,23 +9,15 @@
  */
 
 /**
- * Generate journey steps based on schedule and transits.
+ * Generate journey steps for round-trip bookings with chronological sorting.
+ * This version sorts transits by time to handle both directions correctly.
  * @param {Object} schedule - Schedule object from DB (with Transits, FromDestination, ToDestination).
  * @param {Object} subSchedule - SubSchedule object (optional, for filtering actual route).
  * @returns {JourneyStep[]}
  */
-const mapJourneySteps = (schedule, subSchedule = null) => {
+const mapJourneyStepsRoundTrip = (schedule, subSchedule = null) => {
   if (!schedule) return [];
-
-  console.log('\n🔍 mapJourneySteps called:');
-  console.log('  Schedule:', schedule.FromDestination?.name, '→', schedule.ToDestination?.name);
-  if (subSchedule) {
-    const subFrom = subSchedule.DestinationFrom?.name || subSchedule.TransitFrom?.Destination?.name;
-    const subTo = subSchedule.DestinationTo?.name || subSchedule.TransitTo?.Destination?.name;
-    console.log('  SubSchedule:', subFrom, '→', subTo);
-  }
-  console.log('  Transits:', schedule.Transits?.map(t => `${t.Destination?.name} (arr: ${t.arrival_time}, dep: ${t.departure_time})`));
-
+  
 
   const calculateDuration = (startTime, endTime) => {
     const [sh, sm, ss] = startTime.split(':').map(Number);
@@ -86,43 +78,36 @@ const mapJourneySteps = (schedule, subSchedule = null) => {
   }
 
   const steps = [];
-  const allTransits = schedule.Transits || [];
+  let transits = [];
 
-  // Filter transits: only include those BETWEEN fromDestination and toDestination
-  let filteredTransits = [];
+  // ✅ Use subSchedule's Transit1-4 if available (these are the correct route transits)
+  if (subSchedule) {
+    const subTransits = [
+      subSchedule.Transit1,
+      subSchedule.Transit2,
+      subSchedule.Transit3,
+      subSchedule.Transit4,
+    ].filter(t => t !== null && t !== undefined);
 
-  if (subSchedule && allTransits.length > 0) {
-    const fromDestId = fromDestination?.id;
-    const toDestId = toDestination?.id;
-
-    // Find indices of from/to in the transit chain
-    let fromIsOrigin = fromDestId === schedule.FromDestination?.id;
-    let toIsFinalDest = toDestId === schedule.ToDestination?.id;
-
-    let fromTransitIndex = fromIsOrigin ? -1 : allTransits.findIndex(t => t.destination_id === fromDestId);
-    let toTransitIndex = toIsFinalDest ? allTransits.length : allTransits.findIndex(t => t.destination_id === toDestId);
-
-    // Get transits BETWEEN from and to (not including them)
-    if (fromTransitIndex !== -1 && toTransitIndex !== -1) {
-      // fromTransitIndex + 1 = start after the from transit
-      // toTransitIndex = stop before the to transit
-      filteredTransits = allTransits.slice(fromTransitIndex + 1, toTransitIndex);
-    } else if (fromIsOrigin && toTransitIndex !== -1) {
-      // From origin to a transit: include transits before the to transit
-      filteredTransits = allTransits.slice(0, toTransitIndex);
-    } else if (fromTransitIndex !== -1 && toIsFinalDest) {
-      // From a transit to final destination: include transits after the from transit
-      filteredTransits = allTransits.slice(fromTransitIndex + 1);
-    } else if (fromIsOrigin && toIsFinalDest) {
-      // Full route
-      filteredTransits = allTransits;
+    if (subTransits.length > 0) {
+      // Sort by departure time to ensure chronological order
+      transits = subTransits.sort((a, b) => {
+        const timeA = a.departure_time || a.arrival_time;
+        const timeB = b.departure_time || b.arrival_time;
+        return timeA.localeCompare(timeB);
+      });
     }
-  } else if (!subSchedule) {
-    // Use all transits for main schedule
-    filteredTransits = allTransits;
+  } else {
+    // Main schedule: use all transits from schedule
+    const allTransits = schedule.Transits || [];
+    transits = [...allTransits].sort((a, b) => {
+      const timeA = a.departure_time || a.arrival_time;
+      const timeB = b.departure_time || b.arrival_time;
+      return timeA.localeCompare(timeB);
+    });
   }
 
-  const transits = filteredTransits;
+  console.log('  ✅ Using transits:', transits.map(t => `${t.Destination?.name} (dep: ${t.departure_time}, arr: ${t.arrival_time})`));
 
   if (transits.length > 0) {
     steps.push({
@@ -168,4 +153,4 @@ const mapJourneySteps = (schedule, subSchedule = null) => {
   return steps;
 };
 
-module.exports = { mapJourneySteps };
+module.exports = { mapJourneyStepsRoundTrip };

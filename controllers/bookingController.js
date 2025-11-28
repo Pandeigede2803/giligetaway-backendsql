@@ -22,6 +22,7 @@ const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 
 const { mapJourneySteps } = require("../util/mapJourneySteps");
+const { mapJourneyStepsRoundTrip } = require("../util/mapJourneyStepsRoundTrip");
 
 const { Op, where, literal } = require("sequelize");
 const { updateAgentMetrics } = require("../util/updateAgentMetrics");
@@ -3549,22 +3550,20 @@ const getBookingByTicketId = async (req, res) => {
 
 const getRelatedBookingsByTicketId = async (req, res) => {
   try {
-    console.log("start to get related bookings by ticket id");
+ 
     const { ticket_id } = req.params;
 
-    console.log("Processing ticket ID:", ticket_id);
+   
 
     // 1️⃣ Ambil prefix dari ticket_id (contoh: "GG-RT-8966")
     const ticketPrefix = ticket_id.slice(0, -2);
     const lastTwoDigits = ticket_id.slice(-2);
 
-    console.log("Ticket prefix:", ticketPrefix);
-    console.log("Last two digits:", lastTwoDigits);
 
     // Buat pattern untuk pencarian SQL dengan sintaks template literal yang benar
     const regexPattern = `${ticketPrefix}%`;
 
-    console.log("Looking for tickets with pattern:", regexPattern);
+  
 
     // 2️⃣ Cari booking dengan ticket_id yang memiliki prefix yang sama
     const bookings = await Booking.findAll({
@@ -3676,7 +3675,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
     }
 
     // Debug: log contact name dari tiket saat ini
-    console.log("Current ticket contact name:", currentTicket.contact_name);
+    // console.log("Current ticket contact name:", currentTicket.contact_name);
 
     if (bookings.length === 1) {
       console.log("⚠️ Only one booking found. Returning single ticket.");
@@ -3706,9 +3705,7 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       const otherContactName = (b.contact_name || "").trim().toLowerCase();
 
       // Debug: log perbandingan contact_name
-      console.log(
-        `Comparing contact names: [${normalizedContactName}] with [${otherContactName}]`
-      );
+     
 
       // Pasangan valid jika:
       // 1. Satu genap dan satu ganjil
@@ -3804,20 +3801,28 @@ const getRelatedBookingsByTicketId = async (req, res) => {
       resultBookings[i].dataValues.availability = !hasUnavailableSeat;
 
       // ✅ Add journeySteps like in single booking response
+      // Debug: log the schedule and subSchedule info
+      console.log(`\n📍 Booking ${i + 1} (${booking.ticket_id}):`);
+      console.log(`  Schedule: ${booking.schedule?.FromDestination?.name} → ${booking.schedule?.ToDestination?.name}`);
+      if (booking.subSchedule) {
+        const subFrom = booking.subSchedule.DestinationFrom?.name || booking.subSchedule.TransitFrom?.Destination?.name;
+        const subTo = booking.subSchedule.DestinationTo?.name || booking.subSchedule.TransitTo?.Destination?.name;
+        console.log(`  SubSchedule: ${subFrom} → ${subTo}`);
+      } else {
+        console.log(`  SubSchedule: null`);
+      }
+
       resultBookings[i].dataValues.journeySteps = booking.schedule
-        ? mapJourneySteps(booking.schedule, booking.subSchedule)
+        ? mapJourneyStepsRoundTrip(booking.schedule, booking.subSchedule)
         : [];
+
+      console.log(`  JourneySteps:`, resultBookings[i].dataValues.journeySteps.map(s => `${s.departure} → ${s.arrived}`));
     }
 
-    console.log(
-      "✅ Successfully retrieved related bookings:",
-      resultBookings.map((b) => b.ticket_id)
-    );
-    console.log(
-      "Contact names match:",
-      currentTicket.contact_name === pairedBooking.contact_name
-    );
+    console.log("\n😻 Final journeySteps for booking 1:", resultBookings[0].dataValues.journeySteps);
+    console.log("✅ Final journeySteps for booking 2:", resultBookings[1].dataValues.journeySteps);
 
+ 
     return res.status(200).json({
       message: "Round-trip bookings found",
       bookings: resultBookings,
