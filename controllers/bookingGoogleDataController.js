@@ -234,7 +234,7 @@ const getGoogleBookingsSummary = async (req, res) => {
     // Ambil kolom dengan nationality dan created_at untuk analisis lebih lanjut
     const rows = await Booking.findAll({
       where,
-      attributes: ["gross_total", "google_data", "contact_nationality", "created_at"],
+      attributes: ["gross_total", "google_data", "contact_nationality", "created_at", "ticket_id"],
       raw: true,
     });
 
@@ -249,6 +249,7 @@ const getGoogleBookingsSummary = async (req, res) => {
         ads_type: s.ads_type || "none", // direct, prior, none
         contact_nationality: r.contact_nationality || "Unknown",
         created_at: r.created_at,
+        ticket_id: r.ticket_id || "",
       };
     });
 
@@ -305,6 +306,10 @@ const getGoogleBookingsSummary = async (req, res) => {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // 4. Trip Type Distribution (Round Trip vs One Way)
+    const roundTripCount = pool.filter(x => x.ticket_id.includes("RT")).length;
+    const oneWayCount = pool.filter(x => x.ticket_id.includes("OW")).length;
+
     return res.status(200).json({
       success: true,
       filters: { q: q || undefined, start: start || undefined, end: end || undefined, adsOnly },
@@ -312,6 +317,8 @@ const getGoogleBookingsSummary = async (req, res) => {
         totalRevenue,
         totalBookings,
         averageBooking,
+        roundTripBookings: roundTripCount,
+        oneWayBookings: oneWayCount,
         adsTypeDistribution,
         topCountries,
         dailyBookings,
