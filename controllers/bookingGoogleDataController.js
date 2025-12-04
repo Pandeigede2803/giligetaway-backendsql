@@ -18,7 +18,7 @@ const {
   BookingSeatAvailability,
   Boat,
   Discount,
-} = require("../models");
+} = require("../models");;
 
 const { extractIds, classifyAttributionFromIds, classifyAttribution } = require("../util/googleAttribution");
 const { buildRouteFromSchedule } = require("../util/buildRoute");
@@ -40,6 +40,7 @@ const getBookingsWithGoogleData = async (req, res) => {
     const where = {
       [Op.and]: [
         { google_data: { [Op.ne]: null } }, // wajib ada google_data
+        { payment_status: "paid" }, // only paid bookings
       ],
     };
 
@@ -218,7 +219,7 @@ const getGoogleBookingsSummary = async (req, res) => {
     const adsOnly = req.query.adsOnly === "0" ? false : true; // default: true
 
     // where dasar sama seperti list
-    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } } ] };
+    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } }, { payment_status: "paid" } ] };
 
     if (q) {
       where[Op.and].push({
