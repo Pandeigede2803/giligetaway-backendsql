@@ -40,7 +40,8 @@ const getBookingsWithGoogleData = async (req, res) => {
     const where = {
       [Op.and]: [
         { google_data: { [Op.ne]: null } }, // wajib ada google_data
-        { payment_status: "paid" }, // only paid bookings
+        // { payment_status: "paid" }, // only paid bookings
+        
       ],
     };
 
@@ -68,6 +69,8 @@ const getBookingsWithGoogleData = async (req, res) => {
         "booking_date",
         "google_data",    // JSON mentah
         "created_at",
+        "payment_status",
+        "payment_method",
       ],
       include: [
         {
@@ -158,6 +161,8 @@ const getBookingsWithGoogleData = async (req, res) => {
         contact_email: r.contact_email,
         contact_nationality: r.contact_nationality,
         gross_total: r.gross_total,
+        payment_status: r.payment_status,
+        payment_method: r.payment_method,
         created_at: r.created_at,
         route: buildRouteFromSchedule(r.schedule, r.subSchedule),
         // data mentah yang kamu simpan
@@ -219,7 +224,9 @@ const getGoogleBookingsSummary = async (req, res) => {
     const adsOnly = req.query.adsOnly === "0" ? false : true; // default: true
 
     // where dasar sama seperti list
-    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } }, { payment_status: "paid" } ] };
+    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } }, 
+    // { payment_status: "paid" } 
+  ] };
 
     if (q) {
       where[Op.and].push({
