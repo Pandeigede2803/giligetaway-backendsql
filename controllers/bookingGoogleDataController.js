@@ -33,6 +33,7 @@ const getBookingsWithGoogleData = async (req, res) => {
     const q         = (req.query.q || "").trim();       // search name/email (opsional)
     const start     = (req.query.start || "").trim();   // ISO/tanggal (opsional)
     const end       = (req.query.end || "").trim();     // ISO/tanggal (opsional)
+    const paymentStatus = req.query.payment_status ? req.query.payment_status.trim() : null;
     const adsOnly   = req.query.adsOnly === "0" ? false : true; // default true (hanya Ads)
     const sortKey   = ["created_at", "gross_total"].includes(req.query.sort) ? req.query.sort : "created_at";
     const sortOrder = (req.query.order || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -40,10 +41,10 @@ const getBookingsWithGoogleData = async (req, res) => {
     const where = {
       [Op.and]: [
         { google_data: { [Op.ne]: null } }, // wajib ada google_data
-        // { payment_status: "paid" }, // only paid bookings
-        
       ],
     };
+
+    if (paymentStatus) where[Op.and].push({ payment_status: paymentStatus });
 
     if (q) {
       where[Op.and].push({
@@ -221,12 +222,14 @@ const getGoogleBookingsSummary = async (req, res) => {
     const q       = (req.query.q || "").trim();
     const start   = (req.query.start || "").trim();
     const end     = (req.query.end || "").trim();
+    const paymentStatus = req.query.payment_status ? req.query.payment_status.trim() : null;
     const adsOnly = req.query.adsOnly === "0" ? false : true; // default: true
-
+    console.log("🔍 getGoogleBookingsSummary called with:", { q, start, end, paymentStatus, adsOnly });
+console.log("req.query:", req.query);
     // where dasar sama seperti list
-    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } }, 
-    // { payment_status: "paid" } 
-  ] };
+    const where = { [Op.and]: [ { google_data: { [Op.ne]: null } } ] };
+
+    if (paymentStatus) where[Op.and].push({ payment_status: paymentStatus });
 
     if (q) {
       where[Op.and].push({
@@ -320,7 +323,7 @@ const getGoogleBookingsSummary = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      filters: { q: q || undefined, start: start || undefined, end: end || undefined, adsOnly },
+      filters: { q: q || undefined, start: start || undefined, end: end || undefined, payment_status: paymentStatus || undefined, adsOnly },
       summary: {
         totalRevenue,
         totalBookings,
