@@ -981,9 +981,9 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
     // 1. Validate input
     const { yearNum, monthNum, pageNumber } = validateInput(year, month, page);
 
-    console.log(
-      `📅 Fetching monthly view for ${year}-${month.toString().padStart(2, "0")}, page ${pageNumber}`
-    );
+    // console.log(
+    //   `📅 Fetching monthly view for ${year}-${month.toString().padStart(2, "0")}, page ${pageNumber}`
+    // );
 
     // 2. Generate dates and calculate pagination
     const { allDatesInMonth, daysInMonth } = generateMonthDates(
@@ -993,7 +993,7 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
     const { currentPageDates, daysPerPage, totalPages, firstDate, lastDate } =
       calculatePagination(allDatesInMonth, daysInMonth, pageNumber);
 
-    console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate}`);
+    // console.log(`📊 Fetching data for dates: ${firstDate} to ${lastDate}`);
 
     // 3. Execute database query
     const rawQuery = buildSeatAvailabilityQuery();
@@ -1002,7 +1002,7 @@ const getSeatAvailabilityMonthlyView = async (req, res) => {
       type: sequelize.QueryTypes.SELECT,
     });
 
-    console.log(`📊 Raw query returned ${results.length} rows`);
+    // console.log(`📊 Raw query returned ${results.length} rows`);
 
     // 4. Process query results
     const { scheduleSeats, subscheduleSeats } = processQueryResults(results);
@@ -2986,7 +2986,8 @@ const findDuplicateSeats = async () => {
         (63,126),(63,127),
         (72,163),(72,164),
         (73,165),(73,166),
-        (81,199),(81,200)
+        (81,199),(81,200),
+(81,198),(81,190)
       )
 
     GROUP BY sa.id, sa.date, seat_key

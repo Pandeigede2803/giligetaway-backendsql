@@ -304,11 +304,11 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
       });
     }
 
-    console.log('\n📊 Booking Details:');
-    console.log(`- Schedule ID: ${booking.schedule_id}`);
-    console.log(`- SubSchedule ID: ${booking.subschedule_id || 'None'}`);
-    console.log(`- Total Passengers: ${booking.total_passengers}`);
-    console.log(`- Boat Capacity: ${booking.schedule?.Boat?.capacity}`);
+    // console.log('\n📊 Booking Details:');
+    // console.log(`- Schedule ID: ${booking.schedule_id}`);
+    // console.log(`- SubSchedule ID: ${booking.subschedule_id || 'None'}`);
+    // console.log(`- Total Passengers: ${booking.total_passengers}`);
+    // console.log(`- Boat Capacity: ${booking.schedule?.Boat?.capacity}`);
 
     // 3) Schedule availability check
     console.log('\n🔍 Checking schedule availability...');
@@ -420,7 +420,7 @@ const checkSeatAvailabilityForUpdate = async (req, res, next) => {
     }
 
     // 5) Log & evaluate
-console.log('\n📊 Seat Availability Summary:');
+// console.log('\n📊 Seat Availability Summary:');
 availabilityChecks.forEach(check => {
   console.log(`\n${check.type} (ID: ${check.id}):`);
   console.log(`- Available flag: ${check.available ? 'Yes' : 'No'}`);   // flag tanggal dibuka/tutup
