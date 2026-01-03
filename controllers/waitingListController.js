@@ -1,6 +1,7 @@
 // controllers/waitingListController.js
 const { WaitingList, Schedule, SubSchedule, SeatAvailability,Boat,Destination } = require('../models');
 const nodemailer = require("nodemailer");
+const {sendTelegramMessage} = require("../util/telegram");
 
 const {
 sendAdminNotificationEmail,sendWaitingListConfirmationEmail
@@ -271,10 +272,24 @@ exports.createv2 = async (req, res) => {
     const remaining = Number(authoritativeSA.available_seats);
     const seatsSufficient = remaining >= Number(total_passengers);
 
-    // === Tentukan status WL: jika hari tidak cocok → HOLD, else gunakan status request/pending ===
-    const computedStatus = dayAccepted ? (status || 'pending') : 'hold';
+    // === Tentukan status WL:
+    // 1. Jika kursi masih cukup → CONTACTED (tidak perlu ditangani admin/cron)
+    // 2. Jika kursi tidak cukup + hari tidak cocok → HOLD
+    // 3. Jika kursi tidak cukup + hari cocok → PENDING (normal waiting list flow)
+    const computedStatus = seatsSufficient
+      ? 'contacted'  // Kursi masih cukup → langsung contacted, skip cron
+      : (dayAccepted ? (status || 'pending') : 'hold');
 
     // === Buat WaitingList ===
+    // Tambahkan catatan otomatis jika status auto-resolved
+    let finalFollowUpNotes = follow_up_notes || '';
+    if (seatsSufficient) {
+      const autoNote = `[AUTO-RESOLVED] Status set to 'contacted' - seats were available (${remaining} available, ${total_passengers} requested) at time of creation. Customer should have been directed to normal booking. Created at: ${new Date().toLocaleString('id-ID')}`;
+      finalFollowUpNotes = finalFollowUpNotes
+        ? `${finalFollowUpNotes}\n\n${autoNote}`
+        : autoNote;
+    }
+
     const waitingList = await WaitingList.create({
       contact_name,
       contact_phone,
@@ -288,8 +303,9 @@ exports.createv2 = async (req, res) => {
       child_passengers: child_passengers || 0,
       infant_passengers: infant_passengers || 0,
       status: computedStatus,
-      follow_up_notes,
+      follow_up_notes: finalFollowUpNotes,
       follow_up_date,
+      last_contact_date: seatsSufficient ? new Date() : null, // Set last_contact_date jika auto-contacted
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -332,16 +348,18 @@ exports.createv2 = async (req, res) => {
 
       const msg =
         `⚠️ Warning: A waiting list was created while seats are still available.\n\n` +
+        `<b>Customer:</b> ${contact_name} (${contact_email})\n` +
         `<b>Date:</b> ${formattedDate} (${dowNames[bookingDow]})\n` +
         `<b>Route:</b> ${routeText}\n` +
         `<b>Schedule ID:</b> ${schedule_id}${subTxt}\n` +
         `<b>SeatAvailability ID:</b> ${authoritativeSA.id}\n` +
         `<b>Remaining/Available:</b> ${remaining}\n` +
         `<b>Requested Passengers:</b> ${total_passengers}\n` +
-        (dayAccepted ? `` : `<b>Status set to:</b> HOLD (day not accepted)\n`) +
-        `Please investigate and fix soon.`;
+        `<b>Status set to:</b> CONTACTED (auto-resolved, won't be processed by cron)\n` +
+        `\n💡 This customer should have been directed to normal booking instead of waiting list.\n` +
+        `Please investigate the booking flow.`;
 
-      await sendTelegramError(msg);
+      await sendTelegramMessage(msg);
     } else if (dayAccepted) {
       // Kursi tidak cukup DAN hari cocok → email admin seperti biasa
       await sendAdminNotificationEmail(
@@ -362,6 +380,10 @@ exports.createv2 = async (req, res) => {
       seat_availability_created: createdNewSA,
       seats_sufficient: seatsSufficient,
       schedule_day_accepted: dayAccepted,
+      auto_resolved: seatsSufficient, // Flag untuk frontend: entry ini auto-resolved
+      message: seatsSufficient
+        ? 'Waiting list created but auto-resolved as CONTACTED because seats are available. Customer should proceed with normal booking.'
+        : 'Waiting list created successfully and will be processed when seats become available.',
     });
   } catch (error) {
     console.error('Error creating waiting list:', error);
