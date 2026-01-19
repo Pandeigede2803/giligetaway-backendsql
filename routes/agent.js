@@ -15,7 +15,7 @@ const checkEmailUnique = require('../middleware/checkUniqueEmail');
 
 
 
-router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);
+router.put('/:id', createUploadMiddleware('image_url'), uploadImageToImageKit, agentController.updateAgent);;
 
 // generateApiKey
 
