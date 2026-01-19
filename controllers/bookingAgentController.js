@@ -287,13 +287,15 @@ const createAgentBooking = async (req, res) => {
     // 6a️⃣ Apply discount if discount_code is provided
     let discountAmount = 0;
     let discountData = null;
-    let discount = null;
+    let discount = req.discount || null;
 
     if (bookingData.discount_code) {
       try {
-        discount = await Discount.findOne({
-          where: { code: bookingData.discount_code }
-        });
+        if (!discount) {
+          discount = await Discount.findOne({
+            where: { code: bookingData.discount_code }
+          });
+        }
 
         if (discount) {
           const discountResult = calculateDiscountAmount(
@@ -715,7 +717,7 @@ const createAgentRoundTripBooking = async (req, res) => {
       // console.log(`🎫 Generated ticket pair: ${ticketPair.ticket_id_departure} & ${ticketPair.ticket_id_return}`);
 
       // Helper to process each leg (departure / return)
-      const handleLeg = async (data, type, ticket_id) => {
+      const handleLeg = async (data, type, ticket_id, legDiscount) => {
         validatePassengerCounts(
           data.adult_passengers,
           data.child_passengers,
@@ -762,13 +764,15 @@ const createAgentRoundTripBooking = async (req, res) => {
         // 5a️⃣ Apply discount if discount_code is provided
         let discountAmount = 0;
         let discountData = null;
-        let discount = null;
+        let discount = legDiscount || null;
 
         if (data.discount_code) {
           try {
-            discount = await Discount.findOne({
-              where: { code: data.discount_code }
-            });
+            if (!discount) {
+              discount = await Discount.findOne({
+                where: { code: data.discount_code }
+              });
+            }
 
             if (discount) {
               const discountResult = calculateDiscountAmount(
@@ -930,8 +934,18 @@ const createAgentRoundTripBooking = async (req, res) => {
       };
 
       // 🚤 Process both legs with their respective ticket IDs
-      const departureResult = await handleLeg(departure, "departure", ticketPair.ticket_id_departure);
-      const returnResult = await handleLeg(returnData, "return", ticketPair.ticket_id_return);
+      const departureResult = await handleLeg(
+        departure,
+        "departure",
+        ticketPair.ticket_id_departure,
+        req.departureDiscount
+      );
+      const returnResult = await handleLeg(
+        returnData,
+        "return",
+        ticketPair.ticket_id_return,
+        req.returnDiscount
+      );
 
       return { departure: departureResult, return: returnResult };
     });

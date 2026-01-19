@@ -286,6 +286,7 @@ const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
       "check_in_time",
       "arrival_time",
       "journey_time",
+      "trip_type",
     ],
   });
 };

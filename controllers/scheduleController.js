@@ -10,6 +10,7 @@ const {
   Passenger,
   Booking,
   sequelize,
+  Agent,
 } = require("../models");
 const { uploadImageToImageKit } = require("../middleware/upload");
 const { processBookedSeats } = require("../util/seatUtils");
@@ -52,6 +53,7 @@ const {
   formatRouteString,
   formatRouteSteps,
 } = require("../util/querySchedulesHelper");
+const { getNetPrice } = require("../util/agentNetPrice");
 // Fungsi untuk memeriksa apakah hari tertentu tersedia berdasarkan bitmask
 
 const isDayAvailable = (date, daysOfWeek) => {
@@ -2264,8 +2266,26 @@ schedules.forEach((s) => {
 
 const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
   const { from, to, date, passengers_total } = req.query;
+  console.log("Query parameters:", req.query);
+  const agentId = req.query.agent_id || req.body?.agent_id;
+  const passengerCount = Number.parseInt(passengers_total, 10);
+  const hasPassengerCount = Number.isFinite(passengerCount) && passengerCount > 0;
+  const validDiscount = req.discount || null;
 
   try {
+    const agent = agentId
+      ? await Agent.findByPk(agentId, {
+          attributes: [
+            "id",
+            "commission_rate",
+            "commission_long",
+            "commission_short",
+            "commission_mid",
+            "commission_intermediate",
+          ],
+        })
+      : null;
+
     // OPTIMIZED: Semua processing sudah ditangani dalam getSchedulesAndSubSchedules
     const { schedules, subSchedules, selectedDate } =
       await getSchedulesAndSubSchedules(from, to, date);
@@ -2279,9 +2299,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
     let filteredSchedules = availableSchedules;
     let filteredSubSchedules = availableSubSchedules;
 
-    if (passengers_total && parseInt(passengers_total) > 0) {
-      const passengerCount = parseInt(passengers_total);
-
+    if (hasPassengerCount) {
       filteredSchedules = availableSchedules.filter((schedule) => {
         const availableSeats =
           schedule.dataValues?.seatAvailability?.available_seats || 0;
@@ -2307,6 +2325,11 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         });
       }
     }
+
+    const normalizePrice = (value) => {
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    };
 
     // Format dengan fungsi lama dulu (untuk backward compatibility)
     const formattedSchedules = formatSchedules(filteredSchedules, selectedDate);
@@ -2379,6 +2402,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           formatted.seatAvailability || {};
         if (originalSchedule) {
           const routeInfo = formatRouteTimeline(originalSchedule);
+          const normalizedPrice = normalizePrice(formatted.price);
 
           // Destructure untuk exclude field yang tidak dibutuhkan
           const {
@@ -2392,6 +2416,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
 
           return {
             ...cleanFormatted,
+            price: normalizedPrice,
             boat: {
               id: originalSchedule.Boat?.id,
               name: originalSchedule.Boat?.boat_name,
@@ -2412,6 +2437,12 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
             route_summary: routeInfo.route_summary,
             route_type: routeInfo.route_type,
             stops_count: routeInfo.stops_count,
+            ...getNetPrice({
+              agent,
+              tripType: originalSchedule.trip_type,
+              price: normalizedPrice,
+              discount: validDiscount,
+            }),
           };
         }
         return formatted;
@@ -2427,6 +2458,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
           formatted.seatAvailability || {};
         if (originalSubSchedule) {
           const routeInfo = formatRouteTimeline(originalSubSchedule);
+          const normalizedPrice = normalizePrice(formatted.price);
 
           // Destructure untuk exclude field yang tidak dibutuhkan
           const {
@@ -2440,6 +2472,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
 
           return {
             ...cleanFormatted,
+            price: normalizedPrice,
             boat: {
               id: originalSubSchedule.Schedule?.Boat?.id,
               name: originalSubSchedule.Schedule?.Boat?.boat_name,
@@ -2463,6 +2496,12 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
             route_summary: routeInfo.route_summary,
             route_type: routeInfo.route_type,
             stops_count: routeInfo.stops_count,
+            ...getNetPrice({
+              agent,
+              tripType: originalSubSchedule.trip_type,
+              price: normalizedPrice,
+              discount: validDiscount,
+            }),
           };
         }
         return formatted;
@@ -2480,8 +2519,8 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
       status: "success",
       data: {
         schedules: combinedSchedules,
-        ...(passengers_total && {
-          passenger_count_requested: parseInt(passengers_total),
+        ...(hasPassengerCount && {
+          passenger_count_requested: passengerCount,
         }),
       },
     });
