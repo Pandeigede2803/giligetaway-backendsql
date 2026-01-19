@@ -14,6 +14,10 @@ const {
 } = require("../util/handleSubScheduleBooking");
 const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
 
+// Import versi dengan lock untuk updateScheduleBooking
+const { handleSubScheduleBookingWithLock } = require("../util/handleSubScheduleBookingWithLock");
+const handleMainScheduleBookingWithLock = require("../util/handleMainScheduleBookingWithLock");
+
 
 /**
  * Release seats from current SA rows & delete BSA links for a booking.
@@ -58,28 +62,49 @@ async function deleteOldBookingSeatLinks(booking, t, options = {}) {
 
 async function createBookingSeatLinksForRoute(booking, params, t, opts = {}) {
   const { scheduleId, subscheduleId = null, date } = params;
-  const { requireSameDate = false } = opts;
+  const { requireSameDate = false, useLock = true } = opts; // default useLock = true untuk updateScheduleBooking
 
   // 1) Get the correct, correlated SeatAvailability rows via your helpers.
   //    These helpers are expected to ensure/create SA rows, check capacity,
   //    and decrement availability as needed.
   let saList;
   if (subscheduleId) {
-    saList = await handleSubScheduleBooking(
-      scheduleId,
-      subscheduleId,
-      date,
-      booking.total_passengers,
-      null,            // keep your original signature
-      t
-    );
+    // Gunakan versi dengan lock untuk mencegah race condition
+    if (useLock) {
+      saList = await handleSubScheduleBookingWithLock(
+        scheduleId,
+        subscheduleId,
+        date,
+        booking.total_passengers,
+        t
+      );
+    } else {
+      saList = await handleSubScheduleBooking(
+        scheduleId,
+        subscheduleId,
+        date,
+        booking.total_passengers,
+        null,            // keep your original signature
+        t
+      );
+    }
   } else {
-    saList = await handleMainScheduleBooking(
-      scheduleId,
-      date,
-      booking.total_passengers,
-      t
-    );
+    // Gunakan versi dengan lock untuk mencegah race condition
+    if (useLock) {
+      saList = await handleMainScheduleBookingWithLock(
+        scheduleId,
+        date,
+        booking.total_passengers,
+        t
+      );
+    } else {
+      saList = await handleMainScheduleBooking(
+        scheduleId,
+        date,
+        booking.total_passengers,
+        t
+      );
+    }
   }
 
   // Normalize to array

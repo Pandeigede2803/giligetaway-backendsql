@@ -5,16 +5,25 @@ const Booking = require("../models/booking");
 const Transaction = require("../models/Transaction"); // Pastikan path ini benar sesuai struktur proyek Anda
 const { Op } = require("sequelize");
 const SeatAvailability = require("../models/SeatAvailability");
-const { sendExpiredBookingEmail
-} = require("../util/sendPaymentEmail");
-const { queueExpiredBookingEmail,bulkQueueExpiredBookingEmails, DEFAULT_EMAIL_DELAY } = require("../util/bullDelayExpiredEmail"); // Adjust the path as needed
-const {handleMidtransSettlement,handleMidtransSettlementRoundTrip} = require("../util/handleMidtransSettlement");
-
+const { sendExpiredBookingEmail } = require("../util/sendPaymentEmail");
+const {
+  queueExpiredBookingEmail,
+  bulkQueueExpiredBookingEmails,
+  DEFAULT_EMAIL_DELAY,
+} = require("../util/bullDelayExpiredEmail"); // Adjust the path as needed
+const {
+  handleMidtransSettlement,
+  handleMidtransSettlementRoundTrip,
+} = require("../util/handleMidtransSettlement");
 
 const releaseMainScheduleSeats = require("../util/releaseMainScheduleSeats");
 const releaseSubScheduleSeats = require("../util/releaseSubScheduleSeats");
-const {fetchMidtransPaymentStatus} = require("../util/fetchMidtransPaymentStatus");
-const { fixAllSeatMismatches } = require("../controllers/seatAvailabilityController");
+const {
+  fetchMidtransPaymentStatus,
+} = require("../util/fetchMidtransPaymentStatus");
+const {
+  fixAllSeatMismatches,
+} = require("../controllers/seatAvailabilityController");
 const { sendTelegramMessage } = require("../util/telegram");
 /**
  * Fungsi untuk melepaskan kursi yang sudah dipesan ke available_seats
@@ -22,9 +31,8 @@ const { sendTelegramMessage } = require("../util/telegram");
  * @param {Booking} booking Pemesanan yang akan dihapus
  */
 
-const axios = require('axios');;
-const sequelize = require('../config/database');
-
+const axios = require("axios");
+const sequelize = require("../config/database");
 
 const checkAndHandleMidtransSettlements = async () => {
   // console.log("😻 Running Midtrans settlement fallback check...");
@@ -32,10 +40,10 @@ const checkAndHandleMidtransSettlements = async () => {
   try {
     const bookings = await Booking.findAll({
       where: {
-        payment_status: 'pending',
-        payment_method: 'midtrans',
+        payment_status: "pending",
+        payment_method: "midtrans",
       },
-      include: [{ model: Transaction, as: 'transactions' }],
+      include: [{ model: Transaction, as: "transactions" }],
     });
 
     if (!bookings.length) {
@@ -49,22 +57,25 @@ const checkAndHandleMidtransSettlements = async () => {
       const tx = booking.transactions?.[0];
 
       if (!tx || !tx.payment_order_id) {
-        console.warn(`⚠️ Booking ID ${booking.id} has no valid payment_order_id. Skipping...`);
+        console.warn(
+          `⚠️ Booking ID ${booking.id} has no valid payment_order_id. Skipping...`
+        );
         continue;
       }
 
       const order_id = tx.payment_order_id;
 
       try {
-        const { paymentStatus, orderId } = await fetchMidtransPaymentStatus(order_id);
+        const { paymentStatus, orderId } =
+          await fetchMidtransPaymentStatus(order_id);
 
         // console.log(`🔎 Order ${orderId} → Status: ${paymentStatus}`);
 
-        if (paymentStatus === 'settlement') {
+        if (paymentStatus === "settlement") {
           // console.log(`✅ Settlement detected for ${orderId}`);
 
           // ⛳ Kondisi One Way
-          if (booking.ticket_id.startsWith('GG-OW')) {
+          if (booking.ticket_id.startsWith("GG-OW")) {
             // console.log(`🎯 One Way Booking ${booking.ticket_id}`);
             await handleMidtransSettlement(orderId, {
               transaction_id: tx.transaction_id,
@@ -74,7 +85,7 @@ const checkAndHandleMidtransSettlements = async () => {
           }
 
           // ⛳ Kondisi Round Trip
-          else if (booking.ticket_id.startsWith('GG-RT')) {
+          else if (booking.ticket_id.startsWith("GG-RT")) {
             // console.log(`🎯 Round Trip Booking ${booking.ticket_id}`);
             await handleMidtransSettlementRoundTrip(orderId, {
               transaction_id: tx.transaction_id,
@@ -85,22 +96,22 @@ const checkAndHandleMidtransSettlements = async () => {
 
           // 🔐 Default
           else {
-            console.log(`⚠️ Booking ticket ID format tidak dikenali: ${booking.ticket_id}`);
+            console.log(
+              `⚠️ Booking ticket ID format tidak dikenali: ${booking.ticket_id}`
+            );
           }
         }
       } catch (apiErr) {
-        console.error(`❌ Error checking status for order ${order_id}:`, apiErr.message);
+        console.error(
+          `❌ Error checking status for order ${order_id}:`,
+          apiErr.message
+        );
       }
     }
   } catch (fatalErr) {
     console.error("🔥 Fatal error in fallback settlement cron:", fatalErr);
   }
 };
-
-
-
-
-
 
 const releaseSeats = async (booking, transaction) => {
   const { schedule_id, subschedule_id, total_passengers, booking_date } =
@@ -153,8 +164,6 @@ const releaseSeats = async (booking, transaction) => {
  * Mencari pemesanan yang telah melewati waktu kedaluwarsa dan melepaskan kursi yang sudah dipesan
  */
 
-
-
 const handleExpiredBookings = async () => {
   const expiredStatus = process.env.EXPIRED_STATUS;
   const emailedContacts = new Set();
@@ -173,12 +182,17 @@ const handleExpiredBookings = async () => {
           expiration_time: { [Op.lte]: new Date() },
         },
         include: [{ model: Transaction, as: "transactions" }],
-        order: [['contact_email', 'ASC'], ['created_at', 'ASC']],
+        order: [
+          ["contact_email", "ASC"],
+          ["created_at", "ASC"],
+        ],
         limit: batchSize,
         offset: offset,
       });
 
-      console.log(`📦 Fetched ${expiredBookings.length} expired bookings (offset: ${offset})`);
+      console.log(
+        `📦 Fetched ${expiredBookings.length} expired bookings (offset: ${offset})`
+      );
 
       if (expiredBookings.length === 0) {
         hasMore = false;
@@ -190,29 +204,35 @@ const handleExpiredBookings = async () => {
           // Gunakan satu transaksi untuk seluruh proses update booking dan release seats
           await sequelize.transaction(async (t) => {
             const contactEmail = booking.contact_email;
-            
+
             // console.log(`\n🔄 Processing expired booking ID: ${booking.id}, ticket: ${booking.ticket_id}`);
-            
+
             // // Release seats dengan transaksi
             // console.log(`\n🪑 Releasing seats for expired booking ID: ${booking.id}`);
             const releasedSeatIds = await releaseSeats(booking, t);
             // Handle both Array (from releaseMainScheduleSeats) and Set (from releaseSubScheduleSeats)
-            const seatCount = releasedSeatIds instanceof Set ? releasedSeatIds.size : (releasedSeatIds?.length || 0);
-            const seatList = releasedSeatIds instanceof Set
-              ? Array.from(releasedSeatIds).join(", ")
-              : (releasedSeatIds?.join(", ") || "");
-            console.log(`✅ Released seats: ${seatCount > 0 ? seatList : "None"}`);
-            
+            const seatCount =
+              releasedSeatIds instanceof Set
+                ? releasedSeatIds.size
+                : releasedSeatIds?.length || 0;
+            const seatList =
+              releasedSeatIds instanceof Set
+                ? Array.from(releasedSeatIds).join(", ")
+                : releasedSeatIds?.join(", ") || "";
+            console.log(
+              `✅ Released seats: ${seatCount > 0 ? seatList : "None"}`
+            );
+
             // Update booking status dalam transaksi yang sama
             // console.log(`\n🔄 Updating booking status to ${expiredStatus}`);
             booking.payment_status = expiredStatus;
             booking.abandoned = true;
             await booking.save({ transaction: t });
-            
+
             // Update transaction status dalam transaksi yang sama
             const transaction = await Transaction.findOne({
               where: { booking_id: booking.id, status: "pending" },
-              transaction: t
+              transaction: t,
             });
 
             if (transaction) {
@@ -220,20 +240,27 @@ const handleExpiredBookings = async () => {
               transaction.status = "cancelled";
               await transaction.save({ transaction: t });
             }
-            
-            console.log(`✅ Booking ${booking.id} (ticket ${booking.ticket_id}) expired and processed successfully.`);
+
+            console.log(
+              `✅ Booking ${booking.id} (ticket ${booking.ticket_id}) expired and processed successfully.`
+            );
           });
-          
+
           // Email handling (di luar transaksi database)
           let shouldSendEmail = false;
           const contactEmail = booking.contact_email;
 
           if (contactEmail && !emailedContacts.has(contactEmail)) {
             // Cek apakah ada booking lain dari email yang sama dalam waktu 10 menit
-            const recentBookings = expiredBookings.filter((b) =>
-              b.contact_email === contactEmail &&
-              b.id !== booking.id &&
-              Math.abs(new Date(b.created_at).getTime() - new Date(booking.created_at).getTime()) < 10 * 60 * 1000 // < 10 menit
+            const recentBookings = expiredBookings.filter(
+              (b) =>
+                b.contact_email === contactEmail &&
+                b.id !== booking.id &&
+                Math.abs(
+                  new Date(b.created_at).getTime() -
+                    new Date(booking.created_at).getTime()
+                ) <
+                  10 * 60 * 1000 // < 10 menit
             );
 
             if (recentBookings.length === 0) {
@@ -252,8 +279,11 @@ const handleExpiredBookings = async () => {
               if (shouldSendEmail) {
                 // Queue email dengan sistem antrian untuk menghindari overload
                 // console.log(`\n📨 Queueing expired booking email for ${contactEmail}`);
-                const queued = await queueExpiredBookingEmail(contactEmail, booking);
-                
+                const queued = await queueExpiredBookingEmail(
+                  contactEmail,
+                  booking
+                );
+
                 if (queued) {
                   // Tandai email sudah dikirim untuk menghindari duplikasi
                   emailedContacts.add(contactEmail);
@@ -265,16 +295,20 @@ const handleExpiredBookings = async () => {
                 // console.log(`🔄 No email needed for ${booking.ticket_id} based on ticket rules`);
               }
             } else {
-              console.log(`🛑 Email skipped for ${contactEmail}, booking created near another.`);
+              console.log(
+                `🛑 Email skipped for ${contactEmail}, booking created near another.`
+              );
             }
           } else if (!contactEmail) {
             // console.log(`⚠️ No contact email for Booking ID ${booking.id}`);
           } else {
             // console.log(`⛔ Email already sent to ${contactEmail}, skipping.`);
           }
-          
         } catch (bookingError) {
-          console.error(`❌ Error processing expired booking ${booking.id}:`, bookingError);
+          console.error(
+            `❌ Error processing expired booking ${booking.id}:`,
+            bookingError
+          );
 
           // Send Telegram notification for critical errors
           try {
@@ -282,22 +316,25 @@ const handleExpiredBookings = async () => {
 🚨 <b>CRONJOB ERROR - Expired Booking Processing</b>
 
 <b>Booking ID:</b> ${booking.id}
-<b>Ticket ID:</b> ${booking.ticket_id || 'N/A'}
-<b>Contact:</b> ${booking.contact_email || 'N/A'}
-<b>Schedule ID:</b> ${booking.schedule_id || 'N/A'}
-<b>SubSchedule ID:</b> ${booking.subschedule_id || 'N/A'}
-<b>Passengers:</b> ${booking.total_passengers || 'N/A'}
+<b>Ticket ID:</b> ${booking.ticket_id || "N/A"}
+<b>Contact:</b> ${booking.contact_email || "N/A"}
+<b>Schedule ID:</b> ${booking.schedule_id || "N/A"}
+<b>SubSchedule ID:</b> ${booking.subschedule_id || "N/A"}
+<b>Passengers:</b> ${booking.total_passengers || "N/A"}
 
 <b>Error:</b> ${bookingError.message}
 
-<b>Time:</b> ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })}
+<b>Time:</b> ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Makassar" })}
 
 ⚠️ Seats may not have been released. Manual check required.
             `.trim();
 
             await sendTelegramMessage(errorMessage);
           } catch (telegramError) {
-            console.error('❌ Failed to send Telegram notification:', telegramError.message);
+            console.error(
+              "❌ Failed to send Telegram notification:",
+              telegramError.message
+            );
           }
 
           // Lanjutkan ke booking berikutnya meskipun ada error
@@ -319,44 +356,34 @@ const handleExpiredBookings = async () => {
 <b>Batch Offset:</b> ${offset}
 <b>Batch Size:</b> ${batchSize}
 
-<b>Error Type:</b> ${error.name || 'Unknown'}
+<b>Error Type:</b> ${error.name || "Unknown"}
 <b>Error Message:</b> ${error.message}
 
 <b>Stack Trace:</b>
-<code>${error.stack?.substring(0, 500) || 'N/A'}</code>
+<code>${error.stack?.substring(0, 500) || "N/A"}</code>
 
-<b>Time:</b> ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })}
+<b>Time:</b> ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Makassar" })}
 
 🚨 Critical: Entire expired bookings process failed!
       `.trim();
 
       await sendTelegramMessage(errorMessage);
     } catch (telegramError) {
-      console.error('❌ Failed to send Telegram notification:', telegramError.message);
+      console.error(
+        "❌ Failed to send Telegram notification:",
+        telegramError.message
+      );
     }
   }
 };
 
-
-
-
-
-
-
-
 // Ambil frekuensi cron dari variabel environment, dengan default setiap 15 menit
 const cronFrequency = process.env.CRON_FREQUENCY || "*/5 * * * *"; // Default 15 menit
-
-
 
 // Menjadwalkan cron job dengan frekuensi dari env
 cron.schedule(cronFrequency, async () => {
   await handleExpiredBookings();
-
 });
-
-
-
 
 // const handleExpiredBookings = async () => {
 //   const expiredStatus = process.env.EXPIRED_STATUS;
@@ -541,7 +568,6 @@ cron.schedule(cronFrequency, async () => {
 //   }
 // };
 
-
 // const handleExpiredBookings = async () => {
 //   const expiredStatus = process.env.EXPIRED_STATUS;
 //   const emailedContacts = new Set();
@@ -645,8 +671,6 @@ cron.schedule(cronFrequency, async () => {
 //   await checkAndHandleMidtransSettlements();
 // });
 
-
-
 // const handleExpiredBookings = async () => {
 
 //   const expiredStatus = process.env.EXPIRED_STATUS
@@ -702,7 +726,7 @@ cron.schedule(cronFrequency, async () => {
 // const handleExpiredBookings = async () => {
 //   const expiredStatus = process.env.EXPIRED_STATUS;
 //   console.log("✅========Checking for expired bookings...====✅");
-  
+
 //   try {
 //     const expiredBookings = await Booking.findAll({
 //       where: {
@@ -718,29 +742,29 @@ cron.schedule(cronFrequency, async () => {
 //         },
 //       ],
 //     });
-    
+
 //     for (let booking of expiredBookings) {
 //       // Logika untuk melepaskan kursi yang sudah dipesan ke available_seats
 //       await releaseSeats(booking);
-      
+
 //       // Update status pemesanan menjadi 'cancelled'
 //       booking.payment_status = expiredStatus;
 //       await booking.save();
-      
+
 //       // Update related transaction status to 'cancelled'
 //       const transaction = await Transaction.findOne({
 //         where: { booking_id: booking.id, status: "pending" }, // Only cancel pending transactions
 //       });
-      
+
 //       if (transaction) {
 //         transaction.status = "cancelled";
 //         await transaction.save();
-        
+
 //         console.log(
 //           `Transaction ID ${transaction.transaction_id} telah dibatalkan karena pemesanan melewati waktu kedaluwarsa.`
 //         );
 //       }
-      
+
 //       // Queue expired booking notification email to be sent after seats are released
 //       if (booking.contact_email) {
 //         try {
@@ -758,7 +782,7 @@ cron.schedule(cronFrequency, async () => {
 //       } else {
 //         console.log(`⚠️ No contact email found for booking ID ${booking.id}`);
 //       }
-      
+
 //       console.log(
 //         `Booking ID ${booking.id} dan ticket id ${booking.ticket_id} telah dibatalkan karena melewati waktu kedaluwarsa.`
 //       );

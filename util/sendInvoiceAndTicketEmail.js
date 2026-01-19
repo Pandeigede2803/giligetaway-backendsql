@@ -301,8 +301,8 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
     <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
     <li><strong>Route:</strong> ${firstBooking.from || "N/A"} - ${firstBooking.to || "N/A"}</li>
     <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
-    <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
-    <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+    <li><strong>Travel Date:</strong> ${firstBooking.booking_date}</li>
+    <li><strong>Created At:</strong> ${firstBooking.created_at}</li>
   </ul>
   <h3 style="color:#165297;">Departure</h3>
   <ul>
@@ -310,16 +310,16 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
     <li><strong>Ticket ID:</strong> ${firstBooking.ticket_id}</li>
     <li><strong>Route:</strong> ${firstBooking.from || "N/A"} - ${firstBooking.to || "N/A"}</li>
     <li><strong>Passengers:</strong> ${firstBooking.total_passengers} (Adults: ${firstBooking.adult_passengers}, Children: ${firstBooking.child_passengers}, Infants: ${firstBooking.infant_passengers})</li>
-    <li><strong>Travel Date:</strong> ${moment(firstBooking.booking_date).format("MMM D, YYYY")}</li>
-    <li><strong>Created At:</strong> ${moment(firstBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+    <li><strong>Travel Date:</strong> ${firstBooking.booking_date}</li>
+    <li><strong>Created At:</strong> ${firstBooking.created_at}</li>
   </ul>
   <h3 style="color:#165297; margin-top: 30px;">Return</h3>
   <ul>
     <li><strong>Booking ID:</strong> ${secondBooking.id}</li>
     <li><strong>Ticket ID:</strong> ${secondBooking.ticket_id}</li>
     <li><strong>Route:</strong> ${secondBooking.from || "N/A"} - ${secondBooking.to || "N/A"}</li>
-    <li><strong>Travel Date:</strong> ${moment(secondBooking.booking_date).format("MMM D, YYYY")}</li>
-    <li><strong>Created At:</strong> ${moment(secondBooking.created_at).format("MMM D, YYYY h:mm A")}</li>
+    <li><strong>Travel Date:</strong> ${secondBooking.booking_date}</li>
+    <li><strong>Created At:</strong> ${secondBooking.created_at}</li>
   </ul>
   <b>Error:</b> ${err.message}`
       );
@@ -361,6 +361,34 @@ const sendInvoiceAndTicketEmailRoundTrip = async (
         console.error(
           "❌ Error sending round trip notification:",
           notificationError.message
+        );
+        console.error(
+          "🔍 Notification error details:",
+          notificationError.response?.data || notificationError.message
+        );
+
+        // Fallback: send backup email
+        try {
+          await sendBackupEmailAlways2(firstBooking);
+          console.log("✅ Backup email sent after round trip notification failed");
+        } catch (backupErr) {
+          console.error(
+            "❌ Failed to send backup email after notification failed:",
+            backupErr.message
+          );
+        }
+
+        // Send Telegram alert
+        await sendTelegramError(
+          `❌ <b>ROUNDTRIP NOTIFICATION FAILED</b>
+<b>Booking ID:</b> ${firstBooking?.id}-${firstBooking?.ticket_id}
+<b>Contact:</b> ${firstBooking?.contact_name}
+<b>Phone:</b> ${firstBooking?.contact_phone}
+<b>Email:</b> ${firstBooking?.contact_email}
+<b>Route:</b> ${firstBooking?.from || "N/A"} – ${firstBooking?.to || "N/A"} (Round Trip)
+<b>Passengers:</b> ${firstBooking?.total_passengers}
+<b>Travel Date:</b> ${require("moment")(firstBooking?.booking_date).format("MMM D, YYYY")}
+<b>Error:</b> ${notificationError.response?.data?.error || notificationError.message}`
         );
       }
     }
