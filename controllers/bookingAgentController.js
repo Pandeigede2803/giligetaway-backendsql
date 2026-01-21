@@ -268,7 +268,6 @@ const createAgentBooking = async (req, res) => {
     // console.log("Step 5: Ticket ID is unique");
 
     // 5️⃣ Calculate transport total & gross total
-
     const transportTotal = Array.isArray(bookingData.transports)
       ? bookingData.transports.reduce(
           (total, t) =>
@@ -277,7 +276,9 @@ const createAgentBooking = async (req, res) => {
         )
       : 0;
 
-    let grossTotal = (Number(calculatedTicketTotal) || 0) + transportTotal;
+    const ticketTotal = Number(calculatedTicketTotal) || 0;
+    let ticketTotalAfterDiscount = ticketTotal;
+    let grossTotal = ticketTotal + transportTotal;
 
     console.log("Step 6: Calculated transport and gross totals", {
       transportTotal,
@@ -300,21 +301,22 @@ const createAgentBooking = async (req, res) => {
         if (discount) {
           const discountResult = calculateDiscountAmount(
             discount,
-            grossTotal,
+            ticketTotal,
             bookingData.schedule_id,
             'departure' // one-way is considered departure
           );
 
-          const originalGrossTotal = grossTotal;
+          const originalTicketTotal = ticketTotalAfterDiscount;
           discountAmount = discountResult.discountAmount;
           discountData = discountResult.discountData;
-          grossTotal = discountResult.finalTotal;
+          ticketTotalAfterDiscount = discountResult.finalTotal;
+          grossTotal = ticketTotalAfterDiscount + transportTotal;
 
           console.log("Step 6a: Discount applied", {
             code: bookingData.discount_code,
             discountAmount,
-            originalTotal: originalGrossTotal,
-            finalTotal: grossTotal
+            originalTotal: originalTicketTotal,
+            finalTotal: ticketTotalAfterDiscount
           });
         } else {
           console.warn(`⚠️ Discount code '${bookingData.discount_code}' not found`);
@@ -759,6 +761,7 @@ const createAgentRoundTripBooking = async (req, res) => {
 
         // 5️⃣ Compute totals
         const { transportTotal } = calculateTotals(data.transports);
+        let ticketTotalAfterDiscount = ticket_total;
         let gross_total = ticket_total + transportTotal;
 
         // 5a️⃣ Apply discount if discount_code is provided
@@ -777,21 +780,22 @@ const createAgentRoundTripBooking = async (req, res) => {
             if (discount) {
               const discountResult = calculateDiscountAmount(
                 discount,
-                gross_total,
+                ticket_total,
                 data.schedule_id,
                 type // 'departure' or 'return'
               );
 
-              const originalGrossTotal = gross_total;
+              const originalTicketTotal = ticketTotalAfterDiscount;
               discountAmount = discountResult.discountAmount;
               discountData = discountResult.discountData;
-              gross_total = discountResult.finalTotal;
+              ticketTotalAfterDiscount = discountResult.finalTotal;
+              gross_total = ticketTotalAfterDiscount + transportTotal;
 
               console.log(`✅ [${type}] Discount applied`, {
                 code: data.discount_code,
                 discountAmount,
-                originalTotal: originalGrossTotal,
-                finalTotal: gross_total
+                originalTotal: originalTicketTotal,
+                finalTotal: ticketTotalAfterDiscount
               });
             } else {
               console.warn(`⚠️ [${type}] Discount code '${data.discount_code}' not found`);

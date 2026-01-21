@@ -30,9 +30,11 @@ Dokumen ini menjelaskan alur perhitungan harga dan komisi pada booking agent (on
 ## Transport dan Discount
 - `transportTotal` dihitung dari array `transports`.
 - `gross_total = ticket_total + transportTotal`.
-- Jika ada `discount_code`, maka `gross_total` dikurangi sesuai rule discount:
+- Jika ada `discount_code`, diskon hanya dihitung dari `ticket_total` (transport tidak kena diskon).
   - `percentage` atau `fixed`.
   - Validasi schedule restriction dan date range.
+  - `ticket_total_after_discount = max(0, ticket_total - discount_amount)`.
+  - `gross_total = ticket_total_after_discount + transportTotal`.
   - Hasil disimpan ke `discount_data`.
 
 ## Komisi Agent

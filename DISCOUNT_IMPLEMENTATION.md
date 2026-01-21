@@ -11,9 +11,11 @@ This document describes the discount calculation system implemented in `bookingA
 3. [One-Way Booking with Discount](#one-way-booking-with-discount)
 4. [Round-Trip Booking with Discount](#round-trip-booking-with-discount)
 5. [Discount Validation Rules](#discount-validation-rules)
-6. [API Request Examples](#api-request-examples)
-7. [Response Examples](#response-examples)
-8. [Dashboard Integration](#dashboard-integration)
+6. [Final Total Formula](#final-total-formula)
+7. [Test Cases (Manual)](#test-cases-manual)
+8. [API Request Examples](#api-request-examples)
+9. [Response Examples](#response-examples)
+10. [Dashboard Integration](#dashboard-integration)
 
 ---
 
@@ -31,7 +33,7 @@ The `discount_data` JSON field in the Booking table stores:
 
 ### Fields:
 - **`discountId`** (string): The ID of the discount from the Discount table
-- **`discountValue`** (number): The actual discount amount deducted from the gross total
+- **`discountValue`** (number): The actual discount amount deducted from the ticket total (transport excluded)
 - **`discountPercentage`** (string): The percentage value (e.g., "25.00") for percentage discounts, or "0" for fixed amount discounts
 
 ---
@@ -48,7 +50,7 @@ The `discount_data` JSON field in the Booking table stores:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `discount` | Object | Discount record from database |
-| `grossTotal` | Number | Total amount before discount |
+| `grossTotal` | Number | Ticket total before discount (transport excluded) |
 | `scheduleId` | Number | Schedule ID to validate against |
 | `direction` | String | Trip direction: 'departure', 'return', or 'all' |
 
@@ -56,7 +58,7 @@ The `discount_data` JSON field in the Booking table stores:
 ```javascript
 {
   discountAmount: 190000,        // Amount deducted
-  finalTotal: 1810000,           // Gross total after discount
+  finalTotal: 1810000,           // Ticket total after discount
   discountData: {                // JSON to store in booking
     discountId: "10",
     discountValue: 190000,
@@ -68,7 +70,7 @@ The `discount_data` JSON field in the Booking table stores:
 #### Validation Logic:
 1. **Schedule Validation**: Checks if discount is applicable to the specific schedule
 2. **Direction Validation**: Validates if discount applies to departure/return/all
-3. **Minimum Purchase**: Ensures gross total meets minimum purchase requirement
+3. **Minimum Purchase**: Ensures ticket total meets minimum purchase requirement
 4. **Discount Calculation**:
    - **Percentage**: `(grossTotal × percentage) / 100`
    - **Fixed**: Direct discount value
@@ -83,10 +85,11 @@ The `discount_data` JSON field in the Booking table stores:
 1. **Request includes `discount_code`** in the booking data
 2. **System fetches discount** from the Discount table by code
 3. **Validates and calculates** discount using `calculateDiscountAmount()`
-4. **Applies discount** to gross total
+4. **Applies discount** to ticket total only (transport excluded)
 5. **Stores `discount_data`** JSON in booking record
-6. **Commission calculated** based on discounted gross total
-7. **Returns discount information** in the response
+6. **Rebuilds gross total** = (ticket_total_after_discount + transport_total)
+7. **Commission calculated** based on discounted gross total
+8. **Returns discount information** in the response
 
 ### Code Location:
 - Lines 259-294: Discount application logic
@@ -104,7 +107,7 @@ Each leg (departure and return) can have **separate discount codes**.
 2. **Direction-specific validation**:
    - Departure leg uses `direction = 'departure'`
    - Return leg uses `direction = 'return'`
-3. **Independent discount calculation** per leg
+3. **Independent discount calculation** per leg (ticket total only)
 4. **Total discount** = departure discount + return discount
 
 ### Code Location:
@@ -158,6 +161,7 @@ if (discount.min_purchase && grossTotal < parseFloat(discount.min_purchase)) {
   // Discount not applicable
 }
 ```
+> `grossTotal` here refers to the ticket total before discount (transport excluded).
 
 ### 6. **Maximum Discount Cap**
 ```javascript
@@ -175,6 +179,47 @@ agent_ids: [926, 1234, 5678]
 ```
 
 ---
+
+## Final Total Formula
+
+Discount is applied to ticket price only. Transport is always added after discount.
+
+```text
+ticket_total = calculated from schedule + passengers
+transport_total = sum(transport_price * quantity)
+discount_amount = calculated from ticket_total
+ticket_total_after_discount = max(0, ticket_total - discount_amount)
+gross_total = ticket_total_after_discount + transport_total
+```
+
+## Test Cases (Manual)
+
+1) One-way with transport + percentage discount  
+   - ticket_total = 1,000,000  
+   - transport_total = 100,000  
+   - discount = 10% of ticket_total = 100,000  
+   - ticket_total_after_discount = 900,000  
+   - gross_total = 900,000 + 100,000 = 1,000,000
+
+2) One-way with transport + fixed discount  
+   - ticket_total = 750,000  
+   - transport_total = 50,000  
+   - discount = 200,000  
+   - ticket_total_after_discount = 550,000  
+   - gross_total = 600,000
+
+3) Minimum purchase check (ticket only)  
+   - min_purchase = 500,000  
+   - ticket_total = 450,000  
+   - transport_total = 300,000  
+   - result: discount NOT applied because ticket_total < min_purchase
+
+4) Round-trip (per leg discount)  
+   - departure ticket_total = 800,000; transport_total = 100,000; discount 10% = 80,000  
+     gross_total (departure) = 720,000 + 100,000 = 820,000  
+   - return ticket_total = 700,000; transport_total = 0; discount fixed 50,000  
+     gross_total (return) = 650,000  
+   - total_gross = 1,470,000; total_discount = 130,000
 
 ## API Request Examples
 
