@@ -4,11 +4,11 @@ const { Op } = require('sequelize');
 
 const validateSeatAvailabilitySingleTrip = async (schedule_id, subschedule_id, booking_date, total_passengers) => {
   try {
-  //  console.log("---VALIDATE SEATAVAILABILITY---")
-  //   console.log('Schedule ID:', schedule_id);
-  //   console.log('SubSchedule ID:', subschedule_id);
-  //   console.log('Booking Date:', booking_date);
-  //   console.log('Total Passengers:', total_passengers);
+   console.log("---VALIDATE SEATAVAILABILITY---")
+    console.log('Schedule ID:', schedule_id);
+    console.log('SubSchedule ID:', subschedule_id);
+    console.log('Booking Date:', booking_date);
+    console.log('Total Passengers:', total_passengers);
 
     // Step 2: Define the query conditionally based on the subschedule_id
     const seatAvailabilityQuery = {

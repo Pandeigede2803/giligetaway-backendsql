@@ -57,7 +57,7 @@ const {
   handleMultipleSeatsBooking,
 } = require("../util/handleMultipleSeatsBooking");
 const validateSeatAvailability = require("../util/validateSeatAvailability");
-const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabilitySingleTrip");
+const validateSeatAvailabilitySingleTrip = require("../util/validateSeatAvailabilitySingleTripSafe");
 const AgentCommission = require("../models/AgentComission");
 
 const {
