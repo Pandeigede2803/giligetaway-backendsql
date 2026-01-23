@@ -25,6 +25,7 @@ const handleMainScheduleBooking = require("../util/handleMainScheduleBooking");
 const {
   updateAgentCommission,
   updateAgentCommissionOptimize,
+  calculateAgentCommissionAmount,
 } = require("../util/updateAgentComission");
 
 const { mapJourneySteps } = require("../util/mapJourneySteps");
@@ -90,20 +91,26 @@ const calculateTotals = (transports = []) => {
 };
 
 /**
- * Calculate discount and apply to gross total
+ * Calculate discount and apply to net total (after commission deduction)
+ * IMPORTANT: Discount is calculated from NET amount (ticket_total - commission), NOT from ticket_total
  * @param {Object} discount - Discount object from database
- * @param {number} grossTotal - Total before discount
+ * @param {number} ticketTotal - Original ticket total before any deductions
+ * @param {number} commissionAmount - Agent commission amount to deduct first
  * @param {number} scheduleId - Schedule ID to validate
  * @param {string} direction - 'departure', 'return', or 'all'
- * @returns {Object} { discountAmount, finalTotal, discountData }
+ * @returns {Object} { discountAmount, finalTotal, discountData, netAfterCommission }
  */
-const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = 'all') => {
+const calculateDiscountAmount = (discount, ticketTotal, commissionAmount = 0, scheduleId, direction = 'all') => {
+  // Calculate net amount after commission deduction
+  const netAfterCommission = ticketTotal - commissionAmount;
+
   if (!discount) {
     console.log("❌ Discount validation failed: No discount object provided");
     return {
       discountAmount: 0,
-      finalTotal: grossTotal,
-      discountData: null
+      finalTotal: ticketTotal,
+      discountData: null,
+      netAfterCommission
     };
   }
 
@@ -116,8 +123,9 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
       });
       return {
         discountAmount: 0,
-        finalTotal: grossTotal,
-        discountData: null
+        finalTotal: ticketTotal,
+        discountData: null,
+        netAfterCommission
       };
     }
   }
@@ -130,36 +138,41 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
     });
     return {
       discountAmount: 0,
-      finalTotal: grossTotal,
-      discountData: null
+      finalTotal: ticketTotal,
+      discountData: null,
+      netAfterCommission
     };
   }
 
-  // Check minimum purchase requirement
-  if (discount.min_purchase && grossTotal < parseFloat(discount.min_purchase)) {
+  // Check minimum purchase requirement (based on net after commission)
+  if (discount.min_purchase && netAfterCommission < parseFloat(discount.min_purchase)) {
     console.log("❌ Discount validation failed: Minimum purchase not met", {
       minPurchase: discount.min_purchase,
-      grossTotal
+      netAfterCommission
     });
     return {
       discountAmount: 0,
-      finalTotal: grossTotal,
-      discountData: null
+      finalTotal: ticketTotal,
+      discountData: null,
+      netAfterCommission
     };
   }
 
   let discountAmount = 0;
 
-  // Calculate discount based on type
+  // Calculate discount based on type - FROM NET AFTER COMMISSION
   if (discount.discount_type === 'percentage') {
-    console.log("📊 Calculating percentage discount:", {
-      grossTotal,
+    console.log("📊 Calculating percentage discount from NET (after commission):", {
+      ticketTotal,
+      commissionAmount,
+      netAfterCommission,
       discountValue: discount.discount_value,
       discountValueParsed: parseFloat(discount.discount_value),
-      calculation: `(${grossTotal} * ${parseFloat(discount.discount_value)}) / 100`
+      calculation: `(${netAfterCommission} * ${parseFloat(discount.discount_value)}) / 100`
     });
 
-    discountAmount = (grossTotal * parseFloat(discount.discount_value)) / 100;
+    // IMPORTANT: Discount is calculated from netAfterCommission, NOT ticketTotal
+    discountAmount = (netAfterCommission * parseFloat(discount.discount_value)) / 100;
 
     console.log("📊 After calculation:", {
       discountAmount,
@@ -176,19 +189,24 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
     discountAmount = parseFloat(discount.discount_value);
   }
 
-  const finalTotal = Math.max(0, grossTotal - discountAmount);
+  // Final total = ticket_total - discount (commission is separate, not deducted from final)
+  const finalTotal = Math.max(0, ticketTotal - discountAmount);
 
   // Prepare discount_data JSON for storing in booking
   const discountData = {
     discountId: discount.id.toString(),
     discountValue: parseFloat(discountAmount.toFixed(2)),
-    discountPercentage: discount.discount_type === 'percentage' ? discount.discount_value.toString() : "0"
+    discountPercentage: discount.discount_type === 'percentage' ? discount.discount_value.toString() : "0",
+    calculatedFromNet: parseFloat(netAfterCommission.toFixed(2)),
+    commissionDeducted: parseFloat(commissionAmount.toFixed(2))
   };
 
-  console.log("✅ Discount calculation successful", {
+  console.log("✅ Discount calculation successful (from NET after commission)", {
     discountType: discount.discount_type,
     discountValue: discount.discount_value,
-    originalTotal: grossTotal,
+    ticketTotal,
+    commissionAmount,
+    netAfterCommission: parseFloat(netAfterCommission.toFixed(2)),
     discountAmount: parseFloat(discountAmount.toFixed(2)),
     finalTotal: parseFloat(finalTotal.toFixed(2))
   });
@@ -196,7 +214,8 @@ const calculateDiscountAmount = (discount, grossTotal, scheduleId, direction = '
   return {
     discountAmount: parseFloat(discountAmount.toFixed(2)),
     finalTotal: parseFloat(finalTotal.toFixed(2)),
-    discountData
+    discountData,
+    netAfterCommission: parseFloat(netAfterCommission.toFixed(2))
   };
 };
 
@@ -285,7 +304,47 @@ const createAgentBooking = async (req, res) => {
       grossTotal,
     });
 
-    // 6a️⃣ Apply discount if discount_code is provided
+    // 6a️⃣ PRE-CALCULATE commission amount for discount calculation
+    // Commission must be calculated FIRST before discount can be applied
+    let preCalculatedCommission = 0;
+    if (bookingData.agent_id) {
+      try {
+        const agent = await Agent.findByPk(bookingData.agent_id);
+        if (agent) {
+          // Get trip type
+          let tripType = null;
+          if (bookingData.subschedule_id) {
+            const sub = await SubSchedule.findByPk(bookingData.subschedule_id);
+            tripType = sub ? sub.trip_type : null;
+          } else {
+            const sch = await Schedule.findByPk(bookingData.schedule_id);
+            tripType = sch ? sch.trip_type : null;
+          }
+
+          if (tripType) {
+            // Use utility function to calculate commission
+            preCalculatedCommission = calculateAgentCommissionAmount({
+              agent,
+              tripType,
+              grossTotal,
+              totalPassengers: bookingData.total_passengers,
+              transportBookings: bookingData.transports || []
+            });
+
+            console.log("Step 6a: Pre-calculated commission for discount", {
+              agent_id: bookingData.agent_id,
+              tripType,
+              preCalculatedCommission
+            });
+          }
+        }
+      } catch (commissionError) {
+        console.error("⚠️ Error pre-calculating commission:", commissionError.message);
+      }
+    }
+
+    // 6b️⃣ Apply discount if discount_code is provided
+    // IMPORTANT: Discount is now calculated from NET (ticketTotal - commission)
     let discountAmount = 0;
     let discountData = null;
     let discount = req.discount || null;
@@ -299,24 +358,27 @@ const createAgentBooking = async (req, res) => {
         }
 
         if (discount) {
+          // Pass commission amount to calculate discount from NET
           const discountResult = calculateDiscountAmount(
             discount,
             ticketTotal,
+            preCalculatedCommission, // Commission deducted first before discount calculation
             bookingData.schedule_id,
             'departure' // one-way is considered departure
           );
 
-          const originalTicketTotal = ticketTotalAfterDiscount;
           discountAmount = discountResult.discountAmount;
           discountData = discountResult.discountData;
           ticketTotalAfterDiscount = discountResult.finalTotal;
           grossTotal = ticketTotalAfterDiscount + transportTotal;
 
-          console.log("Step 6a: Discount applied", {
+          console.log("Step 6b: Discount applied (calculated from NET after commission)", {
             code: bookingData.discount_code,
+            ticketTotal,
+            commissionAmount: preCalculatedCommission,
+            netAfterCommission: discountResult.netAfterCommission,
             discountAmount,
-            originalTotal: originalTicketTotal,
-            finalTotal: ticketTotalAfterDiscount
+            finalTicketTotal: ticketTotalAfterDiscount
           });
         } else {
           console.warn(`⚠️ Discount code '${bookingData.discount_code}' not found`);
@@ -472,6 +534,18 @@ const createAgentBooking = async (req, res) => {
       // console.log("Step 11: Added booking to processing queue");
       return { booking, transactionEntry, commissionResult };
     });
+
+    // 📱 Send Telegram notification for successful booking
+    sendTelegramMessage(`
+✅ <b>AGENT BOOKING SUCCESS</b>
+🎫 Ticket: <code>${ticket_id}</code>
+agent id: <code>${bookingData.agent_id}</code>
+👤 Contact: <code>${bookingData.contact_name || '-'}</code>
+👥 Passengers: <code>${bookingData.total_passengers}</code>
+💰 Total: <code>IDR ${grossTotal.toLocaleString('id-ID')}</code>
+📅 Date: <code>${bookingData.departure_date}</code>
+🕒 ${new Date().toLocaleString('id-ID')}
+    `).catch(err => console.error("⚠️ Telegram notification failed:", err.message));
 
     return res.status(201).json({
       success: true,
@@ -764,7 +838,47 @@ const createAgentRoundTripBooking = async (req, res) => {
         let ticketTotalAfterDiscount = ticket_total;
         let gross_total = ticket_total + transportTotal;
 
-        // 5a️⃣ Apply discount if discount_code is provided
+        // 5a️⃣ PRE-CALCULATE commission amount for discount calculation
+        // Commission must be calculated FIRST before discount can be applied
+        let preCalculatedCommission = 0;
+        if (data.agent_id) {
+          try {
+            const agent = await Agent.findByPk(data.agent_id, { transaction: t });
+            if (agent) {
+              // Get trip type
+              let tripType = null;
+              if (data.subschedule_id) {
+                const sub = await SubSchedule.findByPk(data.subschedule_id);
+                tripType = sub ? sub.trip_type : null;
+              } else {
+                const sch = await Schedule.findByPk(data.schedule_id);
+                tripType = sch ? sch.trip_type : null;
+              }
+
+              if (tripType) {
+                // Use utility function to calculate commission
+                preCalculatedCommission = calculateAgentCommissionAmount({
+                  agent,
+                  tripType,
+                  grossTotal: gross_total,
+                  totalPassengers: data.total_passengers,
+                  transportBookings: data.transports || []
+                });
+
+                console.log(`✅ [${type}] Pre-calculated commission for discount`, {
+                  agent_id: data.agent_id,
+                  tripType,
+                  preCalculatedCommission
+                });
+              }
+            }
+          } catch (commissionError) {
+            console.error(`⚠️ [${type}] Error pre-calculating commission:`, commissionError.message);
+          }
+        }
+
+        // 5b️⃣ Apply discount if discount_code is provided
+        // IMPORTANT: Discount is now calculated from NET (ticket_total - commission)
         let discountAmount = 0;
         let discountData = null;
         let discount = legDiscount || null;
@@ -778,24 +892,27 @@ const createAgentRoundTripBooking = async (req, res) => {
             }
 
             if (discount) {
+              // Pass commission amount to calculate discount from NET
               const discountResult = calculateDiscountAmount(
                 discount,
                 ticket_total,
+                preCalculatedCommission, // Commission deducted first before discount calculation
                 data.schedule_id,
                 type // 'departure' or 'return'
               );
 
-              const originalTicketTotal = ticketTotalAfterDiscount;
               discountAmount = discountResult.discountAmount;
               discountData = discountResult.discountData;
               ticketTotalAfterDiscount = discountResult.finalTotal;
               gross_total = ticketTotalAfterDiscount + transportTotal;
 
-              console.log(`✅ [${type}] Discount applied`, {
+              console.log(`✅ [${type}] Discount applied (calculated from NET after commission)`, {
                 code: data.discount_code,
+                ticket_total,
+                commissionAmount: preCalculatedCommission,
+                netAfterCommission: discountResult.netAfterCommission,
                 discountAmount,
-                originalTotal: originalTicketTotal,
-                finalTotal: ticketTotalAfterDiscount
+                finalTicketTotal: ticketTotalAfterDiscount
               });
             } else {
               console.warn(`⚠️ [${type}] Discount code '${data.discount_code}' not found`);
@@ -957,6 +1074,19 @@ const createAgentRoundTripBooking = async (req, res) => {
     const totalGross =
       result.departure.booking.gross_total +
       result.return.booking.gross_total;
+
+    // 📱 Send Telegram notification for successful round-trip booking
+    sendTelegramMessage(`
+✅ <b>AGENT ROUND-TRIP BOOKING SUCCESS</b>
+🎫 Departure: <code>${result.departure.booking.ticket_id}</code>
+🎫 Return: <code>${result.return.booking.ticket_id}</code>
+Agent id : <code>${departure.agent_id}</code>
+👤 Contact: <code>${departure.contact_name || '-'}</code>
+👥 Passengers: <code>${departure.total_passengers}</code>
+💰 Total: <code>IDR ${totalGross.toLocaleString('id-ID')}</code>
+📅 Dep: <code>${departure.booking_date}</code> | Ret: <code>${returnData.booking_date}</code>
+🕒 ${new Date().toLocaleString('id-ID')}
+    `).catch(err => console.error("⚠️ Telegram notification failed:", err.message));
 
     return res.status(201).json({
       success: true,

@@ -138,6 +138,71 @@ const updateAgentCommission = async (
   }
 };
 
+/**
+ * Calculate agent commission amount WITHOUT saving to database
+ * Use this for pre-calculating commission before discount calculation
+ * @param {Object} params - Parameters object
+ * @param {Object} params.agent - Agent object with commission rates
+ * @param {string} params.tripType - Trip type: 'long', 'short', 'mid', 'intermediate'
+ * @param {number} params.grossTotal - Gross total amount
+ * @param {number} params.totalPassengers - Total number of passengers
+ * @param {Array} params.transportBookings - Array of transport bookings
+ * @returns {number} Commission amount
+ */
+const calculateAgentCommissionAmount = ({
+  agent,
+  tripType,
+  grossTotal,
+  totalPassengers,
+  transportBookings = []
+}) => {
+  if (!agent) {
+    console.warn("⚠️ calculateAgentCommissionAmount: No agent provided");
+    return 0;
+  }
+
+  if (!tripType) {
+    console.warn("⚠️ calculateAgentCommissionAmount: No tripType provided");
+    return 0;
+  }
+
+  let commissionAmount = 0;
+
+  // Calculate base commission
+  if (parseFloat(agent.commission_rate) > 0) {
+    commissionAmount = grossTotal * (agent.commission_rate / 100);
+  } else {
+    switch (tripType) {
+      case "long":
+        commissionAmount = parseFloat(agent.commission_long || 0) * totalPassengers;
+        break;
+      case "short":
+        commissionAmount = parseFloat(agent.commission_short || 0) * totalPassengers;
+        break;
+      case "mid":
+        commissionAmount = parseFloat(agent.commission_mid || 0) * totalPassengers;
+        break;
+      case "intermediate":
+        commissionAmount = parseFloat(agent.commission_intermediate || 0) * totalPassengers;
+        break;
+      default:
+        console.warn(`⚠️ calculateAgentCommissionAmount: Invalid tripType '${tripType}'`);
+        return 0;
+    }
+  }
+
+  // Add transport commission if no pickup/dropoff transport
+  const hasTransport = Array.isArray(transportBookings) && transportBookings.some(
+    (t) => ["pickup", "dropoff"].includes(t?.transport_type)
+  );
+
+  if (!hasTransport && agent.commission_transport) {
+    commissionAmount += parseFloat(agent.commission_transport) * totalPassengers;
+  }
+
+  return parseFloat(commissionAmount.toFixed(2));
+};
+
 const updateAgentCommissionOptimize = async (
   agent_id,
   gross_total,
@@ -166,36 +231,14 @@ const updateAgentCommissionOptimize = async (
       };
     }
 
-    let commissionAmount = 0;
-
-    if (parseFloat(agent.commission_rate) > 0) {
-      commissionAmount = gross_total * (agent.commission_rate / 100);
-    } else {
-      switch (tripType) {
-        case "long":
-          commissionAmount = parseFloat(agent.commission_long) * total_passengers;
-          break;
-        case "short":
-          commissionAmount = parseFloat(agent.commission_short) * total_passengers;
-          break;
-        case "mid":
-          commissionAmount = parseFloat(agent.commission_mid) * total_passengers;
-          break;
-        case "intermediate":
-          commissionAmount = parseFloat(agent.commission_intermediate) * total_passengers;
-          break;
-        default:
-          throw new Error("Invalid trip type");
-      }
-    }
-
-    const hasTransport = Array.isArray(transportBookings) && transportBookings.some(
-      (t) => ["pickup", "dropoff"].includes(t.transport_type)
-    );
-
-    if (!hasTransport) {
-      commissionAmount += parseFloat(agent.commission_transport) * total_passengers;
-    }
+    // Use utility function to calculate commission amount
+    const commissionAmount = calculateAgentCommissionAmount({
+      agent,
+      tripType,
+      grossTotal: gross_total,
+      totalPassengers: total_passengers,
+      transportBookings
+    });
 
     await AgentCommission.create(
       {
@@ -439,5 +482,6 @@ const updateAgentCommissionBulk = async (
 module.exports = {
   updateAgentCommission,
   updateAgentCommissionBulk,
-  updateAgentCommissionOptimize
+  updateAgentCommissionOptimize,
+  calculateAgentCommissionAmount
 };
