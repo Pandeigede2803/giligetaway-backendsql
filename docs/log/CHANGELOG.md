@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-01-23] - Fix Discount Calculation, Net Total & Telegram Notification
+
+### Fixed
+- **Discount Calculation Bug**
+  - Diskon sekarang dihitung dari NET (ticket_total - commission), bukan dari ticket_total langsung
+  - Contoh: ticket=1jt, commission=100rb, net=900rb, diskon 20% = 180rb (bukan 200rb)
+
+- **Missing `net_total` in API Response (CRITICAL)**
+  - API response tidak menyertakan `net_total` (pendapatan company setelah commission)
+  - Ini penting untuk tracking keuangan dan reporting
+
+### Added
+- **New Utility Function `calculateAgentCommissionAmount`**
+  - File: `util/updateAgentComission.js`
+  - Menghitung commission amount tanpa menyimpan ke database
+  - Digunakan untuk pre-calculation sebelum discount
+
+- **Telegram Notification untuk Booking Success**
+  - File: `controllers/bookingAgentController.js`
+  - Notifikasi untuk one-way booking dan round-trip booking
+  - Info: ticket ID, agent ID, contact, passengers, total, date
+
+- **New Response Fields untuk Financial Tracking**
+  - `net_total`: Company receives per booking (gross_total - commission)
+  - `total_commission`: Total komisi semua leg (round-trip only)
+  - `total_net`: Total company receives (round-trip only)
+
+### Changed
+- **`calculateDiscountAmount` Function**
+  - Ditambahkan parameter `commissionAmount`
+  - Diskon dihitung dari `netAfterCommission`
+  - Return object menyertakan `netAfterCommission`
+
+- **`createAgentBooking` Response**
+  - Ditambahkan `net_total` = gross_total - commission
+
+- **`createAgentRoundTripBooking` Response**
+  - Ditambahkan `net_total` per leg (departure & return)
+  - Ditambahkan `total_commission` dan `total_net` untuk summary
+
+- **`updateAgentCommissionOptimize`**
+  - Refactored untuk menggunakan `calculateAgentCommissionAmount`
+
+### Documentation
+- Added: `docs/log/fix-bug-discount-calculation-2026-01-23.md`
+
+---
+
 ## [2026-01-12] - Race Condition Prevention & Error Monitoring
 
 ### Added

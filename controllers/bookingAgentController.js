@@ -547,6 +547,10 @@ agent id: <code>${bookingData.agent_id}</code>
 🕒 ${new Date().toLocaleString('id-ID')}
     `).catch(err => console.error("⚠️ Telegram notification failed:", err.message));
 
+    // Calculate net_total (what company receives after commission)
+    const commissionAmount = result.commissionResult?.commission || 0;
+    const netTotal = grossTotal - commissionAmount;
+
     return res.status(201).json({
       success: true,
       message: "Agent booking created successfully",
@@ -559,6 +563,7 @@ agent id: <code>${bookingData.agent_id}</code>
         discount_amount: discountAmount,
         discount_data: discountData,
         gross_total: grossTotal,
+        net_total: netTotal, // Company receives (gross_total - commission)
         payment_status: "invoiced",
         payment_method: "invoiced",
         status: "processing",
@@ -1088,6 +1093,14 @@ Agent id : <code>${departure.agent_id}</code>
 🕒 ${new Date().toLocaleString('id-ID')}
     `).catch(err => console.error("⚠️ Telegram notification failed:", err.message));
 
+    // Calculate net_total for each leg and total (what company receives after commission)
+    const departureCommission = result.departure.commission?.commission || 0;
+    const returnCommission = result.return.commission?.commission || 0;
+    const departureNetTotal = result.departure.booking.gross_total - departureCommission;
+    const returnNetTotal = result.return.booking.gross_total - returnCommission;
+    const totalCommission = departureCommission + returnCommission;
+    const totalNetTotal = totalGross - totalCommission;
+
     return res.status(201).json({
       success: true,
       message: "Agent round-trip booking created successfully",
@@ -1100,6 +1113,7 @@ Agent id : <code>${departure.agent_id}</code>
           discount_amount: result.departure.discountAmount,
           discount_data: result.departure.discountData,
           gross_total: result.departure.booking.gross_total,
+          net_total: departureNetTotal, // Company receives (gross - commission)
           pricing_breakdown: result.departure.ticketCalculation.breakdown,
           commission: result.departure.commission,
         },
@@ -1111,11 +1125,14 @@ Agent id : <code>${departure.agent_id}</code>
           discount_amount: result.return.discountAmount,
           discount_data: result.return.discountData,
           gross_total: result.return.booking.gross_total,
+          net_total: returnNetTotal, // Company receives (gross - commission)
           pricing_breakdown: result.return.ticketCalculation.breakdown,
           commission: result.return.commission,
         },
         total_gross: totalGross,
+        total_commission: totalCommission,
         total_discount: (result.departure.discountAmount || 0) + (result.return.discountAmount || 0),
+        total_net: totalNetTotal, // Total company receives
         payment_status: "invoiced",
         status: "processing",
       },
