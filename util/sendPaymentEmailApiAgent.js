@@ -339,18 +339,10 @@ const sendEmailApiAgentStaff = async (
         </td>
       </tr>
       ` : ''}
-      ${discountAmount > 0 ? `
-      <tr>
-        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Discount${booking.discount_data?.discountPercentage && booking.discount_data.discountPercentage !== "0" ? ` (${booking.discount_data.discountPercentage}%)` : ''}</td>
-        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
-          -${formatIDR(discountAmount)}
-        </td>
-      </tr>
-      ` : ''}
       <tr style="border-top: 2px solid #dee2e6;">
         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Subtotal</td>
         <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">
-          ${formatIDR(booking.gross_total)}
+          ${formatIDR(ticketTotal + transportTotal)}
         </td>
       </tr>
       ${totalCommission > 0 ? `
@@ -361,8 +353,16 @@ const sendEmailApiAgentStaff = async (
         </td>
       </tr>
       ` : ''}
+      ${discountAmount > 0 ? `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Discount (After Agent Commission)${booking.discount_data?.discountPercentage && booking.discount_data.discountPercentage !== "0" ? ` - ${booking.discount_data.discountPercentage}%` : ''}</td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
+          -${formatIDR(discountAmount)}
+        </td>
+      </tr>
+      ` : ''}
       <tr style="background: #e8f5e9;">
-        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 700; font-size: 16px; color: #333;">Net Amount (After Commission)</td>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 700; font-size: 16px; color: #333;">Net Amount (After Commission & Discount)</td>
         <td style="padding: 15px; text-align: right; font-weight: 700; font-size: 16px; color: #2e7d32;">
           ${formatIDR(netAmount)}
         </td>
@@ -455,7 +455,7 @@ const sendEmailApiAgentStaff = async (
 
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
-    to: process.env.EMAIL_AGENT,
+    to: process.env.EMAIL_USER_TITAN,
     // cc: process.env.EMAIL_AGENT,
     subject,
     html: message,
@@ -463,7 +463,7 @@ const sendEmailApiAgentStaff = async (
 
     const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_AGENT, // booking@giligetaway.site
+    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
@@ -821,22 +821,10 @@ const sendEmailApiRoundTripAgentStaff = async (
         </td>
       </tr>
       ` : ''}
-      ${totalDiscount > 0 ? `
-      <tr>
-        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">
-          Total Discount
-          ${discountAmountDep > 0 && firstBooking.discount_data?.discountPercentage && firstBooking.discount_data.discountPercentage !== "0" ? ` (Dep: ${firstBooking.discount_data.discountPercentage}%)` : ''}
-          ${discountAmountRet > 0 && secondBooking.discount_data?.discountPercentage && secondBooking.discount_data.discountPercentage !== "0" ? ` (Ret: ${secondBooking.discount_data.discountPercentage}%)` : ''}
-        </td>
-        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
-          -${formatIDR(totalDiscount)}
-        </td>
-      </tr>
-      ` : ''}
       <tr style="border-top: 2px solid #dee2e6;">
         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Subtotal</td>
         <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600;">
-          ${formatIDR(grossTotal)}
+          ${formatIDR(totalTickets + totalTransport)}
         </td>
       </tr>
       ${totalCommission > 0 ? `
@@ -844,6 +832,18 @@ const sendEmailApiRoundTripAgentStaff = async (
         <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">Agent Commission</td>
         <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #28a745;">
           -${formatIDR(totalCommission)}
+        </td>
+      </tr>
+      ` : ''}
+      ${totalDiscount > 0 ? `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; background: #f8f9fa;">
+          Discount (After Agent Commission)
+          ${discountAmountDep > 0 && firstBooking.discount_data?.discountPercentage && firstBooking.discount_data.discountPercentage !== "0" ? ` - Dep: ${firstBooking.discount_data.discountPercentage}%` : ''}
+          ${discountAmountRet > 0 && secondBooking.discount_data?.discountPercentage && secondBooking.discount_data.discountPercentage !== "0" ? ` - Ret: ${secondBooking.discount_data.discountPercentage}%` : ''}
+        </td>
+        <td style="padding: 15px; text-align: right; background: #f8f9fa; font-weight: 600; color: #dc3545;">
+          -${formatIDR(totalDiscount)}
         </td>
       </tr>
       ` : ''}
