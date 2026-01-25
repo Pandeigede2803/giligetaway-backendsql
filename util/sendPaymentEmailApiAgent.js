@@ -71,7 +71,7 @@ const sendEmailApiAgentStaff = async (
   // //console.log("final state", JSON.stringify(booking.final_state, null, 2));
   const subject = `API AGENT BOOKING - ${agentName} - ${booking.ticket_id}`;
 
-  const invoiceDownloadUrl = `${emailUrl}/check-invoice/${booking.ticket_id}`;
+  const invoiceDownloadUrl = `${emailUrl}/check-invoice-agent/${booking.ticket_id}`;
   const ticketDownloadUrl = `${emailUrl}/check-ticket-page/${booking.ticket_id}`;
   const passengerData = booking.passengers || [];
 
@@ -455,7 +455,7 @@ const sendEmailApiAgentStaff = async (
 
   const mailOptionsTitan = {
     from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
-    to: process.env.EMAIL_USER_TITAN,
+    to: process.env.EMAIL_AGENT,
     // cc: process.env.EMAIL_AGENT,
     subject,
     html: message,
@@ -463,7 +463,7 @@ const sendEmailApiAgentStaff = async (
 
     const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+    to: process.env.EMAIL_AGENT, // booking@giligetaway.site
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
@@ -505,7 +505,7 @@ const sendEmailApiRoundTripAgentStaff = async (
   const emailUrl = process.env.FRONTEND_URL;
   const subject = `API BOOKING ROUND TRIP - ${firstBooking.ticket_id} -${agentName}`;
 
-  const invoiceUrl = `${emailUrl}/check-invoice/${firstBooking.ticket_id}`;
+  const invoiceUrl = `${emailUrl}/check-invoice-agent/${firstBooking.ticket_id}`;
   const ticketUrl = `${emailUrl}/check-ticket-page/${firstBooking.ticket_id}`;
 
   // Get route from schedule for departure
