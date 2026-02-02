@@ -225,8 +225,10 @@ const calculateDiscountAmount = (discount, ticketTotal, commissionAmount = 0, sc
 const notifyQueueError = (error, context, title) => {
   sendTelegramMessage(`
 ❌ <b>[${title}]</b>
+<b>API AGENT BOOKING QUEUE ERROR</b>
 <pre>${error.message}</pre>
 🧾 Booking ID: <code>${context.booking_id || "N/A"}</code>
+agent id: <code>${context.agent_id || "N/A"}</code>
 📅 Booking Date: <code>${context.booking_date || "N/A"}</code>
 🛤️ Schedule: <code>${context.schedule_id || "N/A"}</code>
 🔀 SubSchedule: <code>${context.subschedule_id || "N/A"}</code>
@@ -515,25 +517,49 @@ const createAgentBooking = async (req, res) => {
         }
       }
 
-      // 🔄 Queue for background processing (seat + transport + passengers + email)
-      bookingAgentQueue.add({
+      // Return data (queue will be added AFTER transaction commits)
+      return { booking, transactionEntry, commissionResult };
+    });
+
+    // 🔄 Queue for background processing (seat + transport + passengers + email)
+    // Added AFTER transaction commits to avoid race condition
+    try {
+      await bookingAgentQueue.add({
         schedule_id: bookingData.schedule_id,
         subschedule_id: bookingData.subschedule_id,
         departure_date: bookingData.departure_date,
         total_passengers: bookingData.total_passengers,
         transports: bookingData.transports,
         passengers: bookingData.passengers,
-        booking_id: booking.id,
+        booking_id: result.booking.id,
         agent_id: bookingData.agent_id,
         agent_email: bookingData.agent_email,
         gross_total: grossTotal,
         payment_status: "invoiced",
-        commission_amount: commissionResult?.commission || 0,
+        commission_amount: result.commissionResult?.commission || 0,
         transportTotal: transportTotal,
       });
-      // console.log("Step 11: Added booking to processing queue");
-      return { booking, transactionEntry, commissionResult };
-    });
+      console.log("✅ Step 11: Added booking to processing queue after transaction commit");
+    } catch (queueError) {
+      console.error(`❌ CRITICAL: Failed to add booking to queue after commit!`, {
+        booking_id: result.booking.id,
+        ticket_id: ticket_id,
+        error: queueError.message
+      });
+
+      // Send urgent notification to admin
+      sendTelegramMessage(`
+🚨 <b>CRITICAL: QUEUE ADD FAILED</b>
+Booking created but NOT queued for processing!
+
+🎫 Ticket: <code>${ticket_id}</code> (ID: ${result.booking.id})
+Agent ID: <code>${bookingData.agent_id}</code>
+⚠️ <b>ACTION REQUIRED:</b> Manually process this booking!
+
+Error: <pre>${queueError.message}</pre>
+🕒 ${new Date().toLocaleString('id-ID')}
+      `).catch(err => console.error("Failed to send telegram alert:", err));
+    }
 
     // 📱 Send Telegram notification for successful booking
     sendTelegramMessage(`
@@ -1030,32 +1056,31 @@ const createAgentRoundTripBooking = async (req, res) => {
           }
         }
 
-        // 🔟 Add to queue for heavy operations
-        bookingAgentRoundQueue.add({
-          schedule_id: data.schedule_id,
-          subschedule_id: data.subschedule_id,
-          booking_date: data.booking_date,
-          total_passengers: data.total_passengers,
-          transports: data.transports,
-          passengers: data.passengers, // Pass original passengers with both seat numbers
-          booking_id: booking.id,
-          agent_id: data.agent_id,
-          agent_email: data.agent_email,
-          ticket_total,
-          gross_total,
-          ticket_id,
-          payment_status: "invoiced",
-          type,
-          commission_amount: commissionResult?.commission || 0,
-        });
-
+        // 🔟 Return queue data (will be added AFTER transaction commits)
         return {
           booking,
           transaction: transactionEntry,
           ticketCalculation,
           commission: commissionResult,
           discountAmount,
-          discountData
+          discountData,
+          queueData: {
+            schedule_id: data.schedule_id,
+            subschedule_id: data.subschedule_id,
+            booking_date: data.booking_date,
+            total_passengers: data.total_passengers,
+            transports: data.transports,
+            passengers: data.passengers, // Pass original passengers with both seat numbers
+            booking_id: booking.id,
+            agent_id: data.agent_id,
+            agent_email: data.agent_email,
+            ticket_total,
+            gross_total,
+            ticket_id,
+            payment_status: "invoiced",
+            type,
+            commission_amount: commissionResult?.commission || 0,
+          }
         };
       };
 
@@ -1075,6 +1100,35 @@ const createAgentRoundTripBooking = async (req, res) => {
 
       return { departure: departureResult, return: returnResult };
     });
+
+    // 🔄 Add to queue AFTER transaction commits (fixes race condition)
+    // Using Promise.all for parallel execution (faster for round trip)
+    try {
+      await Promise.all([
+        bookingAgentRoundQueue.add(result.departure.queueData),
+        bookingAgentRoundQueue.add(result.return.queueData)
+      ]);
+      console.log(`✅ Added both legs to queue in parallel after transaction commit`);
+    } catch (queueError) {
+      console.error(`❌ CRITICAL: Failed to add booking to queue after commit!`, {
+        departure_booking_id: result.departure.booking.id,
+        return_booking_id: result.return.booking.id,
+        error: queueError.message
+      });
+
+      // Send urgent notification to admin
+      sendTelegramMessage(`
+🚨 <b>CRITICAL: QUEUE ADD FAILED</b>
+Booking created but NOT queued for processing!
+
+🎫 Departure: <code>${result.departure.booking.ticket_id}</code> (ID: ${result.departure.booking.id})
+🎫 Return: <code>${result.return.booking.ticket_id}</code> (ID: ${result.return.booking.id})
+⚠️ <b>ACTION REQUIRED:</b> Manually process these bookings!
+
+Error: <pre>${queueError.message}</pre>
+🕒 ${new Date().toLocaleString('id-ID')}
+      `).catch(err => console.error("Failed to send telegram alert:", err));
+    }
 
     const totalGross =
       result.departure.booking.gross_total +
