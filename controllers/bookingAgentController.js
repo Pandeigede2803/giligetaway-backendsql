@@ -1480,7 +1480,7 @@ bookingAgentRoundQueue.process(async (job, done) => {
               ]
             });
           }
-
+// send email notifications for round trip to staff
           if (departureBooking && returnBooking) {
             await sendEmailApiRoundTripAgentStaff(
               process.env.EMAIL_AGENT,

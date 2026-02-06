@@ -15,6 +15,7 @@ module.exports = async (req, res, next) => {
     const { agent_id, departure, return: returnData } = req.body;
 
     // console.log("🔍 Validating agent round trip booking data");
+    // console.log(`🎁Request body: ${JSON.stringify(req.body)}`);
 
     // ============================================
     // 1. Validate top-level structure
@@ -85,10 +86,13 @@ module.exports = async (req, res, next) => {
       // console.log(`✅ ${legName} schedule found: ${schedule.id}`);
 
       // 3.2 Validate subschedule_id (if provided)
-      if (legData.subschedule_id) {
-        const subScheduleId = parseInt(
-          legData.subschedule_id?.value || legData.subschedule_id
-        );
+      // Clean up subschedule_id: handle "", "N/A", null, undefined → remove field
+      const rawSubScheduleId = legData.subschedule_id?.value || legData.subschedule_id;
+      if (!rawSubScheduleId || rawSubScheduleId === "" || rawSubScheduleId === "N/A") {
+        delete legData.subschedule_id;
+        // console.log(`✅ ${legName} subschedule_id is optional, field removed`);
+      } else {
+        const subScheduleId = parseInt(rawSubScheduleId);
         if (isNaN(subScheduleId)) {
           return {
             error: `Invalid ${legName} subschedule_id`,
