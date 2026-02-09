@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-02-06] - Fix Empty Subschedule ID Validation in Round-Trip Booking
+
+### Fixed
+- **Database Error for Empty Subschedule ID**
+  - Fixed error: `"Incorrect integer value: '' for column 'subschedule_id' at row 1"`
+  - Middleware now removes `subschedule_id` field when value is `""`, `"N/A"`, `null`, or `undefined`
+  - Applies to both departure and return legs in round-trip bookings
+  - `subschedule_id` remains optional as per business requirements
+
+### Changed
+- **`validateAgentRoundTripBooking` Middleware**
+  - File: `middleware/validateAgentRoundTripBooking.js`
+  - Added explicit handling for empty/invalid subschedule_id values
+  - Field is removed from request object instead of passing invalid value to controller
+  - Database now receives `NULL` instead of empty string for optional subschedule
+
+### Technical Details
+- Agent applications may send empty strings when subschedule is not selected
+- Middleware now sanitizes data defensively before passing to controller
+- No changes required in controller or database schema
+
+### Documentation
+- Added: `docs/BUG_FIX_SUBSCHEDULE_EMPTY_STRING.md`
+
+---
+
 ## [2026-01-23] - Fix Discount Calculation, Net Total & Telegram Notification
 
 ### Fixed

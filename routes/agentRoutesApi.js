@@ -12,6 +12,10 @@ const bookingAgentController = require('../controllers/bookingAgentController')
 const validateAgentBooking = require("../middleware/validateAgentBooking");
 const validateAgentRoundTripBooking = require("../middleware/validateAgentRoundTripBooking");
 const { validateAgentDiscount, validateAgentRoundTripDiscount } = require("../middleware/validateAgentDiscount");
+const {
+  assignAgentSeatNumbers,
+  assignAgentRoundTripSeatNumbers,
+} = require("../middleware/assignAgentSeatNumbers");
 
 
 const transportController = require('../controllers/transportController');
@@ -33,7 +37,21 @@ router.get('/search-transports/v3',validateApiKey,transportController.getTranspo
 
 
 
-router.post('/book/v1', validateApiKey, validateAgentBooking, validateAgentDiscount, bookingAgentController.createAgentBooking);
-router.post('/round-trip-book/v1', validateApiKey, validateAgentRoundTripBooking, validateAgentRoundTripDiscount, bookingAgentController.createAgentRoundTripBooking);
+router.post(
+  '/book/v1',
+  validateApiKey,
+  validateAgentBooking,
+  assignAgentSeatNumbers,
+  validateAgentDiscount,
+  bookingAgentController.createAgentBooking
+);
+router.post(
+  '/round-trip-book/v1',
+  validateApiKey,
+  validateAgentRoundTripBooking,
+  assignAgentRoundTripSeatNumbers,
+  validateAgentRoundTripDiscount,
+  bookingAgentController.createAgentRoundTripBooking
+);
 
 module.exports = router;;

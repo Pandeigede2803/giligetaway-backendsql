@@ -70,6 +70,7 @@ const {
   sendEmailApiRoundTripAgentStaff,
   sendAgentBookingSuccessEmail,
 } = require("../util/sendPaymentEmailApiAgent");
+const { autoAssignSeatsForBooking } = require("../util/autoAssignSeats");
 
 // ===============================
 // ✅ HELPER FUNCTIONS
@@ -791,6 +792,26 @@ bookingAgentQueue.process(async (job, done) => {
       // Don't fail the queue if email fails
     }
 
+    try {
+      const seatResult = await autoAssignSeatsForBooking({
+        bookingId: booking_id,
+        scheduleId: schedule_id,
+        subscheduleId: subschedule_id,
+        travelDate: departure_date,
+      });
+      if (seatResult?.updatedPassengers) {
+        console.log("🪑 Auto-assign seat (one-way) updated passengers", {
+          bookingId: booking_id,
+          ...seatResult,
+        });
+      }
+    } catch (assignError) {
+      console.error(
+        `⚠️ Auto-assign seat failed for booking ${booking_id}:`,
+        assignError.message
+      );
+    }
+
     done();
   } catch (error) {
     await transaction.rollback();
@@ -1011,6 +1032,7 @@ const createAgentRoundTripBooking = async (req, res) => {
           ...p,
           seat_number: type === 'departure' ? p.seat_number_departure : p.seat_number_return
         }));
+        // console.log(`🧍‍♂️ [${type}] Adding ${passengersForThisLeg} passengers for booking ${booking.id}`);
         await addPassengers(passengersForThisLeg, booking.id, t);
 
         // 9️⃣ Generate Agent Commission
@@ -1482,6 +1504,39 @@ bookingAgentRoundQueue.process(async (job, done) => {
           }
 // send email notifications for round trip to staff
           if (departureBooking && returnBooking) {
+            try {
+              const departureSeatResult = await autoAssignSeatsForBooking({
+                bookingId: departureBooking.id,
+                scheduleId: departureBooking.schedule_id,
+                subscheduleId: departureBooking.subschedule_id,
+                travelDate: departureBooking.booking_date,
+              });
+              if (departureSeatResult?.updatedPassengers) {
+                console.log("🪑 Auto-assign seat completed for departure booking", {
+                  bookingId: departureBooking.id,
+                  ...departureSeatResult,
+                });
+              }
+
+              const returnSeatResult = await autoAssignSeatsForBooking({
+                bookingId: returnBooking.id,
+                scheduleId: returnBooking.schedule_id,
+                subscheduleId: returnBooking.subschedule_id,
+                travelDate: returnBooking.booking_date,
+              });
+              if (returnSeatResult?.updatedPassengers) {
+                console.log("🪑 Auto-assign seat completed for return booking", {
+                  bookingId: returnBooking.id,
+                  ...returnSeatResult,
+                });
+              }
+            } catch (assignError) {
+              console.error(
+                "⚠️ Auto-assign seat failed for round-trip booking:",
+                assignError.message
+              );
+            }
+
             await sendEmailApiRoundTripAgentStaff(
               process.env.EMAIL_AGENT,
               departureBooking,
