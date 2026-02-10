@@ -880,7 +880,7 @@ const sendEmailApiRoundTripAgentStaff = async (
 
    const mailOptions = {
     from: process.env.EMAIL_AGENT,
-    to: process.env.EMAIL_AGENT, // booking@giligetaway.site
+    to: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
     // cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,

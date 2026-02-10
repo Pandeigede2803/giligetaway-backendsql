@@ -8,14 +8,34 @@ module.exports = async (req, res, next) => {
     console.log("start validation")
 
     // 🔹 1. Pastikan schedule_id dan subschedule_id valid numerik
-    data.schedule_id = parseInt(data.schedule_id?.value || data.schedule_id);
-    data.subschedule_id = parseInt(data.subschedule_id?.value || data.subschedule_id);
+    const rawScheduleId = data.schedule_id?.value ?? data.schedule_id;
+    data.schedule_id = parseInt(rawScheduleId, 10);
 
     if (!data.schedule_id || isNaN(data.schedule_id)) {
       return res.status(400).json({
         error: "Invalid schedule_id",
         message: "Schedule ID must be a valid number.",
       });
+    }
+
+    const rawSubScheduleId = data.subschedule_id?.value ?? data.subschedule_id;
+
+    if (
+      rawSubScheduleId === undefined ||
+      rawSubScheduleId === null ||
+      rawSubScheduleId === "" ||
+      rawSubScheduleId === "N/A"
+    ) {
+      delete data.subschedule_id;
+    } else {
+      const parsedSubScheduleId = parseInt(rawSubScheduleId, 10);
+      if (isNaN(parsedSubScheduleId)) {
+        return res.status(400).json({
+          error: "Invalid subschedule_id",
+          message: "SubSchedule ID must be a valid number.",
+        });
+      }
+      data.subschedule_id = parsedSubScheduleId;
     }
 
     // 🔹 2. Validasi schedule dan subschedule ada di database
@@ -28,7 +48,7 @@ module.exports = async (req, res, next) => {
     }
     console.log("Schedule found:", schedule.id);
 
-    if (data.subschedule_id) {
+    if (data.subschedule_id !== undefined && data.subschedule_id !== null) {
       const subSchedule = await SubSchedule.findByPk(data.subschedule_id);
       if (!subSchedule) {
         return res.status(404).json({
