@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-02-10] - Sanitasi Subschedule One-Way Agent Booking
+
+### Fixed
+- **`subschedule_id` NaN di booking one-way**
+  - Middleware `validateAgentBooking` kini menghapus field ketika nilainya `""`, `"N/A"`, `null`, atau `undefined`
+  - Nilai lain wajib berupa angka valid; jika tidak, request ditolak dengan 400
+  - Cegah error database `Incorrect integer value: 'NaN' for column 'subschedule_id'`
+
+### Changed
+- **`validateAgentBooking` Middleware**
+  - Menormalisasi `schedule_id`/`subschedule_id` lebih awal
+  - Validasi subschedule dari database tetap dijalankan selama ID tersedia
+
+### Documentation
+- Added: `docs/log/fix-subschedule-nan-one-way-2026-02-10.md`
+
 ## [2026-02-06] - Fix Empty Subschedule ID Validation in Round-Trip Booking
 
 ### Fixed

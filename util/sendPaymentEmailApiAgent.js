@@ -80,8 +80,9 @@ const sendEmailApiAgentStaff = async (
   let routeTo = "N/A";
 
   if (booking.subSchedule) {
-    // For subschedule: departure from DestinationFrom, arrival at TransitTo or DestinationTo
-    routeFrom = booking.subSchedule.DestinationFrom?.name || "N/A";
+    // For subschedule: check TransitFrom first (some bookings depart from transit point), then DestinationFrom
+    routeFrom = booking.subSchedule.TransitFrom?.Destination?.name ||
+                booking.subSchedule.DestinationFrom?.name || "N/A";
     routeTo = booking.subSchedule.TransitTo?.Destination?.name ||
               booking.subSchedule.DestinationTo?.name || "N/A";
   } else if (booking.schedule) {
@@ -512,7 +513,9 @@ const sendEmailApiRoundTripAgentStaff = async (
   let routeFromDep = "N/A";
   let routeToDep = "N/A";
   if (firstBooking.subSchedule) {
-    routeFromDep = firstBooking.subSchedule.DestinationFrom?.name || "N/A";
+    // Check TransitFrom first (some bookings depart from transit point), then DestinationFrom
+    routeFromDep = firstBooking.subSchedule.TransitFrom?.Destination?.name ||
+                   firstBooking.subSchedule.DestinationFrom?.name || "N/A";
     routeToDep = firstBooking.subSchedule.TransitTo?.Destination?.name ||
                  firstBooking.subSchedule.DestinationTo?.name || "N/A";
   } else if (firstBooking.schedule) {
@@ -524,7 +527,9 @@ const sendEmailApiRoundTripAgentStaff = async (
   let routeFromRet = "N/A";
   let routeToRet = "N/A";
   if (secondBooking.subSchedule) {
-    routeFromRet = secondBooking.subSchedule.DestinationFrom?.name || "N/A";
+    // Check TransitFrom first (some bookings depart from transit point), then DestinationFrom
+    routeFromRet = secondBooking.subSchedule.TransitFrom?.Destination?.name ||
+                   secondBooking.subSchedule.DestinationFrom?.name || "N/A";
     routeToRet = secondBooking.subSchedule.TransitTo?.Destination?.name ||
                  secondBooking.subSchedule.DestinationTo?.name || "N/A";
   } else if (secondBooking.schedule) {
