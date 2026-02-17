@@ -31,6 +31,8 @@ const {
   validateTransportData,
   validateMultipleBookingCreation,
   validateRoundTripBookingPost,
+  validateSingleBookingGrossTotal,
+  validateRoundTripGrossTotal,
 } = require("../middleware/validateBookingcreation");
 const bulkBookingController = require("../controllers/bulkBookingController");
 const multer = require("multer");
@@ -80,6 +82,7 @@ router.post(
   authenticate,
   validateScheduleAndSubSchedule,
   validateBookingCreation,
+  validateSingleBookingGrossTotal,
   validateTransportData,
   bookingController.createBookingWithTransitQueue
 );
@@ -100,6 +103,7 @@ router.post(
   bookingRateLimiter,
   validateScheduleAndSubScheduleForRoundTrip,
   validateRoundTripBookingPost,
+  validateRoundTripGrossTotal,
   bookingController.createRoundBookingWithTransitQueue
 );
 

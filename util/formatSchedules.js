@@ -214,4 +214,5 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
 module.exports = {
   formatSchedules,
   formatSubSchedules,
+  getSeasonPrice,
 };

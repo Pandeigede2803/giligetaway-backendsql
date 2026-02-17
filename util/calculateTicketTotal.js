@@ -196,20 +196,13 @@ const generateOneWayTicketId = async () => {
     let exists = true;
 
     while (exists) {
-      const now = new Date();
-      const hh = now.getHours().toString().padStart(2, "0");
-      const mm = now.getMinutes().toString().padStart(2, "0");
-      const ss = now.getSeconds().toString().padStart(2, "0");
+      // ✅ Generate random 6 digit (100000-999999)
+      const random6Digit = (100000 + Math.floor(Math.random() * 900000)).toString();
+      ticketId = `GG-OW-${random6Digit}`;
 
-      const numberPart = `${hh}${mm}${ss}`;
-      ticketId = `GG-OW-${numberPart}`;
-
-      // cek collision di DB
+      // Check collision di DB
       exists = await Booking.findOne({ where: { ticket_id: ticketId } });
-      if (exists) {
-        const msToNextSecond = 1000 - now.getMilliseconds();
-        await new Promise((r) => setTimeout(r, msToNextSecond));
-      }
+      // If collision (very rare), loop akan retry dengan random baru
     }
 
     console.log(`✅ Generated ticket ID: ${ticketId}`);

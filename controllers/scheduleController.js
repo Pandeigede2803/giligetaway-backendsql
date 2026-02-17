@@ -2167,8 +2167,12 @@ schedules.forEach((s) => {
 
     // Check Seat Availability for SubSchedules
     for (const subSchedule of subSchedules) {
+      const parentScheduleId =
+        subSchedule.schedule_id ?? subSchedule.Schedule?.id ?? null;
+
       let seatAvailability = await SeatAvailability.findOne({
         where: {
+          schedule_id: parentScheduleId,
           subschedule_id: subSchedule.id,
           date: selectedDate,
           // availability: true,
@@ -2198,7 +2202,7 @@ schedules.forEach((s) => {
         id: seatAvailability.id,
         available_seats: adjustedAvailableSeats,
         availability: seatAvailability.availability,
-        schedule_id: subSchedule.Schedule?.id || null, // Attach schedule ID if exists
+        schedule_id: parentScheduleId, // keep consistent with SeatAvailability lookup
         subschedule_id: subSchedule.id,
         date: selectedDate,
       };

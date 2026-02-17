@@ -2,6 +2,93 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-02-11] - Backend Calculation for Ticket Total & Gross Total
+
+### Security Enhancement
+- **Backend-Controlled Price Calculation**
+  - Backend sekarang menghitung ulang semua nilai finansial, tidak lagi mempercayai nilai dari frontend
+  - Mencegah manipulasi harga dari client-side
+  - Implementasi untuk single trip (`/transit-queue`) dan round trip (`/round-queue`)
+
+### Changed
+- **`validateSingleBookingGrossTotal` Middleware**
+  - File: `middleware/validateBookingcreation.js`
+  - Tidak lagi memvalidasi nilai dari frontend, langsung menghitung ulang
+  - Menghitung `ticket_total` berdasarkan season price (low/high/peak) × total_passengers
+  - Menghitung `transport_total` dari database Transport (cost × quantity)
+  - Menghitung `gross_total` = ticket_total + transport_total - discount + bank_fee
+  - Mengganti nilai `req.body.ticket_total` dan `req.body.gross_total` dengan hasil perhitungan backend
+
+- **`validateRoundTripGrossTotal` Middleware**
+  - File: `middleware/validateBookingcreation.js`
+  - Menghitung ulang untuk kedua segment (departure & return)
+  - Memanggil `validateGrossTotalForSegment` untuk setiap leg
+  - Mengganti nilai di `req.body.departure` dan `req.body.return`
+
+- **`calculateTransportTotalAndValidate` Function**
+  - File: `middleware/validateBookingcreation.js`
+  - Tidak lagi mempercayai `transport_price` dari frontend
+  - Mengambil harga dari database: `Transport.findByPk(transport_id)`
+  - Menghitung: `cost × quantity`
+  - Mengganti nilai `transport_price` di array transports dengan hasil perhitungan
+
+- **`validateGrossTotalForSegment` Function**
+  - File: `middleware/validateBookingcreation.js`
+  - Helper function untuk round trip
+  - Menghitung ticket_total, transport_total, dan gross_total per segment
+  - Mengganti nilai di segment object
+
+### Fixed
+- **`getSeasonPrice` Export Missing**
+  - File: `util/formatSchedules.js`
+  - Fungsi `getSeasonPrice` sudah ada tapi tidak di-export
+  - Ditambahkan ke module.exports
+
+### Routes Updated
+- **`POST /bookings/transit-queue`**
+  - File: `routes/booking.js`
+  - Ditambahkan middleware `validateSingleBookingGrossTotal`
+  - Order: validateBookingCreation → validateSingleBookingGrossTotal → validateTransportData
+
+- **`POST /bookings/round-queue`**
+  - File: `routes/booking.js`
+  - Ditambahkan middleware `validateRoundTripGrossTotal`
+  - Order: validateRoundTripBookingPost → validateRoundTripGrossTotal
+
+### Data Flow
+**Trusted from Frontend:**
+- ✅ `total_passengers` (validated)
+- ✅ `schedule_id`, `subschedule_id` (validated against database)
+- ✅ `booking_date` (used for season calculation)
+- ✅ `transports` array (only `transport_id` and `quantity`)
+- ✅ `bank_fee`, `discount` (business logic parameters)
+
+**Calculated by Backend (NOT trusted from frontend):**
+- ❌ `ticket_total` → calculated from season price
+- ❌ `gross_total` → calculated from formula
+- ❌ `transport_price` → fetched from database
+
+### Technical Details
+- **Season Pricing**: Harga tiket ditentukan berdasarkan booking_date dan season config (LOW_SEASON_MONTHS, HIGH_SEASON_MONTHS, PEAK_SEASON_MONTHS dari env)
+- **Transport Pricing**: Harga transport diambil dari table Transport berdasarkan transport_id
+- **Calculation Formula**:
+  ```
+  ticket_total = season_price × total_passengers
+  transport_total = Σ(transport.cost × quantity)
+  gross_total = ticket_total + transport_total - discount + bank_fee
+  ```
+
+### Impact
+- ✅ Meningkatkan keamanan sistem booking
+- ✅ Mencegah price manipulation dari frontend
+- ✅ Memastikan konsistensi harga dengan database
+- ✅ Berlaku untuk single trip dan round trip
+
+### Documentation
+- Added: `docs/log/backend-calculation-ticket-gross-total-2026-02-11.md`
+
+---
+
 ## [2026-02-10] - Sanitasi Subschedule One-Way Agent Booking
 
 ### Fixed
