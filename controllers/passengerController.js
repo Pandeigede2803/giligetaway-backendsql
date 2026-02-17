@@ -28,6 +28,7 @@ const { findRelatedSubSchedules } = require("../util/handleSubScheduleBooking");
 
 const getSeatAvailabilityIncludes = require("../util/getSeatAvailabilityIncludes");
 const { processBookedSeats, processBookedSeatsWithDuplicates } = require("../util/seatUtils");
+const { recalculateBookingFinancials } = require("../util/recalculateBookingFinancials");
 const { add } = require("../queue/bookingQueue");
 const { all } = require("../routes/passenger");
 // Fix date utility function
@@ -1104,16 +1105,21 @@ const getPassengerCountByMonth = async (req, res) => {
   }
 };
 const createPassenger = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  console.log("🚀 Starting passenger creation process with data:",);
+
   try {
     const { booking_id, ...passengerData } = req.body;
 
     if (!booking_id) {
+      await transaction.rollback();
       return res.status(400).json({ error: "booking_id is required" });
     }
 
-    const booking = await Booking.findByPk(booking_id);
+    const booking = await Booking.findByPk(booking_id, { transaction });
 
     if (!booking) {
+      await transaction.rollback();
       return res.status(404).json({ error: "Booking not found" });
     }
 
@@ -1121,7 +1127,7 @@ const createPassenger = async (req, res) => {
     let subSchedulesToProcess = [];
 
     if (selectedSubSchedule) {
-      const selectedSS = await SubSchedule.findByPk(selectedSubSchedule);
+      const selectedSS = await SubSchedule.findByPk(selectedSubSchedule, { transaction });
       const related = await findRelatedSubSchedules(booking.schedule_id, selectedSS);
       subSchedulesToProcess = [selectedSS, ...related];
       console.log(`📦 Found ${related.length} related SubSchedules`);
@@ -1134,12 +1140,13 @@ const createPassenger = async (req, res) => {
     for (const ss of subSchedulesToProcess) {
       const subscheduleId = ss ? ss.id : null;
 
-      let sa = await SeatAvailability.findOne({
+      const sa = await SeatAvailability.findOne({
         where: {
           schedule_id: booking.schedule_id,
           subschedule_id: subscheduleId,
           date: booking.booking_date
-        }
+        },
+        transaction
       });
 
       if (!sa) {
@@ -1148,17 +1155,12 @@ const createPassenger = async (req, res) => {
       }
 
       const existingBSA = await BookingSeatAvailability.findOne({
-        where: {
-          booking_id: booking_id,
-          seat_availability_id: sa.id
-        }
+        where: { booking_id, seat_availability_id: sa.id },
+        transaction
       });
 
       if (!existingBSA) {
-        await BookingSeatAvailability.create({
-          booking_id: booking_id,
-          seat_availability_id: sa.id
-        });
+        await BookingSeatAvailability.create({ booking_id, seat_availability_id: sa.id }, { transaction });
         console.log(`✅ Linked Booking ID ${booking_id} to SeatAvailability ID ${sa.id}`);
       }
 
@@ -1166,10 +1168,7 @@ const createPassenger = async (req, res) => {
     }
 
     // === Buat Passenger ===
-    const passenger = await Passenger.create({
-      booking_id,
-      ...passengerData
-    });
+    const passenger = await Passenger.create({ booking_id, ...passengerData }, { transaction });
 
     // === Kurangi available_seats jika tipe penumpang perlu kursi ===
     const seatTypesRequiringSeat = ['adult', 'child'];
@@ -1177,10 +1176,10 @@ const createPassenger = async (req, res) => {
 
     if (seatTypesRequiringSeat.includes(passengerType)) {
       for (const saId of affectedSeatAvailabilityIds) {
-        const sa = await SeatAvailability.findByPk(saId);
+        const sa = await SeatAvailability.findByPk(saId, { transaction });
 
         if (sa && sa.available_seats > 0) {
-          await sa.update({ available_seats: sa.available_seats - 1 });
+          await sa.update({ available_seats: sa.available_seats - 1 }, { transaction });
           console.log(`🪑 Decreased seat on SA ${sa.id} -> now ${sa.available_seats - 1}`);
         } else {
           console.warn(`❌ Cannot reduce seats — SA ID ${saId} has no available seats`);
@@ -1188,23 +1187,49 @@ const createPassenger = async (req, res) => {
       }
     }
 
-    // === Update total_passengers di booking ===
-    const passengerCount = await Passenger.count({ where: { booking_id } });
-    if (passengerCount !== booking.total_passengers) {
-      await booking.update({ total_passengers: passengerCount });
-    }
+    // === Update passenger counts di Booking ===
+    const isAdult  = passengerType === 'adult';
+    const isChild  = passengerType === 'child';
+    const isInfant = passengerType === 'infant';
 
-    res.status(201).json({
+    const updatedBookingData = {
+      adult_passengers:  booking.adult_passengers  + (isAdult  ? 1 : 0),
+      child_passengers:  booking.child_passengers  + (isChild  ? 1 : 0),
+      infant_passengers: booking.infant_passengers + (isInfant ? 1 : 0),
+      total_passengers:  booking.total_passengers  + (isAdult || isChild ? 1 : 0),
+    };
+
+    await Booking.update(updatedBookingData, { where: { id: booking_id }, transaction });
+
+    // === Recalculate finansial ===
+    const financials = await recalculateBookingFinancials({ booking, transaction });
+
+    await transaction.commit();
+
+    return res.status(201).json({
       success: true,
       message: "Passenger created successfully",
-      data: passenger
+      data: passenger,
+      updated_booking: {
+        ...updatedBookingData,
+        adult_passengers:  financials.adult_passengers,
+        child_passengers:  financials.child_passengers,
+        infant_passengers: financials.infant_passengers,
+        total_passengers:  financials.total_passengers,
+        ticket_total:      financials.ticket_total,
+        gross_total:       financials.gross_total,
+        bank_fee:          financials.bank_fee,
+        discount_data:     financials.discount_data,
+        commission_amount: financials.commission_amount,
+      }
     });
 
   } catch (error) {
+    await transaction.rollback();
     console.error("Error creating passenger:", error);
-    res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -1458,35 +1483,47 @@ const addPassenger = async (req, res) => {
       };
     });
 
-    // PENTING: Update jumlah penumpang di model Booking (sementara di-comment karena akan dilakukan manual)
-    /*
+    // Update jumlah penumpang di Booking
     const updatedBookingData = {
       adult_passengers: booking.adult_passengers + newAdultCount,
       child_passengers: booking.child_passengers + newChildCount,
       infant_passengers: booking.infant_passengers + newInfantCount,
-      total_passengers: booking.total_passengers + newAdultCount + newChildCount 
+      total_passengers: booking.total_passengers + newAdultCount + newChildCount
     };
 
     await Booking.update(updatedBookingData, {
       where: { id: booking_id },
       transaction
     });
-    */
-    
+
+    // Recalculate ticket_total, gross_total, discount, bank_fee, dan agent commission
+    const financials = await recalculateBookingFinancials({ booking, transaction });
+
     // Hitung jumlah penumpang berdasarkan tipe setelah penambahan
     const passengerCounts = await getPassengerCounts(booking_id, transaction);
-    
+
     // Commit transaction jika semuanya berhasil
     await transaction.commit();
-    
+
     return res.status(201).json({
       success: true,
       message: `${addedPassengers.length} passenger(s) added to booking successfully`,
       booking_id,
       added_passengers: addedPassengers,
       updated_seat_availabilities: updatedSeatAvailabilities,
-      passenger_counts: passengerCounts
-      // updated_booking: updatedBookingData
+      passenger_counts: passengerCounts,
+      updated_booking: {
+        ...updatedBookingData,
+        adult_passengers:  financials.adult_passengers,
+        child_passengers:  financials.child_passengers,
+        infant_passengers: financials.infant_passengers,
+        total_passengers:  financials.total_passengers,
+        ticket_total:      financials.ticket_total,
+        gross_total:       financials.gross_total,
+        bank_fee:          financials.bank_fee,
+        discount_data:     financials.discount_data,
+        commission_amount: financials.commission_amount,
+      }
     });
     
   } catch (error) {
@@ -2009,13 +2046,19 @@ const deletePassenger = async (req, res) => {
       where: { id: booking_id },
       transaction
     });
-    
+
+    // Recalculate ticket_total, gross_total, discount, dan agent commission
+    const financials = await recalculateBookingFinancials({
+      booking,
+      transaction,
+    });
+
     // Hitung jumlah penumpang berdasarkan tipe setelah penghapusan
     const passengerCounts = await getPassengerCounts(booking_id, transaction);
-    
+
     // Commit transaction jika semuanya berhasil
     await transaction.commit();
-    
+
     return res.status(200).json({
       success: true,
       message: `${passengers.length} passenger(s) deleted from booking successfully`,
@@ -2030,7 +2073,18 @@ const deletePassenger = async (req, res) => {
       },
       updated_seat_availabilities: updatedSeatAvailabilities,
       passenger_counts: passengerCounts,
-      updated_booking: updatedBookingData
+      updated_booking: {
+        ...updatedBookingData,
+        adult_passengers:  financials.adult_passengers,
+        child_passengers:  financials.child_passengers,
+        infant_passengers: financials.infant_passengers,
+        total_passengers:  financials.total_passengers,
+        ticket_total:      financials.ticket_total,
+        gross_total:       financials.gross_total,
+        bank_fee:          financials.bank_fee,
+        discount_data:     financials.discount_data,
+        commission_amount: financials.commission_amount,
+      }
     });
     
   } catch (error) {
