@@ -82,7 +82,7 @@ router.post(
   authenticate,
   validateScheduleAndSubSchedule,
   validateBookingCreation,
-  validateSingleBookingGrossTotal,
+  // validateSingleBookingGrossTotal,
   validateTransportData,
   bookingController.createBookingWithTransitQueue
 );
@@ -103,7 +103,7 @@ router.post(
   bookingRateLimiter,
   validateScheduleAndSubScheduleForRoundTrip,
   validateRoundTripBookingPost,
-  validateRoundTripGrossTotal,
+  // validateRoundTripGrossTotal,
   bookingController.createRoundBookingWithTransitQueue
 );
 
