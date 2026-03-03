@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const scheduleController = require('../controllers/scheduleController');
+const { searchSchedulesAndSubSchedulesAgentV4 } = require('../controllers/searchAgentScheduleV4');
 
 const validateApiKey = require('../middleware/validateKey');
 const validateAgentSearchDiscount = require('../middleware/validateAgentSearchDiscount');
@@ -23,6 +24,8 @@ const transportController = require('../controllers/transportController');
 // CREATE transport
 
 // api for search the schedule
+router.get('/search-schedule/v4', validateApiKey, validateAgentSearchDiscount, searchSchedulesAndSubSchedulesAgentV4);
+
 router.get('/search-schedule/v3', validateApiKey, validateAgentSearchDiscount, (req, res, next) => {
   // console.log('=== V3 Search Debug ===');
   // console.log('Query params:', req.query);

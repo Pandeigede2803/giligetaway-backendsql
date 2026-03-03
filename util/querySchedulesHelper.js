@@ -214,7 +214,7 @@ const formatScheduleWithClearRoute = (schedule) => {
  * Query untuk mendapatkan schedules berdasarkan parameter - OPTIMIZED
  */
 const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
-  return await Schedule.findAll({
+  const results = await Schedule.findAll({
     where: {
       destination_from_id: from,
       destination_to_id: to,
@@ -234,9 +234,16 @@ const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
       {
         model: SeatAvailability,
         as: "SeatAvailabilities",
-        where: { date: selectedDate }, // TAMBAH: Filter by date
+        where: { date: selectedDate, subschedule_id: null }, // Filter by date + hanya milik schedule direct
         required: false, // PENTING: Jangan required true agar tetap return schedule walau belum ada seat availability
-        attributes: ["id", "available_seats", "availability", "boost"]
+        attributes: [
+          "id",
+          "schedule_id",
+          "subschedule_id",
+          "available_seats",
+          "availability",
+          "boost",
+        ]
       },
       {
         model: Destination,
@@ -289,13 +296,28 @@ const querySchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
       "trip_type",
     ],
   });
+
+  console.log(`[querySchedules] found=${results.length}`);
+  results.forEach(schedule => {
+    const seatAvails = schedule.SeatAvailabilities || [];
+    console.log(
+      `[querySchedules] schedule_id=${schedule.id} seatAvailabilities_count=${seatAvails.length}`
+    );
+    seatAvails.forEach(sa => {
+      console.log(
+        `  [seatAvail] id=${sa.id} schedule_id=${sa.schedule_id} subschedule_id=${sa.subschedule_id} available_seats=${sa.available_seats} availability=${sa.availability}`
+      );
+    });
+  });
+
+  return results;
 };
 
 /**
  * Query untuk mendapatkan subSchedules berdasarkan parameter - OPTIMIZED
  */
 const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
-  return await SubSchedule.findAll({
+  const results = await SubSchedule.findAll({
     where: {
       availability: true,
       [Op.and]: [
@@ -331,7 +353,14 @@ const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
         as: "SeatAvailabilities",
         where: { date: selectedDate }, // TAMBAH: Filter by date
         required: false, // PENTING: Jangan required true
-        attributes: ["id", "available_seats", "availability", "boost"]
+        attributes: [
+          "id",
+          "schedule_id",
+          "subschedule_id",
+          "available_seats",
+          "availability",
+          "boost",
+        ]
       },
       {
         model: Destination,
@@ -469,6 +498,21 @@ const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
       },
     ],
   });
+
+  console.log(`[querySubSchedules] found=${results.length}`);
+  results.forEach(subSchedule => {
+    const seatAvails = subSchedule.SeatAvailabilities || [];
+    console.log(
+      `[querySubSchedules] subschedule_id=${subSchedule.id} schedule_id=${subSchedule.schedule_id ?? subSchedule.Schedule?.id} seatAvailabilities_count=${seatAvails.length}`
+    );
+    seatAvails.forEach(sa => {
+      console.log(
+        `  [seatAvail] id=${sa.id} schedule_id=${sa.schedule_id} subschedule_id=${sa.subschedule_id} available_seats=${sa.available_seats} availability=${sa.availability}`
+      );
+    });
+  });
+
+  return results;
 };
 
 /**
@@ -476,6 +520,9 @@ const querySubSchedules = async (from, to, selectedDate, selectedDayOfWeek) => {
  */
 const createMissingSeatAvailabilities = async (schedules, subSchedules, selectedDate) => {
   const toCreate = [];
+  console.log(
+    `[search-seat] createMissing:start date=${selectedDate.toISOString().slice(0, 10)} schedules=${schedules.length} subSchedules=${subSchedules.length}`
+  );
   
   // Check schedules yang belum punya SeatAvailability
   schedules.forEach(schedule => {
@@ -493,9 +540,18 @@ const createMissingSeatAvailabilities = async (schedules, subSchedules, selected
 
   // Check subSchedules yang belum punya SeatAvailability
   subSchedules.forEach(subSchedule => {
-    if (!subSchedule.SeatAvailabilities || subSchedule.SeatAvailabilities.length === 0) {
+    const expectedScheduleId =
+      subSchedule.schedule_id ?? subSchedule.Schedule?.id ?? null;
+    const hasExactSeatAvailability = (subSchedule.SeatAvailabilities || []).some(
+      (seatAvailability) =>
+        seatAvailability &&
+        seatAvailability.subschedule_id === subSchedule.id &&
+        seatAvailability.schedule_id === expectedScheduleId
+    );
+
+    if (!hasExactSeatAvailability) {
       toCreate.push({
-        schedule_id: null,
+        schedule_id: expectedScheduleId,
         subschedule_id: subSchedule.id,
         date: selectedDate,
         available_seats: subSchedule.Schedule?.Boat?.capacity || 0,
@@ -507,6 +563,7 @@ const createMissingSeatAvailabilities = async (schedules, subSchedules, selected
 
   // Bulk create jika ada yang perlu dibuat
   if (toCreate.length > 0) {
+    console.log(`[search-seat] createMissing:creating count=${toCreate.length}`);
     const newSeatAvailabilities = await SeatAvailability.bulkCreate(toCreate, {
       returning: true
     });
@@ -521,20 +578,35 @@ const createMissingSeatAvailabilities = async (schedules, subSchedules, selected
     });
 
     subSchedules.forEach(subSchedule => {
-      if (!subSchedule.SeatAvailabilities || subSchedule.SeatAvailabilities.length === 0) {
+      const expectedScheduleId =
+        subSchedule.schedule_id ?? subSchedule.Schedule?.id ?? null;
+      const hasExactSeatAvailability = (subSchedule.SeatAvailabilities || []).some(
+        (seatAvailability) =>
+          seatAvailability &&
+          seatAvailability.subschedule_id === subSchedule.id &&
+          seatAvailability.schedule_id === expectedScheduleId
+      );
+
+      if (!hasExactSeatAvailability) {
         subSchedule.SeatAvailabilities = [newSeatAvailabilities[newSeatIndex]];
         newSeatIndex++;
       }
     });
+    console.log(
+      `[search-seat] createMissing:created count=${newSeatAvailabilities.length}`
+    );
+  } else {
+    console.log("[search-seat] createMissing:skip no missing");
   }
 };
 
 /**
  * OPTIMIZED: Process seat availability data dari relasi yang sudah ada
- */
-const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
+ */const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
   const seatAvailabilityIds = [];
   const seatAvailabilityData = new Map();
+  let exactSubPairMatch = 0;
+  let fallbackSubSelection = 0;
 
   // Process schedules
   schedules.forEach(schedule => {
@@ -550,6 +622,8 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
 
       schedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
+        schedule_id: seatAvailability.schedule_id ?? schedule.id ?? null,
+        subschedule_id: seatAvailability.subschedule_id ?? null,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
         availability: seatAvailability.availability,
@@ -560,7 +634,31 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
 
   // Process subSchedules
   subSchedules.forEach(subSchedule => {
-    const seatAvailability = subSchedule.SeatAvailabilities?.[0];
+    const expectedScheduleId =
+      subSchedule.schedule_id ?? subSchedule.Schedule?.id ?? null;
+    const hasExactMatch = (subSchedule.SeatAvailabilities || []).some(
+      (candidate) =>
+        candidate &&
+        candidate.subschedule_id === subSchedule.id &&
+        candidate.schedule_id === expectedScheduleId
+    );
+    const seatAvailability =
+      subSchedule.SeatAvailabilities?.find(
+        (candidate) =>
+          candidate &&
+          candidate.subschedule_id === subSchedule.id &&
+          candidate.schedule_id === expectedScheduleId
+      ) ?? null; // no fallback: harus exact match schedule_id + subschedule_id
+    if (hasExactMatch) {
+      exactSubPairMatch++;
+    } else {
+      console.warn(
+        `[processSeatAvailability] no exact match for subschedule_id=${subSchedule.id} schedule_id=${expectedScheduleId} — skipping fallback`
+      );
+    }
+    if (!hasExactMatch && seatAvailability) {
+      fallbackSubSelection++;
+    }
     if (seatAvailability) {
       seatAvailabilityIds.push(seatAvailability.id);
       
@@ -572,6 +670,12 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
 
       subSchedule.dataValues.seatAvailability = {
         id: seatAvailability.id,
+        schedule_id:
+          seatAvailability.schedule_id ??
+          subSchedule.schedule_id ??
+          subSchedule.Schedule?.id ??
+          null,
+        subschedule_id: seatAvailability.subschedule_id ?? subSchedule.id ?? null,
         available_seats: seatAvailability.available_seats,
         date: selectedDate,
         availability: seatAvailability.availability,
@@ -580,6 +684,10 @@ const processSeatAvailabilityData = (schedules, subSchedules, selectedDate) => {
       };
     }
   });
+
+  console.log(
+    `[search-seat] processSeatAvailability:ids=${seatAvailabilityIds.length} exactSubPairs=${exactSubPairMatch} subFallbacks=${fallbackSubSelection}`
+  );
 
   return { seatAvailabilityIds, seatAvailabilityData };
 };
@@ -644,21 +752,27 @@ const filterAvailableSubSchedules = (subSchedules) => {
     subSchedule.dataValues.seatAvailability.available_seats > 0 &&
     subSchedule.dataValues.seatAvailability.availability === true
   );
-};
+};;
 
 /**
  * OPTIMIZED: Fungsi utama untuk mendapatkan schedules dan subSchedules
  */
 const getSchedulesAndSubSchedules = async (from, to, date) => {
+  console.log('=== getSchedulesAndSubSchedules Debug ===');
+  console.log('Parameters - from:', from, 'to:', to, 'date:', date);
   const selectedDate = new Date(date);
   const selectedDayOfWeek = getDay(selectedDate);
 
   // Query schedules dan subSchedules (sudah include SeatAvailability)
   const schedules = await querySchedules(from, to, selectedDate, selectedDayOfWeek);
   const subSchedules = await querySubSchedules(from, to, selectedDate, selectedDayOfWeek);
+  console.log(
+    `[search-flow] query: schedules=${schedules.length}, subSchedules=${subSchedules.length}`
+  );
 
   // Buat SeatAvailability yang missing secara batch
   await createMissingSeatAvailabilities(schedules, subSchedules, selectedDate);
+  console.log("[search-flow] createMissingSeatAvailabilities:done");
 
   // Process seat availability data
   const { seatAvailabilityIds, seatAvailabilityData } = processSeatAvailabilityData(
@@ -666,9 +780,15 @@ const getSchedulesAndSubSchedules = async (from, to, date) => {
     subSchedules, 
     selectedDate
   );
+  console.log(
+    `[search-flow] processSeatAvailabilityData: seatIds=${seatAvailabilityIds.length}, seatData=${seatAvailabilityData.size}`
+  );
 
   // Get booked seats dengan query optimized
   const bookedSeatsByAvailabilityId = await getBookedSeatsOptimized(seatAvailabilityIds);
+  console.log(
+    `[search-flow] getBookedSeatsOptimized: groupedSeatAvailabilities=${Object.keys(bookedSeatsByAvailabilityId).length}`
+  );
 
   // Process booked seats untuk setiap availability
   const processedBookedSeatsByAvailabilityId = {};
@@ -705,6 +825,7 @@ const getSchedulesAndSubSchedules = async (from, to, date) => {
         processedBookedSeatsByAvailabilityId[seatAvailId] || [];
     }
   });
+  console.log("[search-flow] attachBookedSeatNumbers:done");
 
   return {
     schedules,

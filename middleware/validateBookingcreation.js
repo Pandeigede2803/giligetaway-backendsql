@@ -23,11 +23,22 @@ const { Op } = require("sequelize");;
 const { getSeasonPrice } = require('../util/formatSchedules'); // import di atas
 const { validate } = require("node-cron");
 
+/**
+ * Calculate total transport cost from backend database
+ * SECURITY: Does NOT trust transport_price from frontend
+ *
+ * @param {Array} transports - Array of transport objects with transport_id and quantity
+ * @param {Number} total_passengers - Total number of passengers (fallback for quantity)
+ * @returns {Number} Total transport cost calculated from database
+ *
+ * @changed 2026-02-11 - Changed from validation to calculation
+ * Previous: Validated frontend transport_price against database
+ * Current: Calculates transport_price from database and replaces frontend value
+ */
 const calculateTransportTotalAndValidate = async (transports, total_passengers) => {
   if (!Array.isArray(transports)) return 0;
 
   let total = 0;
-  const tolerance = 1000; // Toleransi 1.000 IDR
 
   for (const t of transports) {
     if (!t.transport_id) throw new Error("Transport ID is missing");
@@ -37,24 +48,16 @@ const calculateTransportTotalAndValidate = async (transports, total_passengers) 
 
     const cost = transportRecord.cost || 0;
     const quantity = t.quantity || total_passengers;
-    const expectedTotal = cost * quantity;
-    const providedPrice = t.transport_price || 0;
 
-    const difference = Math.abs(providedPrice - expectedTotal);
-    if (difference > tolerance) {
-      throw {
-        message: `Transport price mismatch for transport_id ${t.transport_id}`,
-        details: {
-          transport_id: t.transport_id,
-          expected: expectedTotal,
-          received: providedPrice,
-          cost_per_unit: cost,
-          quantity,
-        },
-      };
-    }
+    // ✅ Calculate from backend, don't trust frontend
+    const calculatedPrice = cost * quantity;
 
-    total += providedPrice;
+    console.log(`  🚐 Transport ID ${t.transport_id}: ${cost} × ${quantity} = ${calculatedPrice}`);
+
+    // ✅ Replace frontend value with backend calculation
+    t.transport_price = calculatedPrice;
+
+    total += calculatedPrice;
   }
 
   return total;
@@ -84,8 +87,38 @@ const getTicketPrice = async (schedule_id, subschedule_id, booking_date) => {
 
 
 
+/**
+ * Middleware: Calculate ticket_total and gross_total from backend
+ * SECURITY: Does NOT trust ticket_total, gross_total, or transport_price from frontend
+ *
+ * This middleware calculates all financial values from backend data sources:
+ * - ticket_total: From season pricing (low/high/peak) × total_passengers
+ * - transport_total: From database Transport table (cost × quantity)
+ * - gross_total: ticket_total + transport_total - discount + bank_fee
+ *
+ * REPLACES values in req.body with backend-calculated values
+ *
+ * @middleware
+ * @route POST /bookings/transit-queue
+ * @changed 2026-02-11 - Security enhancement
+ * Previous: Validated frontend values against backend calculation
+ * Current: Replaces frontend values with backend calculation
+ *
+ * Trusted from frontend:
+ * - total_passengers (validated)
+ * - schedule_id, subschedule_id (validated against DB)
+ * - booking_date (used for season calculation)
+ * - transports array (only transport_id and quantity trusted)
+ * - bank_fee, discount (business logic parameters)
+ *
+ * NOT trusted from frontend (recalculated):
+ * - ticket_total
+ * - gross_total
+ * - transport_price
+ */
 const validateSingleBookingGrossTotal = async (req, res, next) => {
-  console.log("\n=== Validating Gross Total for Single Booking (with Season + Transport Price Check) ===");
+  // console.log("\n=== 🧮 Calculating Ticket Total & Gross Total (Backend Calculation) ===");
+  // console.log("📦 req.body FULL DUMP:", JSON.stringify(req.body, null, 2));
 
   const {
     schedule_id,
@@ -94,9 +127,13 @@ const validateSingleBookingGrossTotal = async (req, res, next) => {
     transports = [],
     bank_fee = 0,
     discount = 0,
-    gross_total: clientGrossTotal,
+    discount_code,
+    discount_data,
     booking_date,
   } = req.body;
+
+  // Support both discount_code (flat) and discount_data.discountCode (nested from frontend)
+  const resolvedDiscountCode = discount_code || discount_data?.discountCode;
 
   try {
     if (!schedule_id && !subschedule_id) {
@@ -107,37 +144,87 @@ const validateSingleBookingGrossTotal = async (req, res, next) => {
       return res.status(400).json({ error: "Total passengers must be greater than zero" });
     }
 
+    // ✅ Step 1: Calculate ticket_total from backend (season price)
     const ticketPrice = await getTicketPrice(schedule_id, subschedule_id, booking_date);
     const ticket_total = ticketPrice * total_passengers;
 
+    console.log(`🎟️ Ticket calculation:
+      - Season price per passenger: ${ticketPrice}
+      - Total passengers: ${total_passengers}
+      - Ticket total: ${ticket_total}`);
+
+    // ✅ Step 2: Calculate transport_total from backend (validate transport prices)
     const transport_total = await calculateTransportTotalAndValidate(transports, total_passengers);
 
-    const expectedGrossTotal = ticket_total + transport_total - discount + bank_fee;
-    const difference = Math.abs(expectedGrossTotal - clientGrossTotal);
-    const tolerance = 1;
+    console.log(`🚐 Transport total: ${transport_total}`);
 
-    if (difference > tolerance) {
-      return res.status(400).json({
-        error: "Gross total mismatch",
-        message: `Expected gross total (${expectedGrossTotal}) does not match provided gross total (${clientGrossTotal})`,
-        breakdown: {
-          total_passengers,
-          ticket_price: ticketPrice,
-          ticket_total,
-          transport_total,
-          discount,
-          bank_fee,
-          expectedGrossTotal,
-        },
-      });
+    // ✅ Step 3: Resolve discount amount from discount_code or flat discount
+    let discountAmount = Number(discount) || 0;
+
+    if (resolvedDiscountCode) {
+      console.log(`🏷️ Resolving discount_code: ${resolvedDiscountCode}`);
+      const { Discount } = require("../models");
+      const discountRecord = await Discount.findOne({ where: { code: resolvedDiscountCode } });
+
+      if (!discountRecord) {
+        console.log(`⚠️ Discount code '${resolvedDiscountCode}' not found, discount = 0`);
+      } else {
+        // Check min_purchase against ticket_total only
+        const minPurchase = discountRecord.min_purchase ? parseFloat(discountRecord.min_purchase) : 0;
+        if (ticket_total < minPurchase) {
+          console.log(`⚠️ ticket_total ${ticket_total} < min_purchase ${minPurchase}, discount not applied`);
+        } else {
+          if (discountRecord.discount_type === "percentage") {
+            discountAmount = (ticket_total * parseFloat(discountRecord.discount_value)) / 100;
+          } else {
+            discountAmount = parseFloat(discountRecord.discount_value);
+          }
+
+          // Apply max_discount cap (only if max_discount is a positive number)
+          const maxDiscount = parseFloat(discountRecord.max_discount);
+          if (maxDiscount && maxDiscount > 0) {
+            discountAmount = Math.min(discountAmount, maxDiscount);
+          }
+
+          // Discount cannot exceed ticket_total
+          discountAmount = Math.min(discountAmount, ticket_total);
+
+          // Store resolved discount data for controller to save
+          req.body.discount_data = {
+            code: discountRecord.code,
+            discount_type: discountRecord.discount_type,
+            discount_value: parseFloat(discountRecord.discount_value),
+            discount_amount: discountAmount,
+          };
+
+          console.log(`✅ Discount resolved: type=${discountRecord.discount_type}, value=${discountRecord.discount_value}, amount=${discountAmount}`);
+        }
+      }
     }
 
-    console.log(`✅ Gross total valid: ${expectedGrossTotal}`);
+    console.log(`🏷️ Final discount amount: ${discountAmount}`);
+
+    // ✅ Step 4: Calculate gross_total
+    const gross_total = ticket_total + transport_total - discountAmount + bank_fee;
+
+    console.log(`💰 Gross total calculation:
+      - Ticket total: ${ticket_total}
+      - Transport total: ${transport_total}
+      - Discount: -${discountAmount}
+      - Bank fee: +${bank_fee}
+      - GROSS TOTAL: ${gross_total}`);
+
+    // ✅ Step 5: Replace frontend values with backend-calculated values
+    req.body.ticket_total = ticket_total;
+    req.body.gross_total = gross_total;
+    req.body.discount = discountAmount;
+
+    console.log(`✅ Backend calculation complete. Values saved to req.body`);
     next();
   } catch (error) {
-    console.error("❌ Error validating gross total:", error);
+    console.error("❌ Error calculating totals:", error);
     return res.status(400).json({
-      error: "Validation failed",
+      error: "Calculation failed",
       message: error.message || error,
       ...(error.details && { breakdown: error.details }),
     });
@@ -151,63 +238,117 @@ const validateGrossTotalForSegment = async (segment, type) => {
     total_passengers,
     transports = [],
     discount = 0,
+    discount_code,
+    discount_data,
     bank_fee = 0,
-    gross_total,
     booking_date
   } = segment;
+
+  // Support: discount_code (flat) → discount_data.discountCode (nested) → discount_data.discountId (round trip)
+  const resolvedDiscountCode = discount_code || discount_data?.discountCode;
+  const resolvedDiscountId = discount_data?.discountId;
 
   if (!schedule_id && !subschedule_id) throw new Error(`[${type}] schedule_id or subschedule_id is required`);
   if (!total_passengers || total_passengers <= 0) throw new Error(`[${type}] Invalid total_passengers`);
 
+  // ✅ Calculate ticket_total from backend
   const ticketPrice = await getTicketPrice(schedule_id, subschedule_id, booking_date);
   const ticket_total = ticketPrice * total_passengers;
 
-  const transport_total = await calculateTransportTotalAndValidate(transports, total_passengers, type);
+  console.log(`  🎟️ [${type}] Ticket: ${ticketPrice} × ${total_passengers} = ${ticket_total}`);
 
-  const expectedGross = ticket_total + transport_total - discount + bank_fee;
+  // ✅ Calculate transport_total from backend
+  const transport_total = await calculateTransportTotalAndValidate(transports, total_passengers);
 
-  const difference = Math.abs(expectedGross - gross_total);
-  const tolerance = 1;
+  console.log(`  🚐 [${type}] Transport total: ${transport_total}`);
 
-  if (difference > tolerance) {
-    throw {
-      message: `[${type}] Gross total mismatch`,
-      breakdown: {
-        total_passengers,
-        booking_date,
-        ticket_price: ticketPrice,
-        ticket_total,
-        transport_total,
-        discount,
-        bank_fee,
-        expected: expectedGross,
-        received: gross_total
+  // ✅ Resolve discount amount from discount_code or flat discount
+  let discountAmount = Number(discount) || 0;
+
+  if (resolvedDiscountCode || resolvedDiscountId) {
+    const { Discount } = require("../models");
+    let discountRecord;
+
+    if (resolvedDiscountCode) {
+      console.log(`  🏷️ [${type}] Resolving discount by code: ${resolvedDiscountCode}`);
+      discountRecord = await Discount.findOne({ where: { code: resolvedDiscountCode } });
+    } else {
+      console.log(`  🏷️ [${type}] Resolving discount by id: ${resolvedDiscountId}`);
+      discountRecord = await Discount.findByPk(resolvedDiscountId);
+    }
+
+    if (!discountRecord) {
+      console.log(`  ⚠️ [${type}] Discount not found, discount = 0`);
+    } else {
+      const minPurchase = discountRecord.min_purchase ? parseFloat(discountRecord.min_purchase) : 0;
+      if (ticket_total < minPurchase) {
+        console.log(`  ⚠️ [${type}] ticket_total ${ticket_total} < min_purchase ${minPurchase}, discount not applied`);
+      } else {
+        if (discountRecord.discount_type === "percentage") {
+          discountAmount = (ticket_total * parseFloat(discountRecord.discount_value)) / 100;
+        } else {
+          discountAmount = parseFloat(discountRecord.discount_value);
+        }
+
+        const maxDiscountSeg = parseFloat(discountRecord.max_discount);
+        if (maxDiscountSeg && maxDiscountSeg > 0) {
+          discountAmount = Math.min(discountAmount, maxDiscountSeg);
+        }
+
+        discountAmount = Math.min(discountAmount, ticket_total);
+
+        segment.discount_data = {
+          code: discountRecord.code,
+          discount_type: discountRecord.discount_type,
+          discount_value: parseFloat(discountRecord.discount_value),
+          discount_amount: discountAmount,
+        };
+
+        console.log(`  ✅ [${type}] Discount resolved: type=${discountRecord.discount_type}, value=${discountRecord.discount_value}, amount=${discountAmount}`);
       }
-    };
+    }
   }
+
+  console.log(`  🏷️ [${type}] Final discount amount: ${discountAmount}`);
+
+  // ✅ Calculate gross_total
+  const gross_total = ticket_total + transport_total - discountAmount + bank_fee;
+
+  console.log(`  💰 [${type}] Gross: ${ticket_total} + ${transport_total} - ${discountAmount} + ${bank_fee} = ${gross_total}`);
+
+  // ✅ Replace frontend values with backend calculation
+  segment.ticket_total = ticket_total;
+  segment.gross_total = gross_total;
+  segment.discount = discountAmount;
+
+  console.log(`  ✅ [${type}] Backend calculation saved to segment`);
 
   return true;
 };
 
 const validateRoundTripGrossTotal = async (req, res, next) => {
-  console.log("\n=== Validating Round Trip Gross Total (with Season Pricing) ===");
+  // console.log("\n=== 🧮 Calculating Round Trip Totals (Backend Calculation) ===");
 
   try {
     const { departure, return: returnBooking } = req.body;
+    // console.log("all json body", JSON.stringify(req.body, null, 2));
 
     if (!departure || !returnBooking) {
       return res.status(400).json({ error: "Both departure and return data must be provided" });
     }
 
-    await validateGrossTotalForSegment(departure, "departure");
-    await validateGrossTotalForSegment(returnBooking, "return");
+    console.log("📤 Calculating DEPARTURE segment...");
+    await validateGrossTotalForSegment(departure, "DEPARTURE");
 
-    console.log("✅ Gross total validated for both departure and return");
+    console.log("\n📥 Calculating RETURN segment...");
+    await validateGrossTotalForSegment(returnBooking, "RETURN");
+
+    console.log("\n✅ Round trip calculation complete. Values saved to req.body");
     next();
   } catch (err) {
-    console.error("❌ Gross total validation error:", err);
+    console.error("❌ Round trip calculation error:", err);
     return res.status(400).json({
-      error: "Gross total validation failed",
+      error: "Calculation failed",
       details: err.message || err,
       ...(err.breakdown && { breakdown: err.breakdown }),
     });

@@ -34,6 +34,64 @@ This document describes the request flow for the Agent public API endpoint that 
    - Filters available results and applies optional `passengers_total` filter.
    - Formats and enriches schedules, then returns combined results.
 
+## ASCII Flowchart (Simple)
+```text
+[GET /api/agent-access/search-schedule/v3]
+                 |
+                 v
+      [validateApiKey middleware]
+                 |
+                 v
+ [validateAgentSearchDiscount middleware]
+                 |
+                 v
+ [searchSchedulesAndSubSchedulesAgent]
+                 |
+                 v
+ [getSchedulesAndSubSchedules(from,to,date)]
+                 |
+   +-------------+------------------+
+   |                                |
+   v                                v
+[querySchedules]             [querySubSchedules]
+   |                                |
+   +-------------+------------------+
+                 v
+ [createMissingSeatAvailabilities]
+  - main: schedule_id = schedule.id
+  - sub : schedule_id = sub.schedule_id
+          subschedule_id = sub.id
+                 |
+                 v
+ [processSeatAvailabilityData]
+  - ambil seatAvailability.id
+  - khusus sub: cocokkan pasangan
+    (schedule_id + subschedule_id)
+                 |
+                 v
+ [getBookedSeatsOptimized + processBookedSeats]
+                 |
+                 v
+ [attach bookedSeatNumbers ke tiap schedule/sub]
+                 |
+                 v
+ [filterAvailableSchedules/subSchedules]
+  - availability = true
+  - available_seats > 0
+                 |
+                 v
+ [optional filter passengers_total]
+                 |
+                 v
+ [formatSchedules + formatSubSchedules + enrich route/price]
+                 |
+                 v
+       [combine schedules + subschedules]
+                 |
+                 v
+           [JSON response]
+```
+
 ## Detailed Flow (Controller + Helpers)
 1. **Query schedules and sub-schedules**
    - `getSchedulesAndSubSchedules` computes `selectedDate` and day-of-week.
@@ -148,3 +206,8 @@ Notes:
 - `util/querySchedulesHelper.js`
 - `util/formatSchedules.js`
 - `util/seatUtils.js`
+
+
+## PROBLEM IMRPOVEMENT
+1. saat pencarian schedule dan seat.. ada bug yang harus dicek .. seat wajib memiliki schedule id, subschedule id null boleh
+2. query sangat lambat mencapai 20second
