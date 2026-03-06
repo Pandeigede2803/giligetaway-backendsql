@@ -1,70 +1,135 @@
-const getNetPrice = ({ agent, tripType, price, discount = null }) => {
-  if (!agent) {
-    return { net_price: "N/A", discount_activated: false };
-  }
+const INVALID_RESULT = {
+  net_price: "N/A",
+  net_price_before_discount: "N/A",
+  net_price_after_discount: "N/A",
+  discount_amount: 0,
+  discount_activated: false,
+};
 
-  const priceValue = parseFloat(price);
-  if (!Number.isFinite(priceValue)) {
-    return { net_price: "N/A", discount_activated: false };
-  }
+const parseNumber = (value) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
-  const commissionRate = parseFloat(agent.commission_rate) || 0;
-  let commissionPerPassenger = 0;
+const getCommissionPerPassenger = ({
+  agent,
+  tripType,
+  priceValue,
+  includeTransportCommission = false,
+}) => {
+  const commissionRate = parseNumber(agent.commission_rate) || 0;
+  const commissionTransport = parseNumber(agent.commission_transport) || 0;
+  let commission = 0;
 
   if (commissionRate > 0) {
-    commissionPerPassenger = priceValue * (commissionRate / 100);
+    commission = priceValue * (commissionRate / 100);
   } else {
     switch (tripType) {
       case "long":
-        commissionPerPassenger = parseFloat(agent.commission_long) || 0;
+        commission = parseNumber(agent.commission_long) || 0;
         break;
       case "short":
-        commissionPerPassenger = parseFloat(agent.commission_short) || 0;
+        commission = parseNumber(agent.commission_short) || 0;
         break;
       case "mid":
-        commissionPerPassenger = parseFloat(agent.commission_mid) || 0;
+        commission = parseNumber(agent.commission_mid) || 0;
         break;
       case "intermediate":
-        commissionPerPassenger =
-          parseFloat(agent.commission_intermediate) || 0;
+        commission = parseNumber(agent.commission_intermediate) || 0;
         break;
       default:
-        return { net_price: "N/A", discount_activated: false };
+        return null;
     }
   }
 
-  if (!Number.isFinite(commissionPerPassenger) || commissionPerPassenger < 0) {
-    return { net_price: "N/A", discount_activated: false };
+  if (includeTransportCommission && commissionTransport > 0) {
+    commission += commissionTransport;
   }
 
-  // Calculate price after commission
-  let netPrice = priceValue - commissionPerPassenger;
-  let discountActivated = false;
+  return commission;
+};
 
-  // Apply discount if provided and valid
-  if (discount) {
-    const discountValue =
-      parseFloat(discount.discount_value ?? discount.value) || 0;
-    const discountType = discount.discount_type ?? discount.type; // "percentage" or "fixed"
-
-    if (discountValue > 0) {
-      if (discountType === "percentage") {
-        netPrice = netPrice - (netPrice * (discountValue / 100));
-      } else {
-        // fixed amount
-        netPrice = netPrice - discountValue;
-      }
-      discountActivated = true;
-    }
+const calculateDiscountFromNet = (netBeforeDiscount, discount) => {
+  if (!discount) {
+    return { discountAmount: 0, discountActivated: false };
   }
 
-  // Ensure net price is not negative
-  if (netPrice < 0) {
-    netPrice = 0;
+  const discountValue = parseNumber(discount.discount_value ?? discount.value) || 0;
+  const discountType = discount.discount_type ?? discount.type;
+  const maxDiscount = parseNumber(discount.max_discount) || 0;
+  const minPurchase = parseNumber(discount.min_purchase) || 0;
+
+  if (discountValue <= 0 || netBeforeDiscount <= 0) {
+    return { discountAmount: 0, discountActivated: false };
+  }
+
+  if (minPurchase > 0 && netBeforeDiscount < minPurchase) {
+    return { discountAmount: 0, discountActivated: false };
+  }
+
+  let discountAmount = 0;
+  if (discountType === "percentage") {
+    discountAmount = (netBeforeDiscount * discountValue) / 100;
+  } else if (discountType === "fixed") {
+    discountAmount = discountValue;
+  } else {
+    return { discountAmount: 0, discountActivated: false };
+  }
+
+  if (maxDiscount > 0 && discountAmount > maxDiscount) {
+    discountAmount = maxDiscount;
+  }
+
+  if (discountAmount > netBeforeDiscount) {
+    discountAmount = netBeforeDiscount;
   }
 
   return {
-    net_price: Number.isFinite(netPrice) ? netPrice : "N/A",
+    discountAmount,
+    discountActivated: discountAmount > 0,
+  };
+};
+
+const getNetPrice = ({
+  agent,
+  tripType,
+  price,
+  discount = null,
+  includeTransportCommission = false,
+}) => {
+  if (!agent) {
+    return INVALID_RESULT;
+  }
+
+  const priceValue = parseNumber(price);
+  if (priceValue === null) {
+    return INVALID_RESULT;
+  }
+
+  const commissionPerPassenger = getCommissionPerPassenger({
+    agent,
+    tripType,
+    priceValue,
+    includeTransportCommission,
+  });
+
+  if (!Number.isFinite(commissionPerPassenger) || commissionPerPassenger < 0) {
+    return INVALID_RESULT;
+  }
+
+  const netBeforeDiscount = Math.max(0, priceValue - commissionPerPassenger);
+  const { discountAmount, discountActivated } = calculateDiscountFromNet(
+    netBeforeDiscount,
+    discount
+  );
+  const netAfterDiscount = Math.max(0, netBeforeDiscount - discountAmount);
+
+  return {
+    // Keep `net_price` for backward compatibility.
+    net_price: netAfterDiscount,
+    net_price_before_discount: netBeforeDiscount,
+    net_price_after_discount: netAfterDiscount,
+    discount_amount: discountAmount,
     discount_activated: discountActivated,
   };
 };

@@ -2286,6 +2286,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
             "commission_short",
             "commission_mid",
             "commission_intermediate",
+            "commission_transport",
           ],
         })
       : null;
@@ -2446,6 +2447,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
               tripType: originalSchedule.trip_type,
               price: normalizedPrice,
               discount: validDiscount,
+              includeTransportCommission: true,
             }),
           };
         }
@@ -2505,6 +2507,7 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
               tripType: originalSubSchedule.trip_type,
               price: normalizedPrice,
               discount: validDiscount,
+              includeTransportCommission: true,
             }),
           };
         }

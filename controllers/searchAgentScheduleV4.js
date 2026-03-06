@@ -97,7 +97,13 @@ const formatScheduleRow = (s, selectedDate, agent, validDiscount) => {
     to:             s.to_name   || 'N/A',
     route_image:    s.route_image || 'N/A',
     price,
-    ...getNetPrice({ agent, tripType: s.trip_type, price, discount: validDiscount }),
+    ...getNetPrice({
+      agent,
+      tripType: s.trip_type,
+      price,
+      discount: validDiscount,
+      includeTransportCommission: true,
+    }),
 
     boat: {
       id:       s.boat_id,
@@ -149,7 +155,13 @@ const formatSubScheduleRow = (sub, selectedDate, agent, validDiscount) => {
     to:             sub.to_name   || sub.tt_dest_name || 'N/A',
     route_image:    sub.route_image || 'N/A',
     price,
-    ...getNetPrice({ agent, tripType: sub.trip_type, price, discount: validDiscount }),
+    ...getNetPrice({
+      agent,
+      tripType: sub.trip_type,
+      price,
+      discount: validDiscount,
+      includeTransportCommission: true,
+    }),
 
     boat: {
       id:       sub.boat_id,
@@ -206,6 +218,7 @@ const searchSchedulesAndSubSchedulesAgentV4 = async (req, res) => {
             'id', 'commission_rate',
             'commission_long', 'commission_short',
             'commission_mid', 'commission_intermediate',
+            'commission_transport',
           ]
         })
       : null;
