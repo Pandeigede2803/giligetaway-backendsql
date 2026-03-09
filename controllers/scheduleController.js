@@ -2406,7 +2406,9 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         const { id, availability, boost, ...cleanSeatAvailability } =
           formatted.seatAvailability || {};
         if (originalSchedule) {
-          const routeInfo = formatRouteTimeline(originalSchedule);
+          // Use formatted route shape to keep timeline/source fields consistent
+          // with the response payload (from/to/departure/arrival/transits).
+          const routeInfo = formatRouteTimeline(formatted);
           const normalizedPrice = normalizePrice(formatted.price);
 
           // Destructure untuk exclude field yang tidak dibutuhkan
@@ -2437,8 +2439,8 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
               },
             },
             route_timeline: routeInfo.timeline,
-            route_description: formatRouteString(originalSchedule),
-            route_steps: formatRouteSteps(originalSchedule),
+            route_description: formatRouteString(formatted),
+            route_steps: formatRouteSteps(formatted),
             route_summary: routeInfo.route_summary,
             route_type: routeInfo.route_type,
             stops_count: routeInfo.stops_count,
@@ -2463,7 +2465,9 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
         const { id, availability, boost, ...cleanSeatAvailability } =
           formatted.seatAvailability || {};
         if (originalSubSchedule) {
-          const routeInfo = formatRouteTimeline(originalSubSchedule);
+          // Build timeline from formatted object so sub-schedule transits
+          // (Transit1..4 mapped to `transits`) are included consistently.
+          const routeInfo = formatRouteTimeline(formatted);
           const normalizedPrice = normalizePrice(formatted.price);
 
           // Destructure untuk exclude field yang tidak dibutuhkan
@@ -2497,8 +2501,8 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
               },
             },
             route_timeline: routeInfo.timeline,
-            route_description: formatRouteString(originalSubSchedule),
-            route_steps: formatRouteSteps(originalSubSchedule),
+            route_description: formatRouteString(formatted),
+            route_steps: formatRouteSteps(formatted),
             route_summary: routeInfo.route_summary,
             route_type: routeInfo.route_type,
             stops_count: routeInfo.stops_count,

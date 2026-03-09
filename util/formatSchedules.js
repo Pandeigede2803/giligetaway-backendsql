@@ -104,9 +104,67 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
   
   // console.log("😹SubSchedules:", JSON.stringify(subSchedules, null, 2));
   return subSchedules.map((subSchedule) => {
+    const addTimeAndDuration = (time, duration) => {
+      if (!time || !duration) return null;
+      const [h1, m1, s1] = String(time).split(":").map(Number);
+      const [h2, m2, s2] = String(duration).split(":").map(Number);
+      if (
+        ![h1, m1, s1, h2, m2, s2].every((v) => Number.isFinite(v))
+      ) {
+        return null;
+      }
+      const totalSeconds =
+        h1 * 3600 + m1 * 60 + s1 + (h2 * 3600 + m2 * 60 + s2);
+      const wrapped = ((totalSeconds % 86400) + 86400) % 86400;
+      const hh = String(Math.floor(wrapped / 3600)).padStart(2, "0");
+      const mm = String(Math.floor((wrapped % 3600) / 60)).padStart(2, "0");
+      const ss = String(wrapped % 60).padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    };
+
     // Check if there's a TransitFrom or TransitTo
     const hasTransitFrom = !!subSchedule.TransitFrom;
     const hasTransitTo = !!subSchedule.TransitTo;
+
+    const transits = [
+      subSchedule.Transit1
+        ? {
+            id: subSchedule.Transit1.id,
+            destination: subSchedule.Transit1.Destination?.name || "N/A",
+            departure_time: subSchedule.Transit1.departure_time,
+            arrival_time: subSchedule.Transit1.arrival_time,
+            journey_time: subSchedule.Transit1.journey_time,
+          }
+        : null,
+      subSchedule.Transit2
+        ? {
+            id: subSchedule.Transit2.id,
+            destination: subSchedule.Transit2.Destination?.name || "N/A",
+            departure_time: subSchedule.Transit2.departure_time,
+            arrival_time: subSchedule.Transit2.arrival_time,
+            journey_time: subSchedule.Transit2.journey_time,
+          }
+        : null,
+      subSchedule.Transit3
+        ? {
+            id: subSchedule.Transit3.id,
+            destination: subSchedule.Transit3.Destination?.name || "N/A",
+            departure_time: subSchedule.Transit3.departure_time,
+            arrival_time: subSchedule.Transit3.arrival_time,
+            journey_time: subSchedule.Transit3.journey_time,
+          }
+        : null,
+      subSchedule.Transit4
+        ? {
+            id: subSchedule.Transit4.id,
+            destination: subSchedule.Transit4.Destination?.name || "N/A",
+            departure_time: subSchedule.Transit4.departure_time,
+            arrival_time: subSchedule.Transit4.arrival_time,
+            journey_time: subSchedule.Transit4.journey_time,
+          }
+        : null,
+    ].filter(Boolean);
+    const lastTransit = transits[transits.length - 1];
 
     // Get departure_time and check_in_time from TransitFrom or fallback to Schedule
     const departure_time = hasTransitFrom
@@ -118,13 +176,22 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
       : subSchedule.Schedule?.check_in_time || "N/A";
 
     // Get arrival_time and journey_time from TransitTo or fallback to Schedule
+    const computedArrivalFromLastTransit = addTimeAndDuration(
+      lastTransit?.departure_time,
+      lastTransit?.journey_time
+    );
     const arrival_time = hasTransitTo
       ? subSchedule.TransitTo.arrival_time
-      : subSchedule.Schedule?.arrival_time || "N/A";
+      : computedArrivalFromLastTransit ||
+        lastTransit?.arrival_time ||
+        subSchedule.Schedule?.arrival_time ||
+        "N/A";
 
     const journey_time = hasTransitTo
       ? subSchedule.TransitTo.journey_time
-      : subSchedule.Schedule?.journey_time || "N/A";
+      : lastTransit?.journey_time ||
+        subSchedule.Schedule?.journey_time ||
+        "N/A";
 
     return {
       id: subSchedule.id,
@@ -139,44 +206,7 @@ const formatSubSchedules = (subSchedules, selectedDate) => {
         subSchedule.DestinationTo?.name ||
         subSchedule.TransitTo?.Destination?.name ||
         "N/A",
-      transits: [
-        subSchedule.Transit1
-          ? {
-              id: subSchedule.Transit1.id,
-              destination: subSchedule.Transit1.Destination?.name || "N/A",
-              departure_time: subSchedule.Transit1.departure_time,
-              arrival_time: subSchedule.Transit1.arrival_time,
-              journey_time: subSchedule.Transit1.journey_time,
-            }
-          : null,
-        subSchedule.Transit2
-          ? {
-              id: subSchedule.Transit2.id,
-              destination: subSchedule.Transit2.Destination?.name || "N/A",
-              departure_time: subSchedule.Transit2.departure_time,
-              arrival_time: subSchedule.Transit2.arrival_time,
-              journey_time: subSchedule.Transit2.journey_time,
-            }
-          : null,
-        subSchedule.Transit3
-          ? {
-              id: subSchedule.Transit3.id,
-              destination: subSchedule.Transit3.Destination?.name || "N/A",
-              departure_time: subSchedule.Transit3.departure_time,
-              arrival_time: subSchedule.Transit3.arrival_time,
-              journey_time: subSchedule.Transit3.journey_time,
-            }
-          : null,
-        subSchedule.Transit4
-          ? {
-              id: subSchedule.Transit4.id,
-              destination: subSchedule.Transit4.Destination?.name || "N/A",
-              departure_time: subSchedule.Transit4.departure_time,
-              arrival_time: subSchedule.Transit4.arrival_time,
-              journey_time: subSchedule.Transit4.journey_time,
-            }
-          : null,
-      ].filter(Boolean),
+      transits,
       route_image: subSchedule.route_image || "N/A",
       price: getSeasonPrice(
         selectedDate,
