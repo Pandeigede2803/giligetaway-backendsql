@@ -4,6 +4,7 @@ const {
   CustomEmailSchedulers,
   EmailSendLog,
   Booking,
+  Agent,
   Schedule,
   SubSchedule
 } = require('../models');
@@ -173,8 +174,14 @@ exports.runCustomEmailJob = async (req, res) => {
           "contact_name",
           "gross_total",
           "booking_date",
-          "agent_email",
           "contact_email",
+        ],
+        include: [
+          {
+            model: Agent,
+            attributes: ["email"],
+            required: false,
+          },
         ],
       });
 
@@ -198,6 +205,8 @@ exports.runCustomEmailJob = async (req, res) => {
 
         await Promise.all(
           batch.map(async (booking) => {
+            const agentEmail =
+              booking?.Agent?.email || booking?.agent?.email || null;
             console.log(`   🔍 Processing booking ID: ${booking.id}, ticket: ${booking.ticket_id}`);
 
             // ✅ Filter round trip: only send email for odd-numbered tickets
@@ -210,18 +219,18 @@ exports.runCustomEmailJob = async (req, res) => {
             }
 
             if (alreadySentBookingIds.has(booking.id)) {
-              console.log(`   ⏭️  Skipped: Email already sent for booking ${booking.id}`);
+              console.log(`   ⏭️  Skipped: Email already sent for booking ${booking.id}`);sori
               return;
             }
 
             // Determine recipients based on target_type
             let recipients = [];
             if (scheduler.target_type === "agent") {
-              if (booking.agent_email) recipients.push(booking.agent_email);
+              if (agentEmail) recipients.push(agentEmail);
             } else if (scheduler.target_type === "customer") {
               if (booking.contact_email) recipients.push(booking.contact_email);
             } else if (scheduler.target_type === "all") {
-              if (booking.agent_email) recipients.push(booking.agent_email);
+              if (agentEmail) recipients.push(agentEmail);
               if (booking.contact_email) recipients.push(booking.contact_email);
             }
 
