@@ -39,9 +39,23 @@ const formatRouteTimeline = (schedule) => {
     schedule.DestinationTo?.name || schedule.TransitTo?.Destination?.name || schedule.to : 
     schedule.ToDestination?.name || schedule.TransitTo?.Destination?.name || schedule.to;
   
-  const departureTime = schedule.departure_time || schedule.Schedule?.departure_time;
-  const arrivalTime = schedule.arrival_time || schedule.Schedule?.arrival_time;
-  const transits = schedule.transits || schedule.Transits || [];
+  const departureTime =
+    schedule.departure_time ||
+    schedule.TransitFrom?.departure_time ||
+    schedule.Schedule?.departure_time;
+  const arrivalTime =
+    schedule.arrival_time ||
+    schedule.TransitTo?.arrival_time ||
+    schedule.Schedule?.arrival_time;
+  const transits =
+    schedule.transits ||
+    schedule.Transits ||
+    [
+      schedule.Transit1,
+      schedule.Transit2,
+      schedule.Transit3,
+      schedule.Transit4,
+    ].filter(Boolean);
 
   // Build route timeline
   const routeTimeline = [];

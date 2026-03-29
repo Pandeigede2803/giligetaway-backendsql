@@ -6,24 +6,60 @@ const {
   notifyTelegramSeatBoosted,
 } = require("../controllers/seatAvailabilityController");
 
+let isDuplicateSeatJobRunning = false;
+let isSeatBoostedJobRunning = false;
+
+const runDuplicateSeatJobTask = async () => {
+  if (isDuplicateSeatJobRunning) {
+    console.warn("⏳ DuplicateSeatCron: previous run still in progress, skip run");
+    return { skipped: true, reason: "already_running" };
+  }
+  isDuplicateSeatJobRunning = true;
+  console.log("🕒 Running scheduled duplicate seat checker...");
+
+  try {
+    const duplicates = await findDuplicateSeats();
+    await notifyTelegram(duplicates);
+    console.log("✅ Duplicate seat check done.");
+    return { skipped: false, duplicatesFound: duplicates.length };
+  } catch (err) {
+    console.error("❌ Error in DuplicateSeatCron:", err);
+    throw err;
+  } finally {
+    isDuplicateSeatJobRunning = false;
+  }
+};
+
+const runSeatBoostedJobTask = async () => {
+  if (isSeatBoostedJobRunning) {
+    console.warn("⏳ SeatBoostedCron: previous run still in progress, skip run");
+    return { skipped: true, reason: "already_running" };
+  }
+  isSeatBoostedJobRunning = true;
+  console.log("🕒 Running scheduled seat boosted checker...");
+
+  try {
+    const boostedSeats = await findBoostedSeats();
+    console.log(`🔍 Found ${boostedSeats.length} boosted seats.`);
+    await notifyTelegramSeatBoosted(boostedSeats);
+    console.log("✅ Seat boosted check done.");
+    return { skipped: false, boostedFound: boostedSeats.length };
+  } catch (err) {
+    console.error("❌ Error in SeatBoostedCron:", err);
+    throw err;
+  } finally {
+    isSeatBoostedJobRunning = false;
+  }
+};
+
 const scheduleDuplicateSeatJob = () => {
   const cronFrequency =
-    process.env.CRON_FREQUENCY_SEAT_DUPLICATE || "0 */1 * * *"; // Default to every hour if not set
+    process.env.CRON_FREQUENCY_SEAT_DUPLICATE || "17 * * * *"; // Default hourly at minute 17
 
   // console.log(`📆 Registering DuplicateSeatCron with frequency: ${cronFrequency}`);
 
  cron.schedule(cronFrequency, async () => {
-  console.log("🕒 Running scheduled duplicate seat checker...");
-  try {
-    const duplicates = await findDuplicateSeats();
-    // console.log(`🔍 Found ${duplicates.length} duplicate seats.`) ;
-
-    // console.log("📡 Sending duplicate seat report to Telegram...");
-    await notifyTelegram(duplicates); // ⬅️ PASTIKAN INI ADA
-    console.log("✅ Duplicate seat check done.");
-  } catch (err) {
-    console.error("❌ Error in DuplicateSeatCron:", err);
-  }
+  await runDuplicateSeatJobTask();
 });
 };
 
@@ -31,26 +67,18 @@ const scheduleDuplicateSeatJob = () => {
 
 const seatBoostedJob = () => {
   const cronFrequency =
-    process.env.CRON_FREQUENCY_SEAT_BOOSTED || "0 */1 * * *"; // Default to every 15 minutes if not set
+    process.env.CRON_FREQUENCY_SEAT_BOOSTED || "37 * * * *"; // Default hourly at minute 37
 
   console.log(`📆 Registering SeatBoostedCron with frequency: ${cronFrequency}`);
 
   cron.schedule(cronFrequency, async () => {
-    console.log("🕒 Running scheduled seat boosted checker...");
-    try {
-      const boostedSeats = await findBoostedSeats();
-      console.log(`🔍 Found ${boostedSeats.length} boosted seats.`);
-
-      console.log("📡 Sending boosted seat report to Telegram...");
-      await notifyTelegramSeatBoosted(boostedSeats);
-      console.log("✅ Seat boosted check done.");
-    } catch (err) {
-      console.error("❌ Error in SeatBoostedCron:", err);
-    }
+    await runSeatBoostedJobTask();
   });
 };
 
 module.exports = {
   scheduleDuplicateSeatJob,
-  seatBoostedJob
+  seatBoostedJob,
+  runDuplicateSeatJobTask,
+  runSeatBoostedJobTask,
 };

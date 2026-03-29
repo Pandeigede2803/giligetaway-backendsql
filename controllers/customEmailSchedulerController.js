@@ -167,6 +167,15 @@ exports.runCustomEmailJob = async (req, res) => {
 
       const eligibleBookings = await Booking.findAll({
         where: whereClause,
+        attributes: [
+          "id",
+          "ticket_id",
+          "contact_name",
+          "gross_total",
+          "booking_date",
+          "agent_email",
+          "contact_email",
+        ],
       });
 
       console.log(
@@ -177,6 +186,15 @@ exports.runCustomEmailJob = async (req, res) => {
       // ✅ BATCH PROCESSING LOOP
       for (let i = 0; i < eligibleBookings.length; i += BATCH_SIZE) {
         const batch = eligibleBookings.slice(i, i + BATCH_SIZE);
+        const bookingIds = batch.map((booking) => booking.id);
+        const sentLogs = await EmailSendLog.findAll({
+          where: {
+            scheduler_id: scheduler.id,
+            booking_id: { [Op.in]: bookingIds },
+          },
+          attributes: ["booking_id"],
+        });
+        const alreadySentBookingIds = new Set(sentLogs.map((log) => log.booking_id));
 
         await Promise.all(
           batch.map(async (booking) => {
@@ -191,10 +209,7 @@ exports.runCustomEmailJob = async (req, res) => {
               }
             }
 
-            const alreadySent = await EmailSendLog.findOne({
-              where: { scheduler_id: scheduler.id, booking_id: booking.id },
-            });
-            if (alreadySent) {
+            if (alreadySentBookingIds.has(booking.id)) {
               console.log(`   ⏭️  Skipped: Email already sent for booking ${booking.id}`);
               return;
             }

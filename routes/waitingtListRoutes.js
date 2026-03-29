@@ -2,10 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const waitingListController = require('../controllers/waitingListController');
+const validateWaitingListCreateV2 = require('../middleware/validateWaitingListCreateV2');
 // const triggerManual = require('../util/waitingListNotify');
 
 // Create a new waiting list entry
-router.post('/', waitingListController.createv2);
+router.post('/', validateWaitingListCreateV2, waitingListController.createv2);
 // router.post('/', waitingListController.create);
 // Get all waiting list entries
 router.get('/', waitingListController.findAll);

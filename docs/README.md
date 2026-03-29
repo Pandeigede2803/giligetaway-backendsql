@@ -32,6 +32,7 @@ Critical bug fix for expired booking processing with Telegram error notification
 | File | Description | Language | Status |
 |------|-------------|----------|--------|
 | [agent-booking-email-enhancement.md](agent-booking-email-enhancement.md) | Round-trip email passenger details & transport info fix | 🇬🇧 EN | ✅ Current |
+| [booking-sync-total-handover.md](booking-sync-total-handover.md) | Frontend handover for booking total sync after schedule/date changes | ID | ✅ Current |
 
 ### API Flows
 
@@ -39,6 +40,7 @@ Critical bug fix for expired booking processing with Telegram error notification
 |------|-------------|----------|--------|
 | [agent-search-schedule-v3-flow.md](agent-search-schedule-v3-flow.md) | Flow for agent search schedule v3 endpoint | ID | ✅ Current |
 | [agent-booking-pricing-commission.md](agent-booking-pricing-commission.md) | Pricing and commission flow for agent bookings | ID | ✅ Current |
+| [booking-sync-total-handover.md](booking-sync-total-handover.md) | Sync total endpoint flow and frontend handover | ID | ✅ Current |
 
 ### Bug Fixes & Analysis
 

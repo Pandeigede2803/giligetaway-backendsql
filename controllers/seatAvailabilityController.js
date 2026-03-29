@@ -1840,6 +1840,228 @@ const fixAllSeatMismatches2 = async () => {
   console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
 };
 
+const fixAllSeatMismatches3 = async () => {
+  const startedAt = Date.now();
+  const lookbackDays = Number(process.env.SEAT_FIX_LOOKBACK_DAYS || 2);
+  const lookaheadRaw = process.env.SEAT_FIX_LOOKAHEAD_DAYS;
+  const hasLookahead =
+    lookaheadRaw !== undefined && lookaheadRaw !== null && lookaheadRaw !== "";
+  const lookaheadDays = hasLookahead ? Number(lookaheadRaw) : null;
+  const batchSize = Number(process.env.SEAT_FIX_BATCH_SIZE || 200);
+  const batchDelayMs = Number(process.env.SEAT_FIX_BATCH_DELAY_MS || 0);
+  const maxBatchesPerRun = Number(process.env.SEAT_FIX_MAX_BATCHES_PER_RUN || 0); // 0 = no limit
+  const sendProgressTelegram =
+    String(process.env.SEAT_FIX_TELEGRAM_PROGRESS || "true").toLowerCase() ===
+    "true";
+  const progressEveryBatches = Number(
+    process.env.SEAT_FIX_TELEGRAM_EVERY_BATCHES || 10
+  );
+
+  const startDate = new Date();
+  startDate.setHours(0, 0, 0, 0);
+  startDate.setDate(startDate.getDate() - lookbackDays);
+
+  let endDate = null;
+  if (hasLookahead) {
+    endDate = new Date();
+    endDate.setHours(23, 59, 59, 999);
+    endDate.setDate(endDate.getDate() + lookaheadDays);
+  }
+
+  const windowText = `${startDate.toISOString().slice(0, 10)}..${
+    endDate ? endDate.toISOString().slice(0, 10) : "future-all"
+  }`;
+
+  console.log(
+    `🕒 Running Seat Mismatch Fix Job v3 | window=${windowText} | batchSize=${batchSize}`
+  );
+
+  let lastId = 0;
+  let totalChecked = 0;
+  let totalFixed = 0;
+  let totalBatches = 0;
+
+  try {
+    if (sendProgressTelegram) {
+      await sendTelegramMessage(
+        [
+          "🚀 <b>Seat Fix v3 Started</b>",
+          `🧭 Window: ${windowText}`,
+          `📦 Batch size: ${batchSize}`,
+          `🪫 Batch delay: ${batchDelayMs}ms`,
+          `🔢 Max batches/run: ${maxBatchesPerRun || "unlimited"}`,
+        ].join("\n")
+      );
+    }
+
+    while (true) {
+      if (maxBatchesPerRun > 0 && totalBatches >= maxBatchesPerRun) {
+        console.log(
+          `⏹️ Seat mismatch v3 stopped by max batches limit (${maxBatchesPerRun})`
+        );
+        break;
+      }
+
+      const seatRows = await sequelize.query(
+        `
+        SELECT
+          sa.id,
+          sa.available_seats,
+          sa.boost,
+          b.capacity,
+          b.published_capacity
+        FROM SeatAvailability sa
+        JOIN Schedules s ON s.id = sa.schedule_id
+        JOIN Boats b ON b.id = s.boat_id
+        WHERE sa.custom_seat = 0
+          AND sa.id > :lastId
+          AND sa.date >= :startDate
+          ${endDate ? "AND sa.date <= :endDate" : ""}
+        ORDER BY sa.id ASC
+        LIMIT :batchSize
+        `,
+        {
+          replacements: {
+            lastId,
+            startDate: startDate.toISOString().slice(0, 10),
+            ...(endDate ? { endDate: endDate.toISOString().slice(0, 10) } : {}),
+            batchSize,
+          },
+          type: QueryTypes.SELECT,
+        }
+      );
+
+      if (!seatRows.length) break;
+
+      totalBatches++;
+      lastId = seatRows[seatRows.length - 1].id;
+      totalChecked += seatRows.length;
+
+      const seatIds = seatRows.map((row) => row.id);
+      const occupiedRows = await sequelize.query(
+        `
+        SELECT
+          sa.id AS seat_availability_id,
+          COUNT(
+            DISTINCT UPPER(
+              REPLACE(
+                REPLACE(
+                  REPLACE(TRIM(p.seat_number), CHAR(13), ''),
+                CHAR(10), ''),
+              ' ', '')
+            )
+          ) AS occupied_seats
+        FROM SeatAvailability sa
+        LEFT JOIN BookingSeatAvailability bsa ON bsa.seat_availability_id = sa.id
+        LEFT JOIN Bookings b
+          ON b.id = bsa.booking_id
+         AND b.payment_status IN ('paid', 'invoiced', 'unpaid')
+        LEFT JOIN Passengers p
+          ON p.booking_id = b.id
+         AND (p.passenger_type IS NULL OR p.passenger_type <> 'infant')
+         AND p.seat_number IS NOT NULL
+         AND TRIM(p.seat_number) <> ''
+        WHERE sa.id IN (:seatIds)
+        GROUP BY sa.id
+        `,
+        {
+          replacements: { seatIds },
+          type: QueryTypes.SELECT,
+        }
+      );
+
+      const occupiedMap = new Map(
+        occupiedRows.map((row) => [
+          Number(row.seat_availability_id),
+          Number(row.occupied_seats || 0),
+        ])
+      );
+
+      const updates = [];
+      for (const row of seatRows) {
+        const occupiedSeats = occupiedMap.get(Number(row.id)) || 0;
+        const boatCapacity = row.boost
+          ? Number(row.capacity || 0)
+          : Number(row.published_capacity || 0);
+        const correctAvailableSeats = Math.max(0, boatCapacity - occupiedSeats);
+
+        if (Number(row.available_seats) !== correctAvailableSeats) {
+          updates.push({ id: row.id, availableSeats: correctAvailableSeats });
+        }
+      }
+
+      if (updates.length > 0) {
+        await sequelize.transaction(async (t) => {
+          for (const upd of updates) {
+            await SeatAvailability.update(
+              { available_seats: upd.availableSeats },
+              {
+                where: { id: upd.id },
+                transaction: t,
+              }
+            );
+          }
+        });
+        totalFixed += updates.length;
+      }
+
+      if (
+        sendProgressTelegram &&
+        progressEveryBatches > 0 &&
+        totalBatches % progressEveryBatches === 0
+      ) {
+        await sendTelegramMessage(
+          [
+            "📊 <b>Seat Fix v3 Progress</b>",
+            `Batch: ${totalBatches}`,
+            `Checked: ${totalChecked}`,
+            `Fixed: ${totalFixed}`,
+            `Last seat ID: ${lastId}`,
+            `Elapsed: ${Date.now() - startedAt}ms`,
+          ].join("\n")
+        );
+      }
+
+      if (batchDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, batchDelayMs));
+      }
+    }
+
+    const durationMs = Date.now() - startedAt;
+    console.log(
+      `🎯 Seat mismatch v3 completed | checked=${totalChecked} fixed=${totalFixed} batches=${totalBatches} durationMs=${durationMs}`
+    );
+
+    if (sendProgressTelegram) {
+      await sendTelegramMessage(
+        [
+          "✅ <b>Seat Fix v3 Completed</b>",
+          `Checked: ${totalChecked}`,
+          `Fixed: ${totalFixed}`,
+          `Batches: ${totalBatches}`,
+          `Duration: ${durationMs}ms`,
+        ].join("\n")
+      );
+    }
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    console.error("❌ Seat mismatch v3 failed:", error.message);
+    if (sendProgressTelegram) {
+      await sendTelegramMessage(
+        [
+          "❌ <b>Seat Fix v3 Failed</b>",
+          `Checked: ${totalChecked}`,
+          `Fixed: ${totalFixed}`,
+          `Batches: ${totalBatches}`,
+          `Elapsed: ${durationMs}ms`,
+          `Error: ${error.message}`,
+        ].join("\n")
+      );
+    }
+    throw error;
+  }
+};
+
 const fixSeatMismatchBatch2 = async (req, res) => {
   const { ids } = req.body;
 
@@ -3226,6 +3448,7 @@ module.exports = {
   getSeatAvailabilityByMonthYear,
   deleteSeatAvailabilityByIds,
   fixSeatMismatch,
+  fixAllSeatMismatches3,
   fixAllSeatMismatches2,
   fixSeatMismatchBatch,
   fixSeatMismatchBatch2,

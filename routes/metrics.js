@@ -14,13 +14,15 @@ router.get('/', authenticate,metricsController.getMetrics);
 router.get('/booking-date', authenticate,metricsController.getMetricsBookingDate)
 
 
-router.get('/annualy', authenticate,metricsController.getAnnualyMetrics);
+router.get('/annualy', authenticate,metricsController.getAnnualyMetricsWithCache);
+router.get('/annualy-cache', authenticate,metricsController.getAnnualyMetricsWithCache);
 
 // get the metrics by agent id
 router.get('/agent/:agent_id', authenticate,metricsController.getMetricsByAgentId); 
 router.get('/agent-travel-date/:agent_id', authenticate,metricsController.getMetricsByAgentIdTravelDate); 
 
-router.get('/agent/annualy/:agent_id', authenticate,metricsController.getAgentAnnualyMetrics);
+router.get('/agent/annualy/:agent_id', authenticate,metricsController.getAgentAnnualyMetricsWithCache);
+router.get('/agent/annualy-cache/:agent_id', authenticate,metricsController.getAgentAnnualyMetricsWithCache);
 
 router.get('/agent-statistics', authenticate,metricsController.getAgentStatistics);
 

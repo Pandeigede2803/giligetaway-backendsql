@@ -165,6 +165,18 @@ router.get(
   bookingController.getRelatedBookingsByTicketId
 );
 
+router.put(
+  "/sync-total/:id",
+  authenticate,
+  bookingController.syncBookingTotals
+);
+
+router.get(
+  "/sync-total/:id/preview",
+  authenticate,
+  bookingController.previewBookingTotals
+);
+
 // get booking discount data
 //  getBookingDiscounts
 

@@ -38,6 +38,11 @@ const {
 } = require("../util/handleSubScheduleBooking");
 
 const { applyRefundAdjustments } = require("../util/paymentAdjustment");
+const { calculateTicketTotal } = require("../util/calculateTicketTotal");
+const {
+  syncBookingTotalsForBooking,
+  previewBookingTotalsForBooking,
+} = require("../util/syncBookingTotals");
 
 // Tambahkan import di bagian atas file controller
 const { waitingListNotify } = require("../util/waitingListNotify");
@@ -82,6 +87,49 @@ const {
   createBookingSeatLinksForRoute,
   checkDuplicateSeatNumbers,
 } = require("../util/bsaUpdate"); // release seats + hapus BSA lama
+
+const parsePreviewQueryValue = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  if (
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(trimmed);
+    } catch (error) {
+      return value;
+    }
+  }
+
+  return value;
+};
+
+const buildPreviewOverrides = (query) => ({
+  schedule_id: parsePreviewQueryValue(query.new_schedule_id ?? query.schedule_id),
+  subschedule_id: parsePreviewQueryValue(
+    query.new_subschedule_id ?? query.subschedule_id
+  ),
+  booking_date: parsePreviewQueryValue(
+    query.new_booking_date ?? query.booking_date
+  ),
+  adult_passengers: parsePreviewQueryValue(query.adult_passengers),
+  child_passengers: parsePreviewQueryValue(query.child_passengers),
+  infant_passengers: parsePreviewQueryValue(query.infant_passengers),
+  bank_fee: parsePreviewQueryValue(query.bank_fee),
+  discount_code: parsePreviewQueryValue(query.discount_code),
+  discount_data: parsePreviewQueryValue(query.discount_data),
+  transports: parsePreviewQueryValue(query.transports),
+});
 
 const getBookingsByDate = async (req, res) => {
   console.log("getBookingsByDate: start");
@@ -5320,6 +5368,57 @@ const updateBookingDateAgent = async (req, res) => {
   }
 };
 
+const  syncBookingTotals = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await sequelize.transaction((t) =>
+      syncBookingTotalsForBooking({ bookingId: id, transaction: t })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking totals synchronized successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error in syncBookingTotals:", error);
+    return res.status(400).json({
+      success: false,
+      error: "Failed to sync booking totals",
+      details: error.message,
+    });
+  }
+};
+
+const previewBookingTotals = async (req, res) => {
+  const { id } = req.params;
+  const overrides = buildPreviewOverrides(req.query || {});
+
+  try {
+    const result = await sequelize.transaction((t) =>
+      previewBookingTotalsForBooking({
+        bookingId: id,
+        transaction: t,
+        overrides,
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking totals preview calculated successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error in previewBookingTotals:", error);
+    return res.status(400).json({
+      success: false,
+      error: "Failed to preview booking totals",
+      details: error.message,
+    });
+  }
+};
+
 const deleteBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -6637,6 +6736,8 @@ module.exports = {
   createAgentBooking,
   sendMissBooking,
   updateScheduleBooking,
+  syncBookingTotals,
+  previewBookingTotals,
 };
 
 // const getRelatedBookingsByTicketId = async (req, res) => {

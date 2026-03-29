@@ -28,6 +28,64 @@ const {
   processMetricsDataBookingDate,
 } = require("../util/fetchMetricsBookingDate");
 
+const annualyMetricsCache = new Map();
+const ANNUALY_METRICS_CACHE_TTL_MS = Number.parseInt(
+  process.env.ANNUALY_METRICS_CACHE_TTL_MS || "300000",
+  10
+);
+
+const buildAnnualyCacheKey = (prefix, params = {}) => {
+  const sorted = Object.keys(params)
+    .sort()
+    .map((k) => `${k}:${String(params[k] ?? "")}`)
+    .join("|");
+  return `${prefix}|${sorted}`;
+};
+
+const getCacheValue = (key) => {
+  const entry = annualyMetricsCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    annualyMetricsCache.delete(key);
+    return null;
+  }
+  return entry.value;
+};
+
+const setCacheValue = (key, value) => {
+  annualyMetricsCache.set(key, {
+    value,
+    expiresAt: Date.now() + ANNUALY_METRICS_CACHE_TTL_MS,
+  });
+};
+
+const runControllerAndCapture = async (controller, req) => {
+  let statusCode = 200;
+  let payload;
+
+  const mockRes = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(data) {
+      payload = data;
+      return this;
+    },
+  };
+
+  await controller(req, mockRes);
+  if (payload === undefined) {
+    console.error("[Metrics][Capture] Controller returned without JSON payload", {
+      controller: controller?.name,
+      path: req?.originalUrl,
+      query: req?.query,
+      params: req?.params,
+    });
+  }
+  return { statusCode, payload };
+};
+
 // Fungsi untuk mendapatkan metrik pemesanan berdasarkan sumber
 const getBookingMetricsBySource = async (req, res) => {
   try {
@@ -2166,7 +2224,11 @@ function isInDateRange(date, dateRange) {
 const getAnnualyMetrics = async (req, res) => {
   try {
     const { timeframe } = req.query;
+    const requestedYear = Number.parseInt(req.query.year, 10);
     const today = moment();
+    const selectedYear = Number.isInteger(requestedYear)
+      ? requestedYear
+      : today.year();
     let startDate, endDate, data = [];
 
     switch (timeframe) {
@@ -2251,8 +2313,8 @@ const getAnnualyMetrics = async (req, res) => {
       }
 
       case "Month": {
-        startDate = today.clone().startOf("year").format("YYYY-MM-DD");
-        endDate   = today.clone().endOf("year").format("YYYY-MM-DD");
+        startDate = moment(`${selectedYear}-01-01`).startOf("year").format("YYYY-MM-DD");
+        endDate   = moment(`${selectedYear}-01-01`).endOf("year").format("YYYY-MM-DD");
 
         const paidMonthly = await Booking.findAll({
           where: {
@@ -2260,28 +2322,35 @@ const getAnnualyMetrics = async (req, res) => {
             payment_status: { [Op.in]: ["paid", "invoiced","refund_50","cancel_100_charge"] },
           },
           attributes: [
+            [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
             [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
             [sequelize.fn("SUM", sequelize.col("gross_total")), "totalGross"],
           ],
-          group: ["month"],
+          group: ["year", "month"],
           raw: true,
         });
 
         const allMonthly = await Booking.findAll({
           where: { booking_date: { [Op.between]: [startDate, endDate] } },
           attributes: [
+            [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
             [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
             [sequelize.fn("SUM", sequelize.col("gross_total")), "totalGrossAll"],
           ],
-          group: ["month"],
+          group: ["year", "month"],
           raw: true,
         });
 
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
         data = months.map((m) => {
-          const p = paidMonthly.find(d => Number(d.month) === m);
-          const a = allMonthly.find(d => Number(d.month) === m);
+          const p = paidMonthly.find(
+            (d) => Number(d.year) === selectedYear && Number(d.month) === m
+          );
+          const a = allMonthly.find(
+            (d) => Number(d.year) === selectedYear && Number(d.month) === m
+          );
           return {
+            year: selectedYear,
             month: m,
             totalGross: Number(p?.totalGross ?? 0),
             totalGrossAll: Number(a?.totalGrossAll ?? 0),
@@ -2336,7 +2405,7 @@ const getAnnualyMetrics = async (req, res) => {
         });
     }
 
-    return res.json({ status: "success", timeframe, data });
+    return res.json({ status: "success", timeframe, year: timeframe === "Month" ? selectedYear : undefined, data });
   } catch (error) {
     console.error("Error fetching booking gross metrics:", error);
     return res.status(500).json({ status: "error", message: "Internal server error" });
@@ -2606,12 +2675,15 @@ const getAnnualyMetrics = async (req, res) => {
 const getAgentAnnualyMetrics = async (req, res) => {
   try {
     const { timeframe, agentId } = req.query;
+    const requestedYear = Number.parseInt(req.query.year, 10);
+    const today = moment();
+    const selectedYear = Number.isInteger(requestedYear)
+      ? requestedYear
+      : today.year();
 
     if (!agentId) {
       return res.status(400).json({ error: "Agent ID is required." });
     }
-
-    const today = moment();
     let startDate,
       endDate,
       data = [];
@@ -2634,7 +2706,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
             },
           },
           attributes: [
-            [sequelize.fn("DATE", sequelize.col("booking_date")), "date"],
+            [sequelize.fn("DATE", sequelize.col("created_at")), "date"],
             [
               sequelize.fn(
                 "SUM",
@@ -2672,8 +2744,8 @@ const getAgentAnnualyMetrics = async (req, res) => {
         break;
 
       case "Month":
-        startDate = today.clone().startOf("year").format("YYYY-MM-DD");
-        endDate = today.clone().endOf("year").format("YYYY-MM-DD");
+        startDate = moment(`${selectedYear}-01-01`).startOf("year").format("YYYY-MM-DD");
+        endDate = moment(`${selectedYear}-01-01`).endOf("year").format("YYYY-MM-DD");
 
         data = await Booking.findAll({
           where: {
@@ -2683,7 +2755,8 @@ const getAgentAnnualyMetrics = async (req, res) => {
             },
           },
           attributes: [
-            [sequelize.fn("MONTH", sequelize.col("booking_date")), "month"],
+            [sequelize.fn("YEAR", sequelize.col("created_at")), "year"],
+            [sequelize.fn("MONTH", sequelize.col("created_at")), "month"],
             [
               sequelize.fn(
                 "SUM",
@@ -2703,14 +2776,17 @@ const getAgentAnnualyMetrics = async (req, res) => {
               "totalBookingsInvoiced",
             ],
           ],
-          group: ["month"],
+          group: ["year", "month"],
           raw: true,
         });
 
         const months = Array.from({ length: 12 }, (_, i) => i + 1);
         data = months.map(
           (month) =>
-            data.find((d) => d.month === month) || {
+            data.find(
+              (d) => Number(d.year) === selectedYear && Number(d.month) === month
+            ) || {
+              year: selectedYear,
               month,
               totalBookingsPaid: 0,
               totalBookingsInvoiced: 0,
@@ -2734,7 +2810,7 @@ const getAgentAnnualyMetrics = async (req, res) => {
             },
           },
           attributes: [
-            [sequelize.fn("YEAR", sequelize.col("booking_date")), "year"],
+            [sequelize.fn("YEAR", sequelize.col("created_at")), "year"],
             [
               sequelize.fn(
                 "SUM",
@@ -2782,10 +2858,121 @@ const getAgentAnnualyMetrics = async (req, res) => {
     return res.json({
       status: "success",
       timeframe,
+      year: timeframe === "Month" ? selectedYear : undefined,
       data,
     });
   } catch (error) {
     console.error("Error fetching agent booking metrics:", error);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
+  }
+};
+
+const getAnnualyMetricsWithCache = async (req, res) => {
+  try {
+    const cacheKey = buildAnnualyCacheKey("annualy-metrics", {
+      timeframe: req.query?.timeframe,
+      year: req.query?.year,
+    });
+
+    const cached = getCacheValue(cacheKey);
+    if (cached) {
+      return res.json({
+        ...cached,
+        cache: {
+          hit: true,
+          key: cacheKey,
+          ttlMs: ANNUALY_METRICS_CACHE_TTL_MS,
+        },
+      });
+    }
+
+    const { statusCode, payload } = await runControllerAndCapture(
+      getAnnualyMetrics,
+      req
+    );
+
+    if (statusCode === 200 && payload?.status === "success") {
+      setCacheValue(cacheKey, payload);
+    }
+
+    return res.status(statusCode).json({
+      ...payload,
+      cache: {
+        hit: false,
+        key: cacheKey,
+        ttlMs: ANNUALY_METRICS_CACHE_TTL_MS,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getAnnualyMetricsWithCache:", {
+      message: error?.message,
+      stack: error?.stack,
+      query: req?.query,
+      params: req?.params,
+      path: req?.originalUrl,
+    });
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
+  }
+};
+
+const getAgentAnnualyMetricsWithCache = async (req, res) => {
+  try {
+    const agentId = req.query?.agentId || req.params?.agent_id;
+    const mergedReq = {
+      ...req,
+      query: {
+        ...req.query,
+        agentId,
+      },
+    };
+
+    const cacheKey = buildAnnualyCacheKey("agent-annualy-metrics", {
+      timeframe: mergedReq.query?.timeframe,
+      year: mergedReq.query?.year,
+      agentId: mergedReq.query?.agentId,
+    });
+
+    const cached = getCacheValue(cacheKey);
+    if (cached) {
+      return res.json({
+        ...cached,
+        cache: {
+          hit: true,
+          key: cacheKey,
+          ttlMs: ANNUALY_METRICS_CACHE_TTL_MS,
+        },
+      });
+    }
+
+    const { statusCode, payload } = await runControllerAndCapture(
+      getAgentAnnualyMetrics,
+      mergedReq
+    );
+
+    if (statusCode === 200 && payload?.status === "success") {
+      setCacheValue(cacheKey, payload);
+    }
+
+    return res.status(statusCode).json({
+      ...payload,
+      cache: {
+        hit: false,
+        key: cacheKey,
+        ttlMs: ANNUALY_METRICS_CACHE_TTL_MS,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getAgentAnnualyMetricsWithCache:", {
+      message: error?.message,
+      stack: error?.stack,
+      query: req?.query,
+      params: req?.params,
+      path: req?.originalUrl,
+    });
     return res
       .status(500)
       .json({ status: "error", message: "Internal server error" });
@@ -3199,6 +3386,8 @@ module.exports = {
   getMetricsByAgentIdTravelDate,
   getAnnualyMetrics,
   getAgentAnnualyMetrics,
+  getAnnualyMetricsWithCache,
+  getAgentAnnualyMetricsWithCache,
   getAgentStatistics,
   getMetricsBookingDate,
   getBookingByTicketTypeMonthly,

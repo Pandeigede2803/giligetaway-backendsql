@@ -102,7 +102,7 @@ boost: typeof schedule.dataValues.seatAvailability?.boost === 'boolean'
  */
 const formatSubSchedules = (subSchedules, selectedDate) => {
   
-  // console.log("😹SubSchedules:", JSON.stringify(subSchedules, null, 2));
+  console.log("😹SubSchedules:", JSON.stringify(subSchedules, null, 2));
   return subSchedules.map((subSchedule) => {
     const addTimeAndDuration = (time, duration) => {
       if (!time || !duration) return null;
