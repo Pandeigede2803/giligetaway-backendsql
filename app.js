@@ -181,6 +181,7 @@ sequelize.sync()
       bookingSummaryCron.scheduleDailySummary();
       // console.log('✅ Daily booking summary cronjob registered');
       seatFixCron.scheduleSeatFixJob();
+      seatFixCron.scheduleSeatFixDeepScanJob();
       // console.log('✅ SeatFixCron registered');
       waitingListCron.scheduleWaitingListCron();
       // console.log('⛑️ ==== Waiting List Cron registered =====');

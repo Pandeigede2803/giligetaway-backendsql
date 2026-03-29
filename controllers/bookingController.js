@@ -87,6 +87,33 @@ const {
   createBookingSeatLinksForRoute,
   checkDuplicateSeatNumbers,
 } = require("../util/bsaUpdate"); // release seats + hapus BSA lama
+// const {
+//   enqueueSeatFixByBookingId,
+//   enqueueSeatFixBySeatIds,
+// } = require("../util/seatFixEventQueue");
+
+// const enqueueSeatFixSafely = async ({
+//   seatIds = [],
+//   bookingId = null,
+//   reason = "booking-mutation",
+// }) => {
+//   try {
+//     const ids = Array.isArray(seatIds)
+//       ? [...new Set(seatIds.map((id) => Number(id)).filter((id) => id > 0))]
+//       : [];
+//
+//     if (ids.length > 0) {
+//       await enqueueSeatFixBySeatIds(ids, { reason, bookingId });
+//       return;
+//     }
+//
+//     if (bookingId) {
+//       await enqueueSeatFixByBookingId(bookingId, { reason });
+//     }
+//   } catch (error) {
+//     console.error("[SeatFixEventQueue] enqueue failed:", error.message);
+//   }
+// };
 
 const parsePreviewQueryValue = (value) => {
   if (value === undefined || value === null || value === "") {
@@ -4323,6 +4350,11 @@ const handleRefundFlow = async ({
   let releaseErrorMsg = null;
   try {
     releasedSeatIds = await releaseBookingSeats(booking.id, t);
+    // await enqueueSeatFixSafely({
+    //   seatIds: releasedSeatIds,
+    //   bookingId: booking.id,
+    //   reason: `payment-${payment_status}`,
+    // });
   } catch (releaseErr) {
     releaseErrorMsg = releaseErr?.message || String(releaseErr);
   }
@@ -4426,6 +4458,11 @@ const updateBookingPayment = async (req, res) => {
 
         try {
           const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+          // await enqueueSeatFixSafely({
+          //   seatIds: releasedSeatIds,
+          //   bookingId: booking.id,
+          //   reason: `payment-${payment_status}`,
+          // });
           console.log(
             `✅ Released seats: ${
               releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"
@@ -4511,6 +4548,11 @@ const updateBookingPayment = async (req, res) => {
           );
           try {
             const allocatedIds = await allocateBookingSeats(booking.id, t);
+            // await enqueueSeatFixSafely({
+            //   seatIds: allocatedIds,
+            //   bookingId: booking.id,
+            //   reason: "payment-reallocate",
+            // });
             console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
           } catch (allocErr) {
             console.error("❌ Error allocating booking seats:", allocErr);
@@ -4778,6 +4820,7 @@ const updateBookingDate = async (req, res) => {
       console.log("\n=== Starting Booking Date Update Process ===");
 
       const originalBookingDate = booking.booking_date;
+      let releasedSeatIds = [];
 
       // Cek apakah tanggal baru sama dengan yang lama
       if (originalBookingDate === booking_date) {
@@ -4789,7 +4832,7 @@ const updateBookingDate = async (req, res) => {
       // 1. Lepaskan kursi dari tanggal sebelumnya
       console.log("\n🔄 Releasing seats from previous date...");
       try {
-        const releasedSeatIds = await releaseSeats(booking, t);
+        releasedSeatIds = await releaseSeats(booking, t);
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
@@ -4854,6 +4897,15 @@ const updateBookingDate = async (req, res) => {
       }
       // console.log("✅ New BookingSeatAvailabilities created successfully");
 
+      // await enqueueSeatFixSafely({
+      //   seatIds: [
+      //     ...releasedSeatIds,
+      //     ...remainingSeatAvailabilities.map((sa) => sa.id),
+      //   ],
+      //   bookingId: booking.id,
+      //   reason: "update-booking-date",
+      // });
+
       // console.log("\n=== Booking Date Update Process Completed ===");
 
       // 6. Kirim email notifikasi setelah transaksi sukses
@@ -4911,6 +4963,7 @@ const updateScheduleBooking = async (req, res) => {
 
   let payload; // response body
   let telegramMessage; // message to send after commit
+  let seatFixSeatIds = [];
 
   try {
     await sequelize.transaction(async (t) => {
@@ -4942,6 +4995,14 @@ const updateScheduleBooking = async (req, res) => {
       }
 
       // 1) release + delete previous links
+      const oldBsaRows = await BookingSeatAvailability.findAll({
+        where: { booking_id: booking.id },
+        attributes: ["seat_availability_id"],
+        transaction: t,
+        raw: true,
+      });
+      const oldSeatIds = oldBsaRows.map((row) => row.seat_availability_id);
+
       await deleteOldBookingSeatLinks(booking, t, {
         totalPassengers: total_passengers,
       });
@@ -4963,6 +5024,7 @@ const updateScheduleBooking = async (req, res) => {
           "No SeatAvailability rows produced by correlation helpers"
         );
       }
+      seatFixSeatIds = [...oldSeatIds, ...createdSaIds];
 
       // 3) update booking (route + date)
       await booking.update(
@@ -5026,6 +5088,12 @@ const updateScheduleBooking = async (req, res) => {
     });
 
     // Send Telegram after transaction success (non-blocking for response)
+    // await enqueueSeatFixSafely({
+    //   seatIds: seatFixSeatIds,
+    //   bookingId: Number(id),
+    //   reason: "update-schedule-booking",
+    // });
+
     if (telegramMessage) {
       sendTelegramMessage(telegramMessage).catch((err) =>
         console.error("Telegram send error (post-commit):", err.message)
@@ -5243,6 +5311,7 @@ const updateBookingDateAgent = async (req, res) => {
       }
 
       const originalBookingDate = booking.booking_date;
+      let releasedSeatIds = [];
       console.log("Original booking date:", originalBookingDate);
       console.log("New booking date:", booking_date);
 
@@ -5261,7 +5330,7 @@ const updateBookingDateAgent = async (req, res) => {
       // 3. Release seats from previous date
       console.log("\n🔄 Releasing seats from previous date...");
       try {
-        const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+        releasedSeatIds = await releaseBookingSeats(booking.id, t);
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
@@ -5331,6 +5400,15 @@ const updateBookingDateAgent = async (req, res) => {
         );
       }
       console.log("✅ New BookingSeatAvailabilities created successfully");
+
+      // await enqueueSeatFixSafely({
+      //   seatIds: [
+      //     ...releasedSeatIds,
+      //     ...remainingSeatAvailabilities.map((sa) => sa.id),
+      //   ],
+      //   bookingId: booking.id,
+      //   reason: "update-booking-date-agent",
+      // });
 
       console.log("\n=== Booking Date Update Process Completed ===");
 
@@ -5423,6 +5501,7 @@ const deleteBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const bookingId = req.params.id;
+    let releasedSeatIds = [];
 
     // Step 1: Fetch the booking details based on the provided ID
     const booking = await Booking.findOne({
@@ -5443,10 +5522,12 @@ const deleteBooking = async (req, res) => {
     if (payment_status !== "cancelled" && payment_status !== "abandoned") {
       console.log("\n🔄 Releasing seats from current booking date...");
       try {
-        const releasedSeatIds = await releaseBookingSeats(
-          booking.id,
-          transaction
-        );
+        releasedSeatIds = await releaseBookingSeats(booking.id, transaction);
+        // await enqueueSeatFixSafely({
+        //   seatIds: releasedSeatIds,
+        //   bookingId: booking.id,
+        //   reason: "delete-booking",
+        // });
         console.log("✅ Successfully released seats for IDs:", releasedSeatIds);
       } catch (error) {
         console.error("❌ Error releasing seats:", error);
@@ -6007,6 +6088,11 @@ const cancelBooking = async (req, res) => {
       // 2. Lepaskan seat yang sudah terlanjur di-reserve
       console.log("\n🪑 Releasing seats for the booking...");
       const releasedSeatIds = await releaseBookingSeats(booking.id, t);
+      // await enqueueSeatFixSafely({
+      //   seatIds: releasedSeatIds,
+      //   bookingId: booking.id,
+      //   reason: "cancel-booking",
+      // });
       console.log(
         `✅ Released seats: ${
           releasedSeatIds.length > 0 ? releasedSeatIds.join(", ") : "None"

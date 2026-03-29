@@ -1840,21 +1840,41 @@ const fixAllSeatMismatches2 = async () => {
   console.log(`🎯 Seat mismatch job completed. Total fixed: ${totalFixed}`);
 };
 
-const fixAllSeatMismatches3 = async () => {
+const fixAllSeatMismatches3 = async (options = {}) => {
   const startedAt = Date.now();
-  const lookbackDays = Number(process.env.SEAT_FIX_LOOKBACK_DAYS || 2);
+  const mode = options.mode || "regular";
+  const lookbackDays =
+    options.lookbackDays ?? Number(process.env.SEAT_FIX_LOOKBACK_DAYS || 2);
   const lookaheadRaw = process.env.SEAT_FIX_LOOKAHEAD_DAYS;
-  const hasLookahead =
+  const hasLookaheadFromEnv =
     lookaheadRaw !== undefined && lookaheadRaw !== null && lookaheadRaw !== "";
-  const lookaheadDays = hasLookahead ? Number(lookaheadRaw) : null;
-  const batchSize = Number(process.env.SEAT_FIX_BATCH_SIZE || 200);
-  const batchDelayMs = Number(process.env.SEAT_FIX_BATCH_DELAY_MS || 0);
-  const maxBatchesPerRun = Number(process.env.SEAT_FIX_MAX_BATCHES_PER_RUN || 0); // 0 = no limit
+  const hasLookaheadFromOption = Object.prototype.hasOwnProperty.call(
+    options,
+    "lookaheadDays"
+  );
+  const hasLookahead = hasLookaheadFromOption
+    ? options.lookaheadDays !== null && options.lookaheadDays !== undefined
+    : hasLookaheadFromEnv;
+  const lookaheadDays = hasLookaheadFromOption
+    ? Number(options.lookaheadDays)
+    : hasLookaheadFromEnv
+      ? Number(lookaheadRaw)
+      : null;
+  const batchSize =
+    options.batchSize ?? Number(process.env.SEAT_FIX_BATCH_SIZE || 200);
+  const batchDelayMs =
+    options.batchDelayMs ?? Number(process.env.SEAT_FIX_BATCH_DELAY_MS || 0);
+  const maxBatchesPerRun =
+    options.maxBatchesPerRun ??
+    Number(process.env.SEAT_FIX_MAX_BATCHES_PER_RUN || 0); // 0 = no limit
   const sendProgressTelegram =
-    String(process.env.SEAT_FIX_TELEGRAM_PROGRESS || "true").toLowerCase() ===
-    "true";
+    options.sendProgressTelegram ??
+    String(process.env.SEAT_FIX_TELEGRAM_PROGRESS || "false").toLowerCase() ===
+      "true";
   const progressEveryBatches = Number(
-    process.env.SEAT_FIX_TELEGRAM_EVERY_BATCHES || 10
+    options.progressEveryBatches ??
+      process.env.SEAT_FIX_TELEGRAM_EVERY_BATCHES ??
+      10
   );
 
   const startDate = new Date();
@@ -1873,7 +1893,7 @@ const fixAllSeatMismatches3 = async () => {
   }`;
 
   console.log(
-    `🕒 Running Seat Mismatch Fix Job v3 | window=${windowText} | batchSize=${batchSize}`
+    `🕒 Running Seat Mismatch Fix Job v3 (${mode}) | window=${windowText} | batchSize=${batchSize}`
   );
 
   let lastId = 0;
@@ -1886,6 +1906,7 @@ const fixAllSeatMismatches3 = async () => {
       await sendTelegramMessage(
         [
           "🚀 <b>Seat Fix v3 Started</b>",
+          `🏷️ Mode: ${mode}`,
           `🧭 Window: ${windowText}`,
           `📦 Batch size: ${batchSize}`,
           `🪫 Batch delay: ${batchDelayMs}ms`,
@@ -2013,6 +2034,7 @@ const fixAllSeatMismatches3 = async () => {
         await sendTelegramMessage(
           [
             "📊 <b>Seat Fix v3 Progress</b>",
+            `Mode: ${mode}`,
             `Batch: ${totalBatches}`,
             `Checked: ${totalChecked}`,
             `Fixed: ${totalFixed}`,
@@ -2036,6 +2058,7 @@ const fixAllSeatMismatches3 = async () => {
       await sendTelegramMessage(
         [
           "✅ <b>Seat Fix v3 Completed</b>",
+          `Mode: ${mode}`,
           `Checked: ${totalChecked}`,
           `Fixed: ${totalFixed}`,
           `Batches: ${totalBatches}`,
@@ -2050,6 +2073,7 @@ const fixAllSeatMismatches3 = async () => {
       await sendTelegramMessage(
         [
           "❌ <b>Seat Fix v3 Failed</b>",
+          `Mode: ${mode}`,
           `Checked: ${totalChecked}`,
           `Fixed: ${totalFixed}`,
           `Batches: ${totalBatches}`,
