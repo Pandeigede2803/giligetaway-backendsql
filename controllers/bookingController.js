@@ -92,6 +92,12 @@ const {
 //   enqueueSeatFixBySeatIds,
 // } = require("../util/seatFixEventQueue");
 
+const sendSeatChangeTelegram = (title, lines = []) => {
+  sendTelegramMessage([title, ...lines].join("\n")).catch((err) =>
+    console.error("Telegram send error:", err.message)
+  );
+};
+
 // const enqueueSeatFixSafely = async ({
 //   seatIds = [],
 //   bookingId = null,
@@ -4359,6 +4365,15 @@ const handleRefundFlow = async ({
     releaseErrorMsg = releaseErr?.message || String(releaseErr);
   }
 
+  sendSeatChangeTelegram("🧾 <b>Booking Refund Processed</b>", [
+    `• <b>Booking ID</b>: ${booking.id}`,
+    `• <b>Status</b>: ${payment_status}`,
+    `• <b>Released seats</b>: ${
+      releasedSeatIds.length ? releasedSeatIds.join(", ") : "none"
+    }`,
+    ...(releaseErrorMsg ? [`• <b>Seat release error</b>: ${releaseErrorMsg}`] : []),
+  ]);
+
   // 5) Kirim email (opsional)
   if (booking.contact_email) {
     try {
@@ -4469,6 +4484,14 @@ const updateBookingPayment = async (req, res) => {
             }`
           );
 
+          sendSeatChangeTelegram("🛑 <b>Booking Cancelled (Payment Update)</b>", [
+            `• <b>Booking ID</b>: ${booking.id}`,
+            `• <b>Status</b>: ${payment_status}`,
+            `• <b>Released seats</b>: ${
+              releasedSeatIds.length ? releasedSeatIds.join(", ") : "none"
+            }`,
+          ]);
+
           console.log("\n✅ Cancellation process completed successfully");
 
           // Send email notification
@@ -4498,6 +4521,12 @@ const updateBookingPayment = async (req, res) => {
           });
         } catch (releaseError) {
           console.error("\n❌ Error releasing seats:", releaseError);
+
+          sendSeatChangeTelegram("⚠️ <b>Booking Cancelled, Seat Release Failed</b>", [
+            `• <b>Booking ID</b>: ${booking.id}`,
+            `• <b>Status</b>: ${payment_status}`,
+            `• <b>Error</b>: ${releaseError.message}`,
+          ]);
 
           return res.status(200).json({
             message: "Booking cancelled but had issues releasing seats",
@@ -4554,8 +4583,22 @@ const updateBookingPayment = async (req, res) => {
             //   reason: "payment-reallocate",
             // });
             console.log(`✅ Seats allocated: ${allocatedIds.join(", ")}`);
+            sendSeatChangeTelegram("♻️ <b>Booking Seats Reallocated</b>", [
+              `• <b>Booking ID</b>: ${booking.id}`,
+              `• <b>From</b>: ${originalPaymentStatus}`,
+              `• <b>To</b>: ${payment_status}`,
+              `• <b>Allocated seats</b>: ${
+                allocatedIds.length ? allocatedIds.join(", ") : "none"
+              }`,
+            ]);
           } catch (allocErr) {
             console.error("❌ Error allocating booking seats:", allocErr);
+            sendSeatChangeTelegram("❌ <b>Booking Seat Reallocation Failed</b>", [
+              `• <b>Booking ID</b>: ${booking.id}`,
+              `• <b>From</b>: ${originalPaymentStatus}`,
+              `• <b>To</b>: ${payment_status}`,
+              `• <b>Error</b>: ${allocErr.message}`,
+            ]);
             throw allocErr; // rollback transaksi
           }
         }
@@ -4920,6 +4963,20 @@ const updateBookingDate = async (req, res) => {
       // }
 
       // 7. Response ke client
+      sendSeatChangeTelegram("📆 <b>Booking Date Updated</b>", [
+        `• <b>Booking ID</b>: ${booking.id}`,
+        `• <b>Old date</b>: ${String(originalBookingDate).slice(0, 10)}`,
+        `• <b>New date</b>: ${String(booking_date).slice(0, 10)}`,
+        `• <b>Released seats</b>: ${
+          releasedSeatIds.length ? releasedSeatIds.join(", ") : "none"
+        }`,
+        `• <b>New SA IDs</b>: ${
+          remainingSeatAvailabilities.length
+            ? remainingSeatAvailabilities.map((sa) => sa.id).join(", ")
+            : "none"
+        }`,
+      ]);
+
       res.status(200).json({
         message: "Booking date updated successfully",
         booking: {
@@ -4934,6 +4991,11 @@ const updateBookingDate = async (req, res) => {
     });
   } catch (error) {
     console.error("\n❌ Error in updateBookingDate:", error);
+    sendSeatChangeTelegram("❌ <b>Booking Date Update Failed</b>", [
+      `• <b>Booking ID</b>: ${id}`,
+      `• <b>Target date</b>: ${String(booking_date || "-").slice(0, 10)}`,
+      `• <b>Error</b>: ${error.message}`,
+    ]);
     res.status(400).json({
       error: "Failed to update booking date",
       details: error.message,
@@ -5412,6 +5474,20 @@ const updateBookingDateAgent = async (req, res) => {
 
       console.log("\n=== Booking Date Update Process Completed ===");
 
+      sendSeatChangeTelegram("📆 <b>Booking Date Updated (Agent)</b>", [
+        `• <b>Booking ID</b>: ${booking.id}`,
+        `• <b>Old date</b>: ${String(originalBookingDate).slice(0, 10)}`,
+        `• <b>New date</b>: ${String(booking_date).slice(0, 10)}`,
+        `• <b>Released seats</b>: ${
+          releasedSeatIds.length ? releasedSeatIds.join(", ") : "none"
+        }`,
+        `• <b>New SA IDs</b>: ${
+          remainingSeatAvailabilities.length
+            ? remainingSeatAvailabilities.map((sa) => sa.id).join(", ")
+            : "none"
+        }`,
+      ]);
+
       // 8. Send email notification to agent/customer
       if (booking.contact_email) {
         sendEmailNotificationAgentDateChange(
@@ -5439,6 +5515,11 @@ const updateBookingDateAgent = async (req, res) => {
     }); // End of transaction
   } catch (error) {
     console.error("\n❌ Error in updateBookingDateAgent:", error);
+    sendSeatChangeTelegram("❌ <b>Booking Date Update (Agent) Failed</b>", [
+      `• <b>Booking ID</b>: ${id}`,
+      `• <b>Target date</b>: ${String(booking_date || "-").slice(0, 10)}`,
+      `• <b>Error</b>: ${error.message}`,
+    ]);
     return res.status(400).json({
       error: "Failed to update booking date",
       details: error.message,
@@ -6129,6 +6210,14 @@ const cancelBooking = async (req, res) => {
       }
       console.log("✅ Booking successfully cancelled");
 
+      sendSeatChangeTelegram("🛑 <b>Booking Cancelled</b>", [
+        `• <b>Booking ID</b>: ${booking.id}`,
+        `• <b>New status</b>: ${booking.payment_status}`,
+        `• <b>Released seats</b>: ${
+          releasedSeatIds.length ? releasedSeatIds.join(", ") : "none"
+        }`,
+      ]);
+
       // 4. Return response sukses
       return res.status(200).json({
         message: "Booking cancelled successfully",
@@ -6141,6 +6230,10 @@ const cancelBooking = async (req, res) => {
     }); // end of transaction
   } catch (error) {
     console.error("\n❌ Error in cancelBooking:", error);
+    sendSeatChangeTelegram("❌ <b>Booking Cancel Failed</b>", [
+      `• <b>Booking ID</b>: ${id}`,
+      `• <b>Error</b>: ${error.message}`,
+    ]);
     return res.status(400).json({
       error: error.message || "Failed to cancel booking",
       details: "Cancellation process encountered an error",

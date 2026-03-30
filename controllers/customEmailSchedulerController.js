@@ -219,7 +219,7 @@ exports.runCustomEmailJob = async (req, res) => {
             }
 
             if (alreadySentBookingIds.has(booking.id)) {
-              console.log(`   ⏭️  Skipped: Email already sent for booking ${booking.id}`);sori
+              console.log(`   ⏭️  Skipped: Email already sent for booking ${booking.id}`);
               return;
             }
 
