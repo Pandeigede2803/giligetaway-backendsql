@@ -1,4 +1,23 @@
 const Discount = require("../models/discount");
+const SubSchedule = require("../models/SubSchedule");
+
+const STATIC_SUBSCHEDULE_EXCEPTION_IDS = new Set(
+  String(process.env.DISCOUNT_STATIC_SUBSCHEDULE_EXCEPTION_IDS || "")
+    .split(",")
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !Number.isNaN(id))
+);
+
+const getDiscountExceptionSet = (discount) => {
+  if (Array.isArray(discount?.sub_id_exception)) {
+    return new Set(
+      discount.sub_id_exception
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !Number.isNaN(id))
+    );
+  }
+  return STATIC_SUBSCHEDULE_EXCEPTION_IDS;
+};
 
 /**
  * Strip the time component so date–only comparisons work in local timezone.
@@ -42,10 +61,20 @@ const parseBookingDate = (str) => {
 const validateDiscountQuery = async (req, res, next) => {
   console.log("🚦 Start validating discount query...");
 
-  const { type, booking_date, schedule_id_departure, schedule_id_return } =
-    req.query;
+  const {
+    type,
+    booking_date,
+    schedule_id_departure,
+    schedule_id_return,
+    subschedule_id_departure,
+    subschedule_id_return,
+    sub_schedule_id_departure,
+    sub_schedule_id_return,
+  } = req.query;
   const { code } = req.params;
   const errors = [];
+
+  
 
   console.log("🔍 Query parameters:", req.query);
 
@@ -118,15 +147,81 @@ const validateDiscountQuery = async (req, res, next) => {
         message: "Discount is not valid for selected trip type",
       });
     }
+    // Resolve subschedule IDs to parent schedule IDs so query can use either schedule_id_* or subschedule_id_*.
+    const parseId = (value) => {
+      if (value === undefined || value === null || value === "") {
+        return null;
+      }
+      const parsed = parseInt(value, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
+    const parsedDepartureScheduleId = parseId(schedule_id_departure);
+    const parsedReturnScheduleId = parseId(schedule_id_return);
+    const parsedDepartureSubScheduleId = parseId(
+      sub_schedule_id_departure ?? subschedule_id_departure
+    );
+    const parsedReturnSubScheduleId = parseId(
+      sub_schedule_id_return ?? subschedule_id_return
+    );
+
+    const departureSubSchedule = parsedDepartureSubScheduleId
+      ? await SubSchedule.findByPk(parsedDepartureSubScheduleId)
+      : null;
+    const returnSubSchedule = parsedReturnSubScheduleId
+      ? await SubSchedule.findByPk(parsedReturnSubScheduleId)
+      : null;
+
+    if (parsedDepartureSubScheduleId && !departureSubSchedule) {
+      return res.status(400).json({
+        success: false,
+        message: `SubSchedule departure not found: ${parsedDepartureSubScheduleId}`,
+      });
+    }
+
+    if (parsedReturnSubScheduleId && !returnSubSchedule) {
+      return res.status(400).json({
+        success: false,
+        message: `SubSchedule return not found: ${parsedReturnSubScheduleId}`,
+      });
+    }
+
+    const effectiveDepartureScheduleId =
+      departureSubSchedule?.schedule_id || parsedDepartureScheduleId || null;
+    const effectiveReturnScheduleId =
+      returnSubSchedule?.schedule_id || parsedReturnScheduleId || null;
+    const discountExceptionSet = getDiscountExceptionSet(discount);
+    const isDepartureSubscheduleException =
+      parsedDepartureSubScheduleId !== null &&
+      discountExceptionSet.has(parsedDepartureSubScheduleId);
+    const isReturnSubscheduleException =
+      parsedReturnSubScheduleId !== null &&
+      discountExceptionSet.has(parsedReturnSubScheduleId);
+
+    // Layered rule: when subschedule is provided and is listed as exception, block immediately.
+    if (isDepartureSubscheduleException || isReturnSubscheduleException) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Discount is blocked for selected subschedule (exception rule).",
+        blocked_subschedule_departure: isDepartureSubscheduleException
+          ? parsedDepartureSubScheduleId
+          : null,
+        blocked_subschedule_return: isReturnSubscheduleException
+          ? parsedReturnSubScheduleId
+          : null,
+      });
+    }
+
     // ⛔ Unified schedule_id validation
     const hasScheduleIds =
       Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0;
     const depValid =
-      !schedule_id_departure ||
-      discount.schedule_ids.includes(parseInt(schedule_id_departure));
+      !effectiveDepartureScheduleId ||
+      discount.schedule_ids.includes(effectiveDepartureScheduleId);
     const retValid =
-      schedule_id_return === null ||
-      discount.schedule_ids.includes(parseInt(schedule_id_return));
+      !effectiveReturnScheduleId ||
+      discount.schedule_ids.includes(effectiveReturnScheduleId);
 
     if (hasScheduleIds && !depValid && !retValid) {
       console.log(

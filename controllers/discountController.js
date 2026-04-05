@@ -1,6 +1,25 @@
 const Discount = require("../models/discount");
+const SubSchedule = require("../models/SubSchedule");
 const { fn, col } = require("sequelize");
 const { Op } = require("sequelize");
+
+const STATIC_SUBSCHEDULE_EXCEPTION_IDS = new Set(
+  String(process.env.DISCOUNT_STATIC_SUBSCHEDULE_EXCEPTION_IDS || "")
+    .split(",")
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !Number.isNaN(id))
+);
+
+const getDiscountExceptionSet = (discount) => {
+  if (Array.isArray(discount?.sub_id_exception)) {
+    return new Set(
+      discount.sub_id_exception
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !Number.isNaN(id))
+    );
+  }
+  return STATIC_SUBSCHEDULE_EXCEPTION_IDS;
+};
 
 // Create a new discount
 exports.createDiscount = async (req, res) => {
@@ -65,8 +84,16 @@ exports.updateDiscount = async (req, res) => {
 exports.getDiscountByCode = async (req, res) => {
   console.log("Request params:", req.params);
   console.log("Request query:", req.query);
-  const { type, booking_date, schedule_id_departure, schedule_id_return } =
-    req.query;
+  const {
+    type,
+    booking_date,
+    schedule_id_departure,
+    schedule_id_return,
+    subschedule_id_departure,
+    subschedule_id_return,
+    sub_schedule_id_departure,
+    sub_schedule_id_return,
+  } = req.query;
   try {
     // Strict equality for case-sensitive match
     console.log("Finding discount by code:", req.params.code);
@@ -81,32 +108,72 @@ exports.getDiscountByCode = async (req, res) => {
         .json({ success: false, message: "Discount not found" });
     }
 
+    const parseId = (value) => {
+      if (value === undefined || value === null || value === "") {
+        return null;
+      }
+      const parsed = parseInt(value, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
+    const parsedDepartureScheduleId = parseId(schedule_id_departure);
+    const parsedReturnScheduleId = parseId(schedule_id_return);
+    const parsedDepartureSubScheduleId = parseId(
+      sub_schedule_id_departure ?? subschedule_id_departure
+    );
+    const parsedReturnSubScheduleId = parseId(
+      sub_schedule_id_return ?? subschedule_id_return
+    );
+
+    const departureSubSchedule = parsedDepartureSubScheduleId
+      ? await SubSchedule.findByPk(parsedDepartureSubScheduleId)
+      : null;
+    const returnSubSchedule = parsedReturnSubScheduleId
+      ? await SubSchedule.findByPk(parsedReturnSubScheduleId)
+      : null;
+
+    const effectiveDepartureScheduleId =
+      departureSubSchedule?.schedule_id || parsedDepartureScheduleId || null;
+    const effectiveReturnScheduleId =
+      returnSubSchedule?.schedule_id || parsedReturnScheduleId || null;
+    const discountExceptionSet = getDiscountExceptionSet(discount);
+    const isDepartureSubscheduleException =
+      parsedDepartureSubScheduleId !== null &&
+      discountExceptionSet.has(parsedDepartureSubScheduleId);
+    const isReturnSubscheduleException =
+      parsedReturnSubScheduleId !== null &&
+      discountExceptionSet.has(parsedReturnSubScheduleId);
+
     const result = {
       discount,
       schedule_ids: discount.schedule_ids || [],
       valid_schedule_departure: true,
       valid_schedule_return: false,
+      effective_schedule_id_departure: effectiveDepartureScheduleId,
+      effective_schedule_id_return: effectiveReturnScheduleId,
+      subschedule_departure_exception: isDepartureSubscheduleException,
+      subschedule_return_exception: isReturnSubscheduleException,
     };
 
     console.log("Discount has schedule_ids:", result.schedule_ids);
 
     if (Array.isArray(discount.schedule_ids)) {
-      if (schedule_id_departure) {
-        result.valid_schedule_departure = discount.schedule_ids.includes(
-          parseInt(schedule_id_departure)
-        );
+      if (effectiveDepartureScheduleId) {
+        result.valid_schedule_departure =
+          !isDepartureSubscheduleException &&
+          discount.schedule_ids.includes(effectiveDepartureScheduleId);
         console.log(
-          `Schedule ID departure ${schedule_id_departure} is ${
+          `Schedule ID departure ${effectiveDepartureScheduleId} is ${
             result.valid_schedule_departure ? "" : "not "
           }in the list of valid schedule IDs.`
         );
       }
-      if (schedule_id_return) {
-        result.valid_schedule_return = discount.schedule_ids.includes(
-          parseInt(schedule_id_return)
-        );
+      if (effectiveReturnScheduleId) {
+        result.valid_schedule_return =
+          !isReturnSubscheduleException &&
+          discount.schedule_ids.includes(effectiveReturnScheduleId);
         console.log(
-          `Schedule ID return ${schedule_id_return} is ${
+          `Schedule ID return ${effectiveReturnScheduleId} is ${
             result.valid_schedule_return ? "" : "not "
           }in the list of valid schedule IDs.`
         );

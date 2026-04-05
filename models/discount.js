@@ -71,6 +71,12 @@ const Discount = sequelize.define(
       allowNull: true,
       comment: "Array of schedule IDs where the discount applies",
     },
+    sub_id_exception: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment:
+        "Array of SubSchedule IDs blocked for this discount (exception list)",
+    },
     agent_ids: {
       type: DataTypes.JSON,
       allowNull: true,
