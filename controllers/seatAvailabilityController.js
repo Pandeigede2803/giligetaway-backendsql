@@ -2371,7 +2371,9 @@ const fixSeatMismatchBatch = async (req, res) => {
  */
 
 const deleteSeatAvailabilityByIds = async (req, res) => {
-  const { ids } = req.query;
+  const { ids } = req.body;
+
+  console.log("Received request to delete seat availabilities with IDs:", ids);
 
   try {
     if (Array.isArray(ids) && ids.length > 0) {

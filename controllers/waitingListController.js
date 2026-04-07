@@ -350,9 +350,10 @@ exports.createv2 = async (req, res) => {
         `⚠️ Warning: A waiting list was created while seats are still available.\n\n` +
         `<b>Customer:</b> ${contact_name} (${contact_email})\n` +
         `<b>Date:</b> ${formattedDate} (${dowNames[bookingDow]})\n` +
+         `<b>Note:</b> ${follow_up_notes || 'None'}\n` +
         `<b>Route:</b> ${routeText}\n` +
         `<b>Schedule ID:</b> ${schedule_id}${subTxt}\n` +
-        `<b>SeatAvailability ID:</b> ${authoritativeSA.id}\n` +
+        `<b>SeatAvailability ID:</b> ${authoritativeSA.id}\n` + 
         `<b>Remaining/Available:</b> ${remaining}\n` +
         `<b>Requested Passengers:</b> ${total_passengers}\n` +
         `<b>Status set to:</b> CONTACTED (auto-resolved, won't be processed by cron)\n` +

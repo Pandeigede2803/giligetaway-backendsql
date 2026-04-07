@@ -3412,7 +3412,7 @@ const createSchedule = async (req, res) => {
 const getSchedules = async (req, res) => {
   try {
     const schedules = await Schedule.findAll({
-      attributes: ["id", "validity_start", "validity_end"],
+      attributes: ["id", "days_of_week", "validity_start", "validity_end"],
       include: [
         {
           model: Destination,
@@ -3435,7 +3435,7 @@ const getSchedules = async (req, res) => {
         {
           model: SubSchedule,
           as: "SubSchedules",
-          attributes: ["id"],
+          attributes: ["id", "days_of_week", "validity_start", "validity_end"],
           include: [
             { model: Destination, as: "DestinationFrom", attributes: ["name"] },
             { model: Destination, as: "DestinationTo", attributes: ["name"] },
@@ -3512,6 +3512,14 @@ const getSchedules = async (req, res) => {
         subschedule_id: null,
         route,
         stops: schedule.Transits.length,
+        days_of_week: schedule.days_of_week,
+        days_of_week_names: getDayNamesFromBitmask(schedule.days_of_week),
+        validity_start: schedule.validity_start,
+        validity_end: schedule.validity_end,
+        validity: {
+          start: schedule.validity_start,
+          end: schedule.validity_end,
+        },
       });
 
       // SubSchedules: get first & last name only
@@ -3546,6 +3554,14 @@ const getSchedules = async (req, res) => {
           subschedule_id: sub.id,
           route: subRoute,
           stops: subStops,
+          days_of_week: sub.days_of_week,
+          days_of_week_names: getDayNamesFromBitmask(sub.days_of_week),
+          validity_start: sub.validity_start,
+          validity_end: sub.validity_end,
+          validity: {
+            start: sub.validity_start,
+            end: sub.validity_end,
+          },
         });
       });
     });
