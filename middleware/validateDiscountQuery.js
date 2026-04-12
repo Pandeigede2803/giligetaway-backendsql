@@ -216,22 +216,51 @@ const validateDiscountQuery = async (req, res, next) => {
     // ⛔ Unified schedule_id validation
     const hasScheduleIds =
       Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0;
+    const hasDepartureSchedule = effectiveDepartureScheduleId !== null;
+    const hasReturnSchedule = effectiveReturnScheduleId !== null;
+    const normalizedType =
+      type || (hasReturnSchedule ? "round_trip" : "one_way");
     const depValid =
-      !effectiveDepartureScheduleId ||
+      !hasDepartureSchedule ||
       discount.schedule_ids.includes(effectiveDepartureScheduleId);
     const retValid =
-      !effectiveReturnScheduleId ||
+      !hasReturnSchedule ||
       discount.schedule_ids.includes(effectiveReturnScheduleId);
 
-    if (hasScheduleIds && !depValid && !retValid) {
-      console.log(
-        "❌ Discount not valid for either departure or return schedule."
-      );
-      return res.status(400).json({
-        success: false,
-        message:
-          "Discount is not valid for either selected schedule (departure or return).",
-      });
+    if (hasScheduleIds) {
+      if (!hasDepartureSchedule && !hasReturnSchedule) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Schedule is required for discount validation when schedule restrictions are configured.",
+        });
+      }
+
+      if (normalizedType === "one_way") {
+        const oneWayScheduleId = hasDepartureSchedule
+          ? effectiveDepartureScheduleId
+          : effectiveReturnScheduleId;
+        const isOneWayScheduleValid = discount.schedule_ids.includes(oneWayScheduleId);
+
+        if (!isOneWayScheduleValid) {
+          console.log(
+            `❌ One-way schedule ${oneWayScheduleId} is not allowed for discount code ${code}.`
+          );
+          return res.status(400).json({
+            success: false,
+            message: "Discount is not valid for selected one-way schedule.",
+          });
+        }
+      } else if (!depValid && !retValid) {
+        console.log(
+          "❌ Discount not valid for either departure or return schedule."
+        );
+        return res.status(400).json({
+          success: false,
+          message:
+            "Discount is not valid for either selected schedule (departure or return).",
+        });
+      }
     }
 
     console.log("✅ Discount validation passed.");

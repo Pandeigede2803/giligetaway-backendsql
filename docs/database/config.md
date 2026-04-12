@@ -18,37 +18,72 @@ Folder `config/` berisi konfigurasi untuk database, payment gateways, WebSocket 
 
 ### config/database.js
 
-**Purpose**: Mengatur koneksi database MySQL menggunakan Sequelize ORM.
+**Purpose**: Mengatur koneksi database MySQL menggunakan Sequelize ORM dengan dukungan read/write replication.
 
 **Features**:
 - Environment-based configuration (development/production)
+- Read/Write replication support (master-slave)
 - Automatic authentication on startup
 - Telegram notification on connection failure
 - Timezone configuration (Asia/Makassar +08:00)
+- Connection pooling for better performance
+
+**Single Connection Mode** (Default):
+
+Jika tidak ada konfigurasi replication, akan menggunakan single connection:
+
+```env
+DB_NAME=giligetaway
+DB_USER=giligetaway_user
+DB_PASSWORD=giligetawat09876
+DB_HOST=103.183.74.238
+DB_PORT=3306
+DB_DIALECT=mysql
+```
+
+**Read/Write Replication Mode**:
+
+Jika ada konfigurasi replication, Sequelize akan otomatis:
+- **Write queries** (INSERT, UPDATE, DELETE) → dikirim ke Master
+- **Read queries** (SELECT) → dikirim ke Read Replicas (round-robin)
 
 **Configuration**:
 
-```javascript
-const DB_CONFIG = {
-  database: isProduction ? process.env.DB_NAME : process.env.DEV_DB_NAME,
-  username: isProduction ? process.env.DB_USER : process.env.DEV_DB_USER,
-  password: isProduction ? process.env.DB_PASSWORD : process.env.DEV_DB_PASSWORD,
-  host: isProduction ? process.env.DB_HOST : process.env.DEV_DB_HOST,
-  port: isProduction ? process.env.DB_PORT : process.env.DEV_DB_PORT,
-  dialect: isProduction ? process.env.DB_DIALECT : process.env.DEV_DB_DIALECT,
-};
+Environment variables untuk read/write replication:
+
+```env
+# Write (Master)
+DB_WRITE_HOST=103.183.74.238
+DB_WRITE_USER=giligetaway_user
+DB_WRITE_PASSWORD=giligetawat09876
+
+# Read Replicas (Slaves)
+DB_READ_HOST_1=103.189.235.230
+DB_READ_USER_1=appuser
+DB_READ_PASSWORD_1=giligetaway09876
+
+# Additional replicas (optional)
+# DB_READ_HOST_2=replica-2.example.com
+# DB_READ_USER_2=read_user
+# DB_READ_PASSWORD_2=read_password
 ```
 
-**Sequelize Instance**:
+**Usage in Code**:
 
 ```javascript
-const sequelize = new Sequelize(DB_CONFIG.database, DB_CONFIG.username, DB_CONFIG.password, {
-  host: DB_CONFIG.host,
-  port: DB_CONFIG.port,
-  dialect: DB_CONFIG.dialect,
-  timezone: '+08:00',
-  logging: false, // SQL logging disabled for production
-});
+const { createDatabaseConfig } = require('./util/databaseConfig');
+
+const DB_CONFIG = {
+  database: process.env.DB_NAME,
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  dialect: process.env.DB_DIALECT,
+};
+
+// Automatically detects and uses replication config if available
+const sequelize = createDatabaseConfig(DB_CONFIG);
 ```
 
 **Authentication**:
@@ -56,10 +91,10 @@ const sequelize = new Sequelize(DB_CONFIG.database, DB_CONFIG.username, DB_CONFI
 ```javascript
 sequelize.authenticate()
   .then(() => {
-    console.log(`✅ Database Connected: ${DB_CONFIG.database}`);
+    console.log('Database connected: giligetaway (mysql) with read/write replication');
   })
   .catch((err) => {
-    console.error('❌ Unable to connect to the database:', err);
+    console.error('Database connection failed:', err.message);
     // Send Telegram notification on failure
     sendTelegramMessage(errorMessage);
   });
@@ -85,6 +120,14 @@ DB_PASSWORD=prod_password
 DB_HOST=prod_host
 DB_PORT=3306
 DB_DIALECT=mysql
+
+# Read/Write Replication (optional but recommended for production)
+DB_WRITE_HOST=master-host.example.com
+DB_WRITE_USER=write_user
+DB_WRITE_PASSWORD=write_password
+DB_READ_HOST_1=replica-1.example.com
+DB_READ_USER_1=read_user
+DB_READ_PASSWORD_1=read_password
 ```
 
 **Usage**:
@@ -102,17 +145,103 @@ sequelize.sync().then(() => {
 const Booking = sequelize.define('Booking', { /* ... */ });
 ```
 
-**Connection Pooling** (if needed):
+**Connection Pooling**:
+
+Read/Write replication menggunakan connection pooling dengan konfigurasi default:
 
 ```javascript
-const sequelize = new Sequelize(..., {
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000
-  }
-});
+pool: {
+  max: 20,        // Maximum connections in pool
+  min: 5,         // Minimum connections in pool
+  acquire: 30000, // Maximum time (ms) to acquire connection
+  idle: 10000,    // Maximum time (ms) connection can be idle
+}
+```
+
+**Important Notes**:
+
+1. **Database-level replication harus disetup secara terpisah** - Sequelize hanya mengarahkan query, bukan mengelola replication
+2. **Read replicas menggunakan round-robin scheduling** - Sequelize akan mendistribusikan SELECT queries ke semua available replicas
+3. **Write queries selalu ke Master** - INSERT, UPDATE, DELETE akan selalu dikirim ke `DB_WRITE_HOST`
+4. **Replica credentials opsional** - Jika `DB_READ_USER_X` dan `DB_READ_PASSWORD_X` tidak diset, akan menggunakan credentials utama
+5. **Single connection akan digunakan** jika `DB_READ_HOST_1` dan `DB_WRITE_HOST` tidak diset
+
+---
+
+## Database Configuration Utilities
+
+### util/databaseConfig.js
+
+**Purpose**: Helper utility untuk membuat database configuration dengan dukungan read/write replication.
+
+**Available Functions**:
+
+```javascript
+const { createDatabaseConfig, getConnectionSuccessLogs, getConnectionErrorLogs } = require('./util/databaseConfig');
+```
+
+**Function: createDatabaseConfig(baseConfig)**
+
+Membuat instance Sequelize dengan konfigurasi yang sesuai (single connection atau read/write replication).
+
+**Parameters**:
+- `baseConfig` (Object): Konfigurasi database dasar
+  - `database`: Nama database
+  - `username`: Username database
+  - `password`: Password database
+  - `host`: Host database (untuk single connection)
+  - `port`: Port database
+  - `dialect`: Dialect database (mysql, postgres, dll)
+
+**Returns**: Sequelize instance
+
+**Example**:
+
+```javascript
+const { createDatabaseConfig } = require('./util/databaseConfig');
+
+const DB_CONFIG = {
+  database: 'giligetaway',
+  username: 'giligetaway_user',
+  password: 'password',
+  host: 'localhost',
+  port: 3306,
+  dialect: 'mysql',
+};
+
+const sequelize = createDatabaseConfig(DB_CONFIG);
+// sequelize akan otomatis menggunakan read/write replication jika env tersedia
+```
+
+**Function: getConnectionSuccessLogs(baseConfig, hasReplication)**
+
+Membuat log string untuk koneksi database yang berhasil.
+
+**Parameters**:
+- `baseConfig` (Object): Konfigurasi database
+- `hasReplication` (Boolean): Apakah replication aktif
+
+**Returns**: String log
+
+**Function: getConnectionErrorLogs(baseConfig, hasReplication, error)**
+
+Membuat log string untuk koneksi database yang gagal.
+
+**Parameters**:
+- `baseConfig` (Object): Konfigurasi database
+- `hasReplication` (Boolean): Apakah replication aktif
+- `error` (Error): Error object
+
+**Returns**: String log
+
+**Internal Functions**:
+
+```javascript
+// Membuat konfigurasi single connection
+function createSingleConnectionConfig(baseConfig)
+
+// Membuat konfigurasi read/write replication
+function createReplicationConfig(baseConfig)
 ```
 
 ---
