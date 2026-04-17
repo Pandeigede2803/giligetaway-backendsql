@@ -27,6 +27,8 @@ router.get('/search',authenticate, scheduleController.getSchedulesByMultiplePara
 router.get('/search/v2',authenticate, 
     scheduleController.searchSchedulesAndSubSchedules);
 
+router.get('/search/v3',authenticate, 
+    scheduleController.searchSchedulesAndSubSchedulesV3);
     
 // multiple params agent
 router.get('/search/v3', validateApiKey, (req, res, next) => {

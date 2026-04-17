@@ -2404,13 +2404,13 @@ const deleteSeatAvailabilityByIds = async (req, res) => {
   }
 };
 
-const transporterTitan = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST_TITAN,
-  port: 587,
-  secure: false,
+const transporterGmail = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST_GMAIL,
+  port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
+  secure: true,
   auth: {
-    user: process.env.EMAIL_USER_TITAN,
-    pass: process.env.EMAIL_PASS_TITAN,
+    user: process.env.EMAIL_USER_GMAIL,
+    pass: process.env.EMAIL_PASS_GMAIL,
   },
   connectionTimeout: 60000,
   greetingTimeout: 30000,
@@ -2421,9 +2421,9 @@ const transporterTitan = nodemailer.createTransport({
 
 const sendSeatAvailabilityEmail = async ({ subject, text }) => {
   try {
-    await transporterTitan.sendMail({
-      from: `"Gili Getaway System" <${process.env.EMAIL_USER_TITAN}>`,
-      to: process.env.EMAIL_USER_TITAN, // fallback
+    await transporterGmail.sendMail({
+      from: `"Gili Getaway System" <${process.env.EMAIL_USER_GMAIL}>`,
+      to: process.env.EMAIL_USER_GMAIL,
       cc: "ooppssainy@gmail.com",
       subject,
       text,

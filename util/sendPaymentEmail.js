@@ -30,31 +30,17 @@ const transporterBackup = nodemailer.createTransport({
 });
 
 const transporterGmail = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.EMAIL_HOST_GMAIL,
+  port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER_GMAIL,
     pass: process.env.EMAIL_PASS_GMAIL,
   },
-});
-
-// EMAIL_USER=booking@giligetaway.site
-// EMAIL_PASS="Fastboat2025))"
-// EMAIL_HOST=smtp.titan.email
-
-// create new transporter with titan host
-const transporterTitan = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
-  port: 587, // Use port 465 for SSL
-  secure: false, // Use SSL
-  auth: {
-    user: process.env.EMAIL_USER_TITAN, // Your email
-    pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
-  },
-  // ⬇️ tambahan agar tak gampang timeout
-  connectionTimeout: 60000, // 60 s tunggu TCP connect
-  greetingTimeout: 30000, // 30 s tunggu banner “220”
-  socketTimeout: 60000, // 60 s idle tiap command
-  pool: true, // pakai koneksi ulang
+  connectionTimeout: 60000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
+  pool: true,
   maxConnections: 3,
 });
 
@@ -111,8 +97,8 @@ const sendBackupEmail = async (recipientEmail, booking) => {
     html: message,
   };
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
@@ -125,8 +111,7 @@ const sendBackupEmail = async (recipientEmail, booking) => {
     console.log("✅ Backup email sent via Brevo");
   } catch (brevoErr) {
     console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
-    /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterTitan.sendMail(mailOptionsTitan);
+    await transporterGmail.sendMail(mailOptionsGmail);
     console.log("✅ Backup email sent via Gmail");
   }
 };
@@ -177,23 +162,8 @@ const sendBackupEmailAlways = async (booking) => {
     html: message,
   };
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_USER_GMAIL,
-    subject,
-    html: message,
-  };
-
-  /* ① Coba Brevo (timeout panjang) lebih dulu */
-  try {
-    await transporterTitan.sendMail(mailOptionsTitan);
-    console.log("✅ Backup email sent via Brevo");
-  } catch (brevoErr) {
-    console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
-    /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterGmail.sendMail(mailOptionsGmail);
-    console.log("✅ Backup email sent via Gmail");
-  }
+  await transporterGmail.sendMail(mailOptionsGmail);
+  console.log("✅ Backup email sent via Gmail");
 };
 const sendBackupEmailAlways2 = async (booking) => {
   /* ▸ Generate HTML body */
@@ -234,30 +204,15 @@ const sendBackupEmailAlways2 = async (booking) => {
     </div>
   `;
 
-  const mailOptionsGmail = {
+  const mailOptionsBookingGmail = {
     from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
-    to: process.env.EMAIL_BOOKING,
-    subject,
-    html: message,
-  };
-
-  /* ① Coba Brevo (timeout panjang) lebih dulu */
-  try {
-    await transporterTitan.sendMail(mailOptionsTitan);
-    console.log("✅ Backup email sent via Brevo");
-  } catch (brevoErr) {
-    console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
-    /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterGmail.sendMail(mailOptionsGmail);
-    console.log("✅ Backup email sent via Gmail");
-  }
+  await transporterGmail.sendMail(mailOptionsBookingGmail);
+  console.log("✅ Backup email sent via Gmail");
 };
 
 const sendStaffEmailForAgentBooking = async (booking, agent) => {
@@ -302,7 +257,7 @@ const sendStaffEmailForAgentBooking = async (booking, agent) => {
     </div>
   `;
 
-  const mailOptionsGmail = {
+  const mailOptionsBookingGmail = {
     from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_BOOKING,
     subject,
@@ -315,8 +270,8 @@ const sendStaffEmailForAgentBooking = async (booking, agent) => {
     subject,
     html: message,
   };
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
+  const mailOptionsAgentGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
@@ -328,9 +283,8 @@ const sendStaffEmailForAgentBooking = async (booking, agent) => {
     console.log("✅ Backup email sent via Brevo");
   } catch (brevoErr) {
     console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
-    /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterTitan.sendMail(mailOptionsTitan);
-    console.log("✅ Backup email sent via Titan");
+    await transporterGmail.sendMail(mailOptionsAgentGmail);
+    console.log("✅ Backup email sent via Gmail");
   }
 };
 
@@ -405,8 +359,8 @@ const sendStaffEmailRoundTripAgent = async (
     subject,
     html: message,
   };
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
+  const mailOptionsAgentGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
@@ -418,9 +372,8 @@ const sendStaffEmailRoundTripAgent = async (
     console.log("✅ Backup email sent via Brevo");
   } catch (brevoErr) {
     console.error("❌ Brevo backup failed:", brevoErr.code || brevoErr.message);
-    /* ② Jika Brevo tetap gagal, pakai titan */
-    await transporterTitan.sendMail(mailOptionsTitan);
-    console.log("✅ Backup email sent via Titan");
+    await transporterGmail.sendMail(mailOptionsAgentGmail);
+    console.log("✅ Backup email sent via Gmail");
   }
 };
 
@@ -761,8 +714,8 @@ const sendBackupEmailAgentStaff = async (
     subject,
     html: message,
   };
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
@@ -774,20 +727,20 @@ const sendBackupEmailAgentStaff = async (
     console.log("Email sent successfully with main transporter.");
   } catch (error) {
     console.error(
-      "Main transporter failed, falling back to Titan:",
+      "Main transporter failed, falling back to Gmail:",
       error.message
     );
     try {
-      await transporterTitan.sendMail(mailOptionsTitan);
-      console.log("Fallback email sent successfully with Titan transporter.");
-    } catch (titanError) {
+      await transporterGmail.sendMail(mailOptionsGmail);
+      console.log("Fallback email sent successfully with Gmail transporter.");
+    } catch (gmailError) {
       console.error(
-        "Both main and fallback transporters failed:",
-        titanError.message
+        "Both main and Gmail transporters failed:",
+        gmailError.message
       );
       // throw telegram error
-      await sendTelegramMessage(titanError);
-      throw titanError; // biar error bisa ditangani di level atas
+      await sendTelegramMessage(gmailError);
+      throw gmailError; // biar error bisa ditangani di level atas
     }
   }
 };
@@ -854,13 +807,13 @@ const sendBackupEmailRoundTripAgentStaff = async (
   `;
 
   const mailOptions = {
-    from: process.env.EMAIL_USER_TITAN,
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
     subject,
     html: message,
   };
 
-  await transporterTitan.sendMail(mailOptions);
+  await transporterGmail.sendMail(mailOptions);
 };
 
 const sendBackupEmailRoundTrip = async (
@@ -923,14 +876,14 @@ const sendBackupEmailRoundTrip = async (
   `;
 
   const mailOptions = {
-    from: process.env.EMAIL_USER_TITAN,
+    from: process.env.EMAIL_USER_GMAIL,
     to: toEmail,
     cc: process.env.EMAIL_BOOKING,
     subject,
     html: message,
   };
 
-  await transporterTitan.sendMail(mailOptions);
+  await transporterGmail.sendMail(mailOptions);
 };
 
 const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
@@ -985,15 +938,14 @@ const sendBackupEmailRoundTripAlways = async (firstBooking, secondBooking) => {
     </div>
   `;
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN,
-
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
 
-  await transporterTitan.sendMail(mailOptionsTitan);
+  await transporterGmail.sendMail(mailOptionsGmail);
 };
 
 const sendExpiredBookingEmail = async (recipientEmail, booking) => {

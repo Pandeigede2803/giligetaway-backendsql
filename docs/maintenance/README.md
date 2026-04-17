@@ -10,6 +10,7 @@ Dokumentasi untuk maintenance backend Giligetaway.
 | [race-condition-case.md](race-condition-case.md) | Case study race condition handling |
 | [bookingSummary.md](bookingSummary.md) | Summary booking |
 | [booking-sync-total-handover.md](booking-sync-total-handover.md) | Sync total handover booking |
+| [user-auth-flow-review-2026-04-16.md](user-auth-flow-review-2026-04-16.md) | Review flow auth dan user route |
 
 ## Bug Fixes
 

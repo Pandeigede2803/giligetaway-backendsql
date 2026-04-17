@@ -77,6 +77,11 @@ router.post("/doku/create-snap-token", dokuController.createSnapToken);
 router.post("/doku-notification", dokuController.handleNotification);
 // api/payment/doku-notification
 
+// Test route untuk query booking & kirim email invoice & tiket berdasarkan ticket_id
+// Mirip handleNotification tapi pakai ticket_id query parameter
+router.get("/doku/test-ticket", dokuController.testGetByTicketId);
+// api/payment/doku/test-ticket?ticket_id=GG-RT-000001
+
 
 module.exports = router;
 

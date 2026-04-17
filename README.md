@@ -81,10 +81,10 @@ DOKU_SECRET_KEY=your_secret_key
 DOKU_API_URL=https://api-sandbox.doku.com
 
 # Email
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
+EMAIL_HOST_GMAIL=smtp.gmail.com
+EMAIL_PORT_GMAIL=465
+EMAIL_USER_GMAIL=your_email@gmail.com
+EMAIL_PASS_GMAIL=your_app_password
 RESEND_API_KEY=your_resend_api_key
 
 # JWT

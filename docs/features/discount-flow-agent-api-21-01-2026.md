@@ -42,3 +42,4 @@ gross_total = ticket_total_after_discount + transport_total
 ## Notes
 - Commission uses discounted `gross_total`.
 - Transport is never discounted.
+- Schedule validation policy: check `schedule_ids` / `sub_id_exception` hanya di middleware `validateDiscountQuery` (single source of truth), bukan di controller.

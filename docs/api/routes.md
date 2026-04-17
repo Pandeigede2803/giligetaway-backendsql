@@ -136,6 +136,8 @@ Routes didefinisikan di folder `routes/` dan menghubungkan HTTP endpoints ke con
 |--------|------|-------------|---------------|
 | GET | `/` | List schedules with filters | No |
 | GET | `/:id` | Get schedule details | No |
+| GET | `/search/v3` | Search schedules and sub-schedules for authenticated main system | Yes |
+| GET | `/search/agent` | Search schedules and sub-schedules for authenticated main system | Yes |
 | POST | `/` | Create schedule (admin) | Yes |
 | PUT | `/:id` | Update schedule (admin) | Yes |
 | DELETE | `/:id` | Delete schedule (admin) | Yes |

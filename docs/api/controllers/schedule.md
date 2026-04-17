@@ -372,6 +372,126 @@ GET /api/schedules/subschedule?date=2026-04-10&from=1&to=2
 
 ---
 
+### `searchSchedulesAndSubSchedulesV3`
+
+**Purpose**: Pencarian schedule dan sub-schedule untuk sistem utama yang sudah login, dengan format hasil yang lebih lengkap untuk UI dan pricing internal.
+
+**Method**: `GET`
+
+**Route**: `/api/schedules/search/v3`
+
+**Authentication Required**: Yes
+
+**Middleware**:
+- `authenticate`
+
+**Query Parameters**:
+- `from` (required) - Destination asal ID
+- `to` (required) - Destination tujuan ID
+- `date` (required) - Tanggal perjalanan format `YYYY-MM-DD`
+- `passengers_total` (optional) - Jumlah penumpang untuk filter kapasitas
+- `agent_id` (optional) - Agent ID jika ingin menghitung harga net agent
+
+**Request Example**:
+```bash
+GET /api/schedules/search/v3?from=1&to=2&date=2026-04-10&passengers_total=2
+Authorization: Bearer YOUR_TOKEN
+```
+
+**Response (Success - 200)**:
+```javascript
+{
+  "status": "success",
+  "data": {
+    "schedules": [
+      {
+        "id": 1,
+        "schedule_id": 1,
+        "subschedule_id": null,
+        "type": "direct",
+        "route_timeline": [
+          {
+            "type": "departure",
+            "location": "Padang Bai",
+            "time": "08:00:00",
+            "action": "Depart from"
+          },
+          {
+            "type": "arrival",
+            "location": "Gili Trawangan",
+            "time": "09:30:00",
+            "action": "Arrive at"
+          }
+        ],
+        "route_description": "08:00:00 Padang Bai → 09:30:00 Gili Trawangan",
+        "route_steps": [
+          {
+            "step": 1,
+            "from": "Padang Bai",
+            "departure_time": "08:00:00",
+            "to": "Gili Trawangan",
+            "arrival_time": "09:30:00",
+            "type": "to_destination"
+          }
+        ],
+        "route_summary": "Padang Bai → Gili Trawangan",
+        "route_type": "direct",
+        "stops_count": 2,
+        "price": 350000,
+        "boat": {
+          "id": 1,
+          "name": "Gili Cat 2",
+          "capacity": 80,
+          "image": "https://...",
+          "seat_layout": {
+            "inside_seats": [],
+            "outside_seats": [],
+            "rooftop_seats": []
+          }
+        },
+        "seatAvailability": {
+          "available_seats": 45,
+          "bookedSeatNumbers": ["A1", "A2"]
+        },
+        "net_price": 315000,
+        "net_price_before_discount": 315000,
+        "net_price_after_discount": 315000,
+        "discount_amount": 0,
+        "discount_activated": false
+      }
+    ],
+    "passenger_count_requested": 2
+  }
+}
+```
+
+**If Passenger Count Filters Out All Results**:
+```javascript
+{
+  "status": "success",
+  "message": "No schedules available for 2 passengers. All selected schedules are full.",
+  "data": {
+    "schedules": [],
+    "passenger_count_requested": 2,
+    "seats_availability_issue": true
+  }
+}
+```
+
+**Result Notes**:
+- Response menggabungkan `Schedule` dan `SubSchedule` dalam satu array `data.schedules`.
+- Jika `passengers_total` diisi, hasil difilter hanya yang punya kursi cukup.
+- Jika `agent_id` ada, field pricing net akan dihitung lewat `getNetPrice`.
+- Jika tidak ada `agent_id`, field pricing net akan kembali ke nilai `N/A`.
+- `discount` tidak divalidasi di middleware untuk route ini, jadi hasil pricing hanya memakai data yang sudah tersedia di request/session.
+
+**Important Behavior**:
+- Query ini memakai `authenticate`, jadi hanya user login yang bisa akses.
+- Data availability disusun dari `SeatAvailability` yang ada atau dibuat otomatis bila belum tersedia.
+- Hasil route dapat berisi rute direct maupun multi-stop, tergantung transit schedule yang ditemukan.
+
+---
+
 ### `createScheduleWithTransit`
 
 **Purpose**: Membuat schedule baru dengan multiple transit points.
@@ -1026,6 +1146,13 @@ curl -X POST http://localhost:8000/api/schedules \
 curl "http://localhost:8000/api/schedules/search?from=1&to=2&date=2026-04-10&passengers=2"
 ```
 
+### Search V3 for Main System
+
+```bash
+curl "http://localhost:8000/api/schedules/search/v3?from=1&to=2&date=2026-04-10&passengers_total=2" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
 ### Agent Search with Net Price
 
 ```bash
@@ -1121,10 +1248,10 @@ const router = express.Router();
 const scheduleController = require('../controllers/scheduleController');
 const authenticate = require('../middleware/authenticate');
 
-// Public routes
+// Route examples
 router.get('/', scheduleController.getSchedules);
 router.get('/search', scheduleController.searchSchedulesAndSubSchedules);
-router.get('/search/agent', scheduleController.searchSchedulesAndSubSchedulesAgent);
+router.get('/search/agent', authenticate, scheduleController.searchSchedulesAndSubSchedulesAgent);
 router.get('/formatted', scheduleController.getScheduleFormatted);
 router.get('/with-subschedules', scheduleController.getAllSchedulesWithSubSchedules);
 router.get('/with-transits', scheduleController.getSchedulesWithTransits);

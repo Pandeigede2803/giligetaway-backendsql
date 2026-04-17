@@ -7,15 +7,11 @@ const { sendPurchaseToGA4 } = require("../util/ga4Tracker");
 const { Op, literal, col } = require("sequelize");
 const {
   Agent,
-  Boat,
   AgentMetrics,
   Booking,
   sequelize,
-  Destination,
-  Schedule,
   SubSchedule,
   Transport,
-  Passenger,
   Transit,
   TransportBooking,
   AgentCommission,
@@ -237,7 +233,17 @@ exports.handleNotification = async (req, res) => {
       const booking = transaction.booking;
       const agentCommission = booking.agentCommission;
       const agent = booking.Agent;
-      // console.log("👨🏻‍🚀 Booking data:", booking);
+
+      // 🚨 SERIOUS INDICATOR LOG - Cek Agent Commission sebelum update
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("🚨 [BEFORE UPDATE] Agent Commission Check for Booking:", booking.id);
+      console.log("  Booking ID:", booking.id);
+      console.log("  Ticket ID:", booking.ticket_id);
+      console.log("  Agent ID:", booking.agent_id);
+      console.log("  ✅ Agent Commission EXISTS:", !!agentCommission);
+      console.log("  📊 Agent Commission ID:", agentCommission?.id);
+      console.log("  💰 Agent Commission Amount:", agentCommission?.amount);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
       if (!booking) {
         console.error(`Booking not found for transaction: ${transaction.id}`);
@@ -264,11 +270,37 @@ exports.handleNotification = async (req, res) => {
 
       // Jika pembayaran berhasil, update status booking dan kirim email
       if (paymentStatus === "SUCCESS") {
+        // 🚨 SERIOUS INDICATOR LOG - Cek Agent Commission SESUDAH update
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("🔄 [UPDATE START] Updating Booking:", booking.id);
+
         await booking.update({
           payment_status: "paid",
           payment_method: notificationData.service?.id || "DOKU",
           expiration_time: null,
         });
+
+        // 🚨 SERIOUS INDICATOR LOG - Cek Agent Commission SETELAH update
+        const updatedBookingAfterUpdate = await Booking.findByPk(booking.id, {
+          include: [
+            { model: AgentCommission, as: "agentCommission" },
+            { model: Agent, as: "Agent" },
+          ],
+        });
+
+        console.log("🔄 [UPDATE DONE] Booking updated successfully");
+        console.log("  Booking ID:", updatedBookingAfterUpdate.id);
+        console.log("  Payment Status:", updatedBookingAfterUpdate.payment_status);
+        console.log("  ❌ Agent Commission EXISTS:", !!updatedBookingAfterUpdate.agentCommission);
+        console.log("  📊 Agent Commission ID:", updatedBookingAfterUpdate.agentCommission?.id);
+        console.log("  💰 Agent Commission Amount:", updatedBookingAfterUpdate.agentCommission?.amount);
+        console.log("  ⚠️  AGENT COMMISSION HILANG???", !updatedBookingAfterUpdate.agentCommission && !!agentCommission);
+        if (!updatedBookingAfterUpdate.agentCommission && agentCommission) {
+          console.log("  🚨🚨🚨🚨 SERIOUS ERROR: Agent Commission HILANG setelah update Booking! 🚨🚨🚨🚨");
+          console.log("     Sebelum update - ID:", agentCommission.id, "Amount:", agentCommission.amount);
+          console.log("     Sesudah update - NULL/UNDEFINED!");
+        }
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
           // ✅ Kirim ke GA4
   // await sendPurchaseToGA4(
@@ -358,7 +390,11 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
           [Op.or]: [pairTicketIdMinus, pairTicketIdPlus],
         },
       },
-      include: [{ model: Transaction, as: "transactions" }],
+      include: [
+        { model: Transaction, as: "transactions" },
+        { model: AgentCommission, as: "agentCommission" },
+        { model: Agent, as: "Agent" },
+      ],
     });
 
     if (pairBooking) {
@@ -380,17 +416,26 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
 
       // Update booking satu per satu, tidak menggunakan Promise.all
       try {
-        // console.log(
-        //   `🔄 Memperbarui booking saat ini: ${currentBooking.ticket_id}`
-        // );
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log("🚨 [ROUND TRIP] BEFORE UPDATE currentBooking:", currentBooking.ticket_id);
+        console.log("  ✅ Has Agent Commission:", !!currentBooking.agentCommission);
+
         await currentBooking.update({
           payment_status: "paid",
           payment_method: currentBooking.payment_method,
           expiration_time: null,
         });
-        console.log(
-          `✅ Booking saat ini berhasil diperbarui: ${currentBooking.ticket_id}`
-        );
+
+        // 🚨 SERIOUS INDICATOR LOG - Cek Agent Commission setelah update
+        const updatedCurrentBooking = await Booking.findByPk(currentBooking.id, {
+          include: [{ model: AgentCommission, as: "agentCommission" }],
+        });
+        console.log("🔄 [ROUND TRIP] currentBooking updated:", currentBooking.ticket_id);
+        console.log("  ❌ Has Agent Commission:", !!updatedCurrentBooking.agentCommission);
+        if (!updatedCurrentBooking.agentCommission && currentBooking.agentCommission) {
+          console.log("  🚨🚨 AGENT COMMISSION HILANG currentBooking:", currentBooking.ticket_id);
+        }
+        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       } catch (error) {
         console.error(
           `❌ Gagal memperbarui booking saat ini: ${currentBooking.ticket_id}`,
@@ -472,12 +517,18 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
       // Verifikasi hasil pembaruan
       const updatedCurrent = await Booking.findOne({
         where: { ticket_id: currentBooking.ticket_id },
-        include: [{ model: Transaction, as: "transactions" }],
+        include: [
+          { model: Transaction, as: "transactions" },
+          { model: AgentCommission, as: "agentCommission" },
+        ],
       });
 
       const updatedPair = await Booking.findOne({
         where: { ticket_id: pairBooking.ticket_id },
-        include: [{ model: Transaction, as: "transactions" }],
+        include: [
+          { model: Transaction, as: "transactions" },
+          { model: AgentCommission, as: "agentCommission" },
+        ],
       });
 
       console.log("📊 Hasil akhir pembaruan:");
@@ -488,6 +539,8 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
           updatedCurrent.transactions && updatedCurrent.transactions.length > 0
             ? updatedCurrent.transactions[0].status
             : "N/A",
+        hasAgentCommission: !!updatedCurrent.agentCommission,
+        agentCommissionId: updatedCurrent.agentCommission?.id,
       });
       console.log("  Pair booking:", {
         id: updatedPair.ticket_id,
@@ -496,6 +549,8 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
           updatedPair.transactions && updatedPair.transactions.length > 0
             ? updatedPair.transactions[0].status
             : "N/A",
+        hasAgentCommission: !!updatedPair.agentCommission,
+        agentCommissionId: updatedPair.agentCommission?.id,
       });
 
       // Kirim email dari booking yang ganjil jika keduanya ada
@@ -563,6 +618,152 @@ async function handleRoundTripBooking(currentBooking, invoiceNumber, agent, agen
     throw error;
   }
 }
+
+// Test route untuk query booking dan kirim email invoice & tiket berdasarkan ticket_id
+// Mirip handleNotification tapi pakai ticket_id sebagai query key
+exports.testGetByTicketId = async (req, res) => {
+  try {
+    const { ticket_id } = req.query;
+
+    if (!ticket_id) {
+      return res.status(400).json({
+        success: false,
+        message: "ticket_id is required in query params",
+      });
+    }
+
+    console.log(`🔍 Testing query for ticket_id: ${ticket_id}`);
+
+    // Cari transaction via booking ticket_id (sama kayak handleNotification)
+    const transaction = await Transaction.findOne({
+      where: {
+        '$booking.ticket_id$': ticket_id,
+      },
+      include: [
+        {
+          model: Booking,
+          as: "booking",
+          include: [
+            {
+              model: AgentCommission,
+              as: "agentCommission",
+            },
+            {
+              model: Agent,
+              as: "Agent",
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!transaction) {
+      console.error(`Transaction not found for ticket_id: ${ticket_id}`);
+      res.status(404).json({
+        success: false,
+        message: `Transaction with ticket_id ${ticket_id} not found`,
+      });
+      return;
+    }
+
+    const booking = transaction.booking;
+    const agentCommission = booking.agentCommission;
+    const agent = booking.Agent;
+
+    // Gunakan invoice number dari transaction
+    const invoiceNumber = transaction.transaction_id;
+
+    console.log(`✅ Booking found: ${booking.id}`);
+    console.log(`📧 Invoice number: ${invoiceNumber}`);
+
+    // Kirim email invoice & tiket (sama kayak handleNotification)
+    try {
+      // Cek apakah ini round trip ticket (GG-RT-)
+      if (booking.ticket_id && booking.ticket_id.includes("GG-RT-")) {
+        console.log(`🔄 Processing round trip booking: ${booking.ticket_id}`);
+        await handleRoundTripBooking(booking, invoiceNumber, agent, agentCommission);
+      } else {
+        // Regular one-way booking - kirim email
+        await sendInvoiceAndTicketEmail(
+          booking.contact_email,
+          booking,
+          invoiceNumber,
+          agentCommission,
+          agent
+        );
+        console.log(`📧 Email sent for booking ${booking.id}`);
+      }
+    } catch (emailError) {
+      console.error(
+        `😻Error sending email for booking ${booking.id}:`,
+        emailError.message
+      );
+      res.status(500).json({
+        success: false,
+        message: "Email sending failed",
+        error: emailError.message,
+      });
+      return;
+    }
+
+    // Kirim notifikasi ke klien melalui WebSocket (sama kayak handleNotification)
+    if (typeof broadcast === "function") {
+      broadcast({
+        ticketId: ticket_id,
+        orderId: invoiceNumber,
+        transactionStatus: "TEST",
+        message: `Test email sent for ticket ${ticket_id}`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Email sent successfully",
+      data: {
+        booking: {
+          id: booking.id,
+          ticket_id: booking.ticket_id,
+          booking_code: booking.booking_code,
+          payment_status: booking.payment_status,
+          payment_method: booking.payment_method,
+          total_price: booking.total_price,
+          contact_email: booking.contact_email,
+          contact_name: booking.contact_name,
+          contact_phone: booking.contact_phone,
+          booking_date: booking.booking_date,
+          expiration_time: booking.expiration_time,
+        },
+        transaction: {
+          id: transaction.id,
+          transaction_id: transaction.transaction_id,
+          status: transaction.status,
+          amount: transaction.amount,
+          payment_method: transaction.payment_method,
+          paid_at: transaction.paid_at,
+        },
+        agent: booking.Agent ? {
+          id: booking.Agent.id,
+          name: booking.Agent.name,
+          email: booking.Agent.email,
+        } : null,
+        agentCommission: booking.agentCommission ? {
+          id: booking.agentCommission.id,
+          commission_rate: booking.agentCommission.commission_rate,
+          commission_amount: booking.agentCommission.commission_amount,
+          status: booking.agentCommission.status,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error in testGetByTicketId:", error.message);
+    console.error(error.stack);
+    res.status(500).json({
+      success: false,
+      message: "Error processing request",
+      error: error.message,
+    });
+  }
+};
 
 exports.createSnapToken = async (req, res) => {
   try {

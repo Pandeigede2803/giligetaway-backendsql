@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
-const nodemailer = require('nodemailer'); // Untuk mengirim email
+const { sendEmail } = require('../util/emailSender');
 const createUser = async (req, res) => {
     const { name, email, password, role } = req.body;
     console.log("Received data:", { name, email, password, role }); // Add this line for debugging
@@ -71,33 +71,21 @@ const forgotPassword = async (req, res) => {
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
         console.log('Reset URL:', resetUrl);
 
-        // Kirim email ke pengguna
-        const transporter = nodemailer.createTransport({
-            host: 'mail.headlessexploregilis.my.id', // Update as required
-            port: 465, // Secure port for SMTP
-            secure: true, // Use TLS
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD
-            },
-        });
-
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: user.email,
-            subject: 'Reset Password Gili Getaway',
-            html: `
+        const emailHtml = `
                 <p>Hello ${user.name},</p>
                 <p>We received a request to reset your password. Click the link below to reset it:</p>
                 <a href="${resetUrl}">${resetUrl}</a>
                 <p>If you did not request this, please ignore this email.</p>
                 <p>Thanks,</p>
                 <p>The Gili Getaway Team</p>
-            `
-        };
+            `;
 
-        console.log('Sending email with options:', mailOptions);
-        await transporter.sendMail(mailOptions);
+        console.log('Sending forgot password email via Brevo to:', user.email);
+        await sendEmail({
+            to: user.email,
+            subject: 'Reset Password Gili Getaway',
+            html: emailHtml
+        });
 
         console.log('Email sent successfully');
 

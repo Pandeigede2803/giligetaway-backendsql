@@ -147,13 +147,13 @@ const configureTransporter = () => {
 };;
 
 
-// const transporterTitan = nodemailer.createTransport({
-//   host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
+// const transporterGmail = nodemailer.createTransport({
+//   host: process.env.EMAIL_HOST_GMAIL, // smtp.gmail.com
 //   port: 587, // Use port 465 for SSL
 //   secure: false, // Use SSL
 //   auth: {
-//     user: process.env.EMAIL_USER_TITAN, // Your email
-//     pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
+//     user: process.env.EMAIL_USER_GMAIL, // Your email
+//     pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
 //   },
 //   // ⬇️ tambahan agar tak gampang timeout
 //   connectionTimeout: 60000,   // 60 s tunggu TCP connect
@@ -162,15 +162,15 @@ const configureTransporter = () => {
 //   pool: true,                 // pakai koneksi ulang
 //   maxConnections: 3,
 // });
-// create new configureTransporterTitan function
-const configureTransporterTitan = () => {
+// create new configureTransporterGmail function
+const configureTransporterGmail = () => {
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
-    port: 587, // Use port 465 for SSL
-    secure: false, // Use SSL
+    host: process.env.EMAIL_HOST_GMAIL, // smtp.gmail.com
+    port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
+    secure: true,
     auth: {
-      user: process.env.EMAIL_USER_TITAN, // Your email
-      pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
+      user: process.env.EMAIL_USER_GMAIL, // Your email
+      pass: process.env.EMAIL_PASS_GMAIL, // Your email password or app password
     }
   });
 }

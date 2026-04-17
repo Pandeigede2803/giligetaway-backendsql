@@ -23,18 +23,18 @@ router.post('/send-invoice', async (req, res) => {
 
     // Konfigurasi Nodemailer
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'mail.headlessexploregilis.my.id',
-      port: Number(process.env.SMTP_PORT) || 465,
+      host: process.env.EMAIL_HOST_GMAIL || 'smtp.gmail.com',
+      port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
       secure: true,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER_GMAIL,
+        pass: process.env.EMAIL_PASS_GMAIL,
       },
     });
 
     // Kirim email dengan invoice HTML
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER_GMAIL,
       to: email,
       subject: 'Invoice Anda',
       html: invoiceHtml,

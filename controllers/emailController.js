@@ -31,15 +31,17 @@ const generatePDF = async (htmlContent) => {
 const sendEmailWithAttachments = async (to, subject, text, attachments) => {
     try {
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: process.env.EMAIL_HOST_GMAIL,
+            port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
+            secure: true,
             auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD,
+                user: process.env.EMAIL_USER_GMAIL,
+                pass: process.env.EMAIL_PASS_GMAIL,
             },
         });
 
         const mailOptions = {
-            from: process.env.EMAIL_USER,
+            from: process.env.EMAIL_USER_GMAIL,
             to,
             subject,
             text,

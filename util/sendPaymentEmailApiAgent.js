@@ -30,31 +30,17 @@ const transporterBackup = nodemailer.createTransport({
 });
 
 const transporterGmail = nodemailer.createTransport({
-  service: "gmail",
+  host: process.env.EMAIL_HOST_GMAIL,
+  port: Number(process.env.EMAIL_PORT_GMAIL) || 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER_GMAIL,
     pass: process.env.EMAIL_PASS_GMAIL,
   },
-});
-
-// EMAIL_USER=booking@giligetaway.site
-// EMAIL_PASS="Fastboat2025))"
-// EMAIL_HOST=smtp.titan.email
-
-// create new transporter with titan host
-const transporterTitan = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST_TITAN, // smtp.titan.email
-  port: 587, // Use port 465 for SSL
-  secure: false, // Use SSL
-  auth: {
-    user: process.env.EMAIL_USER_TITAN, // Your email
-    pass: process.env.EMAIL_PASS_TITAN, // Your email password or app password
-  },
-  // ⬇️ tambahan agar tak gampang timeout
-  connectionTimeout: 60000, // 60 s tunggu TCP connect
-  greetingTimeout: 30000, // 30 s tunggu banner “220”
-  socketTimeout: 60000, // 60 s idle tiap command
-  pool: true, // pakai koneksi ulang
+  connectionTimeout: 60000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
+  pool: true,
   maxConnections: 3,
 });
 
@@ -448,14 +434,14 @@ const sendEmailApiAgentStaff = async (
 
   // const mailOptions = {
   //   from: process.env.EMAIL_LOGIN_BREVO, // Brevo authenticated user
-  //   to: process.env.EMAIL_USER_TITAN,
+  //   to: process.env.EMAIL_USER_GMAIL,
   //   cc: process.env.EMAIL_AGENT,
   //   subject,
   //   html: message,
   // };
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
     // cc: process.env.EMAIL_AGENT,
     subject,
@@ -475,21 +461,18 @@ const sendEmailApiAgentStaff = async (
     await transporter.sendMail(mailOptions);
     console.log("✅ Email sent successfully with Brevo transporter.");
   } catch (error) {
-    console.error(
-      "Brevo transporter failed, falling back to Titan:",
-      error.message
-    );
+    console.error("Brevo transporter failed, falling back to Gmail:", error.message);
     try {
-      await transporterTitan.sendMail(mailOptionsTitan);
-      console.log("✅ Fallback email sent successfully with Titan transporter.");
-    } catch (titanError) {
+      await transporterGmail.sendMail(mailOptionsGmail);
+      console.log("✅ Fallback email sent successfully with Gmail transporter.");
+    } catch (gmailError) {
       console.error(
-        "Both Brevo and Titan transporters failed:",
-        titanError.message
+        "Both Brevo and Gmail transporters failed:",
+        gmailError.message
       );
       // throw telegram error
-      await sendTelegramMessage(titanError);
-      throw titanError;
+      await sendTelegramMessage(gmailError);
+      throw gmailError;
     }
   }
 };
@@ -891,10 +874,10 @@ const sendEmailApiRoundTripAgentStaff = async (
     html: message,
   };
 
-  const mailOptionsTitan = {
-    from: process.env.EMAIL_USER_TITAN, // booking@giligetaway.site
+  const mailOptionsGmail = {
+    from: process.env.EMAIL_USER_GMAIL,
     to: process.env.EMAIL_AGENT,
-    cc: process.env.EMAIL_USER_TITAN,
+    cc: process.env.EMAIL_USER_GMAIL,
     subject,
     html: message,
   };
@@ -904,20 +887,17 @@ const sendEmailApiRoundTripAgentStaff = async (
     await transporter.sendMail(mailOptions);
     console.log("✅ Round-trip email sent successfully with Brevo transporter.");
   } catch (error) {
-    console.error(
-      "Brevo transporter failed, falling back to Titan:",
-      error.message
-    );
+    console.error("Brevo transporter failed, falling back to Gmail:", error.message);
     try {
-      await transporterTitan.sendMail(mailOptionsTitan);
-      console.log("✅ Fallback round-trip email sent successfully with Titan transporter.");
-    } catch (titanError) {
+      await transporterGmail.sendMail(mailOptionsGmail);
+      console.log("✅ Fallback round-trip email sent successfully with Gmail transporter.");
+    } catch (gmailError) {
       console.error(
-        "Both Brevo and Titan transporters failed:",
-        titanError.message
+        "Both Brevo and Gmail transporters failed:",
+        gmailError.message
       );
-      await sendTelegramMessage(titanError);
-      throw titanError;
+      await sendTelegramMessage(gmailError);
+      throw gmailError;
     }
   }
 };

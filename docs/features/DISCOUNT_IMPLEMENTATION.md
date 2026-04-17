@@ -124,13 +124,14 @@ Each leg (departure and return) can have **separate discount codes**.
 // Discount table has schedule_ids array
 schedule_ids: [58, 60, 62, 59, 61, 79, 77, 75]
 
-// Validation
-if (Array.isArray(discount.schedule_ids) && discount.schedule_ids.length > 0) {
-  if (!discount.schedule_ids.includes(parseInt(scheduleId))) {
-    // Discount not applicable
-  }
-}
+// Validation location:
+// ONLY in middleware/validateDiscountQuery.js
+// Do not duplicate schedule validation in controller/service/helper.
 ```
+
+**Policy (mandatory):**
+- Schedule eligibility check (`schedule_ids`, `sub_id_exception`, one-way vs round-trip schedule matching) **hanya boleh** di middleware `validateDiscountQuery`.
+- Controller booking/search hanya menerima hasil validasi middleware dan tidak boleh override status valid/invalid schedule.
 
 ### 2. **Direction Restriction**
 ```javascript
@@ -535,9 +536,10 @@ exports.getDiscountReport = async (req, res) => {
 1. **Discount is applied BEFORE commission calculation**: Agents earn commission based on the discounted gross total
 2. **No discount relationship in database**: Discount data is stored as JSON to avoid foreign key constraints and allow flexibility
 3. **Validation happens at middleware level**: Use `validateDiscountQuery` middleware for pre-booking discount validation
-4. **Commission calculation**: Based on final gross total after discount
-5. **Exchange rate calculation**: Applied after discount calculation
-6. **Queue processing**: Discount data is stored before queue processing for seat/transport/email operations
+4. **Schedule check is middleware-only**: `schedule_ids` / `sub_id_exception` validation is centralized in `middleware/validateDiscountQuery.js` only
+5. **Commission calculation**: Based on final gross total after discount
+6. **Exchange rate calculation**: Applied after discount calculation
+7. **Queue processing**: Discount data is stored before queue processing for seat/transport/email operations
 
 ---
 

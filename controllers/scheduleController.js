@@ -2544,6 +2544,285 @@ const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
   }
 };
 
+
+const searchSchedulesAndSubSchedulesV3 = async (req, res) => {
+  const { from, to, date, passengers_total } = req.query;
+  console.log("Query parameters:", req.query);
+  const agentId = req.query.agent_id || req.body?.agent_id;
+  const passengerCount = Number.parseInt(passengers_total, 10);
+  const hasPassengerCount = Number.isFinite(passengerCount) && passengerCount > 0;
+  const validDiscount = req.discount || null;
+
+  try {
+    const agent = agentId
+      ? await Agent.findByPk(agentId, {
+          attributes: [
+            "id",
+            "commission_rate",
+            "commission_long",
+            "commission_short",
+            "commission_mid",
+            "commission_intermediate",
+            "commission_transport",
+          ],
+        })
+      : null;
+
+    // OPTIMIZED: Semua processing sudah ditangani dalam getSchedulesAndSubSchedules
+    const { schedules, subSchedules, selectedDate } =
+      await getSchedulesAndSubSchedules(from, to, date);
+    // console.log("scehdules dan subschedules", JSON.stringify({schedules, subSchedules}, null, 2));
+
+    // Filter schedules dan subSchedules yang available
+    const availableSchedules = filterAvailableSchedules(schedules);
+    const availableSubSchedules = filterAvailableSubSchedules(subSchedules);
+
+    // NEW: Filter berdasarkan passengers_total jika ada
+    let filteredSchedules = availableSchedules;
+    let filteredSubSchedules = availableSubSchedules;
+
+    if (hasPassengerCount) {
+      filteredSchedules = availableSchedules.filter((schedule) => {
+        const availableSeats =
+          schedule.dataValues?.seatAvailability?.available_seats || 0;
+        return availableSeats >= passengerCount;
+      });
+
+      filteredSubSchedules = availableSubSchedules.filter((subSchedule) => {
+        const availableSeats =
+          subSchedule.dataValues?.seatAvailability?.available_seats || 0;
+        return availableSeats >= passengerCount;
+      });
+
+      // Jika tidak ada schedule yang tersedia setelah filter passenger
+      if (filteredSchedules.length === 0 && filteredSubSchedules.length === 0) {
+        return res.status(200).json({
+          status: "success",
+          message: `No schedules available for ${passengerCount} passengers. All selected schedules are full.`,
+          data: {
+            schedules: [],
+            passenger_count_requested: passengerCount,
+            seats_availability_issue: true,
+          },
+        });
+      }
+    }
+
+    const normalizePrice = (value) => {
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    };
+
+    // Format dengan fungsi lama dulu (untuk backward compatibility)
+    const formattedSchedules = formatSchedules(filteredSchedules, selectedDate);
+    const formattedSubSchedules = formatSubSchedules(
+      filteredSubSchedules,
+      selectedDate
+    );
+
+    // TAMBAH: Ensure bookedSeatNumbers terkopy ke formatted result
+    const formattedSchedulesWithSeats = formattedSchedules.map((formatted) => {
+      const originalSchedule = filteredSchedules.find(
+        (s) => s.id === formatted.id
+      );
+      const { id, availability, boost, ...cleanSeatAvailability } =
+        formatted.seatAvailability || {};
+      if (originalSchedule?.dataValues?.seatAvailability?.bookedSeatNumbers) {
+        return {
+          ...formatted,
+          seatAvailability: {
+            ...cleanSeatAvailability,
+            bookedSeatNumbers:
+              originalSchedule.dataValues.seatAvailability.bookedSeatNumbers,
+          },
+        };
+      }
+      return {
+        ...formatted,
+        seatAvailability: {
+          ...cleanSeatAvailability,
+        },
+      };
+    });
+
+    const formattedSubSchedulesWithSeats = formattedSubSchedules.map(
+      (formatted) => {
+        const originalSubSchedule = filteredSubSchedules.find(
+          (s) => s.id === formatted.subschedule_id
+        );
+        const { id, availability, boost, ...cleanSeatAvailability } =
+          formatted.seatAvailability || {};
+        if (
+          originalSubSchedule?.dataValues?.seatAvailability?.bookedSeatNumbers
+        ) {
+          return {
+            ...formatted,
+            seatAvailability: {
+              ...cleanSeatAvailability,
+              bookedSeatNumbers:
+                originalSubSchedule.dataValues.seatAvailability
+                  .bookedSeatNumbers,
+            },
+          };
+        }
+        return {
+          ...formatted,
+          seatAvailability: {
+            ...cleanSeatAvailability,
+          },
+        };
+      }
+    );
+
+    // NEW: Tambahkan route information yang lebih clear dan hapus field yang tidak dibutuhkan
+    const finalFormattedSchedules = formattedSchedulesWithSeats.map(
+      (formatted) => {
+        const originalSchedule = filteredSchedules.find(
+          (s) => s.id === formatted.id
+        );
+        const { id, availability, boost, ...cleanSeatAvailability } =
+          formatted.seatAvailability || {};
+        if (originalSchedule) {
+          // Use formatted route shape to keep timeline/source fields consistent
+          // with the response payload (from/to/departure/arrival/transits).
+          const routeInfo = formatRouteTimeline(formatted);
+          const normalizedPrice = normalizePrice(formatted.price);
+
+          // Destructure untuk exclude field yang tidak dibutuhkan
+          const {
+            transits,
+            departure_time,
+            arrival_time,
+            journey_time,
+            check_in_time,
+            ...cleanFormatted
+          } = formatted;
+
+          return {
+            ...cleanFormatted,
+            price: normalizedPrice,
+            boat: {
+              id: originalSchedule.Boat?.id,
+              name: originalSchedule.Boat?.boat_name,
+              capacity:
+                boost === false
+                  ? originalSchedule.Boat?.published_capacity
+                  : originalSchedule.Boat?.capacity,
+              image: originalSchedule.Boat?.boat_image,
+              seat_layout: {
+                inside_seats: originalSchedule.Boat?.inside_seats || [],
+                outside_seats: originalSchedule.Boat?.outside_seats || [],
+                rooftop_seats: originalSchedule.Boat?.rooftop_seats || [],
+              },
+            },
+            route_timeline: routeInfo.timeline,
+            route_description: formatRouteString(formatted),
+            route_steps: formatRouteSteps(formatted),
+            route_summary: routeInfo.route_summary,
+            route_type: routeInfo.route_type,
+            stops_count: routeInfo.stops_count,
+            ...getNetPrice({
+              agent,
+              tripType: originalSchedule.trip_type,
+              price: normalizedPrice,
+              discount: validDiscount,
+              includeTransportCommission: true,
+            }),
+          };
+        }
+        return formatted;
+      }
+    );
+
+    const finalFormattedSubSchedules = formattedSubSchedulesWithSeats.map(
+      (formatted) => {
+        const originalSubSchedule = filteredSubSchedules.find(
+          (s) => s.id === formatted.subschedule_id
+        );
+        const { id, availability, boost, ...cleanSeatAvailability } =
+          formatted.seatAvailability || {};
+        if (originalSubSchedule) {
+          // Build timeline from formatted object so sub-schedule transits
+          // (Transit1..4 mapped to `transits`) are included consistently.
+          const routeInfo = formatRouteTimeline(formatted);
+          const normalizedPrice = normalizePrice(formatted.price);
+
+          // Destructure untuk exclude field yang tidak dibutuhkan
+          const {
+            transits,
+            departure_time,
+            arrival_time,
+            journey_time,
+            check_in_time,
+            ...cleanFormatted
+          } = formatted;
+
+          return {
+            ...cleanFormatted,
+            price: normalizedPrice,
+            boat: {
+              id: originalSubSchedule.Schedule?.Boat?.id,
+              name: originalSubSchedule.Schedule?.Boat?.boat_name,
+              capacity:
+                boost === false
+                  ? originalSubSchedule.Schedule?.Boat?.published_capacity
+                  : originalSubSchedule.Schedule?.Boat?.capacity,
+              image: originalSubSchedule.Schedule?.Boat?.boat_image,
+              seat_layout: {
+                inside_seats:
+                  originalSubSchedule.Schedule?.Boat?.inside_seats || [],
+                outside_seats:
+                  originalSubSchedule.Schedule?.Boat?.outside_seats || [],
+                rooftop_seats:
+                  originalSubSchedule.Schedule?.Boat?.rooftop_seats || [],
+              },
+            },
+            route_timeline: routeInfo.timeline,
+            route_description: formatRouteString(formatted),
+            route_steps: formatRouteSteps(formatted),
+            route_summary: routeInfo.route_summary,
+            route_type: routeInfo.route_type,
+            stops_count: routeInfo.stops_count,
+            ...getNetPrice({
+              agent,
+              tripType: originalSubSchedule.trip_type,
+              price: normalizedPrice,
+              discount: validDiscount,
+              includeTransportCommission: true,
+            }),
+          };
+        }
+        return formatted;
+      }
+    );
+
+    // Combine the results into a single array
+    const combinedSchedules = [
+      ...finalFormattedSchedules,
+      ...finalFormattedSubSchedules,
+    ];
+
+    // Return the combined results
+    res.status(200).json({
+      status: "success",
+      data: {
+        schedules: combinedSchedules,
+        ...(hasPassengerCount && {
+          passenger_count_requested: passengerCount,
+        }),
+      },
+    });
+  } catch (error) {
+    console.error("Error searching schedules and subschedules:", error);
+    res.status(500).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+};
+
+
+
 // const searchSchedulesAndSubSchedulesAgent = async (req, res) => {
 //   const { from, to, date, passengers_total } = req.query;
 
@@ -4471,4 +4750,5 @@ module.exports = {
   getScheduleSubschedule,
   searchSchedulesAndSubSchedulesAgent,
   createSeatAvailability,
+  searchSchedulesAndSubSchedulesV3,
 };
