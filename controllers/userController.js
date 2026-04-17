@@ -68,7 +68,7 @@ const forgotPassword = async (req, res) => {
         console.log('Generated reset token:', resetToken);
 
         // Buat URL reset password
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        const resetUrl = `https://giligetaway-server.my.id/reset-password?token=${resetToken}`;
         console.log('Reset URL:', resetUrl);
 
         const emailHtml = `
